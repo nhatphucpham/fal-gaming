@@ -46,6 +46,12 @@ trời lạnh dần).
   địch +1 cấp, thương binh nghỉ lâu; chúa tể 2 luật, cấm ngẫu nhiên một nguyên tố; chết là mất,
   địch có tướng, không xem trước đội địch.
 
+**Khó nghĩ, dễ nhìn** (Phúc xác nhận: khó hơn, cần nghĩ nhiều hơn, nhưng không khó nhìn): bàn cố
+định 15 ô/8 quân; mỗi tầng một kênh hiển thị riêng (biểu tượng tộc/nghề, đường nối trận đồ, màu
+viền + hình cho nguyên tố); xem trước combo sẽ nổ và combo thiếu một quân khi đang xếp; chi tiết
+chỉ hiện khi nhấn giữ; trong trận mỗi lúc một điểm nhấn (chậm nửa giây khi chuỗi nổ); màn hình dọc,
+bàn nửa trên, cửa hàng nửa dưới.
+
 **Chơi lâu dài:** Sổ Trận Đồ (~40, có trận đồ ẩn), mở khóa tướng/tộc/trang bị, Thử Thách Ngày
 (seed chung, bảng xếp hạng), truyện ngắn theo từng tướng làm lớp phủ.
 
