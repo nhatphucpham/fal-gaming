@@ -1,18 +1,12 @@
 # Conventions
 
-- Follow Epic C++ conventions: tabs for indentation, PascalCase names and
-  Unreal's `A`, `U`, `F`, `E`, `I` and `T` type prefixes. Use reflected
-  properties/functions with appropriate categories; use `TObjectPtr` for
-  persistent UObject member references and normal non-owning local pointers.
-- Keep core gameplay logic in C++. Blueprints are for subclassing, content and
-  tuning. Split public interfaces and private implementations.
-- Use these asset prefixes: `BP_` Blueprint, `WBP_` widget, `M_` material,
-  `MI_` material instance, `T_` texture, `SM_` static mesh, `SK_` skeletal
-  mesh, `A_` animation, `NS_` Niagara system, `DA_` data asset, `IA_` input
-  action, `IMC_` input mapping context.
-- Put assets under `Content/Falemag` by feature. Keep personal experiments in
-  `_Dev`; never ship them. Do not edit others' sandbox content.
-- Track binary assets with Git LFS and lock `.uasset` and `.umap` files before
-  editing. Use short-lived feature branches and PRs into `main`.
-- Use Conventional Commits, for example `feat: add inventory` or
-  `fix: correct movement input`.
+- Keep gameplay logic in C++ and use Godot scenes for composition and tuning.
+  Add a GDExtension build setup when native gameplay is introduced.
+- Use tabs for C++ and GDScript indentation. Use descriptive scene and node
+  names, and place assets under `Content/Falemag` by feature.
+- Keep personal experiments in `Content/Falemag/_Dev` and exclude them from
+  every export preset. Do not edit other developers' sandbox content.
+- Commit text scenes and resources to Git; track binary media with Git LFS.
+  Do not commit generated `.godot` files or exported builds.
+- Use short-lived feature branches and PRs into `main`. Write Conventional
+  Commits, for example `feat: add inventory` or `fix: correct movement input`.

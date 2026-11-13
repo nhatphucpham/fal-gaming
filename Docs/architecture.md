@@ -1,18 +1,15 @@
 # Architecture
 
-`Source/Falemag` is the runtime module. Public headers are in `Public`;
-implementation and automation tests are in `Private`. The two target files
-define the game and editor builds. Add small gameplay systems to the runtime
-module by feature; extract an independent, reusable system into a plugin only
-when its boundaries warrant it.
+`project.godot` defines the Godot project and its main scene. `Scenes/main.tscn`
+is an empty Node2D root, ready for the eventual game design. The existing
+`Content/Falemag` directories can hold feature assets. `Tests/smoke_test.gd`
+checks that the main scene loads and has a 2D root.
 
-`UFalemagGameInstance` lives for the lifetime of the game and is the place for
-cross-level state. `AFalemagGameMode` selects the pawn and controller for a
-game world. `AFalemagPlayerController` installs the local player's input mapping
-context; `AFalemagCharacter` binds move, look and jump actions and owns the
-camera. The default C++ classes are configured in `DefaultEngine.ini`.
+The old Unreal 3D starter classes and input setup were removed rather than
+assuming a 2D control scheme. Add gameplay systems in C++ using Godot's
+GDExtension interface when the gameplay design and native build setup are
+decided; use scenes for composition and tuning. No native extension or
+third-party plugin is included yet.
 
-Input assets and a playable map are intentionally not checked in. Follow the
-editor steps in the README to create and wire Blueprint subclasses and assets.
-New content belongs under `Content/Falemag` in the relevant feature folder;
-`_Dev` is for experiments and excluded from cooking.
+The Windows export preset excludes `Content/Falemag/_Dev` and `Tests` via its
+exclude filter. Other export presets must apply the same exclusions independently.

@@ -8,7 +8,7 @@ permissions:
   contents: read
 
 jobs:
-  hygiene:
+  godot:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -18,25 +18,14 @@ jobs:
         run: |
           git diff --check "$(git hash-object -t tree /dev/null)" HEAD
           git lfs fsck --pointers HEAD
-          for script in Scripts/*.sh; do bash -n "$script"; done
-
-  unreal:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, Windows, unreal]
-    steps:
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          lfs: true
-      - name: Build editor
-        shell: cmd
-        run: Scripts\build-editor.bat
-      - name: Run automation tests
-        shell: pwsh
+      - name: Install Godot 4.4.1
         run: |
-          if (-not $env:UE_ROOT) { throw "Set UE_ROOT on the self-hosted runner." }
-          $report = Join-Path $env:RUNNER_TEMP "FalemagAutomation"
-          if (Test-Path $report) { Remove-Item -Recurse -Force $report }
-          & "$env:UE_ROOT\Engine\Binaries\Win64\UnrealEditor-Cmd.exe" "$env:GITHUB_WORKSPACE\Falemag.uproject" -unattended -nop4 -nosplash -nullrhi '-ExecCmds=Automation RunTests Falemag' '-TestExit=Automation Test Queue Empty' "-ReportExportPath=$report"
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-          $result = Get-Content "$report\index.json" -Raw | ConvertFrom-Json
-          if ($result.failed -gt 0 -or $result.succeeded -lt 1) { throw "Falemag automation tests failed or did not run." }
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/godot.zip" https://github.com/godotengine/godot-builds/releases/download/4.4.1-stable/Godot_v4.4.1-stable_linux.x86_64.zip
+          echo "d6e382fb531019f85630c1f485a561a0d20c4a2344b6c3847735cfee7da812aa  $RUNNER_TEMP/godot.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP"
+      - name: Import and test project
+        run: |
+          GODOT="$RUNNER_TEMP/Godot_v4.4.1-stable_linux.x86_64"
+          "$GODOT" --headless --editor --path "$GITHUB_WORKSPACE" --import
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/smoke_test.gd
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --quit-after 2
