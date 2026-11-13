@@ -1,9 +1,9 @@
-# Falemag
+# Falemag — Godot 2D Game Project
 
-Falemag is a single-player 2D game project using Godot 4.4.1. Win64 is the
-first target. The genre and gameplay are not yet specified; this is an empty
-2D starter scene, not a playable game. Unreal gameplay has not been ported,
-since 2D movement and controls depend on the game's design.
+Falemag is a single-player 2D game project built with Godot 4.4.1, targeting
+Windows 64-bit first. It currently contains an empty starter scene, a smoke
+test, and a Windows export preset. The genre, gameplay, and controls have yet
+to be defined; the project is not yet a playable game.
 
 ## Requirements
 
