@@ -10,3 +10,10 @@
 Gameplay systems will be written in C++ through GDExtension once the core
 design is decided; scenes compose and tune them. No native extension or
 third-party plugin is included yet.
+
+## Layers and documentation
+
+Code is organized in three layers (simulation, bridge, presentation) as
+described in [Coding conventions](conventions.md). Each system gets a page in
+`Docs/systems/`, written from `Docs/systems/_template.md` when the system is
+added. No system page exists yet.
