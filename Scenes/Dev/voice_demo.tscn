@@ -1,0 +1,52 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://Scenes/Dev/voice_demo.gd" id="1"]
+
+[node name="VoiceDemo" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Box" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 32.0
+offset_top = 32.0
+offset_right = -32.0
+offset_bottom = -32.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Title" type="Label" parent="Box"]
+layout_mode = 2
+text = "Voice module test"
+
+[node name="Text" type="LineEdit" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Ngươi đã phản bội ta, nhưng ta vẫn sẽ cứu ngươi."
+placeholder_text = "Line to speak"
+
+[node name="VoiceName" type="LineEdit" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+placeholder_text = "Voice (empty = default)"
+
+[node name="Speak" type="Button" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Speak"
+
+[node name="Status" type="Label" parent="Box"]
+unique_name_in_owner = true
+layout_mode = 2
+autowrap_mode = 3
+
+[node name="Player" type="AudioStreamPlayer" parent="."]
+unique_name_in_owner = true
