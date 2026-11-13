@@ -30,6 +30,9 @@ jobs:
           - name: android-arm32
             os: ubuntu-latest
             flags: platform=android arch=arm32 ndk_version=28.1.13356709
+          - name: web-wasm32
+            os: ubuntu-latest
+            flags: platform=web threads=no
     defaults:
       run:
         shell: bash
@@ -46,6 +49,13 @@ jobs:
         if: startsWith(matrix.name, 'android')
         run: |
           { yes 2>/dev/null || true; } | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;28.1.13356709" > /dev/null
+      - name: Install Emscripten
+        if: matrix.name == 'web-wasm32'
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install 4.0.11
+          "$RUNNER_TEMP/emsdk/emsdk" activate 4.0.11
+          echo "EMSDK_ENV=$RUNNER_TEMP/emsdk/emsdk_env.sh" >> "$GITHUB_ENV"
       - name: Restore SCons cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -56,6 +66,7 @@ jobs:
             scons-${{ matrix.name }}-
       - name: Build debug and release libraries
         run: |
+          if [ -n "${EMSDK_ENV:-}" ]; then source "$EMSDK_ENV"; fi
           scons -j4 ${{ matrix.flags }} target=template_debug
           scons -j4 ${{ matrix.flags }} target=template_release
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -64,6 +75,7 @@ jobs:
           path: |
             bin/*.so
             bin/*.dll
+            bin/*.wasm
           if-no-files-found: error
 
   godot:

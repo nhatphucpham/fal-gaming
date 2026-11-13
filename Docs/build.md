@@ -11,7 +11,8 @@ placeholders.
 - Python 3 and SCons (`python -m pip install scons`).
 - A C++17 compiler: Visual Studio 2022 Build Tools (MSVC) on Windows, GCC or
   Clang on Linux. Android builds also need the Android NDK `28.1.13356709`
-  installed through the Android SDK, with `ANDROID_HOME` set.
+  installed through the Android SDK, with `ANDROID_HOME` set. Web builds need
+  Emscripten 4.0.11 activated through emsdk.
 - The `Native/godot-cpp` submodule (`git submodule update --init`).
 
 ## Build the extension
@@ -25,6 +26,7 @@ and takes a few minutes; later builds only recompile changed files.
 | Release export on this machine | `scons target=template_release` |
 | Android arm64 | `scons platform=android arch=arm64 target=template_release` |
 | Android arm32 (older phones) | `scons platform=android arch=arm32 target=template_release` |
+| Web (no threads) | `scons platform=web threads=no target=template_release` |
 
 Libraries are written to `bin/` with names such as
 `libfalemag.windows.template_debug.x86_64.dll`, matching the entries in
@@ -40,8 +42,8 @@ After building, run the editor import and `Tests/smoke_test.gd` as shown in
 the README. The smoke test checks that the extension is loaded, that the main
 scene contains a `SimClock`, and that it ticks as expected.
 
-CI builds debug and release libraries for Linux x86_64, Windows x86_64 and
-Android arm64 and arm32, uploads them as workflow artifacts, then runs the
+CI builds debug and release libraries for Linux x86_64, Windows x86_64,
+Android arm64 and arm32, and the web (wasm32 without threads), uploads them as workflow artifacts, then runs the
 import and smoke test with the Linux library. These checks do not replace
 testing an exported build on the target device.
 
