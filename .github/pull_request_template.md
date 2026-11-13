@@ -17,6 +17,13 @@
 - [ ] Public classes and functions have short doc comments; no commented-out
       code; every `TODO` has an issue.
 - [ ] Docs updated: `Docs/systems/<system>.md`, `Docs/architecture.md`,
-      `Docs/build.md` as needed, and `CHANGELOG.md` under `Unreleased`.
-      Or `[no-docs]` with a reason: <!-- reason -->
+      `Docs/build.md` as needed.
+- [ ] `CHANGELOG.md` entry under `Unreleased`, if a player or tester would
+      notice the change.
 - [ ] Tests added or updated; import, smoke test and native build pass.
+
+## No docs needed?
+
+<!-- Only for a pure refactor or a typo: replace this comment with a line
+that starts with [no-docs] and gives the reason, such as
+"[no-docs] rename a private helper". Otherwise delete this section. -->

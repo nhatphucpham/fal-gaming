@@ -16,4 +16,5 @@ third-party plugin is included yet.
 Code is organized in three layers (simulation, bridge, presentation) as
 described in [Coding conventions](conventions.md). Each system gets a page in
 `Docs/systems/`, written from `Docs/systems/_template.md` when the system is
-added. No system page exists yet.
+added. A system page written elsewhere before this rule moves there the next
+time it changes.

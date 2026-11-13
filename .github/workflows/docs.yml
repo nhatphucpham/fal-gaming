@@ -23,7 +23,7 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_BODY: ${{ github.event.pull_request.body }}
         run: |
-          changed="$(git diff --name-only "$BASE_SHA...$HEAD_SHA")"
+          changed="$(git -c core.quotePath=false diff --name-only "$BASE_SHA...$HEAD_SHA")"
           printf 'Changed files:\n%s\n' "$changed"
           # Code is anything except docs, tests, Markdown, .uid files and
           # editor or Git settings.
@@ -33,7 +33,7 @@ jobs:
             echo "No code changed."
           elif [ -n "$docs" ]; then
             echo "Code changed and docs were updated."
-          elif printf '%s\n' "$PR_BODY" | grep -Eq '^[[:space:]]*\[no-docs\][[:space:]]*[^[:space:]]'; then
+          elif printf '%s\n' "$PR_BODY" | grep -Eq '^[[:space:]>*`-]*\[no-docs\][`[:space:]]*[^`[:space:]]'; then
             echo "Code changed without docs; the description gives a [no-docs] reason."
           else
             printf 'Code changed without a docs update:\n%s\n' "$code"

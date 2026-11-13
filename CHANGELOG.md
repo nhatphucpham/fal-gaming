@@ -1,7 +1,8 @@
 # Changelog
 
-Notable changes to Falemag, newest first. Add an entry under `Unreleased` in
-the same pull request as the change (see `Docs/conventions.md`, section 8).
+Changes a player or tester would notice, newest first. Add an entry under
+`Unreleased` in the same pull request as the change (see
+`Docs/conventions.md`, section 8).
 Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ## Unreleased

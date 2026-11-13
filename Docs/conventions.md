@@ -24,9 +24,11 @@ Code is split into three layers. Dependencies point downward only.
 - Simulation code that does not need Godot types stays plain C++, so it can
   be tested and replayed without the engine.
 - One system per folder: `Native/src/<system>/` for C++,
-  `Systems/<System>/` for GDScript. A system only talks to another through that
-  system's public API or signals, never through its private members or child
-  nodes.
+  `Systems/<System>/` for GDScript. Shared engine glue (`register_types`,
+  `SimClock`) stays directly in `Native/src/`. `SConstruct` must compile
+  `.cpp` files in those subfolders too; the first pull request that adds one
+  updates it. A system only talks to another through that system's public API
+  or signals, never through its private members or child nodes.
 - Autoloads are for true global services only (voice, logging, save). Each new
   autoload is listed in `Docs/architecture.md` with its reason.
 
@@ -39,8 +41,8 @@ Code is split into three layers. Dependencies point downward only.
 - Behavior that varies by content goes through a **registry**: the system maps
   an id to a handler or a data entry. Do not grow `match`/`switch` statements
   over content types.
-- Every piece of content has a stable string id in `snake_case`
-  (`unit.spear_guard`, `skill.shield_wall`). Ids never change once shipped;
+- Every piece of content has a stable string id of the form
+  `<kind>.<snake_case_name>` (`unit.spear_guard`, `skill.shield_wall`). Ids never change once shipped;
   saves, replays, logs and network messages use ids, never array indexes or
   node paths.
 - Tuning numbers (damage, cooldowns, costs, timings) live in data or in named
@@ -87,7 +89,7 @@ Code is split into three layers. Dependencies point downward only.
 | Class / `class_name` | `PascalCase` (`SimClock`) | `PascalCase` (`VoiceService`) |
 | Function, method | `snake_case` | `snake_case` |
 | Variable, member | `snake_case` | `snake_case` |
-| Private member | `snake_case`, in the `private:` section | `_snake_case` |
+| Private member | `snake_case`, private (the class default after `GDCLASS` or a `private:` section) | `_snake_case` |
 | Parameter | `p_name`; output parameter `r_name` | `name` |
 | Constant | `CONSTANT_CASE` (`constexpr`) | `CONSTANT_CASE` |
 | Enum type / value | `PascalCase` / `CONSTANT_CASE` | `PascalCase` / `CONSTANT_CASE` |
@@ -111,8 +113,12 @@ result on every device from the same inputs.
 - All randomness comes from one seeded generator owned by the simulation and
   passed in. Never call `randi()`, `randf()`, `std::rand`, `Time`, `OS` or
   read the wall clock from simulation code.
-- Iterate in a defined order. In C++ do not iterate `std::unordered_map` or
-  `HashMap` when the order changes the result; sort by id first.
+- Iterate in a defined order. Do not iterate `std::unordered_map` or
+  `std::unordered_set` when the order changes the result: their order differs
+  between standard libraries (desktop vs Android). Godot's `HashMap`,
+  `HashSet` and `Dictionary` keep insertion order, which is fine as long as
+  the insertions themselves happen in a deterministic order. When in doubt,
+  sort by id.
 - A battle is fully described by: data version, seed, and the list of player
   commands with their tick. Keep those three recordable (see section 6).
 
@@ -124,9 +130,12 @@ result on every device from the same inputs.
   (`ERR_FAIL_COND_V_MSG`, `ERR_FAIL_INDEX_MSG`); in GDScript use
   `push_error` for runtime problems and `assert` for programmer mistakes.
 - Never swallow an error silently. If a failure is expected (the TTS server is
-  offline), handle it, log it once at `warn`, and keep the game running.
-- Error messages name the system, the object id and the bad value:
-  `Combat: unit.spear_guard has negative hp -3`.
+  offline), handle it, report it once with `push_warning` or `WARN_PRINT`, and
+  keep the game running.
+- Error and warning messages (`push_error`, `push_warning`, `assert`,
+  `ERR_*_MSG`, `WARN_PRINT`) start with the system name and give the object id
+  and the bad value: `Combat: unit.spear_guard has negative hp -3`. The
+  structured format below is for event logs, not for these messages.
 
 ### Logs
 
@@ -142,7 +151,9 @@ same shape:
   `info` (major game events: round start, unit death, save), `debug`
   (developer detail), `trace` (every simulation event). `trace` and `debug`
   are off by default and switched on per system.
-- **System** is the system name in `PascalCase`, the same as its folder.
+- **System** is the system name in `PascalCase`: the folder name for
+  GDScript, the `PascalCase` form of the folder name for C++ (`combat/` is
+  `Combat`).
 - **Event** is a `snake_case` past-tense name; fields are `key=value` with ids,
   not display names. Add `t=<tick>` for anything inside the simulation.
 - Log through the project's logging helper once it exists; until then, follow
@@ -169,21 +180,25 @@ same shape:
   `fix(voice): retry after auth error`.
 - A pull request links the issue or design note it implements and lists what
   a reviewer should check by hand.
-- User-visible changes are recorded in `CHANGELOG.md` under `Unreleased`.
+- Changes a player or tester would notice are recorded in `CHANGELOG.md`
+  under `Unreleased`.
 
 ## 7. Comments
 
 Comments explain **why**, not **what**. Good names explain what.
 
-- Every public class, and every public function whose name does not say it
-  all, gets a doc comment of one to three lines: what it is for, units, and
-  anything surprising (ranges, side effects, who owns the result).
+- Every public function whose name does not say it all gets a doc comment of
+  one to three lines: what it is for, units, and anything surprising (ranges,
+  side effects, who owns the result).
+- Every public class gets a doc comment that says what it is for and how it
+  is used. Keep it under about ten lines, a short usage example included.
   - GDScript: `##` above the declaration, so it shows in the editor help.
   - C++: `//` above the declaration in the header.
 - Inside a function, comment only what the code cannot say: a reason, a
   constraint, a trade-off, a link to the rule or bug it follows.
-- Keep comments short. If an explanation needs more than about five lines, it
-  belongs in the system's doc page; link to it from the code.
+- Keep comments short. If an explanation inside a function, or on a member,
+  needs more than about five lines, it belongs in the system's doc page; link
+  to it from the code.
 - Write `TODO(<who>): <what> (#<issue>)`. A `TODO` without an issue is not
   allowed on `master`.
 - Update or delete a comment in the same change that makes it wrong.
@@ -222,10 +237,19 @@ A system page says what the system is for, its data, its public API and
 signals, its log events, how to extend it (add a unit, a skill), and how it is
 tested. Keep it short and current; a wrong doc is worse than none.
 
+The `CHANGELOG.md` entry is required only for changes a player or tester
+would notice; the CI check does not look for it, so reviewers do.
+
 A pull request that truly needs no doc change (a pure refactor, a typo)
 starts a line of its description with `[no-docs]` followed by a one-line
-reason, for example `[no-docs] rename a private helper`. The check then passes.
-Changes only to `Tests/` or Markdown files never need it.
+reason, for example:
+
+```text
+[no-docs] rename a private helper
+```
+
+The check then passes. Changes only to `Tests/` or Markdown files never need
+it.
 
 ## 9. Tests
 
