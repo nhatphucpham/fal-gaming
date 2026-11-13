@@ -5,8 +5,8 @@ tactics. It targets low-end PCs and mobile phones, and may later support
 online play.
 
 The project is at the starter stage: a C++ GDExtension with one sample node,
-a main scene that uses it, a smoke test, a Windows export preset, and CI.
-Gameplay, story, and controls are not yet implemented.
+a main scene that uses it, a smoke test, Windows, Android and Web export
+presets, and CI. Gameplay, story, and controls are not yet implemented.
 
 ## Requirements
 
@@ -45,8 +45,12 @@ mkdir build\windows
 "%GODOT%" --headless --path "%CD%" --export-release "Windows Desktop" "%CD%\build\windows\Falemag.exe"
 ```
 
-Only the Windows preset exists so far; an Android preset will be added. The
-`build` directory is ignored by Git.
+The `Web` preset builds the version to try on any phone, including iPhone:
+CI publishes it from `master` to <https://nhatphucpham.github.io/fal-gaming/>.
+The `Android` preset exports an arm64 APK. It needs the Android SDK and
+JDK 17 set in **Editor > Editor Settings > Export > Android**; see
+[Build and test](Docs/build.md). The `build` directory is ignored by
+Git.
 
 ## Documentation
 
