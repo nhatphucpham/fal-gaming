@@ -12,10 +12,11 @@ the host platform, which has not been validated as a shipping target.
 - `Scripts/clean.bat` / `.sh`: **delete** project `Binaries`, `Intermediate`,
   `Saved` (including local saves and logs), and `DerivedDataCache`.
 
-The build/cook/package scripts invoke Unreal Automation Tool's `BuildCookRun`
-and forward extra command-line arguments. Create and configure the default map
-before cooking or packaging. These scripts require the appropriate engine
-platform support and native toolchain.
+The editor build uses UnrealBuildTool through the engine's build script;
+game build, cook and package use Unreal Automation Tool's `BuildCookRun`.
+All four forward extra command-line arguments. Build the editor and create and
+configure the default map before cooking or packaging. These scripts require
+the appropriate engine platform support and native toolchain.
 
 The Windows test command is in the README. On Linux/macOS, substitute the
 corresponding `UnrealEditor-Cmd` executable in
