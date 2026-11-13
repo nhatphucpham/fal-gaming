@@ -5,7 +5,7 @@ tactics. It targets low-end PCs and mobile phones, and may later support
 online play.
 
 The project is at the starter stage: an empty main scene, a smoke test,
-Windows and Android export presets, and CI. Gameplay, story, and controls are not yet
+Windows, Android and Web export presets, and CI. Gameplay, story, and controls are not yet
 implemented.
 
 ## Requirements
@@ -40,9 +40,11 @@ mkdir build\windows
 "%GODOT%" --headless --path "%CD%" --export-release "Windows Desktop" "%CD%\build\windows\Falemag.exe"
 ```
 
+The `Web` preset builds the version to try on any phone, including iPhone:
+CI publishes it from `master` to <https://nhatphucpham.github.io/fal-gaming/>.
 The `Android` preset exports an arm64 APK. It needs the Android SDK and
 JDK 17 set in **Editor > Editor Settings > Export > Android**; see
-[Build and test](Docs/build.md#android). The `build` directory is ignored by
+[Build and test](Docs/build.md). The `build` directory is ignored by
 Git.
 
 ## Documentation
