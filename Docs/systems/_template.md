@@ -15,7 +15,7 @@ One or two sentences: what the system is responsible for and what it is not.
 
 ## Data
 
-The `Resource` types it reads, where their files live (`Data/<kind>/`), each
+The `Resource` types it reads, where their files live (`Data/<Kinds>/`, such as `Data/Units/`), each
 field with its unit and valid range, and how ids are formed.
 
 ## Public API

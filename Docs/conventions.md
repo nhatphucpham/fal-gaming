@@ -35,9 +35,10 @@ Code is split into three layers. Dependencies point downward only.
 ## 2. Easy to extend: data first
 
 - Game content (units, classes, skills, items, formations, enemies, dialogue)
-  is **data**, not code. It lives in `Data/<kind>/` as typed `Resource` files
-  (`.tres`) whose script defines the schema. Adding a unit or a skill should
-  mean adding a data file, not editing a system.
+  is **data**, not code. It lives in `Data/<Kinds>/` (PascalCase plural, such
+  as `Data/Units/`) as typed `Resource` files (`.tres`) whose script defines
+  the schema. Adding a unit or a skill should mean adding a data file, not
+  editing a system.
 - Behavior that varies by content goes through a **registry**: the system maps
   an id to a handler or a data entry. Do not grow `match`/`switch` statements
   over content types.
@@ -115,10 +116,10 @@ result on every device from the same inputs.
   read the wall clock from simulation code.
 - Iterate in a defined order. Do not iterate `std::unordered_map` or
   `std::unordered_set` when the order changes the result: their order differs
-  between standard libraries (desktop vs Android). Godot's `HashMap`,
-  `HashSet` and `Dictionary` keep insertion order, which is fine as long as
-  the insertions themselves happen in a deterministic order. When in doubt,
-  sort by id.
+  between standard libraries (desktop vs Android). The iteration order of
+  Godot's `HashMap`, `HashSet` and `Dictionary` depends only on the order of
+  inserts and erases (it is not strictly insertion order after an erase), so
+  it is deterministic when those are. When in doubt, sort by id.
 - A battle is fully described by: data version, seed, and the list of player
   commands with their tick. Keep those three recordable (see section 6).
 
