@@ -31,6 +31,12 @@ quân trên bàn 5×3. Xếp đúng hình thì thành **trận đồ** và mở 
   Vong Nhân (hồn giữ chỗ 5 giây sau khi chết).
 - **Tướng** có luật riêng (vd. Liễu Mi: Mưa Tên chỉ cần 2 Cung); dữ liệu hóa, dàn tướng hàng trăm.
 - **Trang bị** đổi lớp quân khi tính trận đồ (Kiếm sĩ cầm cung được tính là Cung).
+- **Thăng Giai** (trục nâng cấp thứ hai, ngoài nâng sao): quân tích Huân công tự động (ra sân,
+  đứng trong trận đồ đang bật, góp vào chuỗi combo, hạ địch). Giai 2 (6 Huân): chọn 1 trong 2 nhánh
+  của lớp; Giai 3 (15 Huân): Danh hiệu, biệt danh theo chiến công và đòn riêng trong cảnh cắt.
+  Ghép sao giữ giai cao nhất; bán quân mất Huân. Nhánh đổi luật chứ không chỉ cộng chỉ số: tính là
+  hai lớp (Kỵ Thương, Cung Kỵ, Chú Kiếm), lật khắc chế (Cung Phá Giáp), đổi yêu cầu trận đồ (Thiết
+  Bích), phá trận đồ địch (Ám Phá Trận).
 
 **Năm khoảnh khắc vui:** tự khám phá trận đồ mới; một quân phục vụ hai trận đồ; lật kèo bằng
 chuỗi combo tự nổ; đọc trận đồ của địch để khắc; mỗi ván build khác nhau.
