@@ -29,3 +29,52 @@ jobs:
           "$GODOT" --headless --editor --path "$GITHUB_WORKSPACE" --import
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/smoke_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --quit-after 2
+
+  android:
+    needs: godot
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          lfs: true
+      - name: Install Godot 4.7.2
+        run: |
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/godot.zip" https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+          echo "cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4  $RUNNER_TEMP/godot.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP"
+      - name: Cache Android export templates
+        id: templates
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684 # v4.2.3
+        with:
+          path: ~/.local/share/godot/export_templates/4.7.2.stable
+          key: godot-android-templates-4.7.2-stable
+      - name: Install Android export templates
+        if: steps.templates.outputs.cache-hit != 'true'
+        run: |
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/templates.tpz" https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_export_templates.tpz
+          echo "f298490b8d44d934be425a5a65a51bf15f422428b229a06a6e11d9ffea248011  $RUNNER_TEMP/templates.tpz" | sha256sum --check
+          DEST="$HOME/.local/share/godot/export_templates/4.7.2.stable"
+          mkdir -p "$DEST"
+          unzip -q -j "$RUNNER_TEMP/templates.tpz" templates/android_debug.apk templates/version.txt -d "$DEST"
+          rm "$RUNNER_TEMP/templates.tpz"
+      - name: Export debug APK
+        run: |
+          export JAVA_HOME="$JAVA_HOME_17_X64"
+          export GODOT_ANDROID_KEYSTORE_DEBUG_PATH="$RUNNER_TEMP/debug.keystore"
+          export GODOT_ANDROID_KEYSTORE_DEBUG_USER=androiddebugkey
+          export GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD=android
+          keytool -genkeypair -keystore "$GODOT_ANDROID_KEYSTORE_DEBUG_PATH" -storepass android \
+            -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+          GODOT="$RUNNER_TEMP/Godot_v4.7.2-stable_linux.x86_64"
+          mkdir -p build/android
+          "$GODOT" --headless --editor --path "$GITHUB_WORKSPACE" --import
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --export-debug "Android" "$GITHUB_WORKSPACE/build/android/Falemag.apk"
+          test -s build/android/Falemag.apk
+          ls -l build/android/Falemag.apk
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: falemag-android-debug
+          path: build/android/Falemag.apk
+          retention-days: 7
+          if-no-files-found: error

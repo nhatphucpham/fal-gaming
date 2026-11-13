@@ -4,8 +4,8 @@ Falemag is a lightweight 2D game built with Godot 4.7.2, focused on story and
 tactics. It targets low-end PCs and mobile phones, and may later support
 online play.
 
-The project is at the starter stage: an empty main scene, a smoke test, a
-Windows export preset, and CI. Gameplay, story, and controls are not yet
+The project is at the starter stage: an empty main scene, a smoke test,
+Windows and Android export presets, and CI. Gameplay, story, and controls are not yet
 implemented.
 
 ## Requirements
@@ -40,8 +40,10 @@ mkdir build\windows
 "%GODOT%" --headless --path "%CD%" --export-release "Windows Desktop" "%CD%\build\windows\Falemag.exe"
 ```
 
-Only the Windows preset exists so far; an Android preset will be added. The
-`build` directory is ignored by Git.
+The `Android` preset exports an arm64 APK. It needs the Android SDK and
+JDK 17 set in **Editor > Editor Settings > Export > Android**; see
+[Build and test](Docs/build.md#android). The `build` directory is ignored by
+Git.
 
 ## Documentation
 
