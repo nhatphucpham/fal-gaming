@@ -18,8 +18,10 @@ missing, and the node loads as an unknown node.
 
 ## Build the extension
 
-Run SCons from the repository root. The first build also compiles godot-cpp
-and takes a few minutes; later builds only recompile changed files.
+Run SCons from the repository root. If `scons` is not on your PATH (common
+with the Microsoft Store Python), use `python -m SCons` instead. The first
+build also compiles godot-cpp and takes a few minutes; later builds only
+recompile changed files.
 
 | Target | Command |
 | --- | --- |

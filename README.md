@@ -25,7 +25,7 @@ git lfs install
 git clone --recurse-submodules https://github.com/nhatphucpham/fal-gaming.git
 cd fal-gaming
 python -m pip install scons
-scons target=template_debug
+python -m SCons target=template_debug
 set "GODOT=C:\Godot\Godot_v4.7.2-stable_win64_console.exe"
 rem Avoids a Godot 4.7.2 crash on the first import (see Docs/build.md)
 mkdir .godot
@@ -43,7 +43,7 @@ scene.
 From the project directory, after installing export templates:
 
 ```bat
-scons target=template_release
+python -m SCons target=template_release
 mkdir build\windows
 "%GODOT%" --headless --path "%CD%" --export-release "Windows Desktop" "%CD%\build\windows\Falemag.exe"
 ```
