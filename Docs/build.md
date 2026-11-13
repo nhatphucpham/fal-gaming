@@ -12,7 +12,7 @@ placeholders.
 - A C++17 compiler: Visual Studio 2022 Build Tools (MSVC) on Windows, GCC or
   Clang on Linux. Android builds also need the Android NDK `28.1.13356709`
   installed through the Android SDK, with `ANDROID_HOME` set. Web builds need
-  Emscripten 4.0.11 activated through emsdk.
+  Emscripten 4.0.20 activated through emsdk.
 - The `Native/godot-cpp` submodule (`git submodule update --init`).
 
 ## Build the extension
