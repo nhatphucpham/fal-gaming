@@ -1,0 +1,225 @@
+<title>Falemag Ấn Truyền</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Be+Vietnam+Pro:wght@400;500;600&display=swap">
+<style>
+/* Layout: một cột đọc như cuộn thư, ấn son đỏ là điểm nhấn duy nhất */
+:root{
+  --paper:#eef0ec; --surface:#f8f9f6; --ink:#1d2433; --muted:#5b6474; --line:#cdd2cc;
+  --seal:#b3261e; --seal-soft:#f3dcd8; --jade:#2f6b5a;
+  --display:"Cormorant Garamond",Georgia,"Times New Roman",serif;
+  --body:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#141821; --surface:#1c212c; --ink:#e7e4da; --muted:#9aa2b1; --line:#2e3542;
+  --seal:#e0574b; --seal-soft:#3a1f22; --jade:#6fb59f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#141821; --surface:#1c212c; --ink:#e7e4da; --muted:#9aa2b1; --line:#2e3542;
+  --seal:#e0574b; --seal-soft:#3a1f22; --jade:#6fb59f; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.65}
+.wrap{max-width:860px;margin:0 auto;padding-block:40px 72px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:56px}
+h1,h2,h3{font-family:var(--display);font-weight:600;line-height:1.15;text-wrap:balance;margin:0}
+h1{font-size:clamp(40px,8vw,68px)}
+h2{font-size:clamp(28px,5vw,38px)}
+h3{font-size:24px}
+p{margin:0;max-width:65ch}
+.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.lead{font-size:18px;color:var(--muted)}
+section{display:flex;flex-direction:column;gap:18px}
+.hero{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:center}
+.seal{width:120px;height:120px;border:3px solid var(--seal);color:var(--seal);border-radius:10px;
+  display:grid;place-items:center;font-family:var(--display);font-size:44px;font-weight:700;transform:rotate(-6deg);line-height:1;text-align:center}
+.seal small{display:block;font-size:13px;letter-spacing:.2em;font-family:var(--body);font-weight:600}
+@media (max-width:560px){.hero{grid-template-columns:1fr}.seal{width:88px;height:88px;font-size:32px}}
+.pick{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:24px;display:flex;flex-direction:column;gap:14px}
+.pick .tag{align-self:flex-start;background:var(--seal);color:var(--surface);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border-radius:999px}
+ul.rules{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px}
+ul.rules li{padding-left:18px;position:relative;max-width:65ch}
+ul.rules li::before{content:"";position:absolute;left:0;top:.65em;width:8px;height:8px;background:var(--seal);border-radius:2px;transform:rotate(45deg)}
+b{font-weight:600}
+/* Hành trình của Ấn */
+.journey{display:flex;flex-direction:column;gap:16px}
+.chain{display:flex;gap:8px;flex-wrap:wrap}
+.node{flex:1 1 120px;min-width:0;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:14px;color:var(--muted);background:transparent;font-family:inherit;text-align:left;cursor:pointer}
+.node[aria-current="true"]{border-color:var(--seal);color:var(--ink);background:var(--seal-soft)}
+.node.dead{text-decoration:line-through;opacity:.7}
+.node:focus-visible,.btn:focus-visible{outline:2px solid var(--seal);outline-offset:2px}
+.stage{border-left:3px solid var(--seal);padding:4px 0 4px 18px;display:flex;flex-direction:column;gap:8px;min-height:180px}
+.stage .who{font-family:var(--display);font-size:26px;font-weight:600}
+.stage .meta{font-size:13px;color:var(--muted)}
+.marks{display:flex;gap:6px;flex-wrap:wrap}
+.mark{font-size:12px;border:1px solid var(--seal);color:var(--seal);padding:2px 8px;border-radius:999px}
+.btn{align-self:flex-start;font:inherit;font-weight:600;font-size:15px;background:var(--ink);color:var(--paper);border:0;border-radius:999px;padding:10px 18px;cursor:pointer}
+/* Năm hướng */
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:640px){.grid{grid-template-columns:1fr}}
+.card{border-top:2px solid var(--ink);padding-top:14px;display:flex;flex-direction:column;gap:10px}
+.card .changes{font-size:13px;color:var(--jade);font-weight:600}
+.card p{color:var(--muted);font-size:15px}
+.card.featured{border-top-color:var(--seal)}
+.card.featured .changes{color:var(--seal)}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:520px;font-size:15px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+details{border:1px solid var(--line);border-radius:12px;padding:14px 18px;background:var(--surface)}
+summary{cursor:pointer;font-weight:600}
+details[open] summary{margin-bottom:10px}
+details p+p{margin-top:8px}
+ol.q{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px}
+.foot{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:16px}
+@media (prefers-reduced-motion:no-preference){.stage{transition:opacity .25s}}
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <div style="display:flex;flex-direction:column;gap:14px;min-width:0">
+      <span class="eyebrow">Falemag · ý tưởng cốt lõi · bản phác 2</span>
+      <h1>Ấn Truyền</h1>
+      <p class="lead">Anh không chơi một người hùng. Anh chơi <b>chính lời nguyền</b>: một mảnh Thiên Mệnh Ấn có ý thức, sống bằng cách bám vào người cầm nó, và khi người đó chết thì nhảy sang kẻ đã giết họ.</p>
+    </div>
+    <div class="seal" aria-hidden="true"><div>天<br>印<small>ẤN</small></div></div>
+  </header>
+
+  <section>
+    <span class="eyebrow">Thế giới</span>
+    <h2>Đại lục Hằng Khư, sau Đêm Nguyệt Liệt</h2>
+    <p>Ba trăm năm trước, Thiên Triều dùng cấm thuật Thiên Mệnh Ấn trói vận mệnh mọi tộc vào ngai vàng. Mười năm trước, một đại thần phản bội ngay giữa lễ tế, Ấn vỡ, mặt trăng nứt đôi. Mọi món nợ nhân quả bị đè nén suốt ba thế kỷ bung ra cùng lúc. Bảy tộc (Nhân, Thạch Duệ, Vũ Dân, Lân Thủy, Mộc Hồn, Lang Tộc, Vong Nhân) tranh nhau phần đất còn sống được. Không tộc nào là phe ác.</p>
+  </section>
+
+  <section class="pick">
+    <span class="tag">Fa đề xuất</span>
+    <h2>Vì sao là Ấn Truyền</h2>
+    <p>Đây là hướng duy nhất biến cả năm điều anh muốn thành <b>luật chơi</b>, không chỉ là nội dung:</p>
+    <ul class="rules">
+      <li><b>Dàn nhân vật vô hạn</b> là cách kể chuyện: mỗi đời chủ là một người khác, từ tướng quân đến cô bé bán cá.</li>
+      <li><b>Phản bội là cách di chuyển</b>: muốn tới kinh đô nhanh, hãy khiến cận vệ đâm sau lưng chủ. Anh sẽ phải tự hỏi mình có đang gieo phản bội để đi đường tắt không.</li>
+      <li><b>Mất mát có quay lại</b>: chủ cũ nhớ việc bị Ấn bỏ rơi, xuống Đò Âm, rồi có thể đứng phía bên kia bàn cờ.</li>
+      <li><b>Nhân quả dồn lên Ấn</b>: mỗi đời chủ để lại một vết ấn (ơn, oán, lời hứa). Ấn không chết nên gánh nghiệp của tất cả.</li>
+      <li><b>Câu hỏi nhân văn nằm sẵn trong cơ chế</b>: một sức mạnh sống bằng cách đổi người, có nên tồn tại?</li>
+    </ul>
+  </section>
+
+  <section class="journey" aria-labelledby="j-title">
+    <span class="eyebrow">Thử cảm giác</span>
+    <h2 id="j-title">Hành trình của Ấn qua bốn đời chủ</h2>
+    <div class="chain" role="tablist" id="chain"></div>
+    <div class="stage" id="stage" aria-live="polite"></div>
+    <button class="btn" id="next" type="button">Đời chủ tiếp theo</button>
+  </section>
+
+  <section>
+    <span class="eyebrow">Các lớp ghép lại</span>
+    <h2>Mỗi lối chơi anh thích nằm ở đâu</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Lối chơi</th><th>Trong Ấn Truyền</th></tr></thead>
+      <tbody>
+        <tr><td><b>Auto chess</b></td><td>Quân là thuộc hạ của chủ hiện tại. Đổi chủ là đổi cả đội, mỗi đời là một ván xây đội mới. Ấn giữ lại 1–2 "mảnh ký ức" từ mỗi đời để không mất hết.</td></tr>
+        <tr><td><b>Chiến thuật</b></td><td>Xếp quân trước trận, trận tự đánh 30–60 giây. Đồng bộ theo tộc, theo đạo, và theo tình nghĩa: kết nghĩa đứng cạnh thì mạnh, kẻ thù đứng cạnh thì không chịu phối hợp.</td></tr>
+        <tr><td><b>Sinh tồn</b></td><td>Hạ trại mỗi chặng: lương, thuốc, củi, khí thế. Sinh tồn của Ấn là giữ chủ sống đủ lâu, hoặc chọn đúng lúc để chủ chết.</td></tr>
+        <tr><td><b>Nhân quả</b></td><td>Sổ vết ấn: hành động gieo Nhân, vài mùa sau chín thành Quả, và game cho thấy sợi dây nối từ việc cũ đến chuyện bây giờ.</td></tr>
+        <tr><td><b>Chơi mạng</b></td><td>Chủ bị anh bỏ rơi trôi sang thế giới người chơi khác thành lữ khách hay kẻ báo thù, và ngược lại. Chỉ gửi bản ghi nhỏ, chơi offline vẫn được.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <span class="eyebrow">Năm hướng phá cách</span>
+    <h2>Ấn Truyền được ghép từ đâu</h2>
+    <div class="grid">
+      <article class="card featured">
+        <span class="changes">Đổi: người chơi là ai</span>
+        <h3>Ấn Truyền</h3>
+        <p>Người chơi là lời nguyền, nhảy từ chủ này sang chủ khác qua cái chết và sự phản bội. Lõi của đề xuất.</p>
+      </article>
+      <article class="card featured">
+        <span class="changes">Đổi: chiến trường ở đâu</span>
+        <h3>Đò Âm</h3>
+        <p>Auto chess ở thế giới người chết. Mỗi hồn đấu một ván với chính ký ức của mình, quân cờ là người họ từng thương và từng hại. Ghép vào làm tầng âm phủ.</p>
+      </article>
+      <article class="card featured">
+        <span class="changes">Đổi: nhân quả đi xa tới đâu</span>
+        <h3>Thế Giới Chung Nghiệp</h3>
+        <p>Nhân vật người khác bỏ rơi trôi sang thế giới của anh. Mỗi mùa, lựa chọn của mọi người chơi cộng dồn quyết định vận một châu. Ghép vào làm lớp mạng.</p>
+      </article>
+      <article class="card">
+        <span class="changes">Đổi: thời gian</span>
+        <h3>Gia Phả</h3>
+        <p>Điều khiển một dòng họ qua 5–7 thế hệ. Con cái thừa hưởng sẹo, thù và lời thề; ông nội bỏ rơi ai, ba mươi năm sau cháu người đó về đòi đất.</p>
+      </article>
+      <article class="card">
+        <span class="changes">Đổi: phe của anh</span>
+        <h3>Hai Mặt Trận</h3>
+        <p>Mỗi chương đổi phe trong cùng một cuộc chiến. Đội hình chương trước thành đội địch chương sau: anh phải đánh bại chính chiến thuật của mình.</p>
+      </article>
+    </div>
+  </section>
+
+  <section>
+    <span class="eyebrow">Rủi ro</span>
+    <h2>Chỗ có thể hỏng và cách giữ</h2>
+    <ul class="rules">
+      <li><b>Khó gắn bó vì chủ đổi liên tục.</b> Mỗi đời chủ dài 20–40 phút, và có vài nhân vật đi theo Ấn xuyên các đời: kẻ săn Ấn, người hầu trung thành, đứa con của chủ đầu tiên.</li>
+      <li><b>Đổi đội làm auto chess rối.</b> Ấn mang theo mảnh ký ức; đội mới luôn có ít nhất một quân quen.</li>
+      <li><b>Nhiều nội dung.</b> Mỗi chủ chỉ là một file dữ liệu nhân vật cộng một bộ sự kiện nhỏ, không cần sửa code.</li>
+    </ul>
+  </section>
+
+  <section>
+    <span class="eyebrow">Kỹ thuật</span>
+    <h2>Vẫn nhẹ cho máy yếu và điện thoại</h2>
+    <ul class="rules">
+      <li>Godot 4.7, 2D thuần, renderer GL Compatibility, sprite trận khoảng 64 px.</li>
+      <li>Mô phỏng trận viết bằng C++ GDExtension, tất định (cùng đầu vào, cùng kết quả), nên máy chủ chỉ cần lưu đội hình và seed.</li>
+      <li>Giọng nói sinh trước bằng TTS tts.falevon.com lúc build, không gọi mạng khi chơi.</li>
+      <li>Bản thử đầu: 3 đời chủ (tướng Nhân tộc, cận vệ Lang Tộc phản chủ, đứa trẻ Lân Thủy nhặt được Ấn), 1 lần xuống Đò Âm, 1 Vong Nhân quay lại làm địch.</li>
+    </ul>
+  </section>
+
+  <details>
+    <summary>Bản phác 1: ba phương án an toàn (giữ để so sánh)</summary>
+    <p><b>A. Đoàn Lưu Vong:</b> dẫn đoàn người lưu vong qua chín châu, hạ trại sinh tồn, gặp địch thì auto chess. Nhân vật chính Ký, người chép sử bị anh em kết nghĩa Diên phản bội.</p>
+    <p><b>B. Thành Cuối:</b> giữ thành trì cuối cùng, ngày xây dựng, đêm phòng thủ auto chess theo đợt.</p>
+    <p><b>C. Bàn Cờ Thiên Mệnh:</b> chiến thuật theo lượt cổ điển, truyện tuyến tính, không có auto chess.</p>
+    <p>Hạ trại và Sổ Nhân Quả của A vẫn được dùng lại trong Ấn Truyền.</p>
+  </details>
+
+  <section>
+    <span class="eyebrow">Cần anh chốt</span>
+    <h2>Bốn câu hỏi</h2>
+    <ol class="q">
+      <li>Hướng nào làm anh hứng nhất: Ấn Truyền, một hướng khác trong năm hướng, hay quay về Đoàn Lưu Vong?</li>
+      <li>Giọng điệu u tối đến đâu: bi tráng có hy vọng, hay tàn khốc thật sự?</li>
+      <li>Sprite trận: pixel art, vẽ tay phẳng, hay kiểu cắt giấy có khớp?</li>
+      <li>Tử trận vĩnh viễn là mặc định, hay để người chơi chọn từ đầu?</li>
+    </ol>
+  </section>
+
+  <p class="foot">Mọi tên riêng là tên tạm, tự đặt cho dự án. Bản đầy đủ nằm trong Docs/game-concept.md của repo fal-gaming.</p>
+</div>
+
+<script>
+const holders=[
+  {who:"Tướng quân Hạ Vũ",race:"Nhân tộc · tướng trấn biên",story:"Ấn cho ông thắng mọi trận, nhưng mỗi trận thắng lại khiến ông nghi kỵ thuộc hạ hơn. Anh có thể giữ ông sống, hoặc để lòng tham của cận vệ chín muồi.",marks:["hứa chia đất cho Lang Tộc","xử oan một thư lại"],end:"Bị cận vệ Ba Khắc đâm sau lưng trong đêm. Ấn sang tay kẻ giết ông."},
+  {who:"Ba Khắc",race:"Lang Tộc · cận vệ phản chủ",story:"Hắn phản chủ để giữ lời hứa chia đất mà Hạ Vũ đã nuốt. Lời hứa cũ của đời chủ trước giờ là nợ của hắn, và của Ấn.",marks:["mang tội giết chủ","nợ lời hứa đất cho tộc"],end:"Tử trận khi giữ cầu cho tộc mình rút lui. Một đứa trẻ nhặt được Ấn dưới gầm cầu."},
+  {who:"Bé Thủy Liên",race:"Lân Thủy · bán cá ven sông",story:"Đời chủ yếu nhất. Không có quân, chỉ có láng giềng. Sinh tồn thật sự: lương, thuốc, củi. Anh có dám dùng Ấn lên một đứa trẻ không?",marks:["được dân làng che chở","Hạ Vũ trở về làm Vong Nhân"],end:"Ấn có thể chọn rời bé đi, đổi lấy việc tự yếu đi một nửa."},
+  {who:"Đò Âm",race:"Thế giới người chết",story:"Hạ Vũ chưa trả nghiệp xử oan nên không qua sông được. Ông chờ ở bến, đội hình cũ của ông giờ đứng phía bên kia bàn cờ.",marks:["trận đấu với chính đội quân cũ"],end:"Thắng thì ông nhớ ra thư lại kia vô tội và được siêu thoát. Thua thì ông theo Ấn mãi mãi."}
+];
+let cur=0;const chain=document.getElementById('chain'),stage=document.getElementById('stage'),next=document.getElementById('next');
+function render(){
+  chain.innerHTML="";
+  holders.forEach((h,i)=>{const b=document.createElement('button');b.type="button";b.className="node"+(i<cur&&i<3?" dead":"");b.id="node-"+i;b.setAttribute('role','tab');
+    b.setAttribute('aria-current',i===cur?"true":"false");b.textContent=(i+1)+". "+h.who;b.onclick=()=>{cur=i;render()};chain.appendChild(b)});
+  const h=holders[cur];
+  stage.innerHTML='<div class="who"></div><div class="meta"></div><p class="st"></p><div class="marks"></div><p class="end"></p>';
+  stage.querySelector('.who').textContent=h.who;stage.querySelector('.meta').textContent=h.race;
+  stage.querySelector('.st').textContent=h.story;
+  const m=stage.querySelector('.marks');h.marks.forEach(x=>{const s=document.createElement('span');s.className='mark';s.textContent='vết ấn: '+x;m.appendChild(s)});
+  const e=stage.querySelector('.end');e.innerHTML='<b>Kết đời chủ:</b> ';e.append(h.end);
+  next.textContent=cur===holders.length-1?"Quay lại đời đầu":"Đời chủ tiếp theo";
+}
+next.onclick=()=>{cur=(cur+1)%holders.length;render()};
+render();
+</script>

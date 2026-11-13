@@ -1,0 +1,309 @@
+<title>Bát Trận</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Be+Vietnam+Pro:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: một cột; bàn xếp trận chơi thử là trung tâm, còn lại là thẻ luật chơi */
+:root{
+  --paper:#eceee9; --surface:#f7f8f4; --ink:#1c2230; --muted:#566070; --line:#c9cec7;
+  --accent:#a83a1f; --soft:#f2ddd3; --lit:#2f6b5a; --lits:#d6eadf; --cell:#e2e5de;
+  --display:"Cormorant Garamond",Georgia,"Times New Roman",serif;
+  --body:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#13171f; --surface:#1b202a; --ink:#e6e3d8; --muted:#9ea6b4; --line:#2e3542;
+  --accent:#e2704f; --soft:#3a2420; --lit:#6fc0a3; --lits:#1b3129; --cell:#232935; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#13171f; --surface:#1b202a; --ink:#e6e3d8; --muted:#9ea6b4; --line:#2e3542;
+  --accent:#e2704f; --soft:#3a2420; --lit:#6fc0a3; --lits:#1b3129; --cell:#232935; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.6}
+.wrap{max-width:900px;margin:0 auto;padding-block:36px 72px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:48px}
+h1,h2,h3{font-family:var(--display);font-weight:700;line-height:1.1;text-wrap:balance;margin:0}
+h1{font-size:clamp(48px,10vw,84px);letter-spacing:.01em}
+h2{font-size:clamp(28px,5vw,40px)}
+h3{font-size:22px}
+p{margin:0;max-width:66ch}
+b{font-weight:600}
+.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.lead{font-size:19px}
+section,header{display:flex;flex-direction:column;gap:14px}
+.facts{display:flex;gap:10px;flex-wrap:wrap}
+.fact{border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:14px;font-weight:500}
+/* bàn thử */
+.lab{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:720px){.lab{grid-template-columns:1fr}}
+.boardcol{display:flex;flex-direction:column;gap:12px;min-width:0}
+.palette{display:flex;gap:6px;flex-wrap:wrap}
+.pal{font:inherit;font-size:14px;font-weight:600;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:6px 10px;cursor:pointer;display:flex;gap:6px;align-items:center}
+.pal[aria-pressed="true"]{border-color:var(--accent);background:var(--soft)}
+.pal .g{font-size:16px;line-height:1}
+.enemy{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600;text-align:center}
+.board{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.cell{aspect-ratio:1;max-width:100%;border:1.5px solid transparent;background:var(--cell);border-radius:10px;font:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--ink);padding:2px}
+.cell .g{font-size:clamp(18px,4.5vw,26px);line-height:1}
+.cell .n{font-size:11px;font-weight:600}
+.cell.on{border-color:var(--lit);background:var(--lits)}
+.cell:focus-visible,.pal:focus-visible,.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.rowlbl{display:grid;grid-template-columns:repeat(3,auto);justify-content:space-between;font-size:12px;color:var(--muted)}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{font:inherit;font-size:14px;font-weight:600;border:0;border-radius:999px;padding:8px 14px;cursor:pointer;background:var(--ink);color:var(--paper)}
+.btn.ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line)}
+.count{font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+.forms{display:flex;flex-direction:column;gap:8px;min-width:0}
+.form{border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;background:var(--surface)}
+.form .h{display:flex;justify-content:space-between;gap:8px;font-weight:600}
+.form .h .s{font-size:12px;font-weight:600;color:var(--muted);white-space:nowrap}
+.form .how{font-size:13px;color:var(--muted)}
+.form .eff{font-size:14px}
+.form.lit{border-color:var(--lit);background:var(--lits)}
+.form.lit .h .s{color:var(--lit)}
+.hint{font-size:14px;color:var(--muted)}
+/* thẻ */
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+@media (max-width:680px){.grid2,.grid3{grid-template-columns:1fr}}
+.card{border-top:2px solid var(--ink);padding-top:10px;display:flex;flex-direction:column;gap:6px}
+.card h3{font-size:21px}
+.card p{font-size:15px;color:var(--muted)}
+.card.hot{border-top-color:var(--accent)}
+.flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:14px}
+.flow span.st{border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--surface)}
+.flow span.ar{color:var(--muted)}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:540px;font-size:15px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+ul.dots{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+ul.dots li{padding-left:18px;position:relative;max-width:66ch}
+ul.dots li::before{content:"";position:absolute;left:0;top:.6em;width:8px;height:8px;background:var(--accent);transform:rotate(45deg)}
+ol.q{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px}
+.foot{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:16px}
+@media (prefers-reduced-motion:no-preference){.cell,.form{transition:background .15s,border-color .15s}}
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Falemag · concept lấy lối chơi làm gốc · bản phác 4.1</span>
+    <h1>Bát Trận</h1>
+    <p class="lead">Auto chess kiếm, cung, giáp, phép, nơi <b>hình dạng đội hình là vũ khí</b>. Tối đa 8 quân trên 15 ô. Xếp đúng hình thì đội hình thành trận đồ và mở sức mạnh mới. Mỗi ván là một câu đố xếp quân khác nhau.</p>
+    <div class="facts">
+      <span class="fact">Trận tự động 30–45 giây</span><span class="fact">6 tầng kết hợp</span><span class="fact">Một ván 25–35 phút</span><span class="fact">Chạm để xếp, màn hình dọc</span><span class="fact">Đơn, co-op, 8 người online</span>
+    </div>
+  </header>
+
+  <section aria-labelledby="lab-title">
+    <span class="eyebrow">Chơi thử ngay</span>
+    <h2 id="lab-title">Xếp quân, xem trận đồ sáng lên</h2>
+    <p class="hint">Chọn loại quân rồi chạm vào ô. Chạm lại ô đã có quân để gỡ. Hàng trên cùng là tiền quân, đối mặt với địch. Fa đã xếp sẵn một đội mẫu.</p>
+    <div class="lab">
+      <div class="boardcol">
+        <div class="palette" id="palette" role="group" aria-label="Loại quân"></div>
+        <div class="enemy">↑ phía quân địch ↑</div>
+        <div class="board" id="board" role="grid" aria-label="Bàn xếp trận 5 cột 3 hàng"></div>
+        <div class="tools">
+          <span class="count" id="count"></span>
+          <button class="btn ghost" id="clear" type="button">Xóa bàn</button>
+          <button class="btn ghost" id="sample" type="button">Đội mẫu</button>
+        </div>
+      </div>
+      <div class="forms" id="forms" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section>
+    <span class="eyebrow">Vì sao vui</span>
+    <h2>Năm khoảnh khắc người chơi sẽ nhớ</h2>
+    <div class="grid2">
+      <article class="card hot"><h3>Tự khám phá trận đồ mới</h3><p>Trận đồ không được bày sẵn hết. Người chơi tự xếp thử và bất ngờ thấy một hình mới sáng lên. Mỗi trận đồ tìm được ghi vào Sổ Trận Đồ.</p></article>
+      <article class="card hot"><h3>Một quân, hai trận đồ</h3><p>Trận đồ được phép chồng lên nhau. Cái khó là tìm vị trí cho một quân Khiên vừa nằm trong Tường Khiên vừa che được Pháp sư. Mỗi lượt là một câu đố nhỏ.</p></article>
+      <article class="card hot"><h3>Ngồi xem chuỗi combo tự nổ</h3><p>Trận đánh tự động hoàn toàn. Cái sướng là nhìn những thứ mình chuẩn bị tự móc vào nhau: Mưa Tên mang lửa, gió thổi lửa lan, lửa chạm băng thì nổ. Mỗi lần chuỗi nối dài, màn hình hiện tên combo và đếm Chuỗi ×2, ×3, ×4.</p></article>
+      <article class="card"><h3>Đọc trận của địch</h3><p>Địch cũng xếp trận đồ, và người chơi được thấy trước. Thấy địch có Mũi Giáo kỵ binh thì đặt Thương chặn đúng cột đó. Thắng nhờ đọc trận đem lại cảm giác mình giỏi thật.</p></article>
+      <article class="card"><h3>Không ván nào giống ván nào</h3><p>Cửa hàng, trang bị, tướng và tộc được rút ngẫu nhiên, nên đội hình mạnh nhất mỗi ván mỗi khác. Có ván xoay quanh Mưa Tên, có ván dồn hết vào một mũi kỵ binh.</p></article>
+    </div>
+  </section>
+
+  <section>
+    <span class="eyebrow">Lõi của game</span>
+    <h2>Sáu tầng kết hợp, tất cả tự chạy</h2>
+    <p>Anh chỉ chuẩn bị. Trận đánh tự diễn ra, và mọi tầng dưới đây tự kích hoạt lẫn nhau. Càng nhiều tầng móc vào nhau, đội càng mạnh và trận càng đẹp.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Tầng</th><th>Cách kết hợp</th><th>Ví dụ</th></tr></thead>
+      <tbody>
+        <tr><td><b>1. Tộc</b></td><td>Đếm số quân cùng tộc, như auto chess quen thuộc; mỗi tộc còn bẻ một luật xếp hình</td><td>4 Lang Tộc: hạ địch thì hồi máu cả bầy</td></tr>
+        <tr><td><b>2. Nghề</b></td><td>Đếm số quân cùng lớp</td><td>4 Cung: tên bắn xuyên 2 mục tiêu</td></tr>
+        <tr><td><b>3. Trận đồ</b></td><td>Xếp đúng hình trên bàn (bàn thử ở trên)</td><td>3 Cung liền ở hàng hậu: Mưa Tên</td></tr>
+        <tr><td><b>4. Nguyên tố</b></td><td>Năm hệ Hỏa, Băng, Lôi, Phong, Độc gắn trên quân hoặc trang bị. Hai hệ chạm nhau trên cùng một địch thì tự gây phản ứng</td><td>Hỏa + Phong: lốc lửa lan sang ô bên. Băng + Lôi: vỡ băng, sát thương gấp ba. Độc + Hỏa: khói độc nổ</td></tr>
+        <tr><td><b>5. Trang bị ghép</b></td><td>Hai mảnh kiếm, cung, giáp, phép ghép thành một món, có món đổi luôn lớp hoặc hệ của quân</td><td>Cung + Ngọc Hỏa: Cung Lửa, biến Mưa Tên thành mưa lửa</td></tr>
+        <tr><td><b>6. Tướng</b></td><td>Mỗi tướng mang một luật nối các tầng với nhau</td><td>Phong sư Vân Khê: mỗi khi có phản ứng nguyên tố, thổi một luồng gió đẩy nó sang địch kế bên</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>Một chuỗi mẫu:</b> Mưa Tên (trận đồ) bắn bằng Cung Lửa (trang bị), nên địch dính Hỏa. Vân Khê (tướng) thổi gió, gặp Hỏa thành lốc lửa (nguyên tố) lan sang hàng sau. Hàng sau đang dính Băng từ Pháp sư, lửa chạm băng thì vỡ băng. Bốn tầng nối nhau, Chuỗi ×4, và anh không phải bấm gì cả.</p>
+    <p><b>Sau mỗi trận có Nhật Ký Combo:</b> combo nào đã nổ, gây bao nhiêu sát thương, combo nào suýt thành. Đọc nhật ký là biết lần sau nên mua quân gì, xếp chỗ nào.</p>
+  </section>
+
+  <section>
+    <span class="eyebrow">Quân và khắc chế</span>
+    <h2>Tám lớp quân</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Lớp</th><th>Vai trò</th><th>Mạnh trước</th><th>Sợ</th></tr></thead>
+      <tbody>
+        <tr><td><b>Khiên</b></td><td>Đỡ đòn, giữ hàng</td><td>Cung, Kiếm</td><td>Pháp</td></tr>
+        <tr><td><b>Kiếm</b></td><td>Cận chiến, sát thương đều</td><td>Thương</td><td>Khiên</td></tr>
+        <tr><td><b>Thương</b></td><td>Đâm xa hai ô, chặn kỵ</td><td>Kỵ</td><td>Kiếm, Cung</td></tr>
+        <tr><td><b>Kỵ</b></td><td>Xung phong, phá hàng sau</td><td>Cung, Pháp</td><td>Thương</td></tr>
+        <tr><td><b>Cung</b></td><td>Bắn xa, dồn sát thương</td><td>Thương, Pháp</td><td>Kỵ, Khiên</td></tr>
+        <tr><td><b>Pháp</b></td><td>Phép vùng, xuyên giáp</td><td>Khiên, nhóm đông</td><td>Kỵ, Ám</td></tr>
+        <tr><td><b>Y</b></td><td>Hồi máu, giải hiệu ứng</td><td>Trận kéo dài</td><td>Ám</td></tr>
+        <tr><td><b>Ám</b></td><td>Nhảy vào hàng sau, ám sát</td><td>Pháp, Y</td><td>Khiên đứng sát</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <span class="eyebrow">Chiều sâu</span>
+    <h2>Tộc và tướng bẻ cong luật xếp hình</h2>
+    <p>Tộc không chỉ cộng chỉ số. Mỗi tộc thay đổi cách trận đồ được tính, nên mỗi tộc mở ra một lối xếp khác hẳn.</p>
+    <div class="grid3">
+      <article class="card"><h3>Nhân</h3><p>Trận đồ có người Nhân được tăng một cấp. Dễ chơi, hợp người mới.</p></article>
+      <article class="card"><h3>Lang Tộc</h3><p>Đi theo bầy: trận đồ cần 3 quân thì chỉ cần 2, nếu có Lang Tộc ở giữa.</p></article>
+      <article class="card"><h3>Thạch Duệ</h3><p>Người đá chiếm 2 ô và được tính là 2 quân trong trận đồ. Nặng nhưng lấp hình rất nhanh.</p></article>
+      <article class="card"><h3>Vũ Dân</h3><p>Có cánh, được tính như đứng ở cả hàng mình và hàng ngay trước. Một quân nối được hai trận đồ.</p></article>
+      <article class="card"><h3>Mộc Hồn</h3><p>Mọc rễ: sau hiệp 1, mỗi Mộc Hồn mọc thêm một cây con ở ô trống bên cạnh. Trận đồ có thể thành hình giữa trận.</p></article>
+      <article class="card"><h3>Vong Nhân</h3><p>Chết thì để lại hồn ở ô cũ trong 5 giây, vẫn tính cho trận đồ. Trận đồ không vỡ ngay khi mất người.</p></article>
+    </div>
+    <p><b>Tướng</b> là quân có tên, mỗi người mang một luật riêng. Ví dụ: cung thủ Liễu Mi chỉ cần 2 Cung là thành Mưa Tên; lão tướng Trấn Sơn biến Tường Khiên thành Tường Khiên Phản Đòn. Tướng được định nghĩa bằng dữ liệu, nên thêm tướng mới không cần sửa code. Dàn nhân vật có thể lên hàng trăm.</p>
+    <p><b>Trang bị</b> kiếm, cung, giáp, phép có thể đổi lớp quân khi tính trận đồ. Đưa cung cho một Kiếm sĩ thì quân đó được tính là Cung trong Mưa Tên nhưng vẫn đánh cận chiến. Đây là chỗ cho những build lạ.</p>
+  </section>
+
+  <section>
+    <span class="eyebrow">Một ván chơi</span>
+    <h2>Hành quân mùa đông, 12 chặng</h2>
+    <div class="flow" aria-label="Các loại chặng">
+      <span class="st">Trận</span><span class="ar">→</span><span class="st">Chợ quân</span><span class="ar">→</span><span class="st">Lò rèn</span><span class="ar">→</span><span class="st">Hạ trại</span><span class="ar">→</span><span class="st">Sự kiện</span><span class="ar">→</span><span class="st">Trận tinh anh</span><span class="ar">→</span><span class="st">Chúa tể</span>
+    </div>
+    <ul class="dots">
+      <li><b>Kinh tế auto chess:</b> vàng, làm mới cửa hàng, ghép 3 quân giống nhau lên một sao.</li>
+      <li><b>Sinh tồn:</b> mỗi chặng tốn lương. Hết lương thì quân giảm máu tối đa. Quân bị thương nặng phải nghỉ một chặng. Càng về sau trời càng lạnh: phép hỏa và lều trại quý dần.</li>
+      <li><b>Hạ trại:</b> chọn một trong ba việc: chữa thương, luyện một quân, hay đi săn lấy lương (có thể gặp phục kích).</li>
+      <li><b>Chúa tể</b> cuối ván dùng trận đồ cấp cao và luật riêng của nó. Người chơi phải xếp riêng một đội để khắc nó.</li>
+    </ul>
+  </section>
+
+  <section>
+    <span class="eyebrow">Chơi lâu dài</span>
+    <h2>Lý do quay lại ngày mai</h2>
+    <div class="grid2">
+      <article class="card"><h3>Sổ Trận Đồ</h3><p>Khoảng 40 trận đồ để khám phá, mỗi cái lên cấp khi dùng nhiều. Có những trận đồ ẩn chỉ hiện ra khi kết hợp đúng tộc và đúng tướng.</p></article>
+      <article class="card"><h3>Mở khóa</h3><p>Thắng ván thì mở thêm tướng, tộc, trang bị và chặng mới. Càng chơi càng nhiều thứ để kết hợp.</p></article>
+      <article class="card"><h3>Thử thách ngày</h3><p>Mỗi ngày mọi người chơi cùng một seed (cùng cửa hàng, cùng địch) và so điểm trên bảng xếp hạng. Mô phỏng trận tất định nên điểm không gian lận được.</p></article>
+      <article class="card"><h3>Truyện theo tướng</h3><p>Truyện là lớp phủ nhẹ: mỗi tướng có một tuyến truyện ngắn, mở dần khi đem tướng đó đi đánh. Ai thích truyện thì đọc, ai chỉ muốn đánh thì bỏ qua.</p></article>
+    </div>
+  </section>
+
+  <section>
+    <span class="eyebrow">Chế độ chơi</span>
+    <h2>Một mình, cùng bạn, hay đấu tám người</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Chế độ</th><th>Mô tả</th><th>Mạng</th></tr></thead>
+      <tbody>
+        <tr><td><b>Hành Quân</b></td><td>Ván roguelite 12 chặng như trên. Chế độ chính khi chơi một mình.</td><td>Offline</td></tr>
+        <tr><td><b>Thử Thách Ngày</b></td><td>Cùng seed cho mọi người, so điểm.</td><td>Gửi điểm</td></tr>
+        <tr><td><b>Thủ Thành</b></td><td>Hai người giữ chung một thành, mỗi người một nửa bàn. Trận đồ có thể nối qua ranh giới hai nửa.</td><td>Co-op 2 người</td></tr>
+        <tr><td><b>Loạn Chiến</b></td><td>Tám người, kho quân chung (tranh nhau quân hiếm), đấu vòng tròn kiểu auto chess.</td><td>Thời gian thực</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section>
+    <span class="eyebrow">Kỹ thuật</span>
+    <h2>Vì sao chạy được trên máy yếu</h2>
+    <ul class="dots">
+      <li>Bàn chỉ 15 ô, tối đa 8 quân mỗi bên. Trận 30–45 giây, hiển thị sprite 2D nhỏ, renderer GL Compatibility của Godot 4.7.</li>
+      <li>Phần mô phỏng trận và phần nhận diện trận đồ viết bằng C++ GDExtension, tất định. Cùng một mô phỏng phục vụ cả chơi đơn, thử thách ngày và đấu mạng.</li>
+      <li>Trận đồ, tướng, tộc, trang bị đều là dữ liệu. Muốn thêm nội dung chỉ cần thêm file.</li>
+      <li>Giọng tướng (câu thoại ngắn khi ra trận, khi tung chiêu) được sinh trước bằng TTS tts.falevon.com.</li>
+    </ul>
+  </section>
+
+  <section>
+    <span class="eyebrow">Bản thử đầu tiên</span>
+    <h2>Làm gì để biết game có vui không</h2>
+    <ul class="dots">
+      <li>Bàn 5×3, 6 lớp quân, 12 trận đồ, 1 tộc bẻ luật (Lang Tộc), 3 nguyên tố (Hỏa, Băng, Phong) với 3 phản ứng, 6 món trang bị ghép, 4 tướng.</li>
+      <li>Một ván 8 chặng với cửa hàng và ghép sao, chưa có sinh tồn.</li>
+      <li><b>Câu hỏi cần trả lời:</b> người chơi có tự đổi đội chỉ để thử nối một chuỗi combo dài hơn không? Nếu có, lõi game đã vui.</li>
+    </ul>
+  </section>
+
+  <section>
+    <span class="eyebrow">Cần anh trả lời</span>
+    <ol class="q">
+      <li>Cơ chế "hình dạng đội hình là vũ khí" có làm anh muốn chơi không?</li>
+      <li>Trọng tâm là ván Hành Quân chơi một mình, hay Loạn Chiến 8 người online?</li>
+    </ol>
+  </section>
+
+  <p class="foot">Mọi tên riêng là tên tạm, tự đặt cho dự án. Số liệu trong bàn thử chỉ để minh họa, chưa cân bằng.</p>
+</div>
+
+<script>
+const U={
+  khien:{n:"Khiên",g:"🛡"}, kiem:{n:"Kiếm",g:"⚔"}, thuong:{n:"Thương",g:"🔱"},
+  ky:{n:"Kỵ",g:"🐎"}, cung:{n:"Cung",g:"🏹"}, phap:{n:"Pháp",g:"✦"}, y:{n:"Y",g:"✚"}
+};
+const ROWS=3,COLS=5,MAX=8;
+let grid=Array.from({length:ROWS},()=>Array(COLS).fill(null));
+let brush="khien";
+const at=(r,c)=>(r>=0&&r<ROWS&&c>=0&&c<COLS)?grid[r][c]:undefined;
+const rowName=["tiền","trung","hậu"];
+// Mỗi trận đồ: trả về danh sách nhóm ô [[r,c],...] thỏa điều kiện
+const F=[
+ {id:"tuong",n:"Tường Khiên",how:"3 Khiên liền nhau trên cùng một hàng",eff:"Quân đứng ngay sau bức tường giảm 40% sát thương tên.",
+  find(){const o=[];for(let r=0;r<ROWS;r++)for(let c=0;c<=COLS-3;c++)if([0,1,2].every(k=>at(r,c+k)==="khien"))o.push([[r,c],[r,c+1],[r,c+2]]);return o}},
+ {id:"mua",n:"Mưa Tên",how:"3 Cung liền nhau ở hàng hậu",eff:"Cứ 4 giây cả ba cùng bắn một loạt tên rơi xuống vùng 3 ô.",
+  find(){const o=[];for(let c=0;c<=COLS-3;c++)if([0,1,2].every(k=>at(2,c+k)==="cung"))o.push([[2,c],[2,c+1],[2,c+2]]);return o}},
+ {id:"hophap",n:"Hộ Pháp",how:"Khiên đứng ngay trước Pháp",eff:"Phép không bị ngắt và mạnh hơn 25%.",
+  find(){const o=[];for(let r=1;r<ROWS;r++)for(let c=0;c<COLS;c++)if(at(r,c)==="phap"&&at(r-1,c)==="khien")o.push([[r,c],[r-1,c]]);return o}},
+ {id:"mui",n:"Mũi Giáo",how:"Kỵ ở hàng tiền, hai Thương chéo phía sau hai bên",eff:"Kỵ xung phong xuyên qua hàng đầu địch, Thương theo sau mở đường.",
+  find(){const o=[];for(let c=1;c<COLS-1;c++)if(at(0,c)==="ky"&&at(1,c-1)==="thuong"&&at(1,c+1)==="thuong")o.push([[0,c],[1,c-1],[1,c+1]]);return o}},
+ {id:"song",n:"Song Kiếm",how:"2 Kiếm đứng cạnh nhau trên cùng hàng",eff:"Hợp kích: mỗi đòn thứ ba gây sát thương gấp đôi.",
+  find(){const o=[];for(let r=0;r<ROWS;r++)for(let c=0;c<COLS-1;c++)if(at(r,c)==="kiem"&&at(r,c+1)==="kiem")o.push([[r,c],[r,c+1]]);return o}},
+ {id:"che",n:"Thương Che Cung",how:"Thương đứng ngay trước Cung",eff:"Kỵ binh địch lao vào Cung bị chặn lại và mất đà.",
+  find(){const o=[];for(let r=0;r<ROWS-1;r++)for(let c=0;c<COLS;c++)if(at(r,c)==="thuong"&&at(r+1,c)==="cung")o.push([[r,c],[r+1,c]]);return o}},
+ {id:"vong",n:"Vòng Y",how:"Y có ít nhất 3 đồng đội đứng sát bốn phía",eff:"Hồi máu lan cho cả vòng thay vì từng người.",
+  find(){const o=[];for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(at(r,c)==="y"){const nb=[[r-1,c],[r+1,c],[r,c-1],[r,c+1]].filter(([a,b])=>at(a,b));if(nb.length>=3)o.push([[r,c],...nb])}return o}},
+ {id:"nhan",n:"Nhạn Hành",how:"5 quân bất kỳ xếp hình mũi tên chĩa về phía địch",eff:"Hai cánh tạt sườn: quân ở hai đầu cánh nhanh hơn 30%.",
+  find(){const p=[[0,2],[1,1],[1,3],[2,0],[2,4]];return p.every(([a,b])=>at(a,b))?[p]:[]}}
+];
+const pal=document.getElementById('palette'),board=document.getElementById('board'),forms=document.getElementById('forms'),count=document.getElementById('count');
+Object.entries(U).forEach(([k,u])=>{const b=document.createElement('button');b.type="button";b.className="pal";b.id="pal-"+k;b.innerHTML='<span class="g"></span><span></span>';b.firstChild.textContent=u.g;b.lastChild.textContent=u.n;b.setAttribute('aria-pressed',k===brush?'true':'false');b.onclick=()=>{brush=k;pal.querySelectorAll('.pal').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'))};pal.appendChild(b)});
+function units(){return grid.flat().filter(Boolean).length}
+function render(){
+  const lit=new Set();const res=F.map(f=>{const g=f.find();g.forEach(gr=>gr.forEach(([r,c])=>lit.add(r+","+c)));return {f,k:g.length}});
+  board.innerHTML="";
+  for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++){
+    const b=document.createElement('button');b.type="button";b.id="cell-"+r+"-"+c;b.className="cell"+(lit.has(r+","+c)?" on":"");
+    const v=grid[r][c];
+    b.setAttribute('aria-label',"Hàng "+rowName[r]+", cột "+(c+1)+": "+(v?U[v].n:"trống"));
+    if(v){const g=document.createElement('span');g.className="g";g.textContent=U[v].g;const n=document.createElement('span');n.className="n";n.textContent=U[v].n;b.append(g,n)}
+    b.onclick=()=>{if(grid[r][c]===brush){grid[r][c]=null}else if(grid[r][c]){grid[r][c]=brush}else{if(units()>=MAX)return;grid[r][c]=brush}render()};
+    board.appendChild(b);
+  }
+  count.textContent=units()+"/"+MAX+" quân";
+  const on=res.filter(x=>x.k).length;
+  forms.innerHTML="";
+  const h=document.createElement('div');h.className="eyebrow";h.textContent="Trận đồ đang thành hình: "+on+"/"+F.length;forms.appendChild(h);
+  res.sort((a,b)=>(b.k>0)-(a.k>0)).forEach(({f,k})=>{
+    const d=document.createElement('div');d.className="form"+(k?" lit":"");
+    d.innerHTML='<div class="h"><span></span><span class="s"></span></div><div class="how"></div><div class="eff"></div>';
+    d.querySelector('.h span').textContent=f.n;d.querySelector('.s').textContent=k?(k>1?"×"+k+" đang bật":"đang bật"):"chưa có";
+    d.querySelector('.how').textContent=f.how;d.querySelector('.eff').textContent=f.eff;forms.appendChild(d);
+  });
+}
+function sample(){grid=[[null,null,"ky",null,null],["khien","thuong",null,"thuong",null],["phap","cung","cung","cung",null]];render()}
+document.getElementById('clear').onclick=()=>{grid=Array.from({length:ROWS},()=>Array(COLS).fill(null));render()};
+document.getElementById('sample').onclick=sample;
+sample();
+</script>

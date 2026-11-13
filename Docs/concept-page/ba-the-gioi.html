@@ -1,0 +1,391 @@
+<title>Ba Thế Giới Falemag</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Be+Vietnam+Pro:wght@400;500;600&display=swap">
+<style>
+/* Layout: cuộn thư một cột, ba tab cho ba thế giới, mỗi thế giới có màu ấn riêng */
+:root{
+  --paper:#eef0ec; --surface:#f8f9f6; --ink:#1d2433; --muted:#566070; --line:#cdd2cc;
+  --accent:#b3261e; --soft:#f3dcd8;
+  --c1:#b3261e; --c1s:#f3dcd8; --c2:#2f6b5a; --c2s:#d9ebe3; --c3:#8a5a12; --c3s:#f1e3c8;
+  --display:"Cormorant Garamond",Georgia,"Times New Roman",serif;
+  --body:"Be Vietnam Pro",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#141821; --surface:#1c212c; --ink:#e7e4da; --muted:#9ea6b4; --line:#2e3542;
+  --c1:#e0675b; --c1s:#3a2023; --c2:#6fb59f; --c2s:#1b2f2a; --c3:#d9a54f; --c3s:#33291a; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#141821; --surface:#1c212c; --ink:#e7e4da; --muted:#9ea6b4; --line:#2e3542;
+  --c1:#e0675b; --c1s:#3a2023; --c2:#6fb59f; --c2s:#1b2f2a; --c3:#d9a54f; --c3s:#33291a; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.65}
+.wrap{max-width:880px;margin:0 auto;padding-block:36px 72px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  display:flex;flex-direction:column;gap:44px}
+h1,h2,h3{font-family:var(--display);font-weight:600;line-height:1.15;text-wrap:balance;margin:0}
+h1{font-size:clamp(38px,7vw,60px)}
+h2{font-size:clamp(30px,5.5vw,44px)}
+h3{font-size:25px}
+p{margin:0;max-width:66ch}
+b{font-weight:600}
+.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.lead{font-size:18px;color:var(--muted)}
+section,.block{display:flex;flex-direction:column;gap:14px}
+header{display:flex;flex-direction:column;gap:14px}
+.note{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;font-size:15px;color:var(--muted)}
+/* tabs */
+.tabs{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--paper);display:flex;gap:8px;flex-wrap:wrap;padding-block:10px;border-bottom:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--paper)}
+.tab{font:inherit;font-weight:600;font-size:15px;border:1.5px solid var(--line);background:transparent;color:var(--ink);border-radius:999px;padding:8px 16px;cursor:pointer;display:flex;gap:8px;align-items:center}
+.tab .dot{width:10px;height:10px;border-radius:2px;transform:rotate(45deg)}
+.tab[aria-selected="true"]{border-color:var(--k);background:var(--ks)}
+.tab:focus-visible,.opt:focus-visible{outline:2px solid var(--k,var(--ink));outline-offset:2px}
+.panel{display:flex;flex-direction:column;gap:40px}
+.k1{--k:var(--c1);--ks:var(--c1s)} .k2{--k:var(--c2);--ks:var(--c2s)} .k3{--k:var(--c3);--ks:var(--c3s)}
+.title-row{display:flex;flex-direction:column;gap:10px;border-left:4px solid var(--k);padding-left:18px}
+.tag{align-self:flex-start;background:var(--k);color:var(--surface);font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:4px 10px;border-radius:999px}
+.oneline{font-size:19px}
+.truth{background:var(--ks);border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:10px}
+.truth .eyebrow{color:var(--k)}
+ul.rules{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:10px}
+ul.rules li{padding-left:18px;position:relative;max-width:66ch}
+ul.rules li::before{content:"";position:absolute;left:0;top:.65em;width:8px;height:8px;background:var(--k,var(--accent));border-radius:2px;transform:rotate(45deg)}
+.loops{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:640px){.loops{grid-template-columns:1fr}}
+.loop{border-top:2px solid var(--k);padding-top:10px;display:flex;flex-direction:column;gap:6px}
+.loop .t{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--k);font-weight:600}
+.loop p{font-size:15px;color:var(--muted)}
+.sys{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+@media (max-width:640px){.sys{grid-template-columns:1fr}}
+.sys article{display:flex;flex-direction:column;gap:6px}
+.sys h4{margin:0;font-size:16px;font-weight:600}
+.sys p{font-size:15px;color:var(--muted)}
+.sys .link{font-size:13px;color:var(--k);font-weight:600}
+/* cảnh mẫu */
+.scene{border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:20px;display:flex;flex-direction:column;gap:14px}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opt{font:inherit;text-align:left;border:1.5px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;padding:10px 14px;cursor:pointer}
+.opt[aria-pressed="true"]{border-color:var(--k);background:var(--ks)}
+.out{border-left:3px solid var(--k);padding-left:14px;display:flex;flex-direction:column;gap:6px;min-height:96px}
+.out .when{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:560px;font-size:15px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:600}
+td.r{white-space:nowrap}
+.pick{border:2px solid var(--c1);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:12px}
+ol.q{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px}
+.foot{font-size:13px;color:var(--muted);border-top:1px solid var(--line);padding-top:16px}
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="eyebrow">Falemag · ý tưởng cốt lõi · bản phác 3</span>
+    <h1>Ba thế giới cho Falemag</h1>
+    <p class="lead">Ba concept mới, khác hẳn nhau. Mỗi cái có một sự thật ẩn dưới thế giới, một cơ chế lõi chỉ nó mới có, và các hệ thống móc vào nhau: đụng một chỗ là chỗ khác đổi theo.</p>
+    <p class="note">Cả ba đều giữ phong kiến kỳ ảo, nhiều tộc, auto chess làm lõi chiến đấu, 2D nhẹ cho máy yếu và điện thoại, chơi mạng được. Ngoài ý của anh, Fa thêm kinh tế, chính trị, sinh thái, thế hệ, giải đấu, tín ngưỡng, dư luận. Mỗi thế giới dùng một nhóm khác nhau.</p>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Chọn thế giới">
+    <button class="tab k1" role="tab" id="tab-ky-hoi" aria-controls="ky-hoi" aria-selected="true" type="button"><span class="dot" style="background:var(--c1)"></span>Kỳ Hội</button>
+    <button class="tab k2" role="tab" id="tab-long-mach" aria-controls="long-mach" aria-selected="false" type="button"><span class="dot" style="background:var(--c2)"></span>Long Mạch</button>
+    <button class="tab k3" role="tab" id="tab-thinh-suy" aria-controls="thinh-suy" aria-selected="false" type="button"><span class="dot" style="background:var(--c3)"></span>Thịnh Suy</button>
+  </nav>
+
+  <!-- ===================== KỲ HỘI ===================== -->
+  <div class="panel k1" id="ky-hoi" role="tabpanel" aria-labelledby="tab-ky-hoi">
+    <div class="title-row">
+      <span class="tag">Fa đề xuất</span>
+      <h2>Kỳ Hội</h2>
+      <p class="oneline">Một thế giới mà chiến tranh bị luật cấm, thay bằng những trận cờ người đánh bằng mạng thật. Anh điều hành một lò đấu sĩ, nhận hợp đồng đánh thay cho các lãnh chúa.</p>
+    </div>
+
+    <section>
+      <span class="eyebrow">Thế giới</span>
+      <p>Hai trăm năm trước, Chiến tranh Bách Tộc giết một phần ba dân số. Chín tộc ký <b>Kỳ Ước</b>: không lãnh chúa nào được kéo quá ba mươi quân. Mọi tranh chấp, từ đất đai, nước tưới, hôn ước cho đến quyền kế vị, đều phải phân xử bằng <b>Kỳ Chiến</b>, tức một trận tối đa chín đấu sĩ trên <b>Kỳ Đài</b>, có các thẩm phán Thạch Duệ của <b>Kỳ Viện</b> giám sát. Chết trên Kỳ Đài là hợp pháp và được tôn vinh. Kết quả được trói bằng huyết thệ: nhà nào chối kết quả thì cả dòng máu bị nguyền.</p>
+      <p>Auto chess vì vậy không phải trò chơi trong trò chơi. Bàn cờ là một nơi có thật, quân cờ là người thật, và cả nền hòa bình của đại lục đứng trên nó.</p>
+    </section>
+
+    <div class="truth">
+      <span class="eyebrow">Sự thật ẩn</span>
+      <p><b>Huyết thệ sống bằng máu đổ trên Kỳ Đài.</b> Mỗi đấu sĩ chết là một lần Kỳ Ước được nuôi. Mấy chục năm nay, một trường phái "đánh không giết" lan rộng: đấu sĩ được quyền xin hàng, ít người chết hơn. Huyết thệ đang yếu dần. Kỳ Viện vì thế bí mật dàn xếp cho các trận đủ đẫm máu. Thầy của anh chết trong một trận như vậy.</p>
+      <p>Cùng lúc đó, phe <b>Thiết Huyết</b> muốn xé Ước để quay lại chiến tranh thật, thứ sẽ giết gấp trăm lần. Câu hỏi của game: giữ một hệ thống hy sinh vài người để cứu nhiều người, hay phá nó vì nó bất công?</p>
+    </div>
+
+    <section>
+      <span class="eyebrow">Anh là ai</span>
+      <p>Học trò được thừa kế <b>Kỳ Quán Thanh Đăng</b>, một lò đấu sĩ đang lụi tàn ở thành cảng Lâm Giang: nợ ba năm tiền thuê, bốn đấu sĩ già, một sân tập dột. Thầy anh vừa chết trên Kỳ Đài, và anh tin trận đó bị dàn xếp.</p>
+    </section>
+
+    <section>
+      <span class="eyebrow">Nhịp chơi ba tầng</span>
+      <div class="loops">
+        <div class="loop"><span class="t">Một trận · 5 phút</span><p>Nhận hợp đồng, do thám đối thủ, chọn 5–9 đấu sĩ, xếp vị trí, chọn lời thề trước trận. Trận tự đánh. Giữa trận, người của anh có thể xin hàng nếu anh cho phép.</p></div>
+        <div class="loop"><span class="t">Một mùa · 30–60 phút</span><p>Điều hành lò: chiêu mộ, tập luyện, chữa thương, trả lương, giữ đoàn kết. Lo sống còn trong thành: dịch bệnh, cháy chợ, sát thủ, lũ. Chọn hợp đồng cho mùa tới.</p></div>
+        <div class="loop"><span class="t">Cả chiến dịch</span><p>Leo bảng Kỳ Hội của chín châu, lần ra kẻ giết thầy, chạm tới bí mật của Kỳ Viện, rồi quyết số phận của Kỳ Ước.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <span class="eyebrow">Hệ thống đan xen</span>
+      <div class="sys">
+        <article><h4>Hợp đồng là lựa chọn đạo đức</h4><p>Mỗi hợp đồng là một vụ tranh chấp có hai bên: góa phụ giữ ruộng chống lãnh chúa tham, hai làng tranh nguồn nước, công chúa Vũ Dân chống hôn ước. Anh thắng cho ai, vùng đó đổi theo người đó.</p><span class="link">Nối với: thế giới, nhân quả, kinh tế</span></article>
+        <article><h4>Nhân quả trở về thành người</h4><p>Lãnh chúa ác thắng thì làng đói. Hai mùa sau, dân tị nạn tới cửa lò xin làm đấu sĩ, hoặc một đứa trẻ mồ côi lớn lên mang hận nhà anh. Làng được anh cứu sẽ gửi cá khi thành mất mùa.</p><span class="link">Nối với: chiêu mộ, sinh tồn</span></article>
+        <article><h4>Đấu sĩ là con người</h4><p>Ai cũng có xuất thân, điều muốn, nỗi sợ, vết thương vĩnh viễn, gia đình bên ngoài. Họ yêu nhau, kết nghĩa, thù nhau, giải nghệ, sinh con, và con họ có thể vào lò. Người chết có tang lễ; gia đình họ có thể kiện lò hoặc nguyền anh.</p><span class="link">Nối với: auto chess, phản bội</span></article>
+        <article><h4>Dàn xếp và phản bội</h4><p>Lãnh chúa đút lót để anh thua. Lò đối thủ mua chuộc người của anh. Kỳ Viện ra lệnh trận phải có máu. Đấu sĩ giỏi nhất của anh có thể bỏ sang lò khác để trả thù. Anh cũng có thể là kẻ phản bội.</p><span class="link">Nối với: danh tiếng, Kỳ Viện</span></article>
+        <article><h4>Auto chess có luật của thế giới</h4><p>Mỗi châu có Kỳ Đài riêng: đài sông, đài núi, đài trong đền. Lời thề trước trận như "không lùi" cho thêm sức mạnh nhưng cấm xin hàng. Khán giả cổ vũ tạo đà. Đồng bộ theo tộc, môn phái và tình nghĩa.</p><span class="link">Nối với: đấu sĩ, danh tiếng</span></article>
+        <article><h4>Kinh tế, danh tiếng, chính trị</h4><p>Tiền, lương thực, thuốc, Danh (người xem nể), Ân (ai nợ ai). Chín châu có thế lực, giá gạo, và quyền của từng tộc. Có tộc bị cấm lên Kỳ Đài; anh có thể cho họ ra đấu và khơi một phong trào.</p><span class="link">Nối với: hợp đồng, chiêu mộ</span></article>
+      </div>
+    </section>
+
+    <section class="scene" data-scene="ky">
+      <span class="eyebrow">Một cảnh mẫu · bấm để thử</span>
+      <h3>Con sông của làng Bến Vảy</h3>
+      <p>Làng chài Lân Thủy kiện lãnh chúa Tào Mạnh, người vừa đắp đập chặn sông. Tào trả gấp ba nếu anh đánh cho hắn. Đấu sĩ mạnh nhất của anh, Ba Khắc người Lang Tộc, từng là nô lệ nhà Tào.</p>
+      <div class="opts">
+        <button class="opt" type="button" aria-pressed="false" data-o="0">Nhận tiền của Tào và đánh thật</button>
+        <button class="opt" type="button" aria-pressed="false" data-o="1">Đánh cho làng, nhận công bằng cá khô và một đứa trẻ muốn học võ</button>
+        <button class="opt" type="button" aria-pressed="false" data-o="2">Nhận tiền của Tào rồi cố tình thua</button>
+      </div>
+      <div class="out" aria-live="polite"><span class="when">Chọn một hướng để xem hệ quả</span></div>
+    </section>
+
+    <section>
+      <span class="eyebrow">Chơi mạng</span>
+      <ul class="rules">
+        <li>Kỳ Hội giữa người chơi là chuyện tự nhiên của thế giới: lò của anh đấu với lò của người khác qua đội hình được lưu lại (bất đồng bộ, mô phỏng tất định nên chống gian lận được).</li>
+        <li>Bảng xếp hạng theo mùa. Có thể cho mượn đấu sĩ.</li>
+        <li>Đấu sĩ của anh chết dưới tay lò của người khác thì cái chết đó được ghi vào truyện: gia đình họ biết tên lò kia.</li>
+        <li>Về sau mở giải đấu thời gian thực.</li>
+      </ul>
+    </section>
+
+    <section>
+      <span class="eyebrow">Các kết thúc</span>
+      <ul class="rules">
+        <li><b>Giữ Ước và cải tổ:</b> chấm dứt dàn xếp, chấp nhận huyết thệ yếu dần và sống với rủi ro.</li>
+        <li><b>Xé Ước:</b> chiến tranh trở lại. Đấu sĩ của anh thành tướng, và những trận cuối thành chiến trận lớn.</li>
+        <li><b>Lập Ước mới:</b> trói hòa bình bằng thứ khác ngoài máu. Cần lòng tin của cả chín tộc, khó nhất.</li>
+        <li><b>Vào Kỳ Viện:</b> anh thành người dàn xếp. Game kết thúc ở cảnh anh ra lệnh cho một lò trẻ phải có máu.</li>
+      </ul>
+    </section>
+
+    <section>
+      <span class="eyebrow">Vì sao Fa đề xuất</span>
+      <ul class="rules">
+        <li>Auto chess có lý do tồn tại ngay trong thế giới, không phải lớp gắn thêm.</li>
+        <li>Dàn nhân vật vô hạn là tự nhiên: ai cũng có thể thành đấu sĩ, từ hoàng tử thất sủng tới tù nhân.</li>
+        <li>Chơi mạng hợp với truyện: các lò đấu nhau trong cùng một giải.</li>
+        <li>Nhẹ nhất về kỹ thuật: phần lớn là giao diện, sự kiện và một bàn cờ nhỏ.</li>
+      </ul>
+    </section>
+  </div>
+
+  <!-- ===================== LONG MẠCH ===================== -->
+  <div class="panel k2" id="long-mach" role="tabpanel" aria-labelledby="tab-long-mach" hidden>
+    <div class="title-row">
+      <span class="tag">Sâu nhất về thế giới</span>
+      <h2>Long Mạch</h2>
+      <p class="oneline">Cả đại lục là lưng của một sinh vật khổng lồ đang ngủ và đang chết dần. Các lãnh chúa hút sinh khí của nó để sống. Anh là chúa một thái ấp nghèo nằm trên đuôi nó.</p>
+    </div>
+
+    <section>
+      <span class="eyebrow">Thế giới</span>
+      <p>Đại lục là thân thể của <b>Ngao Mẫu</b>: sông là máu, núi là gai sống lưng, rừng là lớp rêu trên da. <b>Long mạch</b> là những mạch sinh khí rỉ ra từ bà. Ai xây thành trên mạch thì có lương thực, có phép thuật, có quân.</p>
+      <p>Mỗi tộc sinh ra từ một phần của bà: Thạch Duệ từ xương, Lân Thủy từ máu, Mộc Hồn từ rêu, Vũ Dân từ hơi thở, Lang Tộc từ giấc mơ săn mồi. Chỉ có người Nhân là từ biển đến. Họ không phải con của bà, và chính họ dựng nên chế độ phong kiến khai thác mạch.</p>
+    </section>
+
+    <div class="truth">
+      <span class="eyebrow">Sự thật ẩn</span>
+      <p><b>Ngao Mẫu đang mơ, và bà mơ lại những gì người ta làm trên thân bà.</b> Hút mạch quá tay thì đất rung (Cơn Co). Ác mộng của bà hiện thành <b>Mộng Thú</b>: nơi từng có thảm sát sinh ra oán cốt, rừng bị đốt sinh ra tro linh. Nhân quả ở đây là sinh thái, đọc được trên bản đồ.</p>
+      <p>Sâu hơn nữa: bà đang mang thai một thế giới mới. Mỗi mạch bị hút là cái thai mất phần. Sống sót thế kỷ này có thể là giết thế giới sau.</p>
+    </div>
+
+    <section>
+      <span class="eyebrow">Anh là ai</span>
+      <p>Chúa thái ấp Vĩ Châu, vùng đuôi nghèo nhất, dòng họ lai Nhân và Mộc Hồn, bị cả hai bên coi thường. Trò chơi kéo dài nhiều thập kỷ, nên anh sẽ truyền ngôi cho con cháu.</p>
+    </section>
+
+    <section>
+      <span class="eyebrow">Nhịp chơi ba tầng</span>
+      <div class="loops">
+        <div class="loop"><span class="t">Một trận</span><p>Auto chess trên địa hình thân thể: cao nguyên xương, sông máu, rừng rêu. Đánh lãnh chúa khác, hoặc đánh Mộng Thú, loài có luật riêng (sinh sôi, hút sinh khí, đổi phe).</p></div>
+        <div class="loop"><span class="t">Một mùa</span><p>Đặt mức hút mạch, phân lương, xây và sửa sau Cơn Co, ngoại giao với các thái ấp và các tộc, gả con, trao con tin.</p></div>
+        <div class="loop"><span class="t">Cả chiến dịch</span><p>Ba đến năm đời chúa. Trái tim Ngao Mẫu yếu dần, các thế lực tranh nhau những mạch cuối cùng.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <span class="eyebrow">Hệ thống đan xen</span>
+      <div class="sys">
+        <article><h4>Hút mạch hay chữa mạch</h4><p>Hút nhiều thì giàu và mạnh ngay, nhưng đất rung và ác mộng tới sau. Chữa mạch thì nghèo và yếu, bị láng giềng nuốt.</p><span class="link">Nối với: kinh tế, Mộng Thú</span></article>
+        <article><h4>Bách khoa Mộng Thú</h4><p>Mỗi loại hành động sinh ra một loài thú riêng, viết bằng dữ liệu. Nhìn đàn thú trên bản đồ là đọc được lịch sử tội lỗi của vùng đó.</p><span class="link">Nối với: auto chess, nhân quả</span></article>
+        <article><h4>Chư hầu và hôn nhân</h4><p>Gả con lấy liên minh, giữ con tin, thề trung thành rồi bội thề. Chư hầu nào bị anh ép hút mạch quá sức sẽ phản.</p><span class="link">Nối với: thế hệ, phản bội</span></article>
+        <article><h4>Các tộc và người Mẹ</h4><p>Mộc Hồn đòi chữa, Nhân đòi khai thác, Thạch Duệ muốn để bà chết yên, Lang Tộc muốn đánh thức bà. Mỗi tộc là một quan điểm có lý.</p><span class="link">Nối với: chính trị, kết thúc</span></article>
+        <article><h4>Thế hệ</h4><p>Con cháu thừa hưởng tài năng, bệnh tật, lời thề và kẻ thù. Một đứa con bị anh bỏ qua có thể dựng phe chống chính dòng họ.</p><span class="link">Nối với: chư hầu, mất mát</span></article>
+        <article><h4>Hành hương và tín ngưỡng</h4><p>Các đền thờ dựng trên những bộ phận thiêng của bà. Hành hương mở ra ký ức của bà và những luật trận đánh mới.</p><span class="link">Nối với: sự thật ẩn</span></article>
+      </div>
+    </section>
+
+    <section class="scene" data-scene="lm">
+      <span class="eyebrow">Một cảnh mẫu · bấm để thử</span>
+      <h3>Hạn hán năm thứ ba</h3>
+      <p>Lúa chết khô. Dưới khu rừng thiêng của người Mộc Hồn có một mạch chưa ai chạm tới. Bà cố Mộc Hồn của anh, người nuôi anh lớn, đang sống trong khu rừng đó.</p>
+      <div class="opts">
+        <button class="opt" type="button" aria-pressed="false" data-o="0">Mở mạch dưới rừng thiêng</button>
+        <button class="opt" type="button" aria-pressed="false" data-o="1">Đánh chiếm kho lúa của thái ấp láng giềng</button>
+        <button class="opt" type="button" aria-pressed="false" data-o="2">Cắt khẩu phần, chịu đói qua mùa</button>
+      </div>
+      <div class="out" aria-live="polite"><span class="when">Chọn một hướng để xem hệ quả</span></div>
+    </section>
+
+    <section>
+      <span class="eyebrow">Chơi mạng</span>
+      <p>Mỗi mùa máy chủ, mọi người chơi cùng sống trên một Ngao Mẫu. Ai cũng hút mạch thì bà chết sớm cho tất cả. Đây là bi kịch của của chung, biến thành luật chơi mạng: hợp tác, phản bội và nhân quả giữa người thật với người thật.</p>
+    </section>
+
+    <section>
+      <span class="eyebrow">Các kết thúc</span>
+      <ul class="rules">
+        <li><b>Hút cạn:</b> dân anh sống qua thế kỷ này, thế giới sau không bao giờ ra đời.</li>
+        <li><b>Di cư:</b> để bà chết yên và dẫn các tộc sang thân thể đứa con mới sinh.</li>
+        <li><b>Đánh thức:</b> tận thế, hoặc tái sinh, tùy những gì bà mơ thấy về anh.</li>
+        <li><b>Hóa mạch:</b> chúa cuối cùng của dòng họ tự hiến thân làm mạch mới.</li>
+      </ul>
+    </section>
+  </div>
+
+  <!-- ===================== THỊNH SUY ===================== -->
+  <div class="panel k3" id="thinh-suy" role="tabpanel" aria-labelledby="tab-thinh-suy" hidden>
+    <div class="title-row">
+      <span class="tag">Sâu nhất về nhân quả</span>
+      <h2>Thịnh Suy</h2>
+      <p class="oneline">Anh dựng một vương triều từ một làng tị nạn và dẫn nó qua ba trăm năm. Ở hồi cuối, anh chơi phe nổi dậy chống lại chính vương triều mình đã dựng.</p>
+    </div>
+
+    <section>
+      <span class="eyebrow">Thế giới</span>
+      <p>Bốn thời đại, mỗi thời đại là một kiểu game khác nhau trên cùng một thế giới:</p>
+      <ul class="rules">
+        <li><b>Khai:</b> một làng tị nạn nhiều tộc. Sinh tồn thuần túy: đói, rét, thú dữ.</li>
+        <li><b>Thịnh:</b> thành vương quốc. Chiến lược mở rộng, đặt luật, dựng đền.</li>
+        <li><b>Suy:</b> triều đình mục nát. Âm mưu cung đình, tranh ngôi, giặc ngoài.</li>
+        <li><b>Diệt:</b> anh chơi một người thuộc tộc bị chính luật lệ của anh áp bức, đứng lên lật đổ vương triều.</li>
+      </ul>
+    </section>
+
+    <div class="truth">
+      <span class="eyebrow">Sự thật ẩn</span>
+      <p><b>Mọi thứ tốt đẹp anh dựng ở thời Khai sẽ bị dùng để áp bức ở thời Suy.</b> Luật chia lương công bằng thành thuế nặng. Ngôi đền thờ người anh hùng thành giáo hội nắm quyền. Lời hứa che chở một tộc thành chế độ coi họ là công dân hạng hai. Huyền thoại về các nhân vật thời Khai bị kể lại sai đi qua từng đời.</p>
+      <p>Đến thời Diệt, quân của triều đình là những đội hình anh từng xây, và anh phải tìm cách thắng chúng.</p>
+    </div>
+
+    <section>
+      <span class="eyebrow">Nhịp chơi ba tầng</span>
+      <div class="loops">
+        <div class="loop"><span class="t">Một trận</span><p>Auto chess, quân đổi theo thời đại: đồng, sắt, rồi phép thuật luyện khí. Ở thời Diệt là chiến tranh du kích với ít quân.</p></div>
+        <div class="loop"><span class="t">Một thời đại</span><p>Mỗi thời đại có vòng chơi riêng (sinh tồn, chiến lược, âm mưu, du kích), dài 2–4 giờ.</p></div>
+        <div class="loop"><span class="t">Ba trăm năm</span><p>Thời gian nhảy vọt giữa các thời đại. Lựa chọn cũ hiện ra thành thể chế, phong tục và mối thù.</p></div>
+      </div>
+    </section>
+
+    <section>
+      <span class="eyebrow">Hệ thống đan xen</span>
+      <div class="sys">
+        <article><h4>Luật lệ sống dai</h4><p>Mỗi luật anh ban (thẻ luật) tồn tại qua các thời đại và tự biến dạng theo người cầm quyền sau đó.</p><span class="link">Nối với: chính trị, thời Diệt</span></article>
+        <article><h4>Huyền thoại</h4><p>Nhân vật chết đi thì thành truyền thuyết. Truyền thuyết bị kể sai đi, và người tin vào nó được cộng sức trong trận.</p><span class="link">Nối với: auto chess, tín ngưỡng</span></article>
+        <article><h4>Huyết thống</h4><p>Dòng máu mang tài năng và bệnh di truyền. Con lai giữa các tộc mở ra những đồng bộ mới.</p><span class="link">Nối với: dàn nhân vật vô hạn</span></article>
+        <article><h4>Ký ức dân gian</h4><p>Ca dao và tin đồn giữ lại những gì sách sử chính thống xóa. Tới thời Diệt, ca dao là vũ khí.</p><span class="link">Nối với: nhân quả, thời Diệt</span></article>
+      </div>
+    </section>
+
+    <section class="scene" data-scene="ts">
+      <span class="eyebrow">Một cảnh mẫu · bấm để thử</span>
+      <h3>Mùa đông đầu tiên của làng</h3>
+      <p>Lương chỉ đủ cho hai phần ba dân làng. Người Lang Tộc khỏe nhất và gánh việc nặng nhất. Người Vũ Dân yếu nhưng biết đường tới vùng đất ấm.</p>
+      <div class="opts">
+        <button class="opt" type="button" aria-pressed="false" data-o="0">Chia lương theo sức lao động</button>
+        <button class="opt" type="button" aria-pressed="false" data-o="1">Chia đều cho mọi người, cùng đói</button>
+        <button class="opt" type="button" aria-pressed="false" data-o="2">Đổi phần ăn của Vũ Dân lấy đường đi ấm</button>
+      </div>
+      <div class="out" aria-live="polite"><span class="when">Chọn một hướng để xem nó thành gì sau 200 năm</span></div>
+    </section>
+
+    <section>
+      <span class="eyebrow">Chơi mạng</span>
+      <p>Vương triều của người chơi khác (bản lưu bất đồng bộ) xuất hiện làm láng giềng hoặc kẻ xâm lăng trong thời Suy của anh, mang theo đúng luật lệ và đội hình của họ.</p>
+    </section>
+  </div>
+
+  <section>
+    <span class="eyebrow">So sánh</span>
+    <h2>Ba thế giới đặt cạnh nhau</h2>
+    <div class="tbl"><table>
+      <thead><tr><th>Tiêu chí</th><th>Kỳ Hội</th><th>Long Mạch</th><th>Thịnh Suy</th></tr></thead>
+      <tbody>
+        <tr><td>Lõi cảm xúc</td><td>Gia đình tự chọn trong một hệ thống tàn nhẫn</td><td>Sống còn hôm nay hay tương lai</td><td>Điều tốt thành điều ác qua thời gian</td></tr>
+        <tr><td>Auto chess</td><td>Là luật của thế giới</td><td>Địa hình và Mộng Thú</td><td>Đổi theo thời đại</td></tr>
+        <tr><td>Sinh tồn</td><td>Giữ lò sống trong thành</td><td>Rất mạnh (đói, Cơn Co)</td><td>Mạnh ở thời Khai</td></tr>
+        <tr><td>Phản bội</td><td>Dàn xếp trận, bỏ lò</td><td>Chư hầu bội thề</td><td>Con cháu, cung đình</td></tr>
+        <tr><td>Chơi mạng</td><td>Tự nhiên nhất</td><td>Độc đáo nhất</td><td>Nhẹ</td></tr>
+        <tr><td>Khối lượng làm</td><td class="r">Vừa</td><td class="r">Lớn</td><td class="r">Rất lớn</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section class="pick">
+    <span class="eyebrow">Fa đề xuất</span>
+    <h2>Kỳ Hội</h2>
+    <p>Đây là thế giới gọn nhất mà vẫn sâu: auto chess, sinh tồn, phản bội, mất mát và chơi mạng đều mọc ra từ cùng một luật của thế giới. Nó cũng vừa sức nhất cho một game 2D nhẹ. Hai cái còn lại vẫn có thể cho mượn ý: Mộng Thú của Long Mạch có thể thành nạn quái vùng biên trong Kỳ Hội, và cú nhảy thời gian của Thịnh Suy có thể thành phần hậu truyện.</p>
+  </section>
+
+  <section>
+    <span class="eyebrow">Cần anh trả lời</span>
+    <ol class="q">
+      <li>Thế giới nào làm anh muốn biết thêm nhất? Fa sẽ đào sâu tiếp cái đó: dàn nhân vật, bản đồ, luật trận chi tiết.</li>
+      <li>Có điều gì trong ba cái này anh thấy chán hoặc không hợp, để Fa tránh?</li>
+    </ol>
+  </section>
+
+  <p class="foot">Mọi tên riêng là tên tạm, tự đặt cho dự án. Bản lưu nằm trong Docs/game-concept.md của repo fal-gaming.</p>
+</div>
+
+<script>
+const outcomes={
+  ky:[
+    ["Ngay sau trận","Lò có tiền trả nợ. Ba Khắc đánh nửa vời; giữa trận anh ấy xin hàng trước cả khi bị thương. Làng thua, đập được giữ lại."],
+    ["Ngay sau trận","Thắng. Lò không có tiền, phải cắt lương. Đứa trẻ tên Sò ở lại lò. Tào ghi tên anh vào sổ thù."],
+    ["Ngay sau trận","Lò có tiền và làng vẫn thắng. Nhưng một thẩm phán Kỳ Viện đã thấy, và giờ Kỳ Viện nắm thóp anh."]
+  ],
+  ky2:[
+    ["Hai mùa sau","Làng Bến Vảy chết đói, dân tràn vào Lâm Giang. Một thiếu niên Lân Thủy xin vào lò, mang theo con dao và một cái tên: của anh. Ba Khắc rời lò, sang lò đối thủ."],
+    ["Hai mùa sau","Thành mất mùa, cả lò sắp đói thì thuyền làng Bến Vảy cập bến chở đầy cá. Sò đã thành đấu sĩ hạng ba. Tào thuê sát thủ, đêm đó lò bị đốt một góc."],
+    ["Hai mùa sau","Kỳ Viện gửi thư: trận tới phải có ít nhất hai người chết, không thì chuyện dàn xếp bị công bố. Anh bắt đầu hiểu thầy mình đã chết thế nào."]
+  ],
+  lm:[
+    ["Mùa sau","Lúa xanh trở lại. Bà cố rời rừng, không nhìn anh. Đêm đó Ngao Mẫu mơ về khu rừng, và mùa xuân năm sau có tro linh lang thang khắp Vĩ Châu."],
+    ["Mùa sau","Có lúa. Thái ấp láng giềng giờ là kẻ thù truyền kiếp, và chúa của họ gả con gái cho đối thủ lớn nhất của anh. Chỗ trận đánh mọc ra một bầy oán cốt nhỏ."],
+    ["Mùa sau","Một phần mười dân chết đói, trong đó có hai đứa trẻ anh biết tên. Mạch thiêng còn nguyên. Người Mộc Hồn gửi tới ba chiến binh, nói rằng họ nợ anh."]
+  ],
+  ts:[
+    ["200 năm sau","Luật Lao Phần thành nền tảng của vương quốc. Người Lang Tộc thành giới quý tộc võ biền; người Vũ Dân thành tầng lớp bị coi là ăn bám. Ở thời Diệt, anh là một cô gái Vũ Dân."],
+    ["200 năm sau","Chuyện Mùa Đông Cùng Đói thành ngày lễ quốc gia. Vương triều nổi tiếng nhân hậu, nhưng yếu, và nhiều lần bị xâm lăng. Thời Diệt của anh là chống lại một ngoại bang."],
+    ["200 năm sau","Ca dao Vũ Dân còn hát về mùa đông bị bán. Họ là nghĩa quân đầu tiên của thời Diệt, và họ biết mọi con đường mà quân triều đình không biết."]
+  ]
+};
+document.querySelectorAll('.tab').forEach(t=>t.addEventListener('click',()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.setAttribute('aria-selected',x===t?'true':'false'));
+  document.querySelectorAll('.panel').forEach(p=>p.hidden=p.id!==t.getAttribute('aria-controls'));
+  try{history.replaceState(null,'','#'+t.getAttribute('aria-controls'))}catch(e){}
+}));
+function fromHash(){const h=(location.hash||'').slice(1);const t=document.getElementById('tab-'+h);if(t)t.click()}
+window.addEventListener('hashchange',fromHash);fromHash();
+document.querySelectorAll('.scene').forEach(sc=>{
+  const key=sc.dataset.scene,out=sc.querySelector('.out');
+  sc.querySelectorAll('.opt').forEach(b=>b.addEventListener('click',()=>{
+    sc.querySelectorAll('.opt').forEach(x=>x.setAttribute('aria-pressed',x===b?'true':'false'));
+    const i=+b.dataset.o;out.innerHTML='';
+    const add=(pair)=>{const w=document.createElement('span');w.className='when';w.textContent=pair[0];const p=document.createElement('p');p.textContent=pair[1];out.append(w,p)};
+    add(outcomes[key][i]);if(outcomes[key+'2'])add(outcomes[key+'2'][i]);
+  }));
+});
+</script>
