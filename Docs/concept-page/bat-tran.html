@@ -85,7 +85,7 @@ ol.q{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px}
 
 <div class="wrap">
   <header>
-    <span class="eyebrow">Falemag · concept lấy lối chơi làm gốc · bản phác 4.3</span>
+    <span class="eyebrow">Falemag · concept lấy lối chơi làm gốc · bản phác 4.4</span>
     <h1>Bát Trận</h1>
     <p class="lead">Auto chess kiếm, cung, giáp, phép, nơi <b>hình dạng đội hình là vũ khí</b>. Tối đa 8 quân trên 15 ô. Xếp đúng hình thì đội hình thành trận đồ và mở sức mạnh mới. Mỗi ván là một câu đố xếp quân khác nhau.</p>
     <div class="facts">
@@ -131,7 +131,7 @@ ol.q{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px}
     <div class="tbl"><table>
       <thead><tr><th>Tầng</th><th>Cách kết hợp</th><th>Ví dụ</th></tr></thead>
       <tbody>
-        <tr><td><b>1. Tộc</b></td><td>Đếm số quân cùng tộc, như auto chess quen thuộc; mỗi tộc còn bẻ một luật xếp hình</td><td>4 Lang Tộc: hạ địch thì hồi máu cả bầy</td></tr>
+        <tr><td><b>1. Tộc</b></td><td>Đếm số quân cùng tộc, như auto chess quen thuộc; mỗi tộc còn bẻ một luật xếp hình</td><td>4 Lang Tộc: hạ địch thì cả bầy đánh nhanh hơn</td></tr>
         <tr><td><b>2. Nghề</b></td><td>Đếm số quân cùng lớp</td><td>4 Cung: tên bắn xuyên 2 mục tiêu</td></tr>
         <tr><td><b>3. Trận đồ</b></td><td>Xếp đúng hình trên bàn (bàn thử ở trên)</td><td>3 Cung liền ở hàng hậu: Mưa Tên</td></tr>
         <tr><td><b>4. Nguyên tố</b></td><td>Năm hệ Hỏa, Băng, Lôi, Phong, Độc gắn trên quân hoặc trang bị. Hai hệ chạm nhau trên cùng một địch thì tự gây phản ứng</td><td>Hỏa + Phong: lốc lửa lan sang ô bên. Băng + Lôi: vỡ băng, sát thương gấp ba. Độc + Hỏa: khói độc nổ</td></tr>
@@ -145,20 +145,24 @@ ol.q{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px}
 
   <section>
     <span class="eyebrow">Quân và khắc chế</span>
-    <h2>Tám lớp quân</h2>
+    <h2>Tám lớp quân, ba vị trí</h2>
+    <p>Mỗi lớp có một vị trí tự nhiên và một vai trò rõ. Khắc chế luôn đối xứng: A khắc B thì B sợ A, và lý do khắc là một cơ chế thật trong trận chứ không chỉ là con số.</p>
     <div class="tbl"><table>
-      <thead><tr><th>Lớp</th><th>Vai trò</th><th>Mạnh trước</th><th>Sợ</th></tr></thead>
+      <thead><tr><th>Lớp</th><th>Vị trí</th><th>Vai trò</th><th>Khắc</th><th>Sợ</th></tr></thead>
       <tbody>
-        <tr><td><b>Khiên</b></td><td>Đỡ đòn, giữ hàng</td><td>Cung, Kiếm</td><td>Pháp</td></tr>
-        <tr><td><b>Kiếm</b></td><td>Cận chiến, sát thương đều</td><td>Thương</td><td>Khiên</td></tr>
-        <tr><td><b>Thương</b></td><td>Đâm xa hai ô, chặn kỵ</td><td>Kỵ</td><td>Kiếm, Cung</td></tr>
-        <tr><td><b>Kỵ</b></td><td>Xung phong, phá hàng sau</td><td>Cung, Pháp</td><td>Thương</td></tr>
-        <tr><td><b>Cung</b></td><td>Bắn xa, dồn sát thương</td><td>Thương, Pháp</td><td>Kỵ, Khiên</td></tr>
-        <tr><td><b>Pháp</b></td><td>Phép vùng, xuyên giáp</td><td>Khiên, nhóm đông</td><td>Kỵ, Ám</td></tr>
-        <tr><td><b>Y</b></td><td>Hồi máu, giải hiệu ứng</td><td>Trận kéo dài</td><td>Ám</td></tr>
-        <tr><td><b>Ám</b></td><td>Nhảy vào hàng sau, ám sát</td><td>Pháp, Y</td><td>Khiên đứng sát</td></tr>
+        <tr><td><b>Khiên</b></td><td>Tiền</td><td>Đỡ đòn, giữ hàng</td><td>Cung</td><td>Pháp</td></tr>
+        <tr><td><b>Kiếm</b></td><td>Tiền</td><td>Cận chiến, bảo vệ hàng sau</td><td>Ám</td><td>Thương</td></tr>
+        <tr><td><b>Thương</b></td><td>Tiền</td><td>Đâm xa hai ô, chặn xung phong</td><td>Kỵ, Kiếm</td><td>Cung</td></tr>
+        <tr><td><b>Kỵ</b></td><td>Cơ động</td><td>Xung phong qua hàng đầu</td><td>Pháp</td><td>Thương</td></tr>
+        <tr><td><b>Ám</b></td><td>Cơ động</td><td>Nhảy thẳng vào hàng hậu</td><td>Phù, Pháp</td><td>Kiếm</td></tr>
+        <tr><td><b>Cung</b></td><td>Hậu</td><td>Sát thương xa vật lý</td><td>Thương</td><td>Khiên</td></tr>
+        <tr><td><b>Pháp</b></td><td>Hậu</td><td>Phép vùng, xuyên giáp</td><td>Khiên</td><td>Kỵ, Ám</td></tr>
+        <tr><td><b>Phù</b></td><td>Hậu</td><td>Dán bùa nguyên tố lên đồng đội, xé bùa của địch</td><td>Hiệu ứng nguyên tố của địch</td><td>Ám</td></tr>
       </tbody>
     </table></div>
+    <p><b>Vòng chính:</b> Khiên chặn tên nên khắc Cung. Cung bắn trước khi Thương tiến tới. Thương chặn đà Kỵ. Kỵ lao qua hàng đầu, ngắt phép của Pháp. Pháp xuyên giáp Khiên.</p>
+    <p><b>Vòng phụ:</b> Thương dài hơn một ô nên đâm được Kiếm trước. Kiếm phản đòn khi Ám nhảy vào cạnh. Ám ám sát Phù và Pháp ở hàng hậu. Phù không khắc lớp nào; Phù khắc nguyên tố bằng cách xé bùa của địch, nên là lời đáp cho đội địch dựa vào chuỗi nguyên tố.</p>
+    <p><b>Không có hồi máu trong trận.</b> Máu chỉ giảm, nên trận luôn kết thúc nhanh, trong 30–45 giây. Chữa thương chỉ xảy ra giữa các chặng, ở lều trại.</p>
   </section>
 
   <section>
@@ -213,7 +217,7 @@ ol.q{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px}
       <li><b>Chặng 1–4:</b> địch xếp đơn giản, để anh thử build.</li>
       <li><b>Chặng 5–8:</b> địch dùng trận đồ và nguyên tố của riêng nó.</li>
       <li><b>Chặng 9–11:</b> địch <b>đọc đội của anh</b>. Nó nhìn combo gây sát thương nhiều nhất của anh ở trận trước và mang đồ khắc nó: đội Kiếm bị gặp tường Khiên, đội Hỏa bị gặp quân kháng lửa. Một build duy nhất sẽ không đi hết ván.</li>
-      <li><b>Chúa tể:</b> có một luật phá combo, ví dụ đảo ngược hàng tiền và hàng hậu của anh, hoặc hút mọi phản ứng nguyên tố để hồi máu. Anh được thấy luật này từ chặng 6 để chuẩn bị đội khắc.</li>
+      <li><b>Chúa tể:</b> có một luật phá combo, ví dụ đảo ngược hàng tiền và hàng hậu của anh, hoặc hút mọi phản ứng nguyên tố để lên khiên chắn. Anh được thấy luật này từ chặng 6 để chuẩn bị đội khắc.</li>
     </ul>
     <h3>Trục 3: bậc ải, mỗi bậc thêm một luật khó</h3>
     <div class="tbl"><table>
@@ -317,7 +321,7 @@ ol.q{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px}
 <script>
 const U={
   khien:{n:"Khiên",g:"🛡"}, kiem:{n:"Kiếm",g:"⚔"}, thuong:{n:"Thương",g:"🔱"},
-  ky:{n:"Kỵ",g:"🐎"}, cung:{n:"Cung",g:"🏹"}, phap:{n:"Pháp",g:"✦"}, y:{n:"Y",g:"✚"}
+  ky:{n:"Kỵ",g:"🐎"}, am:{n:"Ám",g:"🗡"}, cung:{n:"Cung",g:"🏹"}, phap:{n:"Pháp",g:"✦"}, phu:{n:"Phù",g:"☯"}
 };
 const ROWS=3,COLS=5,MAX=8;
 let grid=Array.from({length:ROWS},()=>Array(COLS).fill(null));
@@ -338,8 +342,8 @@ const F=[
   find(){const o=[];for(let r=0;r<ROWS;r++)for(let c=0;c<COLS-1;c++)if(at(r,c)==="kiem"&&at(r,c+1)==="kiem")o.push([[r,c],[r,c+1]]);return o}},
  {id:"che",n:"Thương Che Cung",how:"Thương đứng ngay trước Cung",eff:"Kỵ binh địch lao vào Cung bị chặn lại và mất đà.",
   find(){const o=[];for(let r=0;r<ROWS-1;r++)for(let c=0;c<COLS;c++)if(at(r,c)==="thuong"&&at(r+1,c)==="cung")o.push([[r,c],[r+1,c]]);return o}},
- {id:"vong",n:"Vòng Y",how:"Y có ít nhất 3 đồng đội đứng sát bốn phía",eff:"Hồi máu lan cho cả vòng thay vì từng người.",
-  find(){const o=[];for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(at(r,c)==="y"){const nb=[[r-1,c],[r+1,c],[r,c-1],[r,c+1]].filter(([a,b])=>at(a,b));if(nb.length>=3)o.push([[r,c],...nb])}return o}},
+ {id:"vong",n:"Vòng Phù",how:"Phù có ít nhất 3 đồng đội đứng sát bốn phía",eff:"Bùa nguyên tố của Phù dán lên cả vòng cùng lúc.",
+  find(){const o=[];for(let r=0;r<ROWS;r++)for(let c=0;c<COLS;c++)if(at(r,c)==="phu"){const nb=[[r-1,c],[r+1,c],[r,c-1],[r,c+1]].filter(([a,b])=>at(a,b));if(nb.length>=3)o.push([[r,c],...nb])}return o}},
  {id:"nhan",n:"Nhạn Hành",how:"5 quân bất kỳ xếp hình mũi tên chĩa về phía địch",eff:"Hai cánh tạt sườn: quân ở hai đầu cánh nhanh hơn 30%.",
   find(){const p=[[0,2],[1,1],[1,3],[2,0],[2,4]];return p.every(([a,b])=>at(a,b))?[p]:[]}}
 ];

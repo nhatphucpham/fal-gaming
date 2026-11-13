@@ -15,14 +15,17 @@ quân trên bàn 5×3. Xếp đúng hình thì thành **trận đồ** và mở 
 
 - **Trận đồ theo hình học**, không theo số lượng: ví dụ Tường Khiên (3 Khiên liền hàng),
   Mưa Tên (3 Cung liền ở hàng hậu), Hộ Pháp (Khiên ngay trước Pháp), Mũi Giáo (Kỵ ở tiền, 2
-  Thương chéo sau), Thương Che Cung, Song Kiếm, Vòng Y, Nhạn Hành. Trận đồ được chồng lên nhau.
+  Thương chéo sau), Thương Che Cung, Song Kiếm, Vòng Phù, Nhạn Hành. Trận đồ được chồng lên nhau.
 - **Trận tự động hoàn toàn** (30–45 giây), không điều khiển giữa trận. Phúc thích auto chess
   vì sự kết hợp và tính tự động, nên chiều sâu dồn vào **6 tầng kết hợp tự kích hoạt nhau**:
   tộc (đếm số), nghề (đếm số), trận đồ (hình), nguyên tố (Hỏa, Băng, Lôi, Phong, Độc; hai hệ chạm
   nhau thì tự phản ứng: Hỏa+Phong lốc lửa, Băng+Lôi vỡ băng, Độc+Hỏa khói nổ), trang bị ghép
   (Cung + Ngọc Hỏa = Cung Lửa), tướng (luật nối các tầng). Chuỗi combo hiện tên và đếm Chuỗi ×N;
   sau trận có Nhật Ký Combo.
-- **8 lớp quân** có khắc chế: Khiên, Kiếm, Thương, Kỵ, Cung, Pháp, Y, Ám.
+- **8 lớp quân, 3 vị trí, khắc chế đối xứng** (A khắc B thì B sợ A). Tiền: Khiên, Kiếm, Thương.
+  Cơ động: Kỵ, Ám. Hậu: Cung, Pháp, Phù. Vòng chính: Khiên > Cung > Thương > Kỵ > Pháp > Khiên.
+  Vòng phụ: Thương > Kiếm > Ám > Phù, Pháp. Phù (dán/xé bùa nguyên tố) khắc nguyên tố của địch.
+  **Không có hồi máu trong trận** (Phúc bỏ lớp Y vì làm trận kéo dài); chữa thương chỉ ở lều trại.
 - **Tộc bẻ luật xếp hình:** Nhân (+1 cấp trận đồ), Lang Tộc (trận đồ 3 quân chỉ cần 2),
   Thạch Duệ (chiếm 2 ô, tính 2 quân), Vũ Dân (tính ở hai hàng), Mộc Hồn (mọc cây con giữa trận),
   Vong Nhân (hồn giữ chỗ 5 giây sau khi chết).
