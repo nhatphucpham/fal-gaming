@@ -1,6 +1,6 @@
 # Build and test
 
-Use the standard Godot 4.4.1 editor. Open `project.godot` in the project
+Use the standard Godot 4.7.2 editor. Open `project.godot` in the project
 manager or follow the command-line instructions in the README. Godot imports
 assets into `.godot/`, which is generated locally and ignored by Git.
 

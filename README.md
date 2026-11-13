@@ -1,15 +1,15 @@
 # Falemag — Godot 2D Game Project
 
-Falemag is a single-player 2D game project built with Godot 4.4.1, targeting
+Falemag is a single-player 2D game project built with Godot 4.7.2, targeting
 Windows 64-bit first. It currently contains an empty starter scene, a smoke
 test, and a Windows export preset. The genre, gameplay, and controls have yet
 to be defined; the project is not yet a playable game.
 
 ## Requirements
 
-- [Godot 4.4.1 standard edition](https://godotengine.org/download/archive/4.4.1-stable/).
+- [Godot 4.7.2 standard edition](https://godotengine.org/download/archive/4.7.2-stable/).
 - Windows 64-bit for the initial target; Git and Git LFS.
-- Godot 4.4.1 export templates to export a Windows build. Install them through
+- Godot 4.7.2 export templates to export a Windows build. Install them through
   **Editor > Manage Export Templates**.
 
 ## Clone, open and test (Windows cmd.exe)
@@ -20,7 +20,7 @@ Replace the path below with your downloaded Godot console executable:
 git lfs install
 git clone https://github.com/nhatphucpham/fal-gaming.git
 cd fal-gaming
-set "GODOT=C:\Godot\Godot_v4.4.1-stable_win64_console.exe"
+set "GODOT=C:\Godot\Godot_v4.7.2-stable_win64_console.exe"
 "%GODOT%" --headless --editor --path "%CD%" --import
 "%GODOT%" --editor --path "%CD%"
 "%GODOT%" --headless --path "%CD%" --script res://Tests/smoke_test.gd
