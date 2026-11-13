@@ -16,8 +16,12 @@ quân trên bàn 5×3. Xếp đúng hình thì thành **trận đồ** và mở 
 - **Trận đồ theo hình học**, không theo số lượng: ví dụ Tường Khiên (3 Khiên liền hàng),
   Mưa Tên (3 Cung liền ở hàng hậu), Hộ Pháp (Khiên ngay trước Pháp), Mũi Giáo (Kỵ ở tiền, 2
   Thương chéo sau), Thương Che Cung, Song Kiếm, Vòng Y, Nhạn Hành. Trận đồ được chồng lên nhau.
-- **Ba hiệp mỗi trận** (~45 giây). Giữa hiệp có 5 giây: dời 2 quân hoặc phất một **Lệnh Kỳ**
-  (Xung Phong, Rút Lui, Đổi Trận, Tử Thủ).
+- **Trận tự động hoàn toàn** (30–45 giây), không điều khiển giữa trận. Phúc thích auto chess
+  vì sự kết hợp và tính tự động, nên chiều sâu dồn vào **6 tầng kết hợp tự kích hoạt nhau**:
+  tộc (đếm số), nghề (đếm số), trận đồ (hình), nguyên tố (Hỏa, Băng, Lôi, Phong, Độc; hai hệ chạm
+  nhau thì tự phản ứng: Hỏa+Phong lốc lửa, Băng+Lôi vỡ băng, Độc+Hỏa khói nổ), trang bị ghép
+  (Cung + Ngọc Hỏa = Cung Lửa), tướng (luật nối các tầng). Chuỗi combo hiện tên và đếm Chuỗi ×N;
+  sau trận có Nhật Ký Combo.
 - **8 lớp quân** có khắc chế: Khiên, Kiếm, Thương, Kỵ, Cung, Pháp, Y, Ám.
 - **Tộc bẻ luật xếp hình:** Nhân (+1 cấp trận đồ), Lang Tộc (trận đồ 3 quân chỉ cần 2),
   Thạch Duệ (chiếm 2 ô, tính 2 quân), Vũ Dân (tính ở hai hàng), Mộc Hồn (mọc cây con giữa trận),
@@ -26,7 +30,7 @@ quân trên bàn 5×3. Xếp đúng hình thì thành **trận đồ** và mở 
 - **Trang bị** đổi lớp quân khi tính trận đồ (Kiếm sĩ cầm cung được tính là Cung).
 
 **Năm khoảnh khắc vui:** tự khám phá trận đồ mới; một quân phục vụ hai trận đồ; lật kèo bằng
-Lệnh Kỳ; đọc trận đồ của địch để khắc; mỗi ván build khác nhau.
+chuỗi combo tự nổ; đọc trận đồ của địch để khắc; mỗi ván build khác nhau.
 
 **Một ván (Hành Quân):** 12 chặng (trận, chợ quân, lò rèn, hạ trại, sự kiện, tinh anh, chúa tể);
 kinh tế auto chess (vàng, làm mới, ghép 3 lên sao); sinh tồn (lương mỗi chặng, thương binh,
@@ -40,8 +44,8 @@ giới), Loạn Chiến (8 người, kho quân chung).
 
 **Kỹ thuật:** mô phỏng trận và nhận diện trận đồ bằng C++ GDExtension, tất định; mọi nội dung là dữ liệu.
 
-**Bản thử đầu:** bàn 5×3, 6 lớp quân, 12 trận đồ, Lang Tộc, 3 hiệp + 2 Lệnh Kỳ, ván 8 chặng.
-Câu hỏi cần trả lời: người chơi có tự xếp lại chỉ để tìm trận đồ mới không?
+**Bản thử đầu:** bàn 5×3, 6 lớp quân, 12 trận đồ, Lang Tộc, 3 nguyên tố, 6 trang bị ghép, 4 tướng, ván 8 chặng.
+Câu hỏi cần trả lời: người chơi có tự đổi đội chỉ để nối chuỗi combo dài hơn không?
 
 ## 1. Mong muốn của Phúc và giới hạn kỹ thuật
 
