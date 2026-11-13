@@ -5,7 +5,7 @@ command-line steps in the README. Godot imports assets into `.godot/`, which is
 generated locally and ignored by Git.
 
 To validate without a display, run the editor import and
-`Tests/smoke_test.gd` as shown in the README. CI does the same and also starts
+`Tests/smoke_test.gd` and `Tests/voice_test.gd` as shown in the README. CI does the same and also starts
 the project headlessly. These checks do not replace testing an exported build
 on the target device.
 

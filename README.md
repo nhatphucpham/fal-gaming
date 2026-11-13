@@ -26,6 +26,7 @@ set "GODOT=C:\Godot\Godot_v4.7.2-stable_win64_console.exe"
 "%GODOT%" --headless --editor --path "%CD%" --import
 "%GODOT%" --editor --path "%CD%"
 "%GODOT%" --headless --path "%CD%" --script res://Tests/smoke_test.gd
+"%GODOT%" --headless --path "%CD%" --script res://Tests/voice_test.gd
 ```
 
 In the editor, press **F5** to run the project or **F6** to run the current
@@ -48,6 +49,7 @@ Only the Windows preset exists so far; an Android preset will be added. The
 - [Build and test](Docs/build.md)
 - [Architecture](Docs/architecture.md)
 - [Conventions](Docs/conventions.md)
+- [Voice (TTS)](Docs/voice.md)
 - [Agent instructions](AGENTS.md)
 
 Work on short-lived branches and open pull requests into `master`.
