@@ -1,23 +1,12 @@
+# Godot
 /.godot/
+/android/
+
+# Exported builds
 /build/
-/Binaries/
-/Intermediate/
-/Saved/
-/DerivedDataCache/
-**/Binaries/
-**/Intermediate/
-**/Saved/
-**/DerivedDataCache/
-.vs/
+
+# Editors and OS
+.vscode/
 .idea/
-*.sln
-*.suo
-*.opensdf
-*.sdf
-*.VC.db
-*.VC.opendb
-*.xcodeproj/
-*.xcworkspace/
-/Build/
-/Dist/
-/Packaged/
+.DS_Store
+Thumbs.db
