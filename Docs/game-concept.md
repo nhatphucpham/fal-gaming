@@ -36,6 +36,16 @@ chuỗi combo tự nổ; đọc trận đồ của địch để khắc; mỗi v
 kinh tế auto chess (vàng, làm mới, ghép 3 lên sao); sinh tồn (lương mỗi chặng, thương binh,
 trời lạnh dần).
 
+**Khó dần, sâu dần (ba trục):**
+
+- *Mở từng tầng:* ván 1 tộc + nghề; ván 2 thêm 3 trận đồ; thắng ván đầu mở nguyên tố; bậc ải 3
+  trang bị ghép; bậc 5 tướng; bậc 8+ trận đồ ẩn. Mỗi tầng được dạy bằng một trận thiết kế sẵn.
+- *Địch khôn dần trong ván:* chặng 1–4 đơn giản; 5–8 dùng trận đồ và nguyên tố; 9–11 đọc combo
+  mạnh nhất của người chơi ở trận trước và mang đồ khắc; chúa tể có luật phá combo, lộ từ chặng 6.
+- *Bậc ải 1–20,* luật cộng dồn: địch mạnh hơn, lương ít; cửa hàng bớt ô, đông đến sớm; trận đồ
+  địch +1 cấp, thương binh nghỉ lâu; chúa tể 2 luật, cấm ngẫu nhiên một nguyên tố; chết là mất,
+  địch có tướng, không xem trước đội địch.
+
 **Chơi lâu dài:** Sổ Trận Đồ (~40, có trận đồ ẩn), mở khóa tướng/tộc/trang bị, Thử Thách Ngày
 (seed chung, bảng xếp hạng), truyện ngắn theo từng tướng làm lớp phủ.
 
