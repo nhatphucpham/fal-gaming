@@ -18,7 +18,7 @@ quân trên bàn 5×3. Xếp đúng hình thì thành **trận đồ** và mở 
   Thương chéo sau), Thương Che Cung, Song Kiếm, Vòng Phù, Nhạn Hành. Trận đồ được chồng lên nhau.
 - **Trận tự động hoàn toàn** (30–45 giây), không điều khiển giữa trận. Phúc thích auto chess
   vì sự kết hợp và tính tự động, nên chiều sâu dồn vào **6 tầng kết hợp tự kích hoạt nhau**:
-  tộc (chỉ bẻ luật xếp hình, không đếm số), nghề (đếm số 2/4/6), trận đồ (hình), nguyên tố (Hỏa, Băng, Lôi, Phong, Độc; chỉ Pháp, Phù và trang bị có ngọc gắn được; hai hệ chạm
+  tộc (chỉ bẻ luật xếp hình, không đếm số), nghề (đếm số 2/4/6), trận đồ (hình), nguyên tố (Hỏa, Băng, Lôi, Phong, Độc; chỉ Pháp, Phù, trang bị có ngọc và Trận Nhãn gắn được; hai hệ chạm
   nhau thì tự phản ứng: Hỏa+Phong lốc lửa, Băng+Lôi vỡ băng, Độc+Hỏa khói nổ), trang bị ghép
   (Cung + Ngọc Hỏa = Cung Lửa), tướng (luật nối các tầng). Chuỗi combo hiện tên và đếm Chuỗi ×N;
   sau trận có Nhật Ký Combo.
@@ -30,13 +30,19 @@ quân trên bàn 5×3. Xếp đúng hình thì thành **trận đồ** và mở 
   Thạch Duệ (chiếm 2 ô, tính 2 quân), Vũ Dân (tính ở hai hàng), Mộc Hồn (mọc cây con giữa trận),
   Vong Nhân (hồn giữ chỗ 5 giây sau khi chết).
 - **Tướng** có luật riêng (vd. Liễu Mi: Mưa Tên chỉ cần 2 Cung); dữ liệu hóa, dàn tướng hàng trăm.
-- **Trang bị** đổi lớp quân khi tính trận đồ (Kiếm sĩ cầm cung được tính là Cung).
-- **Thăng Giai** (trục nâng cấp thứ hai, ngoài nâng sao): quân tích Huân công tự động (ra sân,
-  đứng trong trận đồ đang bật, góp vào chuỗi combo, hạ địch). Giai 2 (6 Huân): chọn 1 trong 2 nhánh
-  của lớp; Giai 3 (15 Huân): Danh hiệu, biệt danh theo chiến công và đòn riêng trong cảnh cắt.
-  Ghép sao giữ giai cao nhất; bán quân mất Huân. Nhánh đổi luật chứ không chỉ cộng chỉ số: tính là
-  hai lớp (Kỵ Thương, Cung Kỵ, Chú Kiếm), lật khắc chế (Cung Phá Giáp), đổi yêu cầu trận đồ (Thiết
-  Bích), phá trận đồ địch (Ám Phá Trận).
+- **Trang bị** (theo từng quân): 4 mảnh cơ bản (Kiếm, Cung, Giáp, Phép) + 5 Ngọc nguyên tố; ghép
+  2 mảnh thành 1 món, tối đa 3 món/quân; bán quân thì trả về kho. Món từ mảnh cơ bản đổi cách đánh,
+  vài món cho thêm một lớp khi tính trận đồ (cách duy nhất để một quân mang hai lớp, vd Đoản Cung,
+  Trọng Khải); món có Ngọc cho đánh kèm nguyên tố. Bốn cách nâng cấp: sao (một quân, mạnh hơn),
+  trang bị (một quân, đổi cách đánh), Binh Thư (cả lớp), Trận Nhãn (một ô).
+- **Nâng cấp ngoài nâng sao và trang bị** (không gắn vào từng con quân; đề xuất Thăng Giai đã bỏ):
+  - **Binh Thư** (theo lớp): ~4 trang mỗi ván từ trận tinh anh, chúa tể, sự kiện. Mỗi trang mở 1
+    nhánh cho 1 lớp, áp cho mọi quân lớp đó kể cả quân mua sau; mỗi lớp chọn 1 trong 2 nhánh/ván
+    (vd Khiên Thiết Bích/Phản Thuẫn, Cung Liên Châu/Phá Giáp, Ám Ảnh Sát/Phá Trận). Mở từ bậc ải 2.
+  - **Trận Nhãn** (theo ô): khắc Ấn lên ô, quân nào đứng đó được hiệu lực; tối đa 3/ván, dời được
+    ở lò rèn. Ấn: Nhãn Trận (+1 cấp trận đồ đi qua), Nhãn Gương (tính thêm một quân cùng lớp với ô
+    cạnh), Nhãn nguyên tố (nguồn nguyên tố thứ tư), Nhãn Kiên (-20% sát thương), Nhãn Tiên (ra đòn
+    trước). Mở từ ván 3.
 
 **Năm khoảnh khắc vui:** tự khám phá trận đồ mới; một quân phục vụ hai trận đồ; lật kèo bằng
 chuỗi combo tự nổ; đọc trận đồ của địch để khắc; mỗi ván build khác nhau.

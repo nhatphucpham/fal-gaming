@@ -85,7 +85,7 @@ ol.q{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px}
 
 <div class="wrap">
   <header>
-    <span class="eyebrow">Falemag · concept lấy lối chơi làm gốc · bản phác 4.6</span>
+    <span class="eyebrow">Falemag · concept lấy lối chơi làm gốc · bản phác 4.8</span>
     <h1>Bát Trận</h1>
     <p class="lead">Auto chess kiếm, cung, giáp, phép, nơi <b>hình dạng đội hình là vũ khí</b>. Tối đa 8 quân trên 15 ô. Xếp đúng hình thì đội hình thành trận đồ và mở sức mạnh mới. Mỗi ván là một câu đố xếp quân khác nhau.</p>
     <div class="facts">
@@ -134,7 +134,7 @@ ol.q{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px}
         <tr><td><b>1. Tộc</b></td><td>Không đếm số. Mỗi tộc bẻ một luật xếp hình, áp dụng cho trận đồ có quân tộc đó</td><td>Lang Tộc đứng giữa: trận đồ cần 3 quân chỉ cần 2</td></tr>
         <tr><td><b>2. Nghề</b></td><td>Đếm số quân cùng lớp, như auto chess quen thuộc (2/4/6)</td><td>4 Cung: tên bắn xuyên 2 mục tiêu</td></tr>
         <tr><td><b>3. Trận đồ</b></td><td>Xếp đúng hình trên bàn (bàn thử ở trên)</td><td>3 Cung liền ở hàng hậu: Mưa Tên</td></tr>
-        <tr><td><b>4. Nguyên tố</b></td><td>Năm hệ Hỏa, Băng, Lôi, Phong, Độc. Chỉ ba nguồn gắn được nguyên tố: Pháp (đòn phép), Phù (dán bùa lên đồng đội) và trang bị có ngọc. Hai hệ chạm nhau trên cùng một địch thì tự gây phản ứng</td><td>Hỏa + Phong: lốc lửa lan sang ô bên. Băng + Lôi: vỡ băng, sát thương gấp ba. Độc + Hỏa: khói độc nổ</td></tr>
+        <tr><td><b>4. Nguyên tố</b></td><td>Năm hệ Hỏa, Băng, Lôi, Phong, Độc. Chỉ bốn nguồn gắn được nguyên tố: Pháp (đòn phép), Phù (dán bùa lên đồng đội), trang bị có ngọc và Trận Nhãn nguyên tố. Hai hệ chạm nhau trên cùng một địch thì tự gây phản ứng</td><td>Hỏa + Phong: lốc lửa lan sang ô bên. Băng + Lôi: vỡ băng, sát thương gấp ba. Độc + Hỏa: khói độc nổ</td></tr>
         <tr><td><b>5. Trang bị ghép</b></td><td>Hai mảnh kiếm, cung, giáp, phép ghép thành một món, có món đổi luôn lớp hoặc hệ của quân</td><td>Cung + Ngọc Hỏa: Cung Lửa, biến Mưa Tên thành mưa lửa</td></tr>
         <tr><td><b>6. Tướng</b></td><td>Mỗi tướng mang một luật nối các tầng với nhau</td><td>Phong sư Vân Khê: mỗi khi có phản ứng nguyên tố, thổi một luồng gió đẩy nó sang địch kế bên</td></tr>
       </tbody>
@@ -178,33 +178,81 @@ ol.q{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px}
       <article class="card"><h3>Vong Nhân</h3><p>Chết thì để lại hồn ở ô cũ trong 5 giây, vẫn tính cho trận đồ. Trận đồ không vỡ ngay khi mất người.</p></article>
     </div>
     <p><b>Tướng</b> là quân có tên, mỗi người mang một luật riêng. Ví dụ: cung thủ Liễu Mi chỉ cần 2 Cung là thành Mưa Tên; lão tướng Trấn Sơn biến Tường Khiên thành Tường Khiên Phản Đòn. Tướng được định nghĩa bằng dữ liệu, nên thêm tướng mới không cần sửa code. Dàn nhân vật có thể lên hàng trăm.</p>
-    <p><b>Trang bị</b> kiếm, cung, giáp, phép có thể đổi lớp quân khi tính trận đồ. Đưa cung cho một Kiếm sĩ thì quân đó được tính là Cung trong Mưa Tên nhưng vẫn đánh cận chiến. Đây là chỗ cho những build lạ.</p>
   </section>
 
   <section>
-    <span class="eyebrow">Trục nâng cấp thứ hai</span>
-    <h2>Thăng Giai: quân lớn lên nhờ chiến công</h2>
-    <p>Nâng sao làm quân <b>mạnh hơn</b>. Thăng Giai làm quân <b>khác đi</b>. Quân tích <b>Huân công</b> qua từng trận, đủ thì được thăng giai và anh chọn một trong hai nhánh. Mỗi nhánh đổi luật của quân đó chứ không chỉ cộng chỉ số.</p>
+    <span class="eyebrow">Nâng cấp ngoài nâng sao</span>
+    <h2>Trang bị, Binh Thư và Trận Nhãn</h2>
+    <p>Có bốn cách nâng cấp, mỗi cách tác động ở một tầm khác nhau nên không dẫm chân nhau.</p>
+    <div class="tbl"><table>
+      <thead><tr><th>Cách</th><th>Tác động lên</th><th>Làm gì</th><th>Khi bán quân</th></tr></thead>
+      <tbody>
+        <tr><td><b>Nâng sao</b></td><td>Một con quân</td><td>Mạnh hơn: máu, sát thương</td><td>Mất</td></tr>
+        <tr><td><b>Trang bị</b></td><td>Một con quân</td><td>Đổi cách đánh của con đó</td><td>Trả về kho, gắn cho quân khác được</td></tr>
+        <tr><td><b>Binh Thư</b></td><td>Cả một lớp</td><td>Đổi luật cho mọi quân lớp đó</td><td>Không ảnh hưởng</td></tr>
+        <tr><td><b>Trận Nhãn</b></td><td>Một ô trên bàn</td><td>Đổi giá trị của ô</td><td>Không ảnh hưởng</td></tr>
+      </tbody>
+    </table></div>
+
+    <h3>Trang bị: nâng theo từng quân</h3>
     <ul class="dots">
-      <li><b>Tích Huân công tự động:</b> mỗi trận được ra sân +1, đứng trong một trận đồ đang bật +1, góp vào một chuỗi combo +1 mỗi lần, hạ địch +1.</li>
-      <li><b>Giai 2 (6 Huân):</b> chọn một trong hai nhánh của lớp.</li>
-      <li><b>Giai 3 (15 Huân):</b> nhận <b>Danh hiệu</b>. Quân được đặt biệt danh theo chiến công của nó (ví dụ "Cung thủ Một Trăm Tên") và có một đòn riêng trong cảnh cắt.</li>
-      <li><b>Giữ khi ghép sao:</b> ghép 3 quân thì quân mới lấy giai cao nhất. Bán quân là mất hết Huân công, nên giữ quân lâu có giá trị, nhưng tốn lương.</li>
+      <li><b>Bốn mảnh cơ bản</b> rơi ra sau trận: Kiếm (công), Cung (tốc đánh), Giáp (thủ), Phép (sức phép). Thêm năm <b>Ngọc</b> nguyên tố: Hỏa, Băng, Lôi, Phong, Độc.</li>
+      <li><b>Ghép hai mảnh thành một món.</b> Mỗi quân mang tối đa 3 món. Bán quân thì trang bị trả về kho. Ghép 3 quân lên sao thì gom trang bị về con mới, món thừa trả về kho.</li>
+      <li><b>Món ghép từ hai mảnh cơ bản</b> đổi cách đánh. Một vài món cho quân thêm một lớp khi tính trận đồ, đây là cách duy nhất để một quân mang hai lớp.</li>
+      <li><b>Món có Ngọc</b> cho quân đánh kèm nguyên tố đó.</li>
+    </ul>
+    <div class="tbl"><table>
+      <thead><tr><th>Ghép</th><th>Món</th><th>Hiệu lực</th></tr></thead>
+      <tbody>
+        <tr><td>Kiếm + Kiếm</td><td><b>Song Đao</b></td><td>Đánh hai lần mỗi lượt</td></tr>
+        <tr><td>Kiếm + Cung</td><td><b>Đoản Cung</b></td><td>Được tính thêm lớp Cung trong trận đồ, vẫn đánh cận chiến</td></tr>
+        <tr><td>Giáp + Giáp</td><td><b>Trọng Khải</b></td><td>Được tính thêm lớp Khiên; chậm hơn</td></tr>
+        <tr><td>Giáp + Phép</td><td><b>Áo Phù Văn</b></td><td>Miễn hiệu ứng nguyên tố lần đầu chạm vào</td></tr>
+        <tr><td>Cung + Phép</td><td><b>Tên Ấn</b></td><td>Mỗi mũi tên mang theo bùa của Phù đứng gần nhất</td></tr>
+        <tr><td>Cung + Ngọc Hỏa</td><td><b>Cung Lửa</b></td><td>Đòn bắn kèm Hỏa</td></tr>
+        <tr><td>Giáp + Ngọc Băng</td><td><b>Khiên Băng</b></td><td>Ai đánh cận chiến vào quân này thì dính Băng</td></tr>
+      </tbody>
+    </table></div>
+    <p>Bản đầy đủ có khoảng 10 món từ mảnh cơ bản và 20 món có Ngọc.</p>
+
+    <h3>Binh Thư: nâng theo lớp quân</h3>
+    <ul class="dots">
+      <li>Thắng trận tinh anh, thắng chúa tể hoặc qua một số sự kiện thì được một <b>trang Binh Thư</b>. Mỗi ván có khoảng 4 trang.</li>
+      <li>Mỗi trang mở một nhánh cho một lớp. Mọi quân lớp đó trong ván đều theo nhánh đó, kể cả quân mua về sau.</li>
+      <li>Mỗi lớp chỉ được chọn một trong hai nhánh trong một ván. Bốn trang cho tám lớp, nên anh phải quyết theo hướng đội hình nào.</li>
     </ul>
     <div class="tbl"><table>
       <thead><tr><th>Lớp</th><th>Nhánh A</th><th>Nhánh B</th></tr></thead>
       <tbody>
-        <tr><td><b>Khiên</b></td><td><b>Thiết Bích:</b> Tường Khiên chỉ cần 2 Khiên nếu có quân này</td><td><b>Phản Thuẫn:</b> chặn được tên thì bắn ngược lại</td></tr>
-        <tr><td><b>Kiếm</b></td><td><b>Kiếm Thánh:</b> đòn thứ ba chém lan sang hai ô bên</td><td><b>Hộ Vệ:</b> đứng trước một quân hậu thì đỡ đòn Ám thay cho quân đó</td></tr>
-        <tr><td><b>Thương</b></td><td><b>Trường Thương:</b> tầm đâm ba ô</td><td><b>Kỵ Thương:</b> cưỡi ngựa, được tính là cả Thương và Kỵ trong trận đồ</td></tr>
-        <tr><td><b>Kỵ</b></td><td><b>Thiết Kỵ:</b> đẩy lùi hai ô, địch bị đẩy vào nhau thì choáng</td><td><b>Cung Kỵ:</b> được tính là cả Kỵ và Cung</td></tr>
-        <tr><td><b>Ám</b></td><td><b>Ảnh Sát:</b> hạ được địch thì nhảy tiếp lần nữa</td><td><b>Phá Trận:</b> nhảy vào giữa một trận đồ của địch thì làm trận đồ đó tắt 3 giây</td></tr>
-        <tr><td><b>Cung</b></td><td><b>Liên Châu:</b> bắn ba tên một lượt</td><td><b>Phá Giáp:</b> tên xuyên khiên, lật luôn khắc chế: Cung thôi sợ Khiên</td></tr>
-        <tr><td><b>Pháp</b></td><td><b>Đại Pháp:</b> vùng phép rộng thêm một ô</td><td><b>Chú Kiếm:</b> đánh cận chiến bằng phép, được tính là cả Pháp và Kiếm</td></tr>
-        <tr><td><b>Phù</b></td><td><b>Trận Sư:</b> trận đồ có quân này được +1 cấp</td><td><b>Ấn Sư:</b> dán bùa lên địch, phản ứng nguyên tố trên địch đó mạnh gấp đôi</td></tr>
+        <tr><td><b>Khiên</b></td><td><b>Thiết Bích:</b> Tường Khiên chỉ cần 2 Khiên</td><td><b>Phản Thuẫn:</b> chặn được tên thì bắn ngược lại</td></tr>
+        <tr><td><b>Kiếm</b></td><td><b>Kiếm Thánh:</b> đòn thứ ba chém lan sang hai ô bên</td><td><b>Hộ Vệ:</b> đứng trước quân hậu thì đỡ đòn Ám thay cho quân đó</td></tr>
+        <tr><td><b>Thương</b></td><td><b>Trường Thương:</b> tầm đâm ba ô</td><td><b>Cự Mã:</b> Kỵ địch lao vào Thương ở hàng tiền thì bị choáng</td></tr>
+        <tr><td><b>Kỵ</b></td><td><b>Thiết Kỵ:</b> đẩy lùi hai ô, địch bị đẩy vào nhau thì choáng</td><td><b>Truy Kích:</b> xung phong hết cột thì quay đầu xung phong lần nữa</td></tr>
+        <tr><td><b>Ám</b></td><td><b>Ảnh Sát:</b> hạ được địch thì nhảy tiếp lần nữa</td><td><b>Phá Trận:</b> nhảy vào giữa trận đồ địch thì trận đồ đó tắt 3 giây</td></tr>
+        <tr><td><b>Cung</b></td><td><b>Liên Châu:</b> bắn ba tên một lượt</td><td><b>Phá Giáp:</b> tên xuyên khiên, Cung thôi sợ Khiên</td></tr>
+        <tr><td><b>Pháp</b></td><td><b>Đại Pháp:</b> vùng phép rộng thêm một ô</td><td><b>Liên Phép:</b> phép nảy sang địch thứ hai</td></tr>
+        <tr><td><b>Phù</b></td><td><b>Trận Sư:</b> trận đồ có Phù được +1 cấp</td><td><b>Ấn Sư:</b> dán bùa lên địch, phản ứng nguyên tố trên địch đó mạnh gấp đôi</td></tr>
       </tbody>
     </table></div>
-    <p><b>Vì sao hợp với Bát Trận:</b> những nhánh "được tính là hai lớp" và "lật khắc chế" mở ra trận đồ và combo mới, đúng với cái vui của sự kết hợp. Việc thăng giai diễn ra tự động sau trận, người chơi chỉ chọn nhánh. Nhánh thăng giai cũng thêm một tầng cho độ khó tăng dần: ở bậc ải cao, địch cũng có quân thăng giai.</p>
+
+    <h3>Trận Nhãn: nâng theo ô trên bàn</h3>
+    <ul class="dots">
+      <li>Lò rèn và một số sự kiện cho <b>Ấn</b>. Khắc Ấn lên một ô thì ô đó thành Trận Nhãn. Quân nào đứng trên ô đó cũng được hiệu lực.</li>
+      <li>Mỗi ván tối đa 3 Trận Nhãn. Ở lò rèn được dời Trận Nhãn sang ô khác.</li>
+      <li>Trận Nhãn hiện trên bàn bằng một ký hiệu mờ dưới chân quân, không che quân.</li>
+    </ul>
+    <div class="tbl"><table>
+      <thead><tr><th>Ấn</th><th>Hiệu lực cho ô</th></tr></thead>
+      <tbody>
+        <tr><td><b>Nhãn Trận</b></td><td>Trận đồ nào đi qua ô này được +1 cấp</td></tr>
+        <tr><td><b>Nhãn Gương</b></td><td>Ô được tính là có thêm một quân cùng lớp với quân đứng cạnh, giúp ghép trận đồ bằng ít quân hơn</td></tr>
+        <tr><td><b>Nhãn Hỏa / Băng / Lôi / Phong / Độc</b></td><td>Quân đứng đây đánh kèm nguyên tố đó. Đây là nguồn nguyên tố thứ tư, sau Pháp, Phù và trang bị</td></tr>
+        <tr><td><b>Nhãn Kiên</b></td><td>Quân đứng đây nhận ít sát thương hơn 20%</td></tr>
+        <tr><td><b>Nhãn Tiên</b></td><td>Quân đứng đây ra đòn đầu tiên trong trận</td></tr>
+      </tbody>
+    </table></div>
+    <p><b>Hai trục bổ sung nhau:</b> Binh Thư đổi luật cho cả một lớp, Trận Nhãn đổi giá trị của từng ô. Ví dụ Binh Thư Thiết Bích cộng với Nhãn Trận đặt giữa hai Khiên sẽ cho Tường Khiên cấp cao chỉ bằng 2 quân. Ở bậc ải cao, địch cũng có Binh Thư và Trận Nhãn, và nhánh Ám Phá Trận trở thành cách để phá chúng.</p>
+    <p><b>Mở dần:</b> Trận Nhãn mở từ ván thứ 3, Binh Thư mở từ bậc ải 2, để độ phức tạp tăng từng bước.</p>
   </section>
 
   <section>
