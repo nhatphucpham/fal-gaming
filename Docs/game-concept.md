@@ -2,7 +2,7 @@
 
 > Trạng thái: bản nháp để bàn. **Bản 4 (mục 0) là hướng hiện tại: "Bát Trận"**, concept lấy
 > lối chơi làm gốc, fantasy kiếm/cung/giáp/phép. Bản trực quan có bàn xếp trận bấm thử: artifact
-> "Bát Trận". Các mục sau là lịch sử: bản 1 (mục 1–7), bản 3 (mục 8). Bản 2 "Ấn Truyền" đã bỏ.
+> "Bát Trận". Tài liệu thiết kế đầy đủ (GDD, có số liệu khởi điểm): `Docs/concept-page/bat-tran-gdd.html`, artifact "Bát Trận GDD". Các mục sau là lịch sử: bản 1 (mục 1–7), bản 3 (mục 8). Bản 2 "Ấn Truyền" đã bỏ.
 
 ## 0. Bát Trận (bản 4, hướng hiện tại)
 
