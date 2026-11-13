@@ -12,7 +12,8 @@ been configured or tested.
 - Git and Git LFS. Configure `UE_ROOT` to the engine installation directory.
 - For CI: a Windows self-hosted GitHub Actions runner labelled `unreal`,
   with the same engine, toolchain, Git LFS, and `UE_ROOT` available to the
-  runner service.
+  runner service. Use an isolated runner without unrelated credentials;
+  fork pull requests run hygiene checks only and need a trusted build separately.
 
 ## Clone, build, open, and test (Windows cmd.exe)
 
