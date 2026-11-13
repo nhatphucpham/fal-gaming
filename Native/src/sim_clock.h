@@ -9,7 +9,10 @@ namespace godot {
 // Fixed-step simulation clock. It turns variable frame time into a steady
 // stream of integer ticks, so turn order, combat and network lockstep can run
 // on the same tick count on every device. Time is kept in whole microseconds
-// to avoid floating-point drift between platforms.
+// to avoid floating-point drift between platforms. The step is rounded down
+// to whole microseconds, so a rate that does not divide 1,000,000 (such as
+// 60) runs a few parts per million fast against wall time; tick counts stay
+// identical on every device.
 class SimClock : public Node {
 	GDCLASS(SimClock, Node)
 
@@ -18,6 +21,8 @@ class SimClock : public Node {
 	bool running = true;
 	int64_t tick = 0;
 	int64_t accumulator_usec = 0;
+
+	int64_t get_step_usec() const;
 
 protected:
 	static void _bind_methods();

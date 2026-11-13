@@ -101,6 +101,10 @@ jobs:
           unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP"
       - name: Import and test project
         run: |
+          # Godot 4.7.2 crashes on exit when the first import of a fresh checkout
+          # discovers a GDExtension. Listing the extension up front makes the
+          # editor load it at startup instead, and the import exits cleanly.
+          mkdir -p .godot && echo "res://falemag.gdextension" > .godot/extension_list.cfg
           GODOT="$RUNNER_TEMP/Godot_v4.7.2-stable_linux.x86_64"
           "$GODOT" --headless --editor --path "$GITHUB_WORKSPACE" --import
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/smoke_test.gd
@@ -133,6 +137,11 @@ jobs:
           mkdir -p "$DEST"
           unzip -q -j "$RUNNER_TEMP/templates.tpz" templates/android_debug.apk templates/version.txt -d "$DEST"
           rm "$RUNNER_TEMP/templates.tpz"
+      - name: Download Linux library for the editor
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: falemag-linux-x86_64
+          path: bin
       - name: Download native library
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -149,9 +158,14 @@ jobs:
             -dname "CN=Android Debug,O=Android,C=US"
           GODOT="$RUNNER_TEMP/Godot_v4.7.2-stable_linux.x86_64"
           mkdir -p build/android
+          # Godot 4.7.2 crashes on exit when the first import of a fresh checkout
+          # discovers a GDExtension. Listing the extension up front makes the
+          # editor load it at startup instead, and the import exits cleanly.
+          mkdir -p .godot && echo "res://falemag.gdextension" > .godot/extension_list.cfg
           "$GODOT" --headless --editor --path "$GITHUB_WORKSPACE" --import
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --export-debug "Android" "$GITHUB_WORKSPACE/build/android/Falemag.apk"
           test -s build/android/Falemag.apk
+          unzip -l build/android/Falemag.apk | grep -q 'lib/arm64-v8a/libfalemag.android.template_debug.arm64.so'
           ls -l build/android/Falemag.apk
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -187,6 +201,11 @@ jobs:
           mkdir -p "$DEST"
           unzip -q -j "$RUNNER_TEMP/templates.tpz" templates/web_dlink_nothreads_release.zip templates/version.txt -d "$DEST"
           rm "$RUNNER_TEMP/templates.tpz"
+      - name: Download Linux library for the editor
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: falemag-linux-x86_64
+          path: bin
       - name: Download native library
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -196,10 +215,15 @@ jobs:
         run: |
           GODOT="$RUNNER_TEMP/Godot_v4.7.2-stable_linux.x86_64"
           mkdir -p build/web
+          # Godot 4.7.2 crashes on exit when the first import of a fresh checkout
+          # discovers a GDExtension. Listing the extension up front makes the
+          # editor load it at startup instead, and the import exits cleanly.
+          mkdir -p .godot && echo "res://falemag.gdextension" > .godot/extension_list.cfg
           "$GODOT" --headless --editor --path "$GITHUB_WORKSPACE" --import
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --export-release "Web" "$GITHUB_WORKSPACE/build/web/index.html"
           test -s build/web/index.html
           test -s build/web/index.wasm
+          find build/web -name 'libfalemag.web.template_release.wasm32.nothreads.wasm' | grep -q .
           du -sh build/web
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:

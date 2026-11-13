@@ -31,16 +31,20 @@ void SimClock::_process(double p_delta) {
 }
 
 int SimClock::advance(double p_delta) {
-	if (!running || p_delta <= 0.0) {
+	if (!running || !std::isfinite(p_delta) || p_delta <= 0.0) {
 		return 0;
 	}
 
-	const int64_t step_usec = 1000000 / ticks_per_second;
-	accumulator_usec += static_cast<int64_t>(std::llround(p_delta * 1000000.0));
+	// Never add more time than one frame may use, so a huge delta cannot
+	// overflow the accumulator. Anything beyond it would be dropped anyway.
+	const double max_delta = static_cast<double>(max_ticks_per_frame) / ticks_per_second;
+	accumulator_usec += static_cast<int64_t>(std::llround(MIN(p_delta, max_delta) * 1000000.0));
 
 	int fired = 0;
-	while (accumulator_usec >= step_usec && fired < max_ticks_per_frame) {
-		accumulator_usec -= step_usec;
+	// The step is read on every pass so a rate change made from a `ticked`
+	// handler applies from the next tick.
+	while (fired < max_ticks_per_frame && accumulator_usec >= get_step_usec()) {
+		accumulator_usec -= get_step_usec();
 		tick++;
 		fired++;
 		emit_signal("ticked", tick);
@@ -48,10 +52,15 @@ int SimClock::advance(double p_delta) {
 
 	// On a slow device, drop the backlog instead of trying to catch up, which
 	// would make each following frame slower still.
+	const int64_t step_usec = get_step_usec();
 	if (accumulator_usec >= step_usec) {
 		accumulator_usec %= step_usec;
 	}
 	return fired;
+}
+
+int64_t SimClock::get_step_usec() const {
+	return 1000000 / ticks_per_second;
 }
 
 void SimClock::reset() {

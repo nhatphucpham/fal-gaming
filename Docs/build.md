@@ -24,14 +24,15 @@ and takes a few minutes; later builds only recompile changed files.
 | --- | --- |
 | Editor and debug builds on this machine | `scons target=template_debug` |
 | Release export on this machine | `scons target=template_release` |
-| Android arm64 | `scons platform=android arch=arm64 target=template_release` |
-| Android arm32 (older phones) | `scons platform=android arch=arm32 target=template_release` |
-| Web (no threads) | `scons platform=web threads=no target=template_release` |
+| Android arm64 | `scons platform=android arch=arm64 target=template_debug` (debug APK) or `target=template_release` |
+| Android arm32 (older phones) | `scons platform=android arch=arm32 target=template_debug` or `target=template_release` |
+| Web (no threads) | `scons platform=web threads=no target=template_debug` or `target=template_release` |
 
 Libraries are written to `bin/` with names such as
 `libfalemag.windows.template_debug.x86_64.dll`, matching the entries in
 `falemag.gdextension`. The `bin/` folder is ignored by Git. Build the matching
-release library for each platform before exporting it.
+library for each platform and export type (debug or release) before
+exporting.
 
 godot-cpp is pinned to `10.0.0-stable` and built against the Godot 4.7 API
 (`api_version` in `SConstruct`). The extension needs Godot 4.7 or later.
@@ -42,10 +43,16 @@ After building, run the editor import and `Tests/smoke_test.gd` as shown in
 the README. The smoke test checks that the extension is loaded, that the main
 scene contains a `SimClock`, and that it ticks as expected.
 
+The first import of a fresh checkout loads the extension mid-scan, and Godot
+4.7.2 then crashes on exit (exit code 134). Running the import again
+succeeds. CI avoids it by writing
+`res://falemag.gdextension` to `.godot/extension_list.cfg` before importing.
+
 CI builds debug and release libraries for Linux x86_64, Windows x86_64,
-Android arm64 and arm32, and the web (wasm32 without threads), uploads them as workflow artifacts, then runs the
-import and smoke test with the Linux library. These checks do not replace
-testing an exported build on the target device.
+Android arm64 and arm32, and the web (wasm32 without threads), and uploads
+them as workflow artifacts. It then runs the import and smoke test with the
+Linux library, and checks that the Android and Web exports contain theirs.
+These checks do not replace testing an exported build on the target device.
 
 ## Adding C++ classes
 
@@ -71,8 +78,9 @@ without a custom Gradle build. Choices made to keep it light:
   scene instead of black bars.
 - The `INTERNET` permission is on for online play and the TTS service.
 
-A debug export from the empty project is about 28 MB and a release export
-about 26 MB; almost all of it is the engine library. A custom engine build
+Before the GDExtension was added, a debug export was about 28 MB and a
+release export about 26 MB; almost all of it is the engine library, and the
+native library adds little. A custom engine build
 with unused modules disabled can shrink it further when that matters.
 
 ### Export locally

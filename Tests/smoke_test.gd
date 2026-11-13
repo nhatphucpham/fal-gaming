@@ -44,6 +44,14 @@ func _check_main(main: Node) -> int:
 		push_error("SimClock did not cap ticks after a stall")
 		return 1
 
+	# Bad frame times are ignored and do not stall the clock.
+	if clock.advance(NAN) != 0 or clock.advance(INF) != 0 or clock.advance(-1.0) != 0:
+		push_error("SimClock accepted an invalid delta")
+		return 1
+	if clock.advance(0.05) != 1:
+		push_error("SimClock stopped ticking after an invalid delta")
+		return 1
+
 	clock.reset()
 	if clock.get_tick() != 0:
 		push_error("SimClock did not reset")
