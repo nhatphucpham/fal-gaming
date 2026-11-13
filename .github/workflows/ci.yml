@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  godot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          lfs: true
+      - name: Check whitespace and LFS pointers
+        run: |
+          git diff --check "$(git hash-object -t tree /dev/null)" HEAD
+          git lfs fsck --pointers HEAD
+      - name: Install Godot 4.7.2
+        run: |
+          curl --fail --location --retry 3 -o "$RUNNER_TEMP/godot.zip" https://github.com/godotengine/godot-builds/releases/download/4.7.2-stable/Godot_v4.7.2-stable_linux.x86_64.zip
+          echo "cadd3204e728a35d3f13adb7fd0d7902636b79f6b95c40c265eb73b6c35329e4  $RUNNER_TEMP/godot.zip" | sha256sum --check
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP"
+      - name: Import and test project
+        run: |
+          GODOT="$RUNNER_TEMP/Godot_v4.7.2-stable_linux.x86_64"
+          "$GODOT" --headless --editor --path "$GITHUB_WORKSPACE" --import
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/smoke_test.gd
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --quit-after 2
