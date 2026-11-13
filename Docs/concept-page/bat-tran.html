@@ -85,7 +85,7 @@ ol.q{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px}
 
 <div class="wrap">
   <header>
-    <span class="eyebrow">Falemag · concept lấy lối chơi làm gốc · bản phác 4.4</span>
+    <span class="eyebrow">Falemag · concept lấy lối chơi làm gốc · bản phác 4.5</span>
     <h1>Bát Trận</h1>
     <p class="lead">Auto chess kiếm, cung, giáp, phép, nơi <b>hình dạng đội hình là vũ khí</b>. Tối đa 8 quân trên 15 ô. Xếp đúng hình thì đội hình thành trận đồ và mở sức mạnh mới. Mỗi ván là một câu đố xếp quân khác nhau.</p>
     <div class="facts">
@@ -131,10 +131,10 @@ ol.q{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px}
     <div class="tbl"><table>
       <thead><tr><th>Tầng</th><th>Cách kết hợp</th><th>Ví dụ</th></tr></thead>
       <tbody>
-        <tr><td><b>1. Tộc</b></td><td>Đếm số quân cùng tộc, như auto chess quen thuộc; mỗi tộc còn bẻ một luật xếp hình</td><td>4 Lang Tộc: hạ địch thì cả bầy đánh nhanh hơn</td></tr>
-        <tr><td><b>2. Nghề</b></td><td>Đếm số quân cùng lớp</td><td>4 Cung: tên bắn xuyên 2 mục tiêu</td></tr>
+        <tr><td><b>1. Tộc</b></td><td>Không đếm số. Mỗi tộc bẻ một luật xếp hình, áp dụng cho trận đồ có quân tộc đó</td><td>Lang Tộc đứng giữa: trận đồ cần 3 quân chỉ cần 2</td></tr>
+        <tr><td><b>2. Nghề</b></td><td>Đếm số quân cùng lớp, như auto chess quen thuộc (2/4/6)</td><td>4 Cung: tên bắn xuyên 2 mục tiêu</td></tr>
         <tr><td><b>3. Trận đồ</b></td><td>Xếp đúng hình trên bàn (bàn thử ở trên)</td><td>3 Cung liền ở hàng hậu: Mưa Tên</td></tr>
-        <tr><td><b>4. Nguyên tố</b></td><td>Năm hệ Hỏa, Băng, Lôi, Phong, Độc gắn trên quân hoặc trang bị. Hai hệ chạm nhau trên cùng một địch thì tự gây phản ứng</td><td>Hỏa + Phong: lốc lửa lan sang ô bên. Băng + Lôi: vỡ băng, sát thương gấp ba. Độc + Hỏa: khói độc nổ</td></tr>
+        <tr><td><b>4. Nguyên tố</b></td><td>Năm hệ Hỏa, Băng, Lôi, Phong, Độc. Chỉ ba nguồn gắn được nguyên tố: Pháp (đòn phép), Phù (dán bùa lên đồng đội) và trang bị có ngọc. Hai hệ chạm nhau trên cùng một địch thì tự gây phản ứng</td><td>Hỏa + Phong: lốc lửa lan sang ô bên. Băng + Lôi: vỡ băng, sát thương gấp ba. Độc + Hỏa: khói độc nổ</td></tr>
         <tr><td><b>5. Trang bị ghép</b></td><td>Hai mảnh kiếm, cung, giáp, phép ghép thành một món, có món đổi luôn lớp hoặc hệ của quân</td><td>Cung + Ngọc Hỏa: Cung Lửa, biến Mưa Tên thành mưa lửa</td></tr>
         <tr><td><b>6. Tướng</b></td><td>Mỗi tướng mang một luật nối các tầng với nhau</td><td>Phong sư Vân Khê: mỗi khi có phản ứng nguyên tố, thổi một luồng gió đẩy nó sang địch kế bên</td></tr>
       </tbody>
@@ -153,8 +153,8 @@ ol.q{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px}
         <tr><td><b>Khiên</b></td><td>Tiền</td><td>Đỡ đòn, giữ hàng</td><td>Cung</td><td>Pháp</td></tr>
         <tr><td><b>Kiếm</b></td><td>Tiền</td><td>Cận chiến, bảo vệ hàng sau</td><td>Ám</td><td>Thương</td></tr>
         <tr><td><b>Thương</b></td><td>Tiền</td><td>Đâm xa hai ô, chặn xung phong</td><td>Kỵ, Kiếm</td><td>Cung</td></tr>
-        <tr><td><b>Kỵ</b></td><td>Cơ động</td><td>Xung phong qua hàng đầu</td><td>Pháp</td><td>Thương</td></tr>
-        <tr><td><b>Ám</b></td><td>Cơ động</td><td>Nhảy thẳng vào hàng hậu</td><td>Phù, Pháp</td><td>Kiếm</td></tr>
+        <tr><td><b>Kỵ</b></td><td>Cơ động</td><td>Xung phong thẳng theo cột, đẩy lùi mọi quân trên đường</td><td>Pháp</td><td>Thương</td></tr>
+        <tr><td><b>Ám</b></td><td>Cơ động</td><td>Nhảy tới quân yếu máu nhất ở bất kỳ đâu</td><td>Phù, Pháp</td><td>Kiếm</td></tr>
         <tr><td><b>Cung</b></td><td>Hậu</td><td>Sát thương xa vật lý</td><td>Thương</td><td>Khiên</td></tr>
         <tr><td><b>Pháp</b></td><td>Hậu</td><td>Phép vùng, xuyên giáp</td><td>Khiên</td><td>Kỵ, Ám</td></tr>
         <tr><td><b>Phù</b></td><td>Hậu</td><td>Dán bùa nguyên tố lên đồng đội, xé bùa của địch</td><td>Hiệu ứng nguyên tố của địch</td><td>Ám</td></tr>
@@ -168,7 +168,7 @@ ol.q{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px}
   <section>
     <span class="eyebrow">Chiều sâu</span>
     <h2>Tộc và tướng bẻ cong luật xếp hình</h2>
-    <p>Tộc không chỉ cộng chỉ số. Mỗi tộc thay đổi cách trận đồ được tính, nên mỗi tộc mở ra một lối xếp khác hẳn.</p>
+    <p>Tộc không cộng chỉ số và không đếm số lượng. Việc đếm số để cho nghề. Mỗi tộc chỉ làm một việc: thay đổi cách trận đồ được tính, nên mỗi tộc mở ra một lối xếp khác hẳn.</p>
     <div class="grid3">
       <article class="card"><h3>Nhân</h3><p>Trận đồ có người Nhân được tăng một cấp. Dễ chơi, hợp người mới.</p></article>
       <article class="card"><h3>Lang Tộc</h3><p>Đi theo bầy: trận đồ cần 3 quân thì chỉ cần 2, nếu có Lang Tộc ở giữa.</p></article>
@@ -188,8 +188,9 @@ ol.q{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:8px}
       <span class="st">Trận</span><span class="ar">→</span><span class="st">Chợ quân</span><span class="ar">→</span><span class="st">Lò rèn</span><span class="ar">→</span><span class="st">Hạ trại</span><span class="ar">→</span><span class="st">Sự kiện</span><span class="ar">→</span><span class="st">Trận tinh anh</span><span class="ar">→</span><span class="st">Chúa tể</span>
     </div>
     <ul class="dots">
-      <li><b>Kinh tế auto chess:</b> vàng, làm mới cửa hàng, ghép 3 quân giống nhau lên một sao.</li>
-      <li><b>Sinh tồn:</b> mỗi chặng tốn lương. Hết lương thì quân giảm máu tối đa. Quân bị thương nặng phải nghỉ một chặng. Càng về sau trời càng lạnh: phép hỏa và lều trại quý dần.</li>
+      <li><b>Hai đồng tiền: vàng và lương.</b> Vàng để mua quân, làm mới cửa hàng, ghép 3 quân lên một sao. Lương để nuôi quân: qua mỗi chặng, mỗi quân trên bàn và trên ghế dự bị ăn 1 lương (quân 2 sao ăn 2, 3 sao ăn 3). Thiếu lương thì quân đói giảm máu tối đa.</li>
+      <li><b>Quyết định thật:</b> đội đông nhưng đói, hay đội gọn mà no? Giữ quân chờ ghép sao cũng tốn lương. Bán quân, săn bắn và một số trận cho thêm lương.</li>
+      <li><b>Mùa đông:</b> càng về sau trời càng lạnh, mỗi quân ăn nhiều hơn. Phép Hỏa và lều trại quý dần.</li>
       <li><b>Hạ trại:</b> chọn một trong ba việc: chữa thương, luyện một quân, hay đi săn lấy lương (có thể gặp phục kích).</li>
       <li><b>Chúa tể</b> cuối ván dùng trận đồ cấp cao và luật riêng của nó. Người chơi phải xếp riêng một đội để khắc nó.</li>
     </ul>

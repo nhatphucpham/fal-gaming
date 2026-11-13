@@ -18,12 +18,12 @@ quân trên bàn 5×3. Xếp đúng hình thì thành **trận đồ** và mở 
   Thương chéo sau), Thương Che Cung, Song Kiếm, Vòng Phù, Nhạn Hành. Trận đồ được chồng lên nhau.
 - **Trận tự động hoàn toàn** (30–45 giây), không điều khiển giữa trận. Phúc thích auto chess
   vì sự kết hợp và tính tự động, nên chiều sâu dồn vào **6 tầng kết hợp tự kích hoạt nhau**:
-  tộc (đếm số), nghề (đếm số), trận đồ (hình), nguyên tố (Hỏa, Băng, Lôi, Phong, Độc; hai hệ chạm
+  tộc (chỉ bẻ luật xếp hình, không đếm số), nghề (đếm số 2/4/6), trận đồ (hình), nguyên tố (Hỏa, Băng, Lôi, Phong, Độc; chỉ Pháp, Phù và trang bị có ngọc gắn được; hai hệ chạm
   nhau thì tự phản ứng: Hỏa+Phong lốc lửa, Băng+Lôi vỡ băng, Độc+Hỏa khói nổ), trang bị ghép
   (Cung + Ngọc Hỏa = Cung Lửa), tướng (luật nối các tầng). Chuỗi combo hiện tên và đếm Chuỗi ×N;
   sau trận có Nhật Ký Combo.
 - **8 lớp quân, 3 vị trí, khắc chế đối xứng** (A khắc B thì B sợ A). Tiền: Khiên, Kiếm, Thương.
-  Cơ động: Kỵ, Ám. Hậu: Cung, Pháp, Phù. Vòng chính: Khiên > Cung > Thương > Kỵ > Pháp > Khiên.
+  Cơ động: Kỵ (xung phong thẳng theo cột, đẩy lùi), Ám (nhảy tới quân yếu máu nhất). Hậu: Cung, Pháp, Phù. Vòng chính: Khiên > Cung > Thương > Kỵ > Pháp > Khiên.
   Vòng phụ: Thương > Kiếm > Ám > Phù, Pháp. Phù (dán/xé bùa nguyên tố) khắc nguyên tố của địch.
   **Không có hồi máu trong trận** (Phúc bỏ lớp Y vì làm trận kéo dài); chữa thương chỉ ở lều trại.
 - **Tộc bẻ luật xếp hình:** Nhân (+1 cấp trận đồ), Lang Tộc (trận đồ 3 quân chỉ cần 2),
@@ -36,7 +36,7 @@ quân trên bàn 5×3. Xếp đúng hình thì thành **trận đồ** và mở 
 chuỗi combo tự nổ; đọc trận đồ của địch để khắc; mỗi ván build khác nhau.
 
 **Một ván (Hành Quân):** 12 chặng (trận, chợ quân, lò rèn, hạ trại, sự kiện, tinh anh, chúa tể);
-kinh tế auto chess (vàng, làm mới, ghép 3 lên sao); sinh tồn (lương mỗi chặng, thương binh,
+hai đồng tiền: vàng (mua, làm mới, ghép 3 lên sao) và lương (mỗi quân ăn 1 lương/chặng theo số sao, thiếu thì giảm máu tối đa: đội đông mà đói hay gọn mà no); thương binh,
 trời lạnh dần).
 
 **Khó dần, sâu dần (ba trục):**
