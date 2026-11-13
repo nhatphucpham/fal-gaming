@@ -27,6 +27,9 @@ cd fal-gaming
 python -m pip install scons
 scons target=template_debug
 set "GODOT=C:\Godot\Godot_v4.7.2-stable_win64_console.exe"
+rem Avoids a Godot 4.7.2 crash on the first import (see Docs/build.md)
+mkdir .godot
+echo res://falemag.gdextension> .godot\extension_list.cfg
 "%GODOT%" --headless --editor --path "%CD%" --import
 "%GODOT%" --editor --path "%CD%"
 "%GODOT%" --headless --path "%CD%" --script res://Tests/smoke_test.gd

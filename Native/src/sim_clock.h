@@ -10,9 +10,10 @@ namespace godot {
 // stream of integer ticks, so turn order, combat and network lockstep can run
 // on the same tick count on every device. Time is kept in whole microseconds
 // to avoid floating-point drift between platforms. The step is rounded down
-// to whole microseconds, so a rate that does not divide 1,000,000 (such as
-// 60) runs a few parts per million fast against wall time; tick counts stay
-// identical on every device.
+// to whole microseconds, so a rate that does not divide 1,000,000 runs
+// slightly fast against wall time (about 40 ppm at 60, up to about 160 ppm
+// near 240); tick counts still match on every device. Prefer rates such as
+// 20, 25, 40, 50 or 100.
 class SimClock : public Node {
 	GDCLASS(SimClock, Node)
 
