@@ -2,6 +2,17 @@
 /.godot/
 /android/
 
+# Native build output (GDExtension libraries and SCons files)
+/bin/
+/.scons-cache/
+.sconsign*.dblite
+*.o
+*.os
+*.obj
+*.lib
+*.exp
+*.pdb
+
 # Exported builds
 /build/
 
