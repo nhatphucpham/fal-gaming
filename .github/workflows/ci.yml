@@ -44,7 +44,7 @@ jobs:
         run: python -m pip install scons==4.9.1
       - name: Install Android NDK
         if: startsWith(matrix.name, 'android')
-        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;28.1.13356709" > /dev/null
+        run: { yes 2>/dev/null || true; } | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;28.1.13356709" > /dev/null
       - name: Restore SCons cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
