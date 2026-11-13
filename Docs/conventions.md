@@ -193,7 +193,9 @@ Comments explain **why**, not **what**. Good names explain what.
   side effects, who owns the result).
 - Every public class gets a doc comment that says what it is for and how it
   is used. Keep it under about ten lines, a short usage example included.
-  - GDScript: `##` above the declaration, so it shows in the editor help.
+  - GDScript: the class doc is a `##` block right after `class_name` and
+    `extends`, before any member; a member doc is `##` lines directly above
+    the member. Both show in the editor help.
   - C++: `//` above the declaration in the header.
 - Inside a function, comment only what the code cannot say: a reason, a
   constraint, a trade-off, a link to the rule or bug it follows.
