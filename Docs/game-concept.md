@@ -1,9 +1,47 @@
-# Falemag: ý tưởng cốt lõi (bản phác 3)
+# Falemag: ý tưởng cốt lõi (bản phác 4)
 
-> Trạng thái: bản nháp để bàn. Bản 3 (mục 8) là ba thế giới mới có chiều sâu; đề xuất
-> "Kỳ Hội". Hướng "Ấn Truyền" của bản 2 đã bị Phúc loại. Các mục 3–7 là bản 1, giữ để so sánh.
-> Bản trực quan: artifact "Ba Thế Giới Falemag". Mọi tên riêng (thế giới, tộc, nhân vật) là tên tạm,
-> tự đặt cho dự án, không lấy từ game có sẵn.
+> Trạng thái: bản nháp để bàn. **Bản 4 (mục 0) là hướng hiện tại: "Bát Trận"**, concept lấy
+> lối chơi làm gốc, fantasy kiếm/cung/giáp/phép. Bản trực quan có bàn xếp trận bấm thử: artifact
+> "Bát Trận". Các mục sau là lịch sử: bản 1 (mục 1–7), bản 3 (mục 8). Bản 2 "Ấn Truyền" đã bỏ.
+
+## 0. Bát Trận (bản 4, hướng hiện tại)
+
+Phúc nhắc: đây là game, không phải tiểu thuyết; cần đảm bảo vui. Bản 4 bắt đầu từ cơ chế.
+
+**Một câu:** auto chess kiếm, cung, giáp, phép, nơi hình dạng đội hình là vũ khí. Tối đa 8
+quân trên bàn 5×3. Xếp đúng hình thì thành **trận đồ** và mở sức mạnh mới.
+
+**Cơ chế lõi**
+
+- **Trận đồ theo hình học**, không theo số lượng: ví dụ Tường Khiên (3 Khiên liền hàng),
+  Mưa Tên (3 Cung liền ở hàng hậu), Hộ Pháp (Khiên ngay trước Pháp), Mũi Giáo (Kỵ ở tiền, 2
+  Thương chéo sau), Thương Che Cung, Song Kiếm, Vòng Y, Nhạn Hành. Trận đồ được chồng lên nhau.
+- **Ba hiệp mỗi trận** (~45 giây). Giữa hiệp có 5 giây: dời 2 quân hoặc phất một **Lệnh Kỳ**
+  (Xung Phong, Rút Lui, Đổi Trận, Tử Thủ).
+- **8 lớp quân** có khắc chế: Khiên, Kiếm, Thương, Kỵ, Cung, Pháp, Y, Ám.
+- **Tộc bẻ luật xếp hình:** Nhân (+1 cấp trận đồ), Lang Tộc (trận đồ 3 quân chỉ cần 2),
+  Thạch Duệ (chiếm 2 ô, tính 2 quân), Vũ Dân (tính ở hai hàng), Mộc Hồn (mọc cây con giữa trận),
+  Vong Nhân (hồn giữ chỗ 5 giây sau khi chết).
+- **Tướng** có luật riêng (vd. Liễu Mi: Mưa Tên chỉ cần 2 Cung); dữ liệu hóa, dàn tướng hàng trăm.
+- **Trang bị** đổi lớp quân khi tính trận đồ (Kiếm sĩ cầm cung được tính là Cung).
+
+**Năm khoảnh khắc vui:** tự khám phá trận đồ mới; một quân phục vụ hai trận đồ; lật kèo bằng
+Lệnh Kỳ; đọc trận đồ của địch để khắc; mỗi ván build khác nhau.
+
+**Một ván (Hành Quân):** 12 chặng (trận, chợ quân, lò rèn, hạ trại, sự kiện, tinh anh, chúa tể);
+kinh tế auto chess (vàng, làm mới, ghép 3 lên sao); sinh tồn (lương mỗi chặng, thương binh,
+trời lạnh dần).
+
+**Chơi lâu dài:** Sổ Trận Đồ (~40, có trận đồ ẩn), mở khóa tướng/tộc/trang bị, Thử Thách Ngày
+(seed chung, bảng xếp hạng), truyện ngắn theo từng tướng làm lớp phủ.
+
+**Chế độ:** Hành Quân (offline), Thử Thách Ngày, Thủ Thành (co-op 2 người, trận đồ nối qua ranh
+giới), Loạn Chiến (8 người, kho quân chung).
+
+**Kỹ thuật:** mô phỏng trận và nhận diện trận đồ bằng C++ GDExtension, tất định; mọi nội dung là dữ liệu.
+
+**Bản thử đầu:** bàn 5×3, 6 lớp quân, 12 trận đồ, Lang Tộc, 3 hiệp + 2 Lệnh Kỳ, ván 8 chặng.
+Câu hỏi cần trả lời: người chơi có tự xếp lại chỉ để tìm trận đồ mới không?
 
 ## 1. Mong muốn của Phúc và giới hạn kỹ thuật
 
