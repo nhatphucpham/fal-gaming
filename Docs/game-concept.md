@@ -1,6 +1,7 @@
-# Falemag: ý tưởng cốt lõi (bản phác 1)
+# Falemag: ý tưởng cốt lõi (bản phác 2)
 
-> Trạng thái: bản nháp để bàn. Mọi tên riêng (thế giới, tộc, nhân vật) là tên tạm,
+> Trạng thái: bản nháp để bàn. Bản 2 thêm mục 8: năm hướng phá cách và một hướng ghép
+> được đề xuất ("Ấn Truyền"). Các mục 3–7 giữ làm phương án an toàn để so sánh. Mọi tên riêng (thế giới, tộc, nhân vật) là tên tạm,
 > tự đặt cho dự án, không lấy từ game có sẵn.
 
 ## 1. Mong muốn của Phúc và giới hạn kỹ thuật
@@ -223,9 +224,91 @@ Cốt truyện chiến dịch giữ chơi một người; có thể cân nhắc 
 Thứ tự làm đề xuất: mô phỏng trận C++ -> bàn cờ và xếp quân -> định dạng dữ liệu nhân vật
 -> Sổ Nhân Quả và sự kiện -> hạ trại -> bản đồ châu -> TTS pipeline.
 
-## 8. Câu hỏi còn mở cho Phúc
+## 8. Các hướng phá cách (bản 2)
 
-1. Chọn phương án A, hay muốn pha thêm nhiều phần của B hoặc C?
+Ba phương án ở mục 3 đều là "chỉ huy một nhóm người qua chiến tranh". Phần này bỏ giả
+định đó. Mỗi hướng dưới đây đổi một thứ căn bản: người chơi là ai, thời gian chảy thế
+nào, hay nhân quả đi xa tới đâu. Tất cả vẫn giữ: phong kiến kỳ ảo, nhiều tộc, auto chess
+làm lõi chiến đấu, 2D nhẹ, mô phỏng trận C++ tất định.
+
+### 8.1 "Ấn Truyền": người chơi là lời nguyền, không phải con người
+
+Người chơi **là Thiên Mệnh Ấn**, một mảnh ấn vỡ có ý thức. Ấn sống bằng cách bám vào một
+người cầm giữ và cho họ sức mạnh. Khi người cầm chết, Ấn **chuyển sang kẻ đã giết họ**
+hoặc người gần nhất chạm vào nó.
+
+- **Không có nhân vật chính.** Mỗi đời chủ là một nhân vật khác: tướng quân Nhân tộc, cô bé Lân Thủy bán cá, sư cụ Thạch Duệ, tên sát thủ Vũ Dân. Dàn nhân vật vô hạn trở thành cách kể chuyện chứ không chỉ là bộ sưu tập.
+- **Phản bội là cơ chế di chuyển.** Muốn đến kinh đô? Khiến cận vệ của chủ hiện tại nổi lòng tham và đâm sau lưng chủ, Ấn sẽ sang tay cận vệ. Người chơi phải tự hỏi: mình có đang gieo phản bội chỉ để đi đường tắt?
+- **Mất mát đổi nghĩa.** Chủ cũ chết rồi nhưng họ nhớ mình bị Ấn bỏ rơi. Họ có thể quay lại thành Vong Nhân trên bàn cờ, đứng phía đối diện.
+- **Nhân quả:** mỗi chủ để lại một "vết ấn" (ơn, oán, lời hứa chưa giữ). Người kế tiếp phải gánh. Ấn không chết, nên nó gánh hết nghiệp của mọi đời chủ.
+- **Auto chess:** quân trên bàn cờ là thuộc hạ của chủ hiện tại. Đổi chủ là đổi cả đội, phải xây lại từ thứ có trong tay. Mỗi đời là một ván auto chess mới.
+- **Sinh tồn:** sinh tồn của Ấn là giữ chủ sống đủ lâu để đi tới nơi cần đến, hoặc chọn đúng lúc để chủ chết.
+- **Kết thúc:** Ấn có thể tìm cách tự hủy, tự hợp lại, hoặc tìm một chủ xứng đáng rồi thôi điều khiển.
+
+### 8.2 "Đò Âm": auto chess ở thế giới người chết
+
+Người chơi là **người lái đò** trên sông Vong Xuyên sau Đêm Nguyệt Liệt. Hồn người chết
+nợ nghiệp không qua sông được. Mỗi hồn phải **đấu một ván cờ với chính ký ức của mình**:
+quân trên bàn cờ là những người họ từng thương, từng hại, từng bỏ rơi.
+
+- Mỗi trận là một cuốn truyện ngắn: thắng thì hồn nhớ lại một sự thật, thua thì hồn quên thêm một người.
+- Người lái đò quyết định hồn nào được qua, hồn nào bị giữ lại làm quân cờ cho mình. Giữ càng nhiều càng mạnh, nhưng chính mình cũng đang nợ nghiệp.
+- **Sinh tồn:** dầu đèn lồng trên đò. Hết dầu thì đò lạc vào sương, và người lái đò trở thành hồn cần được chở.
+- **Cú ngoặt:** về sau người chơi nhận ra hồn trên đò là những người đã chết trong các ván chơi trước của chính mình (hoặc của người chơi khác, xem 8.5).
+
+### 8.3 "Gia Phả": một dòng họ qua trăm năm
+
+Người chơi điều khiển **một dòng họ** qua 5–7 thế hệ. Mỗi thế hệ là một chương auto chess
+và sinh tồn kéo dài một đời người, rồi thời gian nhảy 20–30 năm.
+
+- Nhân vật sinh ra, lớn lên, kết hôn khác tộc, có con mang dòng máu lai. Con cái thừa hưởng tài năng, sẹo, mối thù và lời thề của cha mẹ. Dàn nhân vật tự sinh ra vô hạn, mỗi người đều có gốc gác.
+- **Nhân quả xuyên đời:** ông nội bỏ rơi một đứa con rơi, ba mươi năm sau cháu của đứa trẻ đó dẫn quân về đòi đất.
+- **Phản bội trong nhà:** anh em tranh quyền thừa kế. Người chơi chọn ai làm tộc trưởng và phải sống với những đứa con không được chọn.
+- Bàn cờ auto chess là cả họ: già dặn mà yếu sức, trẻ khỏe mà non.
+
+### 8.4 "Hai Mặt Trận": đánh cả hai phe của một cuộc chiến
+
+Mỗi chương người chơi đổi phe. Chương lẻ là phe triều đình, chương chẵn là phe Lang Tộc
+nổi dậy, cùng một cuộc chiến, cùng mốc thời gian.
+
+- Đội hình chương trước trở thành **đội địch** ở chương sau, do AI điều khiển đúng như cách người chơi đã xếp. Người chơi phải đánh bại chính chiến thuật của mình.
+- Ai mình cứu ở phe này, mình phải giết ở phe kia. Kết thúc thật chỉ mở khi người chơi tìm cách để cả hai phe cùng sống.
+- Đây là cách đưa "không có phe ác" từ lời nói thành luật chơi.
+
+### 8.5 "Thế Giới Chung Nghiệp": nhân quả nối giữa những người chơi
+
+Một lớp mạng nhẹ ghép được vào bất kỳ hướng nào ở trên.
+
+- Nhân vật người chơi khác bỏ rơi hoặc phản bội sẽ trôi sang thế giới của mình thành **lữ khách**, **Vong Nhân** hoặc **kẻ báo thù**, mang theo tên và câu chuyện từ ván của người kia.
+- Mỗi mùa, máy chủ cộng dồn lựa chọn của mọi người chơi để quyết định vận mệnh của một châu: nếu đa số phản bội Lang Tộc, mùa sau Lang Tộc thù ghét tất cả.
+- Kỹ thuật vẫn nhẹ: chỉ gửi bản ghi nhỏ (id nhân vật, loại Nhân, đội hình, seed), không cần máy chủ thời gian thực. Chơi offline vẫn được, chỉ thiếu lữ khách từ thế giới khác.
+
+### 8.6 Đề xuất mới: "Ấn Truyền" làm xương sống, ghép thêm 8.2 và 8.5
+
+| Lớp | Lấy từ | Vai trò |
+|---|---|---|
+| Người chơi là Ấn, nhảy từ chủ này sang chủ khác | 8.1 | Lõi kể chuyện và lõi phản bội |
+| Chủ cũ chết thì xuống Đò Âm, có thể quay lại làm quân hoặc làm địch | 8.2 | Mất mát có hậu quả, thêm một tầng thế giới |
+| Chủ bị bỏ rơi và nghiệp trôi sang thế giới người chơi khác | 8.5 | Chơi mạng gắn với chủ đề, không phải tính năng gắn thêm |
+| Hạ trại sinh tồn và Sổ Nhân Quả | Mục 4 | Giữ nguyên, Sổ đổi tên thành "vết ấn" |
+
+**Vì sao chọn:** đây là hướng duy nhất mà cả năm thứ Phúc muốn (phản bội, mất mát, nhân
+quả, nhân văn, dàn nhân vật vô hạn) đều là luật chơi chứ không chỉ là nội dung. Câu hỏi
+nhân văn nằm sẵn trong cơ chế: một thứ sức mạnh sống bằng cách đổi người, nó có nên tồn tại?
+
+**Rủi ro và cách giảm:**
+
+- *Người chơi không gắn bó với ai vì chủ đổi liên tục.* Giữ mỗi đời chủ đủ dài (một chặng 20–40 phút), và cho một nhóm nhỏ nhân vật "theo Ấn" xuyên các đời (kẻ săn Ấn, người hầu trung thành, đứa con của chủ đầu tiên).
+- *Đổi đội liên tục làm auto chess rối.* Cho Ấn giữ lại 1–2 "mảnh ký ức" (kỹ năng hoặc quân) từ mỗi đời chủ.
+- *Nội dung nhiều.* Mỗi chủ là một CharacterDef cộng một bộ sự kiện nhỏ; vẫn theo khuôn dữ liệu ở mục 4.6.
+
+**Bản thử đầu tiên cho hướng này:** 3 đời chủ (một tướng Nhân tộc, cận vệ Lang Tộc phản
+chủ, một đứa trẻ Lân Thủy nhặt được Ấn), 1 lần xuống Đò Âm, 1 Vong Nhân quay lại làm địch.
+Đủ để thử cảm giác "nhảy chủ" có cuốn không.
+
+## 9. Câu hỏi còn mở cho Phúc
+
+1. Hướng nào làm anh hứng nhất: "Ấn Truyền", một hướng khác ở mục 8, hay muốn quay về phương án A?
 2. Giọng điệu u tối đến mức nào: kiểu bi tráng có hy vọng, hay tàn khốc thật sự?
 3. Phong cách hình ảnh cho sprite trận: pixel art, vẽ tay phẳng, hay kiểu cắt giấy có khớp?
 4. Tử trận vĩnh viễn là mặc định, hay để người chơi chọn ngay từ đầu?
