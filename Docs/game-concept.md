@@ -49,8 +49,8 @@ trời lạnh dần).
 **Cảnh cắt khi chạm trán** (Phúc thích khoảnh khắc này trong các game chiến thuật theo lượt):
 trận vẫn tự đánh; 1–3 lần mỗi trận, trận dừng và chuyển sang cảnh hai nhân vật đối mặt nhìn ngang
 2–3 giây: đòn kết chuỗi ×4+, tướng gặp tướng lần đầu, hai nhân vật có quan hệ (thoại riêng, giọng
-TTS), đòn chí mạng hạ tướng. Có tùy chọn hiện đủ / lần đầu / tắt. Phương án thay thế đang chờ Phúc
-chọn: trận đánh theo làn, mỗi lần chạm trán là một cảnh đấu tay đôi có quân hỗ trợ.
+TTS), đòn chí mạng hạ tướng. Có tùy chọn hiện đủ / lần đầu / tắt. Phúc đã chọn cách này (không làm
+trận đánh theo làn).
 
 **Khó nghĩ, dễ nhìn** (Phúc xác nhận: khó hơn, cần nghĩ nhiều hơn, nhưng không khó nhìn): bàn cố
 định 15 ô/8 quân; mỗi tầng một kênh hiển thị riêng (biểu tượng tộc/nghề, đường nối trận đồ, màu
