@@ -1,15 +1,16 @@
 # Build and test
 
 Gameplay code is C++ in a GDExtension, so the native library must be built
-before Godot opens or imports the project. Without it the editor reports that
-`res://falemag.gdextension` cannot be loaded and `SimClock` nodes appear as
-placeholders.
+before Godot opens or imports the project. Without it Godot logs that
+`res://falemag.gdextension` cannot be loaded and that the `SimClock` class is
+missing, and the node loads as an unknown node.
 
 ## Requirements
 
 - Godot 4.7.2 standard edition and its export templates.
-- Python 3 and SCons (`python -m pip install scons`).
-- A C++17 compiler: Visual Studio 2022 Build Tools (MSVC) on Windows, GCC or
+- Python 3 and SCons 4.11 or later (`python -m pip install scons`); older
+  versions do not find Visual Studio 2026.
+- A C++17 compiler: Visual Studio 2022 or 2026 Build Tools (MSVC) on Windows, GCC or
   Clang on Linux. Android builds also need the Android NDK `28.1.13356709`
   installed through the Android SDK, with `ANDROID_HOME` set. Web builds need
   Emscripten 4.0.20 activated through emsdk.

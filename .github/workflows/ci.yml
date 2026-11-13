@@ -44,7 +44,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install SCons
-        run: python -m pip install scons==4.9.1
+        run: python -m pip install scons==4.11.1
       - name: Install Android NDK
         if: startsWith(matrix.name, 'android')
         run: |
@@ -69,6 +69,11 @@ jobs:
           if [ -n "${EMSDK_ENV:-}" ]; then source "$EMSDK_ENV"; fi
           scons -j4 ${{ matrix.flags }} target=template_debug
           scons -j4 ${{ matrix.flags }} target=template_release
+          # SCons falls back to MinGW when it cannot find Visual Studio; only an
+          # MSVC link writes an .exp file, so check for it.
+          if [ "${{ matrix.name }}" = windows-x86_64 ]; then
+            test -f bin/libfalemag.windows.template_release.x86_64.exp
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: falemag-${{ matrix.name }}

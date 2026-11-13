@@ -13,7 +13,7 @@ presets, and CI. Gameplay, story, and controls are not yet implemented.
 - [Godot 4.7.2 standard edition](https://godotengine.org/download/archive/4.7.2-stable/)
   and its matching export templates (**Editor > Manage Export Templates**).
 - Git and Git LFS.
-- Python 3, SCons and a C++ compiler (Visual Studio 2022 Build Tools on
+- Python 3, SCons and a C++ compiler (Visual Studio 2022 or 2026 Build Tools on
   Windows) to build the GDExtension. See [Build and test](Docs/build.md).
 
 ## Clone, open and test (Windows cmd.exe)
