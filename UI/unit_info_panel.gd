@@ -1,8 +1,9 @@
 class_name UnitInfoPanel
 extends Control
 ## A small card with a unit's portrait, name, class, race, cost, derived
-## stats, skill and passive (with the Khí during a battle). It covers the
-## screen while open so that a tap anywhere closes it.
+## stats, skill and passive (with the Khí during a battle), and the class
+## and race milestones it counts toward. It covers the screen while open so
+## that a tap anywhere closes it.
 ## [codeblock]
 ## info_panel.open(unit_data, {"hp": 1100, "max_hp": 1100, "attack": 40, ...})
 ## [/codeblock]
@@ -20,6 +21,12 @@ var _name_label: Label
 var _tags_label: Label
 var _stat_grid: GridContainer
 var _ability_rows: VBoxContainer
+## Where the milestones come from; none are listed without it.
+var catalog: Catalog
+## Units counted so far by class or race id ("Khiên 2/4"); empty shows
+## only the thresholds.
+var milestone_counts: Dictionary[StringName, int] = {}
+
 var _unit: UnitData
 var _star: int = 1
 var _tween: Tween
@@ -90,6 +97,7 @@ func open(unit: UnitData, stats: Dictionary, star: int = 1) -> void:
 	_add_stat("INFO_ARMOR", str(stats["armor"]))
 	_add_stat("INFO_MAGIC_RESIST", str(stats["magic_resist"]))
 	_fill_abilities(stats)
+	_fill_milestones(unit)
 	_portrait.queue_redraw()
 	visible = true
 	_panel.reset_size()
@@ -157,6 +165,33 @@ func _fill_abilities(stats: Dictionary) -> void:
 	var passive_key: String = stats.get("passive_name_key", "")
 	if not passive_key.is_empty():
 		_add_ability(tr("INFO_PASSIVE"), tr(passive_key), "", tr(stats["passive_description_key"]))
+
+
+func _fill_milestones(unit: UnitData) -> void:
+	if catalog == null:
+		return
+	for milestone: MilestoneData in catalog.milestones:
+		if milestone.counted_id != unit.class_id and milestone.counted_id != unit.race_id:
+			continue
+		var count: int = milestone_counts.get(milestone.counted_id, -1)
+		var reached := 0
+		for tier: SynergyTierData in milestone.tiers:
+			if count >= tier.at:
+				reached += 1
+		var head := _make_label(22)
+		head.text = tr(milestone.name_key)
+		if count >= 0:
+			var thresholds: Array = milestone.tiers.map(func(tier: SynergyTierData) -> int: return tier.at)
+			head.text = SynergyPanel.count_text(tr(milestone.name_key), count, thresholds, reached)
+		_ability_rows.add_child(head)
+		for index: int in milestone.tiers.size():
+			var tier: SynergyTierData = milestone.tiers[index]
+			var line := _make_label(19)
+			line.text = "%d: %s" % [tier.at, tr(tier.description_key)]
+			line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			line.custom_minimum_size.x = PANEL_WIDTH_PX - 60.0
+			line.modulate = Color(1, 1, 1, 1.0 if index < reached else 0.6)
+			_ability_rows.add_child(line)
 
 
 func _add_ability(kind: String, title: String, note: String, description: String) -> void:

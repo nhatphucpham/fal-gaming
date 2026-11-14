@@ -1,0 +1,43 @@
+[gd_resource type="MilestoneData" format=3]
+
+[sub_resource type="ModifierData" id="mod_1"]
+handler = &"rule.formation_level"
+scope = &"scope.counted"
+value = 1
+count = 1
+
+[sub_resource type="SynergyTierData" id="tier_1"]
+at = 1
+description_key = "MILESTONE_HUMAN_1"
+modifiers = Array[ModifierData]([SubResource("mod_1")])
+
+[sub_resource type="ModifierData" id="mod_2"]
+handler = &"mod.damage_dealt_pct"
+scope = &"scope.side"
+value = 5
+per_formation = true
+
+[sub_resource type="SynergyTierData" id="tier_2"]
+at = 3
+description_key = "MILESTONE_HUMAN_3"
+modifiers = Array[ModifierData]([SubResource("mod_2")])
+
+[sub_resource type="ModifierData" id="mod_3"]
+handler = &"rule.formation_level"
+scope = &"scope.counted"
+value = 2
+count = 2
+
+[sub_resource type="SynergyTierData" id="tier_3"]
+at = 5
+description_key = "MILESTONE_HUMAN_5"
+modifiers = Array[ModifierData]([SubResource("mod_3")])
+
+[resource]
+id = &"milestone.race_human"
+name_key = "RACE_HUMAN"
+counted_kind = &"race"
+counted_id = &"race.human"
+counts_distinct_units = false
+double_from_cost = 4
+tiers = Array[SynergyTierData]([SubResource("tier_1"), SubResource("tier_2"), SubResource("tier_3")])

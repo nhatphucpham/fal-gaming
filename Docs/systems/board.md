@@ -12,7 +12,9 @@ cell signals, and keeps the player's formation. It does not run battles
 - `Scenes/Board/`: `board_view.gd` and `board_view.tscn` (`BoardView`),
   `unit_view.gd` (`UnitView`), `unit_figure.gd` (`UnitFigure`),
   `unit_painter.gd` (`UnitPainter`), `lineup_views.gd` (`LineupViews`),
-  `piece_drag.gd` (`PieceDrag`).
+  `piece_drag.gd` (`PieceDrag`), `formation_outlines.gd`
+  (`FormationOutlines`) and `outline_geometry.gd` (`OutlineGeometry`), see
+  [Formation](formation.md).
 - `Systems/Lineup/`: `lineup.gd` (`Lineup`), `lineup_slot.gd`
   (`LineupSlot`), `lineup_preset.gd` (`LineupPreset`).
 - `UI/pointer_gesture.gd` (`PointerGesture`): tap, long press and drag from
@@ -93,6 +95,7 @@ above the finger; the drop cell is the cell the ghost appears to stand in.
 | `drag_moved(global_pointer)`, `drag_ended(global_pointer)` | signals | The drag continues or ends |
 | `drag_cancelled()` | signal | The drag stopped without a drop (see above) |
 | `get_piece_layer()`, `get_fx_layer()` | methods | Nodes for UnitViews (y-sorted) and for effects above them |
+| `get_outline_layer()` | method | Node under the pieces for drawings tied to cells (formation outlines) |
 | `cell_to_local(cell)`, `cell_to_global(cell)` | methods | Centre of a cell in board or canvas coordinates |
 | `cell_at_global(position) -> Vector2i` | method | The cell under a canvas position, or `INVALID_CELL` |
 | `is_on_board(cell)`, `side_of_cell(cell)` | static | Bounds check; 0 for rows 0..3, 1 above |

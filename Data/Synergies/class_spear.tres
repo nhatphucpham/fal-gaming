@@ -1,0 +1,28 @@
+[gd_resource type="MilestoneData" format=3]
+
+[sub_resource type="ModifierData" id="mod_1"]
+handler = &"mod.range_add_if_front"
+scope = &"scope.counted"
+value = 1
+
+[sub_resource type="SynergyTierData" id="tier_1"]
+at = 2
+description_key = "MILESTONE_SPEAR_2"
+modifiers = Array[ModifierData]([SubResource("mod_1")])
+
+[sub_resource type="ModifierData" id="mod_2"]
+handler = &"mod.pierce_behind"
+scope = &"scope.counted"
+
+[sub_resource type="SynergyTierData" id="tier_2"]
+at = 4
+description_key = "MILESTONE_SPEAR_4"
+modifiers = Array[ModifierData]([SubResource("mod_2")])
+
+[resource]
+id = &"milestone.class_spear"
+name_key = "CLASS_SPEAR"
+counted_kind = &"class"
+counted_id = &"class.spear"
+counts_distinct_units = true
+tiers = Array[SynergyTierData]([SubResource("tier_1"), SubResource("tier_2")])

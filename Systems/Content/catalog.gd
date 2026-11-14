@@ -1,7 +1,7 @@
 class_name Catalog
 extends Resource
-## Every class, skill, passive, unit and stage of the game and the battle and
-## run rules,
+## Every class, skill, passive, unit, formation, milestone and stage of the
+## game and the battle, run and Hợp Lực rules,
 ## listed explicitly so nothing scans directories at runtime (that breaks in
 ## exported and web builds).
 ## [codeblock]
@@ -25,6 +25,43 @@ const MAX_COST: int = 5
 @export var run_rules: RunRules
 ## One entry per Data/Stages/ file, in stage order (stage 1 first).
 @export var stages: Array[StageData] = []
+## One entry per Data/Formations/ file; formations match in this order.
+@export var formations: Array[FormationData] = []
+## One entry per Data/Synergies/ file (class and race milestones).
+@export var milestones: Array[MilestoneData] = []
+@export var hop_luc: HopLucData
+
+var _synergy: Synergy
+
+
+## The Synergy built from the formations, milestones and Hợp Lực rules
+## (made once, shared by every battle and the prep screen); null with an
+## error when the data is bad.
+func get_synergy() -> Synergy:
+	if _synergy == null:
+		var synergy := Synergy.new()
+		var problems := synergy.setup(formations, milestones, hop_luc)
+		if not problems.is_empty():
+			push_error("Catalog: %s" % ", ".join(problems))
+			return null
+		_synergy = synergy
+	return _synergy
+
+
+## The formation with this id, or null.
+func get_formation(id: StringName) -> FormationData:
+	for formation: FormationData in formations:
+		if formation != null and formation.id == id:
+			return formation
+	return null
+
+
+## The milestone with this id, or null.
+func get_milestone(id: StringName) -> MilestoneData:
+	for milestone: MilestoneData in milestones:
+		if milestone != null and milestone.id == id:
+			return milestone
+	return null
 
 
 ## The unit with this id, or null.
@@ -85,6 +122,46 @@ func validate() -> PackedStringArray:
 	problems.append_array(_validate_classes())
 	problems.append_array(_validate_units())
 	problems.append_array(_validate_run())
+	problems.append_array(_validate_synergy())
+	return problems
+
+
+# Ids, text keys, the class and race ids they name, then the native checks
+# (handler ids, scopes, ranges) through Synergy.setup().
+func _validate_synergy() -> PackedStringArray:
+	var problems := PackedStringArray()
+	var races: Dictionary[StringName, bool] = {}
+	for unit: UnitData in units:
+		if unit != null:
+			races[unit.race_id] = true
+	var seen: Dictionary[StringName, bool] = {}
+	for formation: FormationData in formations:
+		if formation == null:
+			problems.append("Catalog: a formations entry is empty")
+			continue
+		if not String(formation.id).begins_with("formation.") or seen.has(formation.id):
+			problems.append("Catalog: %s has a bad or duplicate id '%s'" % [formation.resource_path, formation.id])
+		seen[formation.id] = true
+		if formation.name_key.is_empty() or formation.description_key.is_empty():
+			problems.append("Catalog: %s needs name_key and description_key" % formation.resource_path)
+		for class_id: String in formation.slot_classes:
+			if not class_id.is_empty() and get_class_data(StringName(class_id)) == null:
+				problems.append("Catalog: %s needs unknown class %s" % [formation.resource_path, class_id])
+	for milestone: MilestoneData in milestones:
+		if milestone == null:
+			problems.append("Catalog: a milestones entry is empty")
+			continue
+		if not String(milestone.id).begins_with("milestone.") or seen.has(milestone.id) or milestone.name_key.is_empty():
+			problems.append("Catalog: %s has a bad or duplicate id '%s' or no name_key" % [milestone.resource_path, milestone.id])
+		seen[milestone.id] = true
+		var is_known := races.has(milestone.counted_id) if milestone.counted_kind == &"race" else get_class_data(milestone.counted_id) != null
+		if not is_known:
+			problems.append("Catalog: %s counts unknown %s" % [milestone.resource_path, milestone.counted_id])
+	if hop_luc == null:
+		problems.append("Catalog: hop_luc is not set in %s" % resource_path)
+		return problems
+	if problems.is_empty():
+		problems.append_array(Synergy.new().setup(formations, milestones, hop_luc))
 	return problems
 
 

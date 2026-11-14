@@ -36,6 +36,7 @@ const HOVER_COLOR := Color("3e9c7eb0")
 
 var _gesture := PointerGesture.new()
 var _marks: Node2D
+var _outlines: Node2D
 var _pieces: Node2D
 var _fx: Node2D
 var _select_ring: Node2D
@@ -59,6 +60,7 @@ func _init() -> void:
 	_select_ring = _add_layer(&"SelectRing")
 	_select_ring.draw.connect(_draw_select_ring)
 	_select_ring.hide()
+	_outlines = _add_layer(&"Outlines")
 	_pieces = _add_layer(&"Pieces")
 	_pieces.y_sort_enabled = true
 	_fx = _add_layer(&"Fx")
@@ -91,6 +93,12 @@ func _process(delta: float) -> void:
 ## Node where UnitViews go; children are drawn sorted by y.
 func get_piece_layer() -> Node2D:
 	return _pieces
+
+
+## Node under the pieces for drawings that belong to cells, such as
+## formation outlines.
+func get_outline_layer() -> Node2D:
+	return _outlines
 
 
 ## Node above the pieces for projectiles, flashes and numbers.

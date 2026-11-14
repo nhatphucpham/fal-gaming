@@ -1,0 +1,37 @@
+[gd_resource type="MilestoneData" format=3]
+
+[sub_resource type="ModifierData" id="mod_1"]
+handler = &"mod.attack_speed_pct"
+scope = &"scope.counted"
+value = 20
+
+[sub_resource type="SynergyTierData" id="tier_1"]
+at = 2
+description_key = "MILESTONE_ARCHER_2"
+modifiers = Array[ModifierData]([SubResource("mod_1")])
+
+[sub_resource type="ModifierData" id="mod_2"]
+handler = &"mod.first_attack_crit"
+scope = &"scope.counted"
+
+[sub_resource type="SynergyTierData" id="tier_2"]
+at = 3
+description_key = "MILESTONE_ARCHER_3"
+modifiers = Array[ModifierData]([SubResource("mod_2")])
+
+[sub_resource type="ModifierData" id="mod_3"]
+handler = &"mod.pierce_behind"
+scope = &"scope.counted"
+
+[sub_resource type="SynergyTierData" id="tier_3"]
+at = 4
+description_key = "MILESTONE_ARCHER_4"
+modifiers = Array[ModifierData]([SubResource("mod_3")])
+
+[resource]
+id = &"milestone.class_archer"
+name_key = "CLASS_ARCHER"
+counted_kind = &"class"
+counted_id = &"class.archer"
+counts_distinct_units = true
+tiers = Array[SynergyTierData]([SubResource("tier_1"), SubResource("tier_2"), SubResource("tier_3")])

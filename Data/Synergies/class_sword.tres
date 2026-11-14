@@ -1,0 +1,39 @@
+[gd_resource type="MilestoneData" format=3]
+
+[sub_resource type="ModifierData" id="mod_1"]
+handler = &"mod.damage_dealt_pct"
+scope = &"scope.counted"
+value = 15
+
+[sub_resource type="SynergyTierData" id="tier_1"]
+at = 2
+description_key = "MILESTONE_SWORD_2"
+modifiers = Array[ModifierData]([SubResource("mod_1")])
+
+[sub_resource type="ModifierData" id="mod_2"]
+handler = &"mod.qi_on_attack"
+scope = &"scope.counted"
+value = 5
+
+[sub_resource type="SynergyTierData" id="tier_2"]
+at = 3
+description_key = "MILESTONE_SWORD_3"
+modifiers = Array[ModifierData]([SubResource("mod_2")])
+
+[sub_resource type="ModifierData" id="mod_3"]
+handler = &"mod.reflect_melee_pct"
+scope = &"scope.counted"
+value = 30
+
+[sub_resource type="SynergyTierData" id="tier_3"]
+at = 4
+description_key = "MILESTONE_SWORD_4"
+modifiers = Array[ModifierData]([SubResource("mod_3")])
+
+[resource]
+id = &"milestone.class_sword"
+name_key = "CLASS_SWORD"
+counted_kind = &"class"
+counted_id = &"class.sword"
+counts_distinct_units = true
+tiers = Array[SynergyTierData]([SubResource("tier_1"), SubResource("tier_2"), SubResource("tier_3")])

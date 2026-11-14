@@ -2,8 +2,10 @@ class_name ShopCard
 extends Control
 ## One shop offer: the unit's bust on its cost colour, its name and a coin
 ## with the price. Cost 4 and 5 glow; a card whose purchase would merge
-## shows two pulsing stars; an empty (bought) slot is a faint outline. Input
-## is handled by the ShopBar; the card only draws and animates.
+## shows two pulsing stars, one that would raise a class or race milestone
+## or complete a formation a jade link badge; an empty (bought) slot is a
+## faint outline. Input is handled by the ShopBar; the card only draws and
+## animates.
 
 const CARD_SIZE := Vector2(128, 156)
 const PORTRAIT_PX := Vector2(116, 100)
@@ -21,6 +23,7 @@ var is_selected: bool = false:
 var _name_label: Label
 var _is_affordable: bool = true
 var _merge_hint: bool = false
+var _synergy_hint: bool = false
 var _time: float = 0.0
 var _tween: Tween
 
@@ -48,6 +51,7 @@ func set_unit(unit_data: UnitData) -> void:
 	_name_label.text = tr(unit_data.name_key) if unit_data != null else ""
 	_fit_name()
 	_merge_hint = false
+	_synergy_hint = false
 	queue_redraw()
 
 
@@ -61,6 +65,18 @@ func set_affordable(value: bool) -> void:
 func set_merge_hint(value: bool) -> void:
 	_merge_hint = value
 	queue_redraw()
+
+
+## A jade badge: buying this card raises a milestone or completes a
+## formation one unit short.
+func set_synergy_hint(value: bool) -> void:
+	if value != _synergy_hint:
+		_synergy_hint = value
+		queue_redraw()
+
+
+func has_synergy_hint() -> bool:
+	return _synergy_hint
 
 
 ## Turns over into view after `delay_sec` (a reroll).
@@ -111,6 +127,16 @@ func _draw() -> void:
 	if _merge_hint:
 		var lift := sin(_time * 5.0) * 3.0
 		UnitPainter.draw_star_pips(self, Vector2(CARD_SIZE.x / 2.0, 14.0 + lift), 2, 9.0)
+	if _synergy_hint:
+		_draw_synergy_badge(Vector2(20.0, 20.0))
+
+
+# Two linked rings on a jade disc, in the portrait's top-left corner.
+func _draw_synergy_badge(center: Vector2) -> void:
+	draw_circle(center, 14.0, Palette.INK)
+	draw_circle(center, 12.0, Palette.JADE)
+	draw_arc(center + Vector2(-3.5, 0), 5.5, 0.0, TAU, 16, Palette.CREAM, 2.5, true)
+	draw_arc(center + Vector2(3.5, 0), 5.5, 0.0, TAU, 16, Palette.CREAM, 2.5, true)
 
 
 func _draw_cost_number(coin: Vector2) -> void:

@@ -28,11 +28,14 @@ or run battles: the run screen plays each battle with `Battle` and
 - `Scenes/Run/`: `run_screen.gd` (`RunScreen`), `run_layout.gd`
   (`RunLayout`), `run_hud.gd` (`RunHud`), `prep_controller.gd`
   (`PrepController`), `piece_views.gd` (`PieceViews`), `reward_screen.gd`
-  (`RewardScreen`), `end_screen.gd` (`EndScreen`).
+  (`RewardScreen`), `end_screen.gd` (`EndScreen`), `synergy_hud.gd`
+  (`SynergyHud`) and `lineup_synergy.gd` (`LineupSynergy`), see
+  [Synergy](synergy.md).
 - `Scenes/Title/title_screen.gd` (`TitleScreen`).
 - `UI/`: `shop_bar.gd`, `shop_card.gd`, `bench_bar.gd`, `sell_zone.gd`,
   `cost_button.gd`, `resource_chip.gd`, `icon_painter.gd`, `timer_badge.gd`,
-  `prep_timer.gd`, `reward_card.gd`, `confetti_burst.gd`.
+  `prep_timer.gd`, `reward_card.gd`, `confetti_burst.gd`, `synergy_bar.gd`,
+  `synergy_panel.gd`.
 - `Tools/run_bot.gd`: the balance bot (not exported).
 - Depends on: `Catalog` (units, `run_rules`, `stages`), `Battle`,
   `BattlePlayback`, `BoardView`, `UnitView`, `LineupViews`, `PieceDrag`.
@@ -72,7 +75,13 @@ as `LineupSlot`s of side B in local (col, rank). They are listed in stage
 order in `Data/catalog.tres` (`stages`), so nothing scans folders.
 `StageData.validate()` checks an empty `name_key`, unknown units, cells off
 the half, doubled cells and the unit count. Stage 12 is "Đại Trận Lạc Hồng", with the legend
-Lạc Hồng at 2 stars.
+Lạc Hồng at 2 stars. From stage 4 the enemies stand in formations and
+reach milestones the player can read during the preparation (their outlines
+are drawn on the enemy half): 4 Hộ Pháp and Thương Che Cung, 5 Hạc Dực
+and Thương Che Cung, 6 Tường Khiên and Hộ Pháp, 7 Song Kiếm and Hộ Pháp
+(wolf-folk 5), 8 Phương Trận and two Hộ Pháp, 9 and 10 Tường Khiên (with
+a wolf-folk middle in 9) and Hộ Pháp, 11 Mũi Giáo and Mưa Tên, 12 Mưa Tên,
+Tường Khiên and Hộ Pháp; Phương Trận, Ngư Lân and Tam Tài often come along.
 
 ## Stage flow
 
@@ -107,6 +116,7 @@ cells are local (col, rank) of side A.
 | `choose_reward(reward)` | command | `Reward.REST`, `HUNT` or `BLACK_MARKET`, if offered |
 | `get_piece`, `get_pieces`, `get_bench_piece`, `get_board_piece`, `get_board_pieces`, `get_board_count`, `get_capacity` | queries | Pieces and places |
 | `get_shop_offers`, `get_refresh_cost`, `get_level_up_cost`, `get_sell_value`, `would_merge` | queries | Shop and prices |
+| `preview_board(piece_id, unit_id, cell, board) -> Result` | query | The board (copies, into `board`) as buying a card of `unit_id` onto `cell`, or with an empty `unit_id` moving `piece_id` there, would leave it, worked out on a copy of the roster with the same rules (a merging purchase ignores the cell, capacity, legend limit); the run is unchanged. The drag preview uses it |
 | `get_stage_data`, `get_board_slots`, `get_reward_options`, `is_black_market_active` | queries | Stage, battle slots, rewards |
 | `to_save_data()`, `load_save_data(data) -> bool`, `can_save()` | methods | See the save format below; `can_save()` is true in `PREP` and `REWARD` |
 | `gold_changed(gold, delta)`, `supply_changed(supply, delta)`, `morale_changed(morale, delta)`, `level_changed(level)` | signals | Each change, with its size for the chips' animation |
@@ -155,7 +165,25 @@ cells here are global.
   does nothing.
 - A refused command shakes the button or flashes the lacking resource; a
   full bench flashes red.
-- Long press (or right click) shows a unit's stats, also during a battle.
+- Long press (or right click) shows a unit's stats, also during a battle,
+  with the class and race milestones it counts toward ("Cung 3/4": units
+  counted on its side and the next threshold).
+- The info row under the board, one row: the Hợp Lực ring (points, a thin
+  gold arc toward the next tier), up to two chips naming active formations
+  in their colours, a "+N" pill (more formations and milestones reached;
+  dots when there is nothing more), and the units-on-board counter. A tap on
+  the row opens the synergy panel (formations with level and effect,
+  formations one unit short, class and race milestones, Hợp Lực tiers).
+- Formations are outlined on the board (see [Formation](formation.md));
+  a new one runs a light around its outline and stamps its name.
+- While a card or piece is dragged over the player's half, the outlines,
+  chips and ring show what the drop would make ("9 → 10", green when more,
+  red when less), evaluated only when the cell under the drag changes.
+- A shop card whose purchase would reach a new milestone tier or is the
+  class a formation one unit short needs shows a jade link badge.
+- "Ra trận" starts with a 0.8 s roll call: each formation's outline flashes
+  and its name stamps in, the ring bounces. A formation that loses a member
+  shatters its outline.
 - The preparation timer (60 s, 90 s or none, set on the title screen)
   starts the battle when it runs out. It pauses when the window loses focus,
   the app is paused, or the browser tab is hidden. Its badge has a gold
@@ -241,7 +269,10 @@ the format changes and players have saves.
 `Tools/run_bot.gd` plays whole runs with a greedy player: it buys the
 best-value units, merges, levels up when it can, keeps the strongest units
 on the board, picks Rest at 40 morale or less, else Hunt while levels
-remain, else the black market, and gives a run up after 60 battles. Run it after changing stages or rules:
+remain, else the black market, and gives a run up after 60 battles. It has
+two formation habits: a mage or archer goes right behind a front-rank
+shield (Hộ Pháp) or spear (Thương Che Cung), and three archers stand
+together in rank 4 (Mưa Tên). Run it after changing stages or rules:
 
 ```
 godot --headless --path . --script res://Tools/run_bot.gd -- 300 1
@@ -254,19 +285,24 @@ each run's first battle at that stage; stage 12 is retried after a loss.
 | --- | --- | --- |
 | 1 | 97 | 59.7 |
 | 2-4 | 100 | 59.7 |
-| 5 | 84 | 58.1 |
-| 6 | 72 | 55.4 |
-| 7 | 63 | 51.7 |
-| 8 | 85 | 52.0 |
-| 9 | 68 | 50.2 |
-| 10 | 81 | 50.7 |
-| 11 | 64 | 48.4 |
-| 12 | 38 (12 per attempt over 937 attempts) | 22.8 |
+| 5 | 92 | 58.9 |
+| 6 | 87 | 57.5 |
+| 7 | 84 | 55.5 |
+| 8 | 79 | 53.5 |
+| 9 | 83 | 53.0 |
+| 10 | 55 | 47.9 |
+| 11 | 40 | 42.2 |
+| 12 | 33 (12 per attempt over 784 attempts) | 20.1 |
 
-Run win rate 37.7% (113 of 300), 9.5 stages cleared on average, with
-skills. With skills the bot's run win rate first fell to 17.3% (the stages'
-2-star enemies cast stronger skills sooner), so one 2-star enemy in each of
-stages 7 to 12 became 1-star. A person who reads the enemy line-up and places units against it does better than the bot.
+Run win rate 32.7% (98 of 300), 9.5 stages cleared on average (35.0% from
+seed 1000); unchanged since a hit a shield's "Chặn" blocks stopped giving
+the shield Khí. History: 37.7% with skills (milestone 4). Turning synergies on
+for both sides with the old stages and bot gave 48.0%; the formation stages
+with the old bot (no habits) 8.3%; with the habits 63.7%. The retune made
+stage 9 lighter (one mage off its Hộ Pháp) and stages 10-12 heavier (2-star
+marksmen, a 2-star Lạc Hồng at 11, a wolf shield instead of a pike guard at
+12). A person who reads the enemy line-up and places units against it does
+better than the bot.
 
 ## Log events
 
@@ -321,9 +357,14 @@ and settings problems with one `push_warning` each (`Run: could not write
   (`user://run_save_test.json`, `user://run_test_save.json`) and delete it,
   so the player's save is never touched.
 
+- `Tests/synergy_ui_test.gd`: the synergy views on the real run screen
+  (see [Synergy](synergy.md)); its save goes to
+  `user://synergy_ui_test.json`.
+
 ```
 godot --headless --path . --script res://Tests/run_test.gd
 godot --headless --path . --script res://Tests/run_flow_test.gd
+godot --headless --path . --script res://Tests/synergy_ui_test.gd
 ```
 
 ## Known limits

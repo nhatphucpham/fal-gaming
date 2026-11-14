@@ -42,6 +42,8 @@ func _init(playback: BattlePlayback) -> void:
 	}
 	_damage_looks = {
 		&"skill.arrow_rain": _arrow_rain_damage,
+		# The arrow rain formation's volley falls like the skill's arrows.
+		&"formation.arrow_rain": _arrow_rain_damage,
 		&"skill.breakthrough": _breakthrough_damage,
 	}
 

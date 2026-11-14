@@ -51,7 +51,7 @@ func _run() -> bool:
 		return false
 	var checks: Array[Callable] = [
 		_check_place, _check_bench_gap_drag, _check_sell_zone_release, _check_battle, _check_reward,
-		_check_reward_after_reload, _check_prep_saves, _check_sell_zone_hold_and_slide,
+		_check_reward_after_reload, _check_second_fight_press, _check_prep_saves, _check_sell_zone_hold_and_slide,
 		_check_loss_deletes_save, _check_bad_save_cleared,
 	]
 	for check: Callable in checks:
@@ -315,3 +315,22 @@ func _push_motion(at: Vector2) -> void:
 	event.global_position = at
 	event.button_mask = MOUSE_BUTTON_MASK_LEFT
 	root.push_input(event, true)
+
+
+# Back in a preparation after a battle, the slid-away battle panel must not
+# sit over the fight button (it once swallowed "Ra trận" from stage 2 on).
+func _check_second_fight_press() -> bool:
+	await create_timer(1.0).timeout
+	var layout := _screen.layout
+	if layout.battle_status.is_visible_in_tree():
+		push_error("The battle panel should be hidden in the preparation")
+		return false
+	var center := layout.fight_button.get_global_rect().get_center()
+	_push_mouse(center, true)
+	await process_frame
+	var hovered := root.gui_get_hovered_control()
+	_push_mouse(center, false, true)
+	if hovered != layout.fight_button:
+		push_error("A press on the fight button reached %s" % hovered)
+		return false
+	return true

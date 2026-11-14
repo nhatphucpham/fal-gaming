@@ -242,6 +242,10 @@ func _choose_board(run: RunState) -> Array[RunPiece]:
 	return chosen
 
 
+# Front-liners fill ranks 1-2 from the centre out; then two formation
+# habits: a mage or archer goes right behind a front shield (Hộ Pháp) or
+# spear (Thương Che Cung), and three archers stand together in rank 4
+# (Mưa Tên). The rest fill ranks 3-4 from the centre out.
 func _target_cells(chosen: Array[RunPiece]) -> Array[Vector2i]:
 	var front: Array[Vector2i] = []
 	var back: Array[Vector2i] = []
@@ -252,9 +256,38 @@ func _target_cells(chosen: Array[RunPiece]) -> Array[Vector2i]:
 		for col: int in COLUMN_ORDER:
 			back.append(Vector2i(col, rank))
 	var cells: Array[Vector2i] = []
-	for piece: RunPiece in chosen:
-		var unit := _catalog.get_unit(piece.unit_id)
-		cells.append(front.pop_front() if MELEE_CLASSES.has(unit.class_id) else back.pop_front())
+	cells.resize(chosen.size())
+	var used: Dictionary[Vector2i, bool] = {}
+	var guards: Dictionary[StringName, Array] = {&"class.shield": [], &"class.spear": []}
+	var archers: Array[int] = []
+	for index: int in chosen.size():
+		var unit := _catalog.get_unit(chosen[index].unit_id)
+		if not MELEE_CLASSES.has(unit.class_id):
+			if unit.class_id == &"class.archer":
+				archers.append(index)
+			continue
+		cells[index] = front.pop_front()
+		used[cells[index]] = true
+		if cells[index].y == 1 and guards.has(unit.class_id):
+			guards[unit.class_id].append(cells[index].x)
+	if archers.size() >= 3:
+		for pair: Array in [[archers[0], Vector2i(4, 4)], [archers[1], Vector2i(3, 4)], [archers[2], Vector2i(5, 4)]]:
+			cells[pair[0]] = pair[1]
+			used[pair[1]] = true
+	for index: int in chosen.size():
+		var unit := _catalog.get_unit(chosen[index].unit_id)
+		if MELEE_CLASSES.has(unit.class_id) or cells[index] != Vector2i.ZERO:
+			continue
+		var guard_class := &"class.shield" if unit.class_id == &"class.mage" else &"class.spear"
+		var cell := Vector2i.ZERO
+		for col: int in guards[guard_class]:
+			if not used.has(Vector2i(col, 2)):
+				cell = Vector2i(col, 2)
+				break
+		while cell == Vector2i.ZERO or used.has(cell):
+			cell = back.pop_front()
+		cells[index] = cell
+		used[cell] = true
 	return cells
 
 

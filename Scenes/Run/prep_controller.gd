@@ -9,10 +9,16 @@ extends Node
 ## public tap_* and drop_* methods, which tests call directly. Board cells
 ## here are global; RunState gets local ones.
 
-## A long press asked for a unit's details.
-signal info_requested(unit: UnitData, star: int)
+## A long press asked for a unit's details; `side` is whose unit it is
+## (a shop card counts as the player's).
+signal info_requested(unit: UnitData, star: int, side: int)
 ## A command was refused; the screen shows why (shake, flash).
 signal action_refused(result: RunState.Result)
+## A dragged piece (`piece_id`) or shop card (`shop_unit`) is over a new
+## cell of the player's half (`local_cell`): show what the drop would make.
+signal preview_requested(piece_id: int, shop_unit: UnitData, local_cell: Vector2i)
+## The drag left the player's half or ended: stop previewing.
+signal preview_ended()
 
 const NO_PIECE: int = 0
 const NO_SLOT: int = -1
@@ -38,6 +44,8 @@ var _selected_shop: int = NO_SLOT
 var _selected_piece: int = NO_PIECE
 var _drag_shop: int = NO_SLOT
 var _drag_piece: int = NO_PIECE
+# The cell last previewed, so a drag evaluates only when it changes.
+var _preview_cell: Vector2i = BoardView.INVALID_CELL
 
 
 ## Wires the controller to the screen's pieces.
@@ -64,7 +72,7 @@ func setup(run: RunState, board: BoardView, bench: BenchBar, shop: ShopBar, sell
 	bench.drag_ended.connect(_on_drag_ended)
 	bench.drag_cancelled.connect(_cancel_drag)
 	shop.card_tapped.connect(tap_shop_card)
-	shop.card_long_pressed.connect(func(slot: int) -> void: info_requested.emit(_shop_unit(slot), 1))
+	shop.card_long_pressed.connect(func(slot: int) -> void: info_requested.emit(_shop_unit(slot), 1, Battle.SIDE_A))
 	shop.card_drag_started.connect(_start_shop_drag)
 	shop.card_drag_moved.connect(_on_drag_moved)
 	shop.card_drag_ended.connect(_on_drag_ended)
@@ -242,6 +250,8 @@ func _on_drag_moved(pointer: Vector2) -> void:
 	_bench.set_hover_slot(NO_SLOT if over_sell else _bench.slot_at_global(point))
 	if over_sell:
 		_board.set_hover_cell(BoardView.INVALID_CELL)
+	var cell := BoardView.INVALID_CELL if over_sell else _board.cell_at_global(point)
+	_update_preview(cell if BoardView.is_on_board(cell) and BoardView.side_of_cell(cell) == Battle.SIDE_A else BoardView.INVALID_CELL)
 
 
 func _on_drag_ended(pointer: Vector2) -> void:
@@ -251,6 +261,7 @@ func _on_drag_ended(pointer: Vector2) -> void:
 	var shop_slot := _drag_shop
 	var piece := _run.get_piece(_drag_piece)
 	var home := _home_global(shop_slot, piece)
+	_update_preview(BoardView.INVALID_CELL)
 	_drag_shop = NO_SLOT
 	_drag_piece = NO_PIECE
 	var result := drop_shop_card(shop_slot, point) if shop_slot != NO_SLOT else drop_piece(piece.id, pointer, point)
@@ -260,6 +271,16 @@ func _on_drag_ended(pointer: Vector2) -> void:
 		return
 	_drag.reject(home)
 	action_refused.emit(result)
+
+
+func _update_preview(cell: Vector2i) -> void:
+	if cell == _preview_cell:
+		return
+	_preview_cell = cell
+	if cell == BoardView.INVALID_CELL:
+		preview_ended.emit()
+		return
+	preview_requested.emit(_drag_piece, _shop_unit(_drag_shop) if _drag_shop != NO_SLOT else null, _to_local(cell))
 
 
 func _is_own_place(piece: RunPiece, drop_point: Vector2) -> bool:
@@ -281,6 +302,7 @@ func _home_global(shop_slot: int, piece: RunPiece) -> Vector2:
 # Undoes a drag without a drop. Safe to call when nothing is dragged.
 func _cancel_drag() -> void:
 	var was_dragging := is_dragging()
+	_update_preview(BoardView.INVALID_CELL)
 	_drag_shop = NO_SLOT
 	_drag_piece = NO_PIECE
 	if _board == null:
@@ -302,12 +324,12 @@ func _on_cell_long_pressed(cell: Vector2i) -> void:
 	var entry := _enemy_lineup.get_entry_at(_enemy.to_local_cell(cell))
 	if entry != Lineup.NO_ENTRY:
 		var slot := _enemy_lineup.get_slot(entry)
-		info_requested.emit(_run.catalog.get_unit(slot.unit_id), slot.star)
+		info_requested.emit(_run.catalog.get_unit(slot.unit_id), slot.star, Battle.SIDE_B)
 
 
 func _request_info(piece: RunPiece) -> void:
 	if is_enabled and piece != null:
-		info_requested.emit(_run.catalog.get_unit(piece.unit_id), piece.star)
+		info_requested.emit(_run.catalog.get_unit(piece.unit_id), piece.star, Battle.SIDE_A)
 
 
 func _report(result: RunState.Result) -> void:

@@ -1,0 +1,17 @@
+[gd_resource type="FormationData" format=3]
+
+[sub_resource type="ModifierData" id="mod_1"]
+handler = &"mod.ranged_physical_taken_pct"
+scope = &"scope.behind_members"
+value = 40
+
+[resource]
+id = &"formation.shield_wall"
+name_key = "FORMATION_SHIELD_WALL"
+description_key = "FORMATION_SHIELD_WALL_DESC"
+pattern = &"pattern.shape"
+cells = Array[Vector2i]([Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)])
+slot_classes = PackedStringArray("class.shield", "class.shield", "class.shield")
+middle_slot = 1
+color = Color(0.55, 0.75, 1, 1)
+modifiers = Array[ModifierData]([SubResource("mod_1")])

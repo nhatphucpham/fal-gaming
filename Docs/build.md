@@ -44,8 +44,10 @@ godot-cpp is pinned to `10.0.0-stable` and built against the Godot 4.7 API
 
 After building, run the editor import, `Tests/smoke_test.gd`,
 `Tests/battle_test.gd`, `Tests/battle_api_test.gd`, `Tests/skill_test.gd`,
-`Tests/passive_test.gd`, `Tests/sandbox_test.gd`,
-`Tests/run_test.gd` and `Tests/run_flow_test.gd` as shown in the README.
+`Tests/passive_test.gd`, `Tests/sandbox_test.gd`, `Tests/run_test.gd`,
+`Tests/run_flow_test.gd`, `Tests/formation_test.gd`, `Tests/synergy_test.gd`,
+`Tests/formation_battle_test.gd` and `Tests/synergy_ui_test.gd` as shown in
+the README.
 The run test checks the rules of a run (`RunState`, the shop, merges, the
 save) without any screen; the run flow test plays stage 1 through the real
 screens, from Main's new run to stage 2's preparation (see

@@ -12,6 +12,8 @@
 
 namespace battle {
 
+struct ShapeHandler;
+
 // Class definition as the simulation sees it. Handler ids are resolved
 // against the registries when the class is registered.
 struct ClassDef {
@@ -42,6 +44,8 @@ struct ClassDef {
 struct UnitSpec {
 	std::string unit_id;
 	std::string class_id;
+	// Counted by race milestones; may be empty.
+	std::string race_id;
 	int cost = 1;
 	int star = 1;
 	// Optional per-unit replacements for the class skill and passive.
@@ -56,6 +60,7 @@ struct UnitState {
 	int side = SIDE_A;
 	int class_index = 0;
 	std::string unit_id;
+	std::string race_id;
 	int cost = 1;
 	int star = 1;
 	bool is_alive = true;
@@ -74,6 +79,14 @@ struct UnitState {
 	int no_path_ticks = 0;
 	bool is_opening_active = false;
 	UnitSkillState skills;
+	// Basic attacks made so far (first-attack and every-Nth modifiers).
+	int basic_attacks = 0;
+	// Extra range from modifiers, fixed at battle start.
+	int range_bonus = 0;
+	// An attack shape a modifier gave the unit at battle start, or nullptr.
+	const ShapeHandler *shape_override = nullptr;
+	// Indexes into BattleSim's modifiers that land on this unit.
+	std::vector<int> modifiers;
 };
 
 enum class EventType {
@@ -90,6 +103,9 @@ enum class EventType {
 	PASSIVE_TRIGGERED,
 	STATUS_APPLIED,
 	STATUS_ENDED,
+	SYNERGY_ACTIVATED,
+	FORMATION_BROKEN,
+	MODIFIER_TRIGGERED,
 };
 
 enum class MoveKind {
@@ -141,6 +157,18 @@ struct BattleEvent {
 	int qi_max = 0;
 	StatusKind status = StatusKind::TAUNTED;
 	int end_tick = 0;
+	// Synergy events: the side, `class`/`race`/`formation`/`hop_luc`, the
+	// milestone, formation or modifier id, level and the units involved.
+	int side = SIDE_A;
+	std::string synergy_kind;
+	std::string synergy_id;
+	int level = 0;
+	int threshold = 0;
+	std::vector<int> units;
+	// modifier_triggered: the modifier handler id.
+	std::string modifier_id;
+	// damage_dealt: a modifier blocked the whole hit.
+	bool is_blocked_by_modifier = false;
 };
 
 } // namespace battle

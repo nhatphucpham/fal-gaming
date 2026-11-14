@@ -26,9 +26,7 @@ AttackKind get_attack_kind(const ClassDef &p_def) {
 	return p_def.is_ranged ? AttackKind::RANGED : AttackKind::MELEE;
 }
 
-bool is_counter(const ClassDef &p_attacker, const ClassDef &p_victim) {
-	return std::find(p_attacker.counter_ids.begin(), p_attacker.counter_ids.end(), p_victim.id) != p_attacker.counter_ids.end();
-}
+constexpr int PERCENT = 100;
 
 } // namespace
 
@@ -38,7 +36,8 @@ void BattleSim::act(int p_unit) {
 		return;
 	}
 	const int charge_full = get_attack_charge_full(rules);
-	unit.attack_charge = std::min(unit.attack_charge + get_class_def(unit).attacks_per_100s, charge_full);
+	const int speed_pct = PERCENT + sum_modifiers(p_unit, rules::ModifierKind::ATTACK_SPEED_PCT);
+	unit.attack_charge = std::min(unit.attack_charge + get_class_def(unit).attacks_per_100s * speed_pct / PERCENT, charge_full);
 	// A stunned unit keeps its Khí and does nothing else.
 	if (has_status(unit, StatusKind::STUN) || run_cast_action(*this, p_unit)) {
 		return;
@@ -131,7 +130,9 @@ void BattleSim::move_toward_target(int p_unit) {
 	Cell step;
 	if (find_step_toward(p_unit, unit.target, &step)) {
 		unit.no_path_ticks = 0;
-		start_move(p_unit, step, rules.move_ticks_per_cell, MoveKind::WALK, 0);
+		// mod.charge_speed_until_attack: runs at charge speed to its first fight.
+		const bool is_rushing = unit.basic_attacks == 0 && find_modifier(p_unit, rules::ModifierKind::CHARGE_SPEED_UNTIL_ATTACK) != nullptr;
+		start_move(p_unit, step, is_rushing ? rules.charge_ticks_per_cell : rules.move_ticks_per_cell, MoveKind::WALK, 0);
 		return;
 	}
 	if (++unit.no_path_ticks < rules.repath_ticks) {
@@ -149,7 +150,7 @@ bool BattleSim::find_step_toward(int p_unit, int p_target, Cell *r_step) const {
 	PathQuery query;
 	query.start = unit.cell;
 	query.target = units[p_target].cell;
-	query.range_cells = get_class_def(unit).range_cells;
+	query.range_cells = get_range_cells(unit);
 	query.side = unit.side;
 	return find_first_step(board, query, r_step);
 }
@@ -172,7 +173,8 @@ int BattleSim::pick_nearest_reachable_enemy(int p_unit) const {
 }
 
 int BattleSim::perform_attack(int p_unit, int p_target, int p_cause, int p_increase_pct) {
-	const UnitState &attacker = units[p_unit];
+	UnitState &attacker = units[p_unit];
+	attacker.basic_attacks++;
 	const RegisteredClass &attacker_class = classes[attacker.class_index];
 	BattleEvent event;
 	event.type = EventType::UNIT_ATTACKED;
@@ -190,9 +192,14 @@ int BattleSim::perform_attack(int p_unit, int p_target, int p_cause, int p_incre
 	landed.cell = units[p_target].cell;
 	landed.cause = attack_event;
 	fire_passive(*this, p_unit, PassiveTrigger::BASIC_ATTACK_LANDED, landed);
+	apply_attack_modifiers(p_unit, attack_event, &landed);
 
 	std::vector<Hit> hits;
-	attacker_class.shape->collect_hits(*this, attacker, p_target, &hits);
+	const ShapeHandler *shape = attacker.shape_override != nullptr ? attacker.shape_override : attacker_class.shape;
+	shape->collect_hits(*this, attacker, p_target, &hits);
+	if (!hits.empty() && find_modifier(p_unit, rules::ModifierKind::PIERCE_BEHIND) != nullptr) {
+		add_pierce_hit(p_unit, &hits);
+	}
 	for (const Hit &hit : hits) {
 		if (!units[p_unit].is_alive) {
 			break;
@@ -207,7 +214,7 @@ int BattleSim::perform_attack(int p_unit, int p_target, int p_cause, int p_incre
 		}
 	}
 	// Once per attack, even when it hit several units or was blocked.
-	add_qi(*this, p_unit, rules.qi_per_attack, attack_event);
+	add_qi(*this, p_unit, rules.qi_per_attack + sum_modifiers(p_unit, rules::ModifierKind::QI_ON_ATTACK), attack_event);
 	return attack_event;
 }
 
@@ -230,42 +237,46 @@ int BattleSim::deal_damage(const DamageSpec &p_spec) {
 	if (!victim.is_alive) {
 		return 0;
 	}
-	const UnitState &source = units[p_spec.source];
-	const ClassDef &source_class = get_class_def(source);
-	const ClassDef &victim_class = get_class_def(victim);
-	DamageRequest request;
-	request.attack = source.attack;
-	request.coefficient_pct = p_spec.coefficient_pct;
-	request.kind = p_spec.kind;
-	request.is_counter = is_counter(source_class, victim_class);
-	request.counter_bonus_pct = rules.counter_bonus_pct;
-	request.is_crit = p_spec.is_crit;
-	request.crit_multiplier_pct = rules.crit_multiplier_pct;
-	request.increase_pct = p_spec.increase_pct;
-	request.decrease_pct = get_status_amount(victim, StatusKind::GUARD);
-	request.armor = victim_class.armor;
-	request.magic_resist = victim_class.magic_resist;
-	request.armor_break_pct = get_status_amount(victim, StatusKind::ARMOR_BREAK);
-	const DamageResult result = compute_damage(request);
-	victim.hp = std::max(victim.hp - result.amount, 0);
+	int amount = p_spec.fixed_amount;
+	bool is_counter = false;
+	bool is_crit = false;
+	bool is_blocked = false;
+	int split_modifier = -1;
+	int share = 0;
+	if (amount < 0) {
+		DamageRequest request;
+		fill_damage_request(p_spec, &request);
+		const DamageResult result = compute_damage(request);
+		is_counter = result.is_counter;
+		is_crit = result.is_crit;
+		amount = adjust_hit_amount(p_spec, result.amount, &is_blocked, &split_modifier, &share);
+	}
+	victim.hp = std::max(victim.hp - amount, 0);
 
 	BattleEvent event;
 	event.type = EventType::DAMAGE_DEALT;
 	event.cause = p_spec.cause;
 	event.source = p_spec.source;
 	event.target = p_spec.victim;
-	event.amount = result.amount;
+	event.amount = amount;
 	event.hp_after = victim.hp;
-	event.is_counter = result.is_counter;
-	event.is_crit = result.is_crit;
+	event.is_counter = is_counter;
+	event.is_crit = is_crit;
+	event.is_blocked_by_modifier = is_blocked;
 	event.blocked_by = p_spec.blocked_by;
 	event.skill_id = p_spec.skill_id;
 	const int damage_event = emit_event(event);
 	if (victim.hp == 0) {
 		kill(p_spec.victim, p_spec.source, damage_event);
-	} else {
+	} else if (!is_blocked) {
+		// A fully blocked hit ("Chặn") is not damage taken: no Khí, no
+		// on-hit passives. The attacker still gets its Khí per attack.
 		react_to_damage(p_spec, damage_event);
 	}
+	if (split_modifier >= 0) {
+		share_split(p_spec, split_modifier, share, damage_event);
+	}
+	reflect_melee(p_spec, amount, damage_event);
 	return damage_event;
 }
 
@@ -312,8 +323,10 @@ void BattleSim::kill(int p_victim, int p_killer, int p_damage_event) {
 	event.cause = p_damage_event;
 	event.unit = p_victim;
 	event.killer = p_killer;
-	emit_event(event);
+	const int death_event = emit_event(event);
 	end_taunts_from(*this, p_victim);
+	break_formations(p_victim, death_event);
+	reward_ally_kill(p_killer, death_event);
 }
 
 int BattleSim::start_move(int p_unit, const Cell &p_to, int p_duration_ticks, MoveKind p_kind, int p_cause) {
@@ -334,7 +347,11 @@ int BattleSim::start_move(int p_unit, const Cell &p_to, int p_duration_ticks, Mo
 }
 
 bool BattleSim::is_in_range(const UnitState &p_unit, const UnitState &p_target) const {
-	return get_distance_cells(p_unit.cell, p_target.cell) <= get_class_def(p_unit).range_cells;
+	return get_distance_cells(p_unit.cell, p_target.cell) <= get_range_cells(p_unit);
+}
+
+int BattleSim::get_range_cells(const UnitState &p_unit) const {
+	return get_class_def(p_unit).range_cells + p_unit.range_bonus;
 }
 
 bool BattleSim::has_enemy_in_range(const UnitState &p_unit) const {

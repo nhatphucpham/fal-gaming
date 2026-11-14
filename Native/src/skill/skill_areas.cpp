@@ -52,6 +52,13 @@ void collect_column(const Cell &p_anchor, int p_side, int, std::vector<Cell> *r_
 	}
 }
 
+// The anchor and the cells left and right of it, in global column order.
+void collect_row3(const Cell &p_anchor, int, int, std::vector<Cell> *r_cells) {
+	for (int offset = -1; offset <= 1; offset++) {
+		add_if_on_board({ p_anchor.col + offset, p_anchor.row }, r_cells);
+	}
+}
+
 // The anchor and its four orthogonal neighbours.
 void collect_plus(const Cell &p_anchor, int, int, std::vector<Cell> *r_cells) {
 	add_if_on_board(p_anchor, r_cells);
@@ -68,6 +75,7 @@ const AreaHandler AREA_HANDLERS[] = {
 	{ "area.column_ahead", collect_column_ahead },
 	{ "area.column", collect_column },
 	{ "area.plus", collect_plus },
+	{ "area.row3", collect_row3 },
 };
 
 } // namespace

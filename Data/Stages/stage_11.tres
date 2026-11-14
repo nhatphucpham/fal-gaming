@@ -5,57 +5,57 @@
 
 [sub_resource type="Resource" id="Slot_1"]
 script = ExtResource("2_slot")
+unit_id = &"unit.heavy_rider"
+star = 2
+local_col = 4
+local_rank = 1
+
+[sub_resource type="Resource" id="Slot_2"]
+script = ExtResource("2_slot")
+unit_id = &"unit.pike_guard"
+star = 2
+local_col = 3
+local_rank = 2
+
+[sub_resource type="Resource" id="Slot_3"]
+script = ExtResource("2_slot")
+unit_id = &"unit.spearman"
+star = 2
+local_col = 5
+local_rank = 2
+
+[sub_resource type="Resource" id="Slot_4"]
+script = ExtResource("2_slot")
 unit_id = &"unit.blood_wolf"
 star = 2
 local_col = 3
 local_rank = 1
 
-[sub_resource type="Resource" id="Slot_2"]
+[sub_resource type="Resource" id="Slot_5"]
 script = ExtResource("2_slot")
 unit_id = &"unit.wolf_king_shield"
 star = 2
 local_col = 2
 local_rank = 1
 
-[sub_resource type="Resource" id="Slot_3"]
-script = ExtResource("2_slot")
-unit_id = &"unit.pike_guard"
-star = 2
-local_col = 4
-local_rank = 1
-
-[sub_resource type="Resource" id="Slot_4"]
-script = ExtResource("2_slot")
-unit_id = &"unit.heavy_rider"
-star = 2
-local_col = 5
-local_rank = 1
-
-[sub_resource type="Resource" id="Slot_5"]
-script = ExtResource("2_slot")
-unit_id = &"unit.spearman"
-star = 2
-local_col = 6
-local_rank = 1
-
 [sub_resource type="Resource" id="Slot_6"]
 script = ExtResource("2_slot")
 unit_id = &"unit.wolf_marksman"
-star = 1
+star = 2
 local_col = 4
-local_rank = 3
+local_rank = 4
 
 [sub_resource type="Resource" id="Slot_7"]
 script = ExtResource("2_slot")
 unit_id = &"unit.wolf_archer"
 star = 2
-local_col = 6
-local_rank = 3
+local_col = 3
+local_rank = 4
 
 [sub_resource type="Resource" id="Slot_8"]
 script = ExtResource("2_slot")
 unit_id = &"unit.lac_hong"
-star = 1
+star = 2
 local_col = 5
 local_rank = 3
 

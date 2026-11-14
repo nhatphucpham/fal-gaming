@@ -5,7 +5,7 @@ extends Node
 ## whose own _process is switched off, and steps the battle once per
 ## `ticked`, so the clock's catch-up cap (5 ticks per frame) applies. Views
 ## change only through the events step() returns; skill events go to a
-## SkillPlayback. See Docs/systems/battle_playback.md for the
+## SkillPlayback and synergy procs to a SynergyPlayback. See Docs/systems/battle_playback.md for the
 ## event-to-animation table.
 ## [codeblock]
 ## playback.begin(battle, board, views_by_index, sim_clock, catalog)
@@ -16,6 +16,10 @@ extends Node
 signal tick_advanced(tick: int)
 ## The battle ended and its closing animation (winners cheering) is done.
 signal battle_finished(winner: int, reason: StringName)
+## A member's death broke a formation; the screen shatters its outline.
+## `cells` are the instance's members' global cells (two instances of one
+## formation are told apart by them).
+signal formation_broken(side: int, formation_id: StringName, cells: Array)
 
 const MELEE_IMPACT_SEC: float = 0.08
 const PROJECTILE_PX_PER_SEC: float = 900.0
@@ -44,6 +48,8 @@ var _impact_delay_sec: Dictionary[int, float] = {}
 var _handlers: Dictionary[StringName, Callable] = {}
 var _hp_order := ImpactOrder.new()
 var _skills := SkillPlayback.new(self)
+var _synergies := SynergyPlayback.new(self)
+var _catalog: Catalog
 var _is_running: bool = false
 # Bumped by abort(); delayed animations from an older generation are dropped.
 var _generation: int = 0
@@ -58,6 +64,7 @@ func _ready() -> void:
 		&"battle_ended": _on_battle_ended,
 	}
 	_handlers.merge(_skills.get_handlers())
+	_handlers.merge(_synergies.get_handlers())
 
 
 ## Starts playing `battle` (already started) on `board`. `views` maps each
@@ -72,6 +79,7 @@ func begin(battle: Battle, board: BoardView, views: Dictionary[int, UnitView], c
 	_max_hp.clear()
 	_hp_order.clear()
 	_skills.begin(catalog)
+	_catalog = catalog
 	for index: int in views:
 		var state := battle.get_unit_state(index)
 		_max_hp[index] = maxi(1, state["max_hp"])
@@ -135,6 +143,19 @@ func run_after(seconds: float, action: Callable) -> void:
 	tween.tween_callback(func() -> void:
 		if generation == _generation:
 			action.call())
+
+
+## Seconds of battle time from event `event_id` until it shows (an arrow's
+## flight), so an effect it causes lands with it.
+func get_impact_delay(event_id: int) -> float:
+	return _delay_of(event_id)
+
+
+## A formation's name over `view` (a volley); nothing without a catalog.
+func show_source_name(view: UnitView, source_id: StringName, color: Color) -> void:
+	var formation := _catalog.get_formation(source_id) if _catalog != null else null
+	if formation != null:
+		spawn_fx(SkillFx.name_popup(view.position + Vector2(0, -62), view.tr(formation.name_key), color))
 
 
 ## Board-local centre of `cell`.
@@ -226,6 +247,8 @@ func _on_damage_dealt(event: Dictionary) -> void:
 	var is_crit: bool = event["is_crit"]
 	var blocker := get_view(event["blocked_by"])
 	var event_id: int = event["id"]
+	# A hit a synergy blocked shows its "Chặn" instead of a 0.
+	var shows_number: bool = not event.get("is_blocked_by_modifier", false)
 	run_after(delay, func() -> void:
 		# A late arrow must not flash a unit that is already falling.
 		if view.is_dead:
@@ -233,7 +256,8 @@ func _on_damage_dealt(event: Dictionary) -> void:
 		view.hit_flash()
 		if _hp_order.accept(target_index, event_id):
 			view.set_hp_ratio(ratio)
-		spawn_fx(BattleFx.number(view.position + Vector2(randf_range(-18.0, 18.0), randf_range(-40.0, -26.0)), amount, is_counter, is_crit))
+		if shows_number:
+			spawn_fx(BattleFx.number(view.position + Vector2(randf_range(-18.0, 18.0), randf_range(-40.0, -26.0)), amount, is_counter, is_crit))
 		if blocker != null:
 			spawn_fx(BattleFx.shield_flash(blocker.position + Vector2(0, -14), blocker.side == 0)))
 

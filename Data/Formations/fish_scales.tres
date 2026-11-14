@@ -1,0 +1,18 @@
+[gd_resource type="FormationData" format=3]
+
+[sub_resource type="ModifierData" id="mod_1"]
+handler = &"mod.split_first_hit"
+scope = &"scope.members"
+
+[resource]
+id = &"formation.fish_scales"
+name_key = "FORMATION_FISH_SCALES"
+description_key = "FORMATION_FISH_SCALES_DESC"
+pattern = &"pattern.shape"
+cells = Array[Vector2i]([Vector2i(0, 0), Vector2i(1, 1), Vector2i(2, 2)])
+slot_classes = PackedStringArray("", "", "")
+anchor_rank = 1
+is_mirrored = true
+middle_slot = 1
+color = Color(0.45, 0.65, 0.95, 1)
+modifiers = Array[ModifierData]([SubResource("mod_1")])

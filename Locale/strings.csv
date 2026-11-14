@@ -124,3 +124,68 @@ PASSIVE_STEADY_AIM,Ngắm Kỹ,Steady Aim
 PASSIVE_STEADY_AIM_DESC,Khi bắn đòn thứ tư thì luôn chí mạng,Every fourth attack is a critical hit
 PASSIVE_SPIRIT_DRAW,Hút Linh,Spirit Draw
 PASSIVE_SPIRIT_DRAW_DESC,Khi có phản ứng nguyên tố trong 2 ô thì +15 Khí,An elemental reaction within 2 cells gives 15 qi
+FORMATION_SHIELD_WALL,Tường Khiên,Shield Wall
+FORMATION_SHIELD_WALL_DESC,Quân ngay sau bức tường giảm 40% sát thương tên,Units right behind the wall take 40% less arrow damage
+FORMATION_ARROW_RAIN,Mưa Tên,Arrow Rain
+FORMATION_ARROW_RAIN_DESC,Mỗi 4 giây Cung giữa bắn loạt tên 100% vào hàng 3 ô đông địch nhất,Every 4 s the centre archer volleys 100% into the most crowded row of 3
+FORMATION_SPELL_GUARD,Hộ Pháp,Spell Guard
+FORMATION_SPELL_GUARD_DESC,Pháp sau lưng Khiên gây thêm 25% sát thương,The mage behind the shield deals 25% more damage
+FORMATION_SPEARHEAD,Mũi Giáo,Spearhead
+FORMATION_SPEARHEAD_DESC,"Kỵ xung phong +50% và đẩy thêm 1 ô, hai Thương chạy theo","The rider's charge hits 50% harder and pushes 1 more cell, the spears rush behind"
+FORMATION_TWIN_BLADES,Song Kiếm,Twin Blades
+FORMATION_TWIN_BLADES_DESC,Mỗi đòn thứ ba của hai Kiếm gây gấp đôi,Every third attack of both swords deals double damage
+FORMATION_SPEAR_COVER,Thương Che Cung,Spear Cover
+FORMATION_SPEAR_COVER_DESC,"Kỵ địch lao vào Thương hoặc Cung thì mất đà, không gây sát thương","Enemy charges into the spear or archer stop dead, no damage"
+FORMATION_WILD_GEESE,Nhạn Hành,Wild Geese
+FORMATION_WILD_GEESE_DESC,Hai đầu cánh đánh nhanh hơn 30%,The two wing tips attack 30% faster
+FORMATION_LONG_SERPENT,Trường Xà,Long Serpent
+FORMATION_LONG_SERPENT_DESC,Năm quân trong hàng đánh nhanh hơn 15%,The five in the line attack 15% faster
+FORMATION_SQUARE,Phương Trận,Square
+FORMATION_SQUARE_DESC,Bốn quân giảm 15% sát thương nhận vào,The four take 15% less damage
+FORMATION_CRANE_WINGS,Hạc Dực,Crane Wings
+FORMATION_CRANE_WINGS_DESC,Hai Kỵ ở hai góc xung phong mạnh hơn 40%,Both corner riders charge 40% harder
+FORMATION_FISH_SCALES,Ngư Lân,Fish Scales
+FORMATION_FISH_SCALES_DESC,Đòn đầu tiên vào một quân được chia đều cho cả ba,The first hit on any of the three is split among them
+FORMATION_THREE_POWERS,Tam Tài,Three Powers
+FORMATION_THREE_POWERS_DESC,Cả ba vào trận với 10 Khí,All three start with 10 qi
+MILESTONE_SHIELD_2,Giáp +20 cho mọi Khiên,+20 armor for every shield
+MILESTONE_SHIELD_4,Đòn đầu tiên mỗi Khiên nhận bị chặn hẳn,The first hit each shield takes is blocked
+MILESTONE_SWORD_2,Kiếm gây thêm 15% sát thương,Swords deal 15% more damage
+MILESTONE_SWORD_3,Mỗi đòn trúng của Kiếm +5 Khí,Swords gain 5 more qi per hit
+MILESTONE_SWORD_4,Kiếm phản 30% sát thương cận chiến,Swords reflect 30% of melee damage
+MILESTONE_SPEAR_2,Thương đứng hàng tiền có tầm +1,Spears in the front rank get +1 range
+MILESTONE_SPEAR_4,Đòn Thương đâm xuyên quân phía sau,Spear attacks also hit the enemy behind
+MILESTONE_CAVALRY_2,Kỵ xung phong mạnh hơn 30%,Cavalry charges hit 30% harder
+MILESTONE_CAVALRY_3,Xung phong đẩy lùi 2 ô,Charges push back 2 cells
+MILESTONE_ARCHER_2,Cung bắn nhanh hơn 20%,Archers attack 20% faster
+MILESTONE_ARCHER_3,Mũi tên đầu tiên mỗi trận chí mạng,Each archer's first shot is a critical hit
+MILESTONE_ARCHER_4,Tên xuyên qua quân phía sau,Arrows also hit the enemy behind
+MILESTONE_MAGE_2,Vùng phép thêm ô phía sau mục tiêu,Mage attacks also hit the cell behind the target
+MILESTONE_MAGE_4,Chiêu của Pháp mạnh hơn 30%,Mage skills deal 30% more
+MILESTONE_HUMAN_1,Trận đồ có người Nhân +1 cấp,Formations with a human are +1 level
+MILESTONE_HUMAN_3,Mỗi trận đồ đang bật cho cả đội +5% sát thương,Each active formation gives the team +5% damage
+MILESTONE_HUMAN_5,Trận đồ có từ 2 người Nhân +2 cấp,Formations with 2 or more humans are +2 levels
+MILESTONE_WOLF_1,Lang Tộc đứng giữa trận đồ 3 quân thì chỉ cần 2,A wolf-folk in the middle completes a 3-unit formation with 2
+MILESTONE_WOLF_3,Lang Tộc hạ địch thì mọi Lang Tộc +10 Khí,A wolf-folk kill gives every wolf-folk 10 qi
+MILESTONE_WOLF_5,Trận đồ 4 quân chỉ cần 3,4-unit formations need only 3
+HOP_LUC_3,Cả đội vào trận với 10 Khí,The team starts with 10 qi
+HOP_LUC_6,Cả đội +8% sát thương,The team deals 8% more damage
+HOP_LUC_9,Cả đội +12% máu tối đa,The team gets 12% more max hp
+HOP_LUC_12,Cả đội đánh nhanh hơn 10%,The team attacks 10% faster
+HOP_LUC_15,Cả đội vào trận với thêm 30 Khí,The team starts with 30 more qi
+SYNERGY_PANEL_TITLE,Liên kết,Synergies
+SYNERGY_CLASSES,Nghề,Classes
+SYNERGY_RACES,Tộc,Races
+SYNERGY_FORMATIONS,Trận đồ,Formations
+SYNERGY_NEAR,Còn thiếu 1 quân,One unit short
+SYNERGY_NONE,Chưa có,None yet
+SYNERGY_LEVEL_FORMAT,cấp %d,level %d
+SYNERGY_MISSING_FORMAT,thiếu 1: %s,missing 1: %s
+SYNERGY_ANY_UNIT,quân bất kỳ,any unit
+SYNERGY_COUNT_FORMAT,%s %d/%d,%s %d/%d
+SYNERGY_HOP_LUC_TIERS,Bậc Hợp Lực,Unity tiers
+SYNERGY_BLOCKED,Chặn,Block
+SYNERGY_SPLIT,Chia đòn,Split
+SYNERGY_DOUBLE,Gấp đôi,Double
+SYNERGY_STOPPED,Mất đà,Stopped
+SYNERGY_REFLECT,Phản,Reflect

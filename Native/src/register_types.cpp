@@ -13,6 +13,12 @@
 #include "battle/skill_effect_data.h"
 #include "battle/unit_data.h"
 #include "sim_clock.h"
+#include "synergy/formation_data.h"
+#include "synergy/hop_luc_data.h"
+#include "synergy/milestone_data.h"
+#include "synergy/modifier_data.h"
+#include "synergy/synergy.h"
+#include "synergy/synergy_tier_data.h"
 
 using namespace godot;
 
@@ -31,6 +37,12 @@ void initialize_falemag_module(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(ClassData);
 	GDREGISTER_CLASS(UnitData);
 	GDREGISTER_CLASS(BattleRulesData);
+	GDREGISTER_CLASS(ModifierData);
+	GDREGISTER_CLASS(SynergyTierData);
+	GDREGISTER_CLASS(MilestoneData);
+	GDREGISTER_CLASS(FormationData);
+	GDREGISTER_CLASS(HopLucData);
+	GDREGISTER_CLASS(Synergy);
 	GDREGISTER_CLASS(Battle);
 }
 

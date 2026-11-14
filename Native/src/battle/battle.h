@@ -5,6 +5,8 @@
 #include "class_data.h"
 #include "unit_data.h"
 
+#include "synergy/synergy.h"
+
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/variant/array.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
@@ -32,6 +34,7 @@ public:
 private:
 	battle::BattleSim sim;
 	Ref<BattleRulesData> rules;
+	Ref<Synergy> synergy;
 	bool log_enabled = false;
 	// True while signals for a tick are emitted; commands that change the
 	// battle are refused then, so a handler cannot re-enter step().
@@ -46,6 +49,10 @@ public:
 	// Must be called before add_unit(); clears nothing else.
 	void set_rules(const Ref<BattleRulesData> &p_rules);
 	Ref<BattleRulesData> get_rules() const { return rules; }
+	// Milestones, formations and Hợp Lực for both sides, evaluated at
+	// start(); null turns them off. Refused once units exist.
+	void set_synergy(const Ref<Synergy> &p_synergy);
+	Ref<Synergy> get_synergy() const { return synergy; }
 	// Validates the class's handler ids and stats; false with an error on bad data.
 	bool register_class(const Ref<ClassData> &p_class);
 	// Returns the unit's index, or -1 with an error.
