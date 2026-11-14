@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="Catalog" format=3]
 
 [ext_resource type="Script" path="res://Systems/Content/catalog.gd" id="1_catalog"]
+[ext_resource type="Script" path="res://Systems/Run/stage_data.gd" id="2_stage_data"]
 [ext_resource type="ClassData" path="res://Data/Classes/shield.tres" id="class_shield"]
 [ext_resource type="ClassData" path="res://Data/Classes/sword.tres" id="class_sword"]
 [ext_resource type="ClassData" path="res://Data/Classes/spear.tres" id="class_spear"]
@@ -33,9 +34,24 @@
 [ext_resource type="UnitData" path="res://Data/Units/lac_hong.tres" id="unit_lac_hong"]
 [ext_resource type="UnitData" path="res://Data/Units/thiet_nha.tres" id="unit_thiet_nha"]
 [ext_resource type="BattleRulesData" path="res://Data/Rules/battle_rules.tres" id="rules_battle"]
+[ext_resource type="Resource" path="res://Data/Rules/run_rules.tres" id="rules_run"]
+[ext_resource type="Resource" path="res://Data/Stages/stage_01.tres" id="stage_01"]
+[ext_resource type="Resource" path="res://Data/Stages/stage_02.tres" id="stage_02"]
+[ext_resource type="Resource" path="res://Data/Stages/stage_03.tres" id="stage_03"]
+[ext_resource type="Resource" path="res://Data/Stages/stage_04.tres" id="stage_04"]
+[ext_resource type="Resource" path="res://Data/Stages/stage_05.tres" id="stage_05"]
+[ext_resource type="Resource" path="res://Data/Stages/stage_06.tres" id="stage_06"]
+[ext_resource type="Resource" path="res://Data/Stages/stage_07.tres" id="stage_07"]
+[ext_resource type="Resource" path="res://Data/Stages/stage_08.tres" id="stage_08"]
+[ext_resource type="Resource" path="res://Data/Stages/stage_09.tres" id="stage_09"]
+[ext_resource type="Resource" path="res://Data/Stages/stage_10.tres" id="stage_10"]
+[ext_resource type="Resource" path="res://Data/Stages/stage_11.tres" id="stage_11"]
+[ext_resource type="Resource" path="res://Data/Stages/stage_12.tres" id="stage_12"]
 
 [resource]
 script = ExtResource("1_catalog")
 classes = Array[ClassData]([ExtResource("class_shield"), ExtResource("class_sword"), ExtResource("class_spear"), ExtResource("class_cavalry"), ExtResource("class_archer"), ExtResource("class_mage")])
 units = Array[UnitData]([ExtResource("unit_shield_guard"), ExtResource("unit_blade_wanderer"), ExtResource("unit_wolf_spear"), ExtResource("unit_wolf_rider"), ExtResource("unit_archer"), ExtResource("unit_fire_adept"), ExtResource("unit_wolf_shield"), ExtResource("unit_wolf_blade"), ExtResource("unit_spearman"), ExtResource("unit_light_rider"), ExtResource("unit_wolf_archer"), ExtResource("unit_ice_mage"), ExtResource("unit_iron_guard"), ExtResource("unit_blood_wolf"), ExtResource("unit_wolf_marksman"), ExtResource("unit_wind_mage"), ExtResource("unit_pike_guard"), ExtResource("unit_wolf_king_shield"), ExtResource("unit_heavy_rider"), ExtResource("unit_moon_spear"), ExtResource("unit_thunder_mage"), ExtResource("unit_lieu_mi"), ExtResource("unit_ba_khac"), ExtResource("unit_lac_hong"), ExtResource("unit_thiet_nha")])
 battle_rules = ExtResource("rules_battle")
+run_rules = ExtResource("rules_run")
+stages = Array[ExtResource("2_stage_data")]([ExtResource("stage_01"), ExtResource("stage_02"), ExtResource("stage_03"), ExtResource("stage_04"), ExtResource("stage_05"), ExtResource("stage_06"), ExtResource("stage_07"), ExtResource("stage_08"), ExtResource("stage_09"), ExtResource("stage_10"), ExtResource("stage_11"), ExtResource("stage_12")])

@@ -43,8 +43,14 @@ godot-cpp is pinned to `10.0.0-stable` and built against the Godot 4.7 API
 ## Validate
 
 After building, run the editor import, `Tests/smoke_test.gd`,
-`Tests/battle_test.gd`, `Tests/battle_api_test.gd` and `Tests/sandbox_test.gd`
-as shown in the README.
+`Tests/battle_test.gd`, `Tests/battle_api_test.gd`, `Tests/sandbox_test.gd`,
+`Tests/run_test.gd` and `Tests/run_flow_test.gd` as shown in the README.
+The run test checks the rules of a run (`RunState`, the shop, merges, the
+save) without any screen; the run flow test plays stage 1 through the real
+screens, from Main's new run to stage 2's preparation (see
+[Run](systems/run.md)). The run flow test points `RunSave.path` at
+`user://run_save_test.json` and deletes that file at the end, so a run
+saved on the same machine is left alone.
 The sandbox test drives the sandbox screen headless through the functions its
 gestures call and plays one battle to the end (see
 [Board](systems/board.md)). The smoke test checks that the
@@ -61,10 +67,23 @@ succeeds. CI avoids it by writing
 
 CI builds debug and release libraries for Linux x86_64, Windows x86_64,
 Android arm64 and arm32, and the web (wasm32 without threads), and uploads
-them as workflow artifacts. It then runs the import, the smoke, battle and
-sandbox tests with the Linux library, and checks that the Android and Web
+them as workflow artifacts. It then runs the import, the smoke, battle,
+sandbox, run and run flow tests with the Linux library, and checks that the Android and Web
 exports contain theirs.
 These checks do not replace testing an exported build on the target device.
+
+## Balance bot
+
+`Tools/run_bot.gd` plays whole runs with a simple greedy player and prints
+the win rate of each stage and of the run, to check the stage table after a
+change to `Data/Stages/` or `Data/Rules/run_rules.tres`:
+
+```
+godot --headless --path . --script res://Tools/run_bot.gd -- 300 1
+```
+
+The arguments are the number of runs, the first seed and, optionally,
+`verbose`. `Tools/` is left out of every export preset.
 
 CI runs once per commit: on pull requests, and on pushes to `master`. A
 branch without a pull request is not built. A newer commit on a pull request

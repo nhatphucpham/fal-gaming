@@ -45,6 +45,20 @@ func show_sides(player_share: float, player_alive: int, enemy_share: float, enem
 		queue_redraw()
 
 
+## Updates both sides from a battle's units (health share and living units).
+func show_battle(battle: Battle) -> void:
+	var shares: Array[float] = [0.0, 0.0]
+	var alive: Array[int] = [0, 0]
+	var counts: Array[int] = [0, 0]
+	for state: Dictionary in battle.get_units():
+		var side: int = state["side"]
+		counts[side] += 1
+		if state["alive"]:
+			alive[side] += 1
+			shares[side] += float(state["hp"]) / maxi(1, state["max_hp"])
+	show_sides(shares[0] / maxi(1, counts[0]), alive[0], shares[1] / maxi(1, counts[1]), alive[1])
+
+
 func _set_share(value: float, side: int) -> void:
 	_shares[side] = value
 	queue_redraw()

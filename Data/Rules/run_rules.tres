@@ -1,0 +1,41 @@
+[gd_resource type="Resource" script_class="RunRules" format=3]
+
+[ext_resource type="Script" path="res://Systems/Run/run_rules.gd" id="1_rules"]
+
+[resource]
+script = ExtResource("1_rules")
+start_morale = 60
+max_morale = 60
+start_gold = 10
+start_supply = 0
+start_level = 3
+max_level = 9
+bench_slots = 6
+max_board_units = 8
+max_star = 3
+copies_to_merge = 3
+legend_cost = 5
+legend_copies_to_merge = 2
+legend_max_star = 2
+legend_board_limit = 2
+shop_slots = 5
+refresh_gold = 2
+supply_pack_gold = 4
+supply_pack_amount = 4
+supply_to_next = PackedInt32Array(2, 4, 6, 10, 14, 20)
+shop_odds = Array[PackedInt32Array]([PackedInt32Array(75, 25, 0, 0, 0), PackedInt32Array(55, 30, 15, 0, 0), PackedInt32Array(45, 33, 20, 2, 0), PackedInt32Array(30, 40, 25, 5, 0), PackedInt32Array(19, 30, 35, 15, 1), PackedInt32Array(16, 22, 35, 23, 4), PackedInt32Array(10, 18, 30, 32, 10)])
+stage_count = 12
+stage_income = PackedInt32Array(4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 10)
+stage_supply = 2
+winter_from_stage = 9
+winter_supply = 1
+enemy_counts = PackedInt32Array(3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8)
+win_gold = 1
+win_supply = 2
+loss_morale_base = 6
+loss_morale_per_enemy = 2
+rest_morale = 15
+hunt_supply = 6
+black_market_levels = 1
+black_market_free_refreshes = 1
+rewards_after_loss = 2

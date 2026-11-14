@@ -1,7 +1,8 @@
 class_name Catalog
 extends Resource
-## Every class and unit of the game and the battle rules, listed explicitly so
-## nothing scans directories at runtime (that breaks in exported builds).
+## Every class, unit and stage of the game and the battle and run rules,
+## listed explicitly so nothing scans directories at runtime (that breaks in
+## exported and web builds).
 ## [codeblock]
 ## var catalog := load("res://Data/catalog.tres") as Catalog
 ## assert(catalog.validate().is_empty())
@@ -16,6 +17,9 @@ const MAX_COST: int = 5
 ## One entry per Data/Units/ file.
 @export var units: Array[UnitData] = []
 @export var battle_rules: BattleRulesData
+@export var run_rules: RunRules
+## One entry per Data/Stages/ file, in stage order (stage 1 first).
+@export var stages: Array[StageData] = []
 
 
 ## The unit with this id, or null.
@@ -42,6 +46,7 @@ func validate() -> PackedStringArray:
 		problems.append("Catalog: battle_rules is not set in %s" % resource_path)
 	problems.append_array(_validate_classes())
 	problems.append_array(_validate_units())
+	problems.append_array(_validate_run())
 	return problems
 
 
@@ -79,4 +84,25 @@ func _validate_units() -> PackedStringArray:
 			problems.append("Catalog: %s has unknown class_id %s" % [where, unit.class_id])
 		if unit.cost < MIN_COST or unit.cost > MAX_COST:
 			problems.append("Catalog: %s has cost %d, expected %d..%d" % [where, unit.cost, MIN_COST, MAX_COST])
+	return problems
+
+
+func _validate_run() -> PackedStringArray:
+	var problems := PackedStringArray()
+	if run_rules == null:
+		problems.append("Catalog: run_rules is not set in %s" % resource_path)
+		return problems
+	problems.append_array(run_rules.validate())
+	if stages.size() != run_rules.stage_count:
+		problems.append("Catalog: %d stages listed, expected %d" % [stages.size(), run_rules.stage_count])
+	var seen: Dictionary[StringName, bool] = {}
+	for index: int in stages.size():
+		var stage: StageData = stages[index]
+		if stage == null:
+			problems.append("Catalog: stages[%d] is empty" % index)
+			continue
+		if not String(stage.id).begins_with("stage.") or seen.has(stage.id):
+			problems.append("Catalog: %s has a bad or duplicate id '%s'" % [stage.resource_path, stage.id])
+		seen[stage.id] = true
+		problems.append_array(stage.validate(self, run_rules.get_enemy_count(index + 1)))
 	return problems

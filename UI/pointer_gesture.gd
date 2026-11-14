@@ -6,7 +6,8 @@ extends RefCounted
 ## buttons are ignored while a press is held. A second finger (a touch whose
 ## index differs from the one that owns the press), a cancelled touch or
 ## release, or lost focus or app pause cancels the press (drag_cancelled for
-## a drag; no tap).
+## a drag; no tap). With [member is_long_press_enabled] off, a held press
+## stays a tap and right clicks are ignored.
 ## Positions are global canvas positions. The owner forwards _gui_input
 ## events, _input events (handle_global_input), notifications and update().
 ## [codeblock]
@@ -28,6 +29,10 @@ signal drag_cancelled()
 const LONG_PRESS_SEC: float = 0.4
 const DRAG_THRESHOLD_PX: float = 14.0
 const NO_TOUCH: int = -1
+
+## False for widgets that only act on a release (buttons, cards): no
+## long_pressed, a long hold still ends in a tap.
+var is_long_press_enabled: bool = true
 
 var _is_down: bool = false
 var _is_dragging: bool = false
@@ -59,7 +64,7 @@ func handle_input(event: InputEvent) -> bool:
 
 ## Advances the long-press timer; call every frame.
 func update(delta: float) -> void:
-	if not _is_down or _is_dragging or _long_press_fired:
+	if not _is_down or _is_dragging or _long_press_fired or not is_long_press_enabled:
 		return
 	_held_sec += delta
 	if _held_sec >= LONG_PRESS_SEC:
@@ -109,9 +114,14 @@ func is_dragging() -> bool:
 	return _is_dragging
 
 
+## True while a press is held (dragging or not), until release or cancel.
+func is_pressed() -> bool:
+	return _is_down
+
+
 func _handle_button(button: InputEventMouseButton) -> bool:
 	if button.button_index == MOUSE_BUTTON_RIGHT:
-		if button.pressed:
+		if button.pressed and is_long_press_enabled:
 			cancel()
 			long_pressed.emit(button.global_position)
 		return true

@@ -9,6 +9,26 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Added
 
+- A run of 12 stages, from a new title screen with "Ván mới", "Chơi tiếp"
+  (when a run is saved), "Bàn thử" and the preparation time (60 s, 90 s or
+  unlimited). Each stage starts with a preparation: buy units from a shop of
+  five cards (higher costs glow), keep them on a bench of six, place them on
+  your half of the board by tap or drag, swap, sell by dropping on the shop,
+  refresh the shop, buy supply and spend it to level up for more units on
+  the board. Three copies of a unit merge into 2 and then 3 stars (legends:
+  two copies, at most 2 stars and two on the board), with a flight and a
+  burst of confetti. The enemy line-up of the stage waits dimmed on the top
+  half. "Ra trận", or the end of the timer, starts the battle on the same
+  board; the banner shows the gold, supply or morale won or lost, then pick
+  one of three rewards (two after a loss): rest, hunt or the black market.
+  Morale at 0 ends the run; winning stage 12, "Đại Trận Lạc Hồng", wins it.
+  The run is saved after every change in the preparation, at the end of
+  each battle and after every reward. The end screen shows the result,
+  the stages cleared and your army.
+- The preparation timer pauses when the game window or browser tab is not
+  in front.
+- `Tools/run_bot.gd`, a balance bot that plays whole runs and prints the
+  win rate of each stage.
 - A first playable screen, the sandbox, laid out for a phone held upright
   (desktop windows work too): a roster of every unit, the 7 x 8 board with the
   enemy line-up shown dimmed on the top half, and the buttons "Ra trận",
@@ -36,3 +56,33 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 - The game is now portrait (720 x 1280 base size); in a landscape window the
   game column stays centred.
+- The game opens on the title screen; the sandbox is reached from "Bàn thử"
+  and has a "Về" button back.
+- In the run, hp bars show only during a battle, not while units wait.
+- During a battle the countdown badge shows the battle's time limit with a
+  steel ring, a crossed-swords mark and no red pulse, so it no longer looks
+  like the preparation timer.
+
+### Fixed
+
+- In the run, a drag that starts between two bench slots no longer picks up
+  (and can no longer sell) a unit on the board.
+- The sell zone and the reward cards ignore a cancelled touch, and the sell
+  zone sells only when the press ends on it.
+- The run save is deleted as soon as the run is won or lost, so closing the
+  game at the result banner no longer lets "Chơi tiếp" replay that battle.
+- A damaged or edited run save (wrong types, impossible values, two units
+  on one place, too many units on the board) is ignored with one warning
+  instead of loading a broken run or raising script errors.
+- The run flow test no longer overwrites a run saved on the same machine.
+- Closing the game after a battle that does not end the run no longer
+  replays it: "Chơi tiếp" opens that battle's reward cards with its morale,
+  gold and supply already counted. Refreshes, purchases, sales, moves and
+  level-ups are saved at once, so reloading cannot undo a refresh. A game
+  closed during a battle still resumes in that stage's preparation. Saves
+  from earlier builds are no longer used.
+- A press held 0.4 s or longer on a reward card or the sell zone now chooses
+  or sells, and so does a finger that slides within the sell zone before
+  lifting.
+- A save that cannot be used is deleted when "Chơi tiếp" fails, so the title
+  no longer keeps offering "Chơi tiếp" for it.

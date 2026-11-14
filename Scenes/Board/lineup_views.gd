@@ -16,6 +16,7 @@ var _board: BoardView
 var _catalog: Catalog
 var _views: Dictionary[int, UnitView] = {}
 var _dim: float = 0.0
+var _is_hp_bar_shown: bool = true
 
 
 func _init(lineup: Lineup, lineup_side: int, board: BoardView, catalog: Catalog) -> void:
@@ -59,6 +60,14 @@ func rebuild() -> void:
 		_on_entry_added(entry_id)
 
 
+## Shows or hides every view's hp bar, now and for views added later
+## (hidden while the line-up only waits: full health says nothing).
+func set_hp_bars_shown(shown: bool) -> void:
+	_is_hp_bar_shown = shown
+	for view: UnitView in _views.values():
+		view.is_hp_bar_shown = shown
+
+
 ## Darkens every view by `amount` 0..1, now and for views added later.
 func set_dim(amount: float) -> void:
 	_dim = amount
@@ -83,6 +92,7 @@ func _on_entry_added(entry_id: int) -> void:
 		return
 	var view := UnitView.new()
 	view.setup(unit, side, slot.star)
+	view.is_hp_bar_shown = _is_hp_bar_shown
 	view.position = _board.cell_to_local(to_board_cell(slot.get_cell()))
 	_board.get_piece_layer().add_child(view)
 	_views[entry_id] = view

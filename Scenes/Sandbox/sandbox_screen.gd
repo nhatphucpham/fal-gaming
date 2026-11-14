@@ -15,6 +15,9 @@ const SLIDE_PX: float = 320.0
 ## How often the side health bars are refreshed during a battle.
 const STATUS_EVERY_TICKS: int = 2
 
+## "Về": the player wants the title screen.
+signal back_requested()
+
 enum Phase { SETUP, BATTLE, RESULT }
 
 ## Drives battle ticks; set by Main.
@@ -63,12 +66,9 @@ func _ready() -> void:
 	problems.append_array(_sandbox.validate(_catalog))
 	for problem: String in problems:
 		push_error(problem)
-	_battle = Battle.new()
-	_battle.name = &"Battle"
+	_battle = BattleFactory.create(_catalog)
 	add_child(_battle)
-	_battle.set_rules(_catalog.battle_rules)
-	for class_data: ClassData in _catalog.classes:
-		_battle.register_class(class_data)
+	_add_back_button()
 	_player_views = LineupViews.new(player_lineup, Battle.SIDE_A, board, _catalog)
 	_enemy_views = LineupViews.new(enemy_lineup, Battle.SIDE_B, board, _catalog)
 	setup_controller.setup(board, _roster, %Ghost, _catalog, _player_views, player_lineup, _enemy_views, enemy_lineup)
@@ -83,7 +83,7 @@ func _ready() -> void:
 	%ClearButton.pressed.connect(clear_board)
 	_fight_button.pressed.connect(start_battle)
 	_speed_button.pressed.connect(cycle_speed)
-	_banner.rearrange_pressed.connect(return_to_setup)
+	_banner.button_pressed.connect(return_to_setup)
 	playback.tick_advanced.connect(_on_tick_advanced)
 	playback.battle_finished.connect(_on_battle_finished)
 	_timer_label.modulate.a = 0.0
@@ -209,21 +209,20 @@ func _on_tick_advanced(tick: int) -> void:
 	var seconds_left := ceili(float(rules.time_limit_ticks - tick) / rules.ticks_per_second)
 	_timer_label.text = tr("TIMER_FORMAT") % maxi(0, seconds_left)
 	if tick % STATUS_EVERY_TICKS == 0 or _battle.is_finished():
-		_update_battle_status()
+		_battle_status.show_battle(_battle)
 
 
-# Health share and living units per side, from the Battle getters.
-func _update_battle_status() -> void:
-	var shares: Array[float] = [0.0, 0.0]
-	var alive: Array[int] = [0, 0]
-	var counts: Array[int] = [0, 0]
-	for state: Dictionary in _battle.get_units():
-		var side: int = state["side"]
-		counts[side] += 1
-		if state["alive"]:
-			alive[side] += 1
-			shares[side] += float(state["hp"]) / maxi(1, state["max_hp"])
-	_battle_status.show_sides(shares[0] / maxi(1, counts[0]), alive[0], shares[1] / maxi(1, counts[1]), alive[1])
+# A small "Về" button before the title, back to the title screen.
+func _add_back_button() -> void:
+	var back := PressButton.new()
+	back.text = "BUTTON_BACK"
+	back.focus_mode = Control.FOCUS_NONE
+	back.custom_minimum_size = Vector2(108, 88)
+	back.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	back.pressed.connect(func() -> void: back_requested.emit())
+	var row := _title_box.get_parent().get_parent()
+	row.add_child(back)
+	row.move_child(back, 0)
 
 
 func _on_battle_finished(winner: int, reason: StringName) -> void:
