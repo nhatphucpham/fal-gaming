@@ -92,7 +92,7 @@ func _draw() -> void:
 func _draw_cast_glow() -> void:
 	var pulse := 0.5 + 0.5 * sin(_cast_time * TAU * 3.0)
 	var radius := UnitView.RING_RADIUS * (1.15 + 0.12 * pulse)
-	var ring := UnitPainter.Brush.ellipse(UnitView.FEET, radius.x, radius.y, 24)
+	var ring := FigureBrush.ellipse(UnitView.FEET, radius.x, radius.y, 24)
 	draw_colored_polygon(ring, Color(accent, 0.25 + 0.15 * pulse))
 	ring.append(ring[0])
 	draw_polyline(ring, Color(accent.lightened(0.3), 0.9), 3.0, true)

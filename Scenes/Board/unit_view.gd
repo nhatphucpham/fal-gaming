@@ -2,7 +2,9 @@ class_name UnitView
 extends Node2D
 ## One unit on the board: base ring, figure, hp bar, Khí bar and star pips,
 ## the skill marks (skill_overlay) and every animation a unit plays (drop in,
-## pop out, glide, lunge, wind up, hit, die, cheer).
+## pop out, glide, lunge, wind up, hit, die, cheer). Whole-body moves are
+## tweens here; the limbs and weapon follow a PoseAnimator. Only the figure
+## turns toward its target (flips); bars, ring and marks never do.
 ## Its origin is the centre of its cell. It never reads simulation state;
 ## callers tell it what happened. See Docs/systems/board.md.
 ## [codeblock]
@@ -26,9 +28,16 @@ const BREATH_SPEED: float = 2.4
 ## shoulders reach over the neighbours. Its hp shows in the wide boss bar.
 const BOSS_SCALE: float = 1.6
 const STONE_TINT := Color(0.62, 0.6, 0.58)
+## A target less than this far to the side keeps the current facing.
+const TURN_MIN_PX: float = 6.0
+## How long the limp collapse plays before the body falls over.
+const COLLAPSE_SEC: float = 0.3
 
 ## Multiplies the speed of every animation (the battle speed button).
-var playback_speed: float = 1.0
+var playback_speed: float = 1.0:
+	set(value):
+		playback_speed = value
+		_animator.playback_speed = value
 ## Offset of the figure from its feet position, for lunges, hops and shakes.
 var anim_offset: Vector2 = Vector2.ZERO
 ## Squash and stretch of the figure, multiplied with breathing.
@@ -54,6 +63,9 @@ var star: int = 1
 var skill_overlay: SkillOverlay
 
 var _figure: UnitFigure
+var _animator: PoseAnimator
+# 1 faces right, -1 left (the figure is mirrored).
+var _flip: float = 1.0
 var _bar: Node2D
 var _hp_ratio: float = 1.0
 var _hp_trail: float = 1.0
@@ -76,6 +88,9 @@ func _init() -> void:
 	_figure = UnitFigure.new()
 	_figure.position = FEET
 	add_child(_figure)
+	_animator = PoseAnimator.new(_figure)
+	_figure.pose = _animator.pose
+	add_child(_animator)
 	_stone = StoneLayer.new()
 	add_child(_stone)
 	# The bar is drawn behind the figure so hats, crowns and blades stay whole.
@@ -87,14 +102,18 @@ func _init() -> void:
 	add_child(skill_overlay)
 
 
-## Sets what the view shows. Side 0 faces up with a blue ring, side 1 down
-## with a red ring.
+## Sets what the view shows. Side 0 faces up and right with a blue ring,
+## side 1 down and left with a red ring.
 func setup(unit_data: UnitData, unit_side: int, star_level: int) -> void:
 	unit = unit_data
 	side = unit_side
 	star = star_level
 	_figure.unit = unit_data
 	_figure.facing = UnitPainter.FACING_UP if unit_side == 0 else UnitPainter.FACING_DOWN
+	_flip = 1.0 if unit_side == 0 else -1.0
+	_animator.set_class(unit_data.class_id)
+	# Bosses and the sage stand still: no pose, no idle redraws.
+	_animator.set_process(UnitPainter.is_posable(unit_data.class_id))
 	_size_scale = BOSS_SCALE if unit_data.is_boss else 1.0
 	_stone.size_scale = _size_scale
 	_breath_phase = float(hash(unit_data.id) % 628) / 100.0 + randf() * 0.5
@@ -105,7 +124,7 @@ func setup(unit_data: UnitData, unit_side: int, star_level: int) -> void:
 func _process(delta: float) -> void:
 	_time += delta
 	var breath := 0.0 if is_petrified else sin(_time * BREATH_SPEED + _breath_phase) * BREATH_AMOUNT
-	_figure.scale = squash * Vector2(1.0 - breath * 0.4, 1.0 + breath) * FIGURE_SCALE * _size_scale
+	_figure.scale = squash * Vector2((1.0 - breath * 0.4) * _flip, 1.0 + breath) * FIGURE_SCALE * _size_scale
 	_figure.position = FEET + anim_offset + Vector2(0.0, -bob)
 	_figure.rotation = lean
 	if _qi_ratio >= 1.0 and is_hp_bar_shown:
@@ -114,7 +133,7 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	var ring_color := Palette.PLAYER_RING if side == 0 else Palette.ENEMY_RING
-	var ring := UnitPainter.Brush.ellipse(FEET, RING_RADIUS.x * _size_scale, RING_RADIUS.y * _size_scale, 20)
+	var ring := FigureBrush.ellipse(FEET, RING_RADIUS.x * _size_scale, RING_RADIUS.y * _size_scale, 20)
 	draw_colored_polygon(ring, Color(ring_color, 0.35))
 	ring.append(ring[0])
 	draw_polyline(ring, ring_color, 2.5, true)
@@ -165,8 +184,21 @@ func set_qi(qi: int, qi_max: int) -> void:
 	_bar.queue_redraw()
 
 
-## Crouches and rises over `seconds`: the wind-up before a skill.
+## The figure's pose, for tests and tools; never change it from outside.
+func get_pose() -> UnitPose:
+	return _animator.pose
+
+
+## 1 when the figure faces right, -1 when it faces left.
+func get_flip() -> float:
+	return _flip
+
+
+## Crouches with the weapon raised and glowing over `seconds` (the skill's
+## cast time); the next lunge or recoil releases the strike (or it releases
+## itself just after `seconds`).
 func wind_up(seconds: float) -> void:
+	_animator.wind_up(seconds)
 	var tween := _new_figure_tween()
 	tween.tween_property(self, ^"squash", Vector2(1.18, 0.82), seconds * 0.6).set_ease(Tween.EASE_OUT)
 	tween.parallel().tween_property(self, ^"anim_offset", Vector2(0, 3), seconds * 0.6)
@@ -254,26 +286,33 @@ func glide_to(target: Vector2, duration_sec: float, kind: StringName) -> void:
 	match kind:
 		&"charge":
 			# Stretched toward the run and bobbing fast: a gallop.
+			_animator.walk(duration_sec, true)
 			squash = Vector2(0.9, 1.1)
 			_motion_tween.tween_method(_gallop_step.bind(from, target), 0.0, 1.0, duration_sec)
 			_motion_tween.tween_property(self, ^"squash", Vector2.ONE, 0.1)
 		&"knockback":
+			_animator.flinch_for(duration_sec)
 			_motion_tween.tween_property(self, ^"position", target, duration_sec).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 			_motion_tween.parallel().tween_property(self, ^"lean", -0.2, duration_sec * 0.5)
 			_motion_tween.tween_property(self, ^"lean", 0.0, 0.12)
 		_:
+			_animator.walk(duration_sec, false)
 			_motion_tween.tween_method(_walk_step.bind(from, target, cells), 0.0, 1.0, duration_sec)
 
 
-## A quick lunge toward `direction` and back, for melee swings.
+## A quick lunge toward `direction` and back, for melee swings: the figure
+## turns to the target and strikes at it.
 func lunge(direction: Vector2) -> void:
+	_attack_toward(direction)
 	var tween := _new_figure_tween()
 	tween.tween_property(self, ^"anim_offset", direction.normalized() * 14.0, 0.08).set_ease(Tween.EASE_OUT)
 	tween.tween_property(self, ^"anim_offset", Vector2.ZERO, 0.14).set_ease(Tween.EASE_IN_OUT)
 
 
-## A small recoil, for shooting and casting.
+## A small recoil, for shooting and casting: the figure turns to the target
+## and looses or casts at it (or releases a wound-up skill).
 func recoil(direction: Vector2) -> void:
+	_attack_toward(direction)
 	var tween := _new_figure_tween()
 	tween.tween_property(self, ^"squash", Vector2(1.12, 0.9), 0.06)
 	tween.parallel().tween_property(self, ^"anim_offset", -direction.normalized() * 4.0, 0.06)
@@ -281,8 +320,9 @@ func recoil(direction: Vector2) -> void:
 	tween.parallel().tween_property(self, ^"anim_offset", Vector2.ZERO, 0.12)
 
 
-## Flashes white and flinches.
+## Flashes white and flinches with hurt eyes (a shield raises its shield).
 func hit_flash() -> void:
+	_animator.hit()
 	var tween := _new_tween()
 	_figure.flash = 1.0
 	tween.tween_property(_figure, ^"flash", 0.0, 0.2)
@@ -290,24 +330,28 @@ func hit_flash() -> void:
 	tween.tween_property(self, ^"squash", Vector2.ONE, 0.1)
 
 
-## Falls over and fades out; stays in the tree, hidden.
+## Collapses, falls over backwards and fades out; stays in the tree, hidden.
 func die() -> void:
 	is_dead = true
 	_stone.is_stone = false
 	skill_overlay.clear()
 	_reset_tween(_motion_tween)
+	_animator.die()
 	var tween := _new_figure_tween()
-	var fall_side := -1.0 if side == 0 else 1.0
+	var fall_side := -_flip
+	tween.tween_interval(COLLAPSE_SEC)
 	tween.tween_property(self, ^"lean", fall_side * 1.4, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.parallel().tween_property(self, ^"anim_offset", Vector2(fall_side * 8.0, 2.0), 0.3)
 	tween.tween_property(self, ^"modulate:a", 0.0, 0.35)
 	tween.tween_callback(hide)
 
 
-## Turns the figure to grey stone (Hóa Đá) or back to life.
+## Turns the figure to grey stone (Hóa Đá), its pose frozen as it is, or
+## back to life.
 func set_petrified(petrified: bool) -> void:
 	is_petrified = petrified
 	_stone.is_stone = petrified
+	_animator.set_frozen(petrified)
 	var tween := _new_tween()
 	tween.tween_property(_figure, ^"modulate", STONE_TINT if petrified else Color.WHITE, 0.15)
 	if petrified:
@@ -332,8 +376,9 @@ func crumble() -> void:
 	tween.tween_callback(hide)
 
 
-## Two happy hops, for the winners.
+## Two happy hops with the weapon raised, for the winners.
 func cheer() -> void:
+	_animator.cheer()
 	var tween := _new_figure_tween()
 	tween.tween_interval(randf() * 0.15)
 	for hop: int in 2:
@@ -370,6 +415,14 @@ func _draw_qi_bar(origin: Vector2) -> void:
 		var frame_origin := origin - Vector2(3, BAR_SIZE.y + 4.0)
 		var frame_size := Vector2(width + 6.0, BAR_SIZE.y + QI_BAR_HEIGHT + 7.0)
 		_bar.draw_rect(Rect2(frame_origin, frame_size), Color(Palette.QI_GLOW, pulse), false, 2.0)
+
+
+# Turns the figure toward `direction` (board pixels) and attacks along it.
+func _attack_toward(direction: Vector2) -> void:
+	if absf(direction.x) > TURN_MIN_PX:
+		_flip = signf(direction.x)
+	# The aim in the figure's own space: 0 up, PI / 2 straight ahead.
+	_animator.attack(atan2(absf(direction.x), -direction.y))
 
 
 func _walk_step(progress: float, from: Vector2, target: Vector2, cells: float) -> void:

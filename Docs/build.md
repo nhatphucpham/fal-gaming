@@ -47,8 +47,8 @@ After building, run the editor import, `Tests/smoke_test.gd`,
 `Tests/passive_test.gd`, `Tests/sandbox_test.gd`, `Tests/run_test.gd`,
 `Tests/run_flow_test.gd`, `Tests/formation_test.gd`, `Tests/synergy_test.gd`,
 `Tests/formation_battle_test.gd`, `Tests/synergy_ui_test.gd`,
-`Tests/epiphany_test.gd`, `Tests/boss_test.gd`, `Tests/cutscene_test.gd` and
-`Tests/audio_test.gd` as shown in the README. Tests that touch the
+`Tests/epiphany_test.gd`, `Tests/boss_test.gd`, `Tests/cutscene_test.gd`,
+`Tests/audio_test.gd` and `Tests/unit_pose_test.gd` as shown in the README. Tests that touch the
 settings file point `RunSettings.path` at `user://settings_test.json`, so
 the player's mute and preparation time are left alone.
 The run test checks the rules of a run (`RunState`, the shop, merges, the

@@ -63,6 +63,7 @@ echo res://falemag.gdextension> .godot\extension_list.cfg
 "%GODOT%" --headless --path "%CD%" --script res://Tests/boss_test.gd
 "%GODOT%" --headless --path "%CD%" --script res://Tests/cutscene_test.gd
 "%GODOT%" --headless --path "%CD%" --script res://Tests/audio_test.gd
+"%GODOT%" --headless --path "%CD%" --script res://Tests/unit_pose_test.gd
 ```
 
 In the editor, press **F5** to run the project or **F6** to run the current

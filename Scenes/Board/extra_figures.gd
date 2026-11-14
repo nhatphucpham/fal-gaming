@@ -1,7 +1,7 @@
 class_name ExtraFigures
 extends RefCounted
-## Figures that are not one of the six classes, drawn with UnitPainter's
-## Brush: the boss Cự Nham (a stone giant, `class.colossus`) and the sage
+## Figures that are not one of the six classes, drawn with a FigureBrush:
+## the boss Cự Nham (a stone giant, `class.colossus`) and the sage
 ## who speaks in Kỳ Ngộ cutscenes (`class.sage`, presentation only). Their
 ## drawers are registered in UnitPainter's class registry.
 
@@ -15,6 +15,8 @@ const BEARD := Color("f5f2ea")
 const STRAW := Color("d6b56a")
 ## A unit id for the sage, so cutscenes can draw it without catalog data.
 const SAGE_UNIT_ID: StringName = &"unit.sage"
+## The classes drawn here; they stand still and ignore a UnitPose.
+const CLASS_IDS: Array[StringName] = [&"class.colossus", &"class.sage"]
 
 
 ## A UnitData for the cutscene sage (not in the catalog, never in a battle).
@@ -30,7 +32,7 @@ static func make_sage() -> UnitData:
 
 ## Cự Nham: boulder legs and body, slab arms, a small head with ember eyes,
 ## moss on the shoulders. About as tall as a normal figure; the view scales it.
-static func draw_colossus(brush: UnitPainter.Brush) -> void:
+static func draw_colossus(brush: FigureBrush) -> void:
 	for side: float in [-1.0, 1.0]:
 		brush.poly(PackedVector2Array([
 			Vector2(side * 4, -18), Vector2(side * 16, -20), Vector2(side * 18, 0), Vector2(side * 5, 0),
@@ -55,7 +57,7 @@ static func draw_colossus(brush: UnitPainter.Brush) -> void:
 
 
 ## The sage: a long cream robe, a straw cone hat, a white beard and a staff.
-static func draw_sage(brush: UnitPainter.Brush) -> void:
+static func draw_sage(brush: FigureBrush) -> void:
 	brush.stick(Vector2(-17, 2), Vector2(-15, -62), 3.0, Palette.WOOD)
 	brush.circle(Vector2(-15, -64), 3.5, Palette.JADE)
 	brush.poly(PackedVector2Array([Vector2(-10, -36), Vector2(10, -36), Vector2(16, 0), Vector2(-16, 0)]), ROBE)
@@ -71,4 +73,4 @@ static func draw_sage(brush: UnitPainter.Brush) -> void:
 
 
 static func _ellipse(center: Vector2, radius_x: float, radius_y: float) -> PackedVector2Array:
-	return UnitPainter.Brush.ellipse(center, radius_x, radius_y, 12)
+	return FigureBrush.ellipse(center, radius_x, radius_y, 12)
