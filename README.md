@@ -51,7 +51,9 @@ Git.
 
 - [Build and test](Docs/build.md)
 - [Architecture](Docs/architecture.md)
-- [Conventions](Docs/conventions.md)
+- [Coding conventions](Docs/conventions.md): rules for every change
+- [System doc template](Docs/systems/_template.md)
+- [Changelog](CHANGELOG.md)
 - [Agent instructions](AGENTS.md)
 
 Work on short-lived branches and open pull requests into `master`.

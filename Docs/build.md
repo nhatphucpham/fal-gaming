@@ -9,6 +9,9 @@ To validate without a display, run the editor import and
 the project headlessly. These checks do not replace testing an exported build
 on the target device.
 
+On pull requests a separate `Docs` workflow checks that code changes also
+update the documentation; see [Coding conventions](conventions.md), section 8.
+
 A C++ toolchain is not needed yet. It will be required, and documented here,
 when the GDExtension is added.
 
