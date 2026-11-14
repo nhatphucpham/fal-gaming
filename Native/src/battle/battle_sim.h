@@ -81,8 +81,8 @@ public:
 	bool is_finished() const { return finished; }
 	int get_winner() const { return winner; }
 	int get_tick() const { return tick; }
-	// FNV-1a 64 over the tick and each unit's alive, hp, cell, charge, move
-	// timer and target, in index order.
+	// FNV-1a 64 over the tick, the result and, in index order, every unit
+	// field that changes during the battle (see Docs/systems/battle.md).
 	uint64_t get_state_hash() const;
 	const std::vector<UnitState> &get_units() const { return units; }
 	const ClassDef &get_class_def(const UnitState &p_unit) const;
@@ -97,8 +97,9 @@ public:
 	bool has_enemy_in_range(const UnitState &p_unit) const;
 	bool is_targeted_by_enemy(int p_unit) const;
 	void deactivate_opening(int p_unit);
-	// Keeps the current target or picks a new one (dead, or lost for longer
-	// than target_lost_ticks).
+	// Keeps a target in range. Otherwise picks again among enemies in range
+	// if there are any; else keeps the target unless it died or was lost for
+	// longer than target_lost_ticks.
 	void update_target(int p_unit);
 	// True when the target is in range; then attacks if the charge is full
 	// and spends it.

@@ -1,8 +1,10 @@
 extends SceneTree
 
 # Headless tests for the battle core: data, stats, determinism, damage, the
-# class rules and the end of battle. Each check returns true only when every
-# step succeeded; a GDScript runtime error returns false and fails the test.
+# class rules and the end of battle. The node's API (signals, refused calls,
+# bad input) is tested in battle_api_test.gd. Each check returns true only
+# when every step succeeded; a GDScript runtime error returns false and fails
+# the test.
 # Positions in comments are global (col, row); add_unit takes local col, rank.
 
 const CATALOG_PATH: String = "res://Data/catalog.tres"
@@ -41,7 +43,7 @@ func _run() -> bool:
 		_check_stats, _check_determinism, _check_damage, _check_arrow_block,
 		_check_charge, _check_hold_line, _check_target_in_range, _check_mage_row3,
 		_check_move_durations, _check_time_limit, _check_full_battle,
-		_check_signals, _check_coordinates, _check_refused_commands,
+		_check_coordinates,
 	]
 	for check: Callable in checks:
 		if not check.call():
@@ -148,6 +150,16 @@ func _check_charge() -> bool:
 	events = _events_until(battle, &"charge_ended")
 	if events.back()["hit"] != shield or _has_event(events, &"unit_moved", "kind", &"knockback") or battle.get_unit_state(shield)["row"] != 6:
 		push_error("Shield was knocked back by a charge: %s" % [events])
+		return false
+	# A spear (stops_charge) is hit where it stands and not pushed. It walks
+	# toward the cavalry first, so compare with the cell the impact hit.
+	battle = _new_battle()
+	cavalry = _add(battle, Battle.SIDE_A, CAVALRY, 4, 1)
+	var spear := _add(battle, Battle.SIDE_B, SPEAR, 4, 3)
+	events = _events_until(battle, &"charge_ended")
+	var impact: Dictionary = events.filter(func(event: Dictionary) -> bool: return event["type"] == &"unit_attacked").back()
+	if events.back()["hit"] != spear or not _has_event(events, &"damage_dealt", "target", spear) or _has_event(events, &"unit_moved", "kind", &"knockback") or battle.get_unit_state(spear)["row"] != impact["to_row"]:
+		push_error("Spear was knocked back by a charge: %s" % [events])
 		return false
 	return true
 
@@ -306,53 +318,6 @@ func _check_full_battle() -> bool:
 		push_error("8v8 battle did not end by elimination: %s" % ended)
 		return false
 	return true
-
-
-func _check_signals() -> bool:
-	# step() returns the same events the signal emits; ids count up from 1.
-	var battle := _new_battle()
-	_add(battle, Battle.SIDE_A, SWORD, 4, 1)
-	_add(battle, Battle.SIDE_B, ARCHER, 4, 4)
-	var emitted: Array[Dictionary] = []
-	var endings: Array = []
-	battle.event_emitted.connect(func(event: Dictionary) -> void: emitted.append(event))
-	battle.battle_ended.connect(func(winner: int, reason: StringName) -> void: endings.append([winner, reason]))
-	var returned := _events_until(battle, &"battle_ended")
-	if emitted != returned or returned.is_empty() or returned[0]["type"] != &"battle_started":
-		push_error("Signals and step() results differ: %d vs %d events" % [emitted.size(), returned.size()])
-		return false
-	for index: int in returned.size():
-		if returned[index]["id"] != index + 1:
-			push_error("Event ids are not consecutive at %s" % returned[index])
-			return false
-	if endings != [[battle.get_winner(), returned.back()["reason"]]] or not battle.step().is_empty():
-		push_error("battle_ended signal or post-end step() is wrong: %s" % [endings])
-		return false
-	return true
-
-
-func _check_refused_commands() -> bool:
-	print("Battle test: the next two errors are expected")
-	# A class in use cannot be replaced: units keep what they copied from it.
-	var battle := _new_battle()
-	_add(battle, Battle.SIDE_A, SHIELD, 4, 1)
-	_add(battle, Battle.SIDE_B, SWORD, 4, 1)
-	var changed := _catalog.get_class_data(&"class.shield").duplicate() as ClassData
-	changed.opening = &""
-	if battle.register_class(changed):
-		push_error("register_class replaced a class that a unit uses")
-		return false
-	# A handler that calls step() is refused and the tick does not move.
-	var nested: Array = []
-	battle.event_emitted.connect(func(_event: Dictionary) -> void:
-		if nested.is_empty():
-			nested.append([battle.step(), battle.get_tick()]))
-	battle.start()
-	var events := battle.step()
-	if nested.size() != 1 or not nested[0][0].is_empty() or nested[0][1] != 1 or battle.get_tick() != 1 or events.is_empty():
-		push_error("Re-entrant step() was not refused: %s" % [nested])
-		return false
-	return battle.run_to_end(MAX_TICKS) != "" and battle.is_finished()
 
 
 func _check_coordinates() -> bool:

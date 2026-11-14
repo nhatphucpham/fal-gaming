@@ -49,17 +49,17 @@ public:
 	// Validates the class's handler ids and stats; false with an error on bad data.
 	bool register_class(const Ref<ClassData> &p_class);
 	// Returns the unit's index, or -1 with an error.
-	int add_unit(int p_side, const Ref<UnitData> &p_unit, int p_star, int p_local_col, int p_local_rank);
+	int add_unit(int64_t p_side, const Ref<UnitData> &p_unit, int64_t p_star, int64_t p_local_col, int64_t p_local_rank);
 	// Back to an empty battle that has not started; classes and rules stay.
 	void clear();
 	// Freezes the setup; the first step() emits battle_started.
 	void start();
-	// Advances one tick; returns that tick's events as dictionaries and emits
-	// them as signals. Commands are refused while the signals run.
+	// Advances one tick; returns that tick's events as read-only dictionaries
+	// and emits them as signals. Commands are refused while the signals run.
 	Array step();
 	// Steps until the battle ends or max_ticks steps were taken, starting it
-	// if needed; returns the final state hash.
-	String run_to_end(int p_max_ticks);
+	// if needed; returns the final state hash (empty if a handler freed it).
+	String run_to_end(int64_t p_max_ticks);
 
 	bool is_started() const { return sim.is_started(); }
 	bool is_finished() const { return sim.is_finished(); }
@@ -69,15 +69,19 @@ public:
 	// 16 hex digits.
 	String get_state_hash() const;
 	int get_unit_count() const { return static_cast<int>(sim.get_units().size()); }
-	Dictionary get_unit_state(int p_index) const;
+	Dictionary get_unit_state(int64_t p_index) const;
 	Array get_units() const;
 
 	void set_log_enabled(bool p_enabled) { log_enabled = p_enabled; }
 	bool is_log_enabled() const { return log_enabled; }
 
-	static Vector2i local_to_global(int p_side, int p_local_col, int p_local_rank);
+	static bool is_valid_side(int64_t p_side);
+	static bool is_valid_local_cell(int64_t p_local_col, int64_t p_local_rank);
+	// (-1, -1) with an error for a bad side or cell.
+	static Vector2i local_to_global(int64_t p_side, int64_t p_local_col, int64_t p_local_rank);
 	// Returns (local col, rank); the rank is outside 1..4 in the enemy half.
-	static Vector2i global_to_local(int p_side, int p_col, int p_row);
+	// (-1, -1) with an error for a bad side or a cell off the board.
+	static Vector2i global_to_local(int64_t p_side, int64_t p_col, int64_t p_row);
 };
 
 } // namespace godot

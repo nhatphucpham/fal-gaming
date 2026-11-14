@@ -63,18 +63,21 @@ checked by `Battle.register_class()`.
 | `cost_multipliers_pct` | 100, 125, 155, 190, 230 | hp and attack by cost 1..5; each 1..1000 |
 | `star_multiplier_pct` | 180 | hp and attack, once per star above 1; 1..300 |
 | `counter_bonus_pct` | 30 | extra damage against a countered class; 0..100 |
-| `move_ticks_per_cell`, `charge_ticks_per_cell` | 10, 7 | ticks per cell |
-| `time_limit_ticks` | 900 | 45 s |
-| `target_lost_ticks` | 40 | out of range this long drops the target |
-| `repath_ticks` | 20 | ticks without a path before switching target |
-| `hold_line_max_ticks`, `hold_line_grace_ticks` | 200, 20 | hold line limits |
-| `max_units_per_side` | 10 | |
+| `move_ticks_per_cell`, `charge_ticks_per_cell` | 10, 7 | ticks per cell; 1..1000 |
+| `time_limit_ticks` | 900 | 45 s; 1..100000 |
+| `target_lost_ticks` | 40 | out of range this long drops the target; 0..10000 |
+| `repath_ticks` | 20 | ticks without a path before switching target; 1..10000 |
+| `hold_line_max_ticks`, `hold_line_grace_ticks` | 200, 20 | hold line limits; 0..10000 |
+| `max_units_per_side` | 10 | 1..28 |
 
 `get_attack_charge_full()` is derived, not stored: `100 * ticks_per_second`.
 
-Classes and rules outside these ranges are refused with a `Battle:` error.
-The ranges keep scaled stats inside `int` and the damage numerator below
-`9e17` (int64 holds about `9.2e18`); `compute_damage` also clamps its inputs.
+Classes and rules outside these ranges are refused with a `Battle:` error,
+and so is an unknown `damage_kind`. The resources' int setters saturate
+64-bit GDScript ints instead of wrapping, so huge values are refused too.
+The ranges keep scaled stats and tick arithmetic inside `int` and the damage
+numerator below `9e17` (int64 holds about `9.2e18`); `compute_damage` also
+clamps its inputs.
 
 Stats: `hp = base_hp * cost_mult / 100`, then `* 180 / 100` per star above 1,
 truncating at each step; the same for attack. Other stats do not scale.
@@ -139,16 +142,16 @@ function that calls `step()`, or call `step()` in a loop.
 | `SIDE_A`, `SIDE_B` | constants | 0 and 1 |
 | `set_rules(rules: BattleRulesData)` | method | Required before `add_unit`; refused once units exist |
 | `register_class(class_data: ClassData) -> bool` | method | Adds or replaces a class by id. Validates stats and handler ids; false and an error on bad data or when an added unit uses that id (call `clear()` first) |
-| `add_unit(side, unit: UnitData, star, local_col, local_rank) -> int` | method | Unit index, or -1 with an error (no rules, unknown class, bad cell, cell taken, star not 1..3, side full, started) |
+| `add_unit(side, unit: UnitData, star, local_col, local_rank) -> int` | method | Unit index, or -1 with an error (no rules, bad side, unknown class, bad cell, cell taken, star not 1..3, side full, started) |
 | `clear()` | method | Removes units, resets the tick; keeps classes and rules |
 | `start()` | method | Freezes the setup; the first `step()` emits `battle_started` |
 | `step() -> Array[Dictionary]` | method | Advances one tick, returns and emits its events; nothing after the end. While its signals run, `step`, `run_to_end`, `start`, `clear`, `add_unit`, `register_class` and `set_rules` are refused with an error |
-| `run_to_end(max_ticks: int) -> String` | method | Starts if needed, steps until the end or `max_ticks`, returns the hash |
+| `run_to_end(max_ticks: int) -> String` | method | Starts if needed, steps until the end or `max_ticks` (>= 0), returns the hash; empty if a handler freed the node |
 | `is_started()`, `is_finished()`, `get_winner()`, `get_tick()` | methods | Winner is -1 while running |
-| `get_state_hash() -> String` | method | FNV-1a 64 of tick and unit state, 16 hex digits |
+| `get_state_hash() -> String` | method | FNV-1a 64, 16 hex digits, over the tick, `finished`, `winner` and, per unit in index order: alive, hp, col, row, attack charge, move ticks left, target, has seen target in range, target out-of-range ticks, no-path ticks, opening active |
 | `get_unit_count()`, `get_unit_state(index)`, `get_units()` | methods | `{index, side, unit_id, class_id, star, alive, hp, max_hp, attack, col, row, target, move_ticks_left}` |
-| `local_to_global(side, local_col, local_rank) -> Vector2i` | static | Global (col, row) |
-| `global_to_local(side, col, row) -> Vector2i` | static | (local col, rank); rank leaves 1..4 in the enemy half |
+| `local_to_global(side, local_col, local_rank) -> Vector2i` | static | Global (col, row); (-1, -1) with an error for a bad side or cell |
+| `global_to_local(side, col, row) -> Vector2i` | static | (local col, rank); rank leaves 1..4 in the enemy half; (-1, -1) with an error off the board |
 | `log_enabled` | property | Prints the info log events below; default false |
 | `event_emitted(event: Dictionary)` | signal | Every event, in order |
 | `battle_ended(winner: int, reason: StringName)` | signal | Once, at the end |
@@ -157,7 +160,10 @@ function that calls `step()`, or call `step()` in a loop.
 
 ## Events
 
-Every event has `id` (from 1, increasing), `tick`, `type` (StringName) and
+Events are read-only dictionaries (`step()`'s array too); copy one to
+change it. A handler that removes the battle should use `queue_free()`:
+`Battle` stops touching itself when freed mid-step, but Godot's own
+`emit_signal` still reads the freed object and warns about it. Every event has `id` (from 1, increasing), `tick`, `type` (StringName) and
 `cause` (the id of the event that caused it, 0 if none). Units are battle
 indexes; cells are global.
 
@@ -197,12 +203,17 @@ Example: `[info][Battle][t=412] unit_died unit=3 unit_id=unit.archer killer=7 ca
 `Tests/battle_test.gd` (run as in the README, also in CI) loads the catalog
 and checks: validation and counts, stat derivation, determinism of a 5v5
 (same hash twice, a different hash when one unit moves), sword and counter
-damage, arrow blocking, charge with and without knockback, hold line,
-switching to an enemy in range, mage row hits, walk, charge and knockback
-durations, the time limit with both tie rules (more living units, then B),
-a full 8v8 that ends by elimination (it prints its length), signals and
-event ids, coordinate round trips, and refused commands (replacing a class
-in use, re-entrant `step()`; these print two expected errors).
+damage, arrow blocking, charge with knockback and without it (shield,
+spear), hold line, switching to an enemy in range, mage row hits, walk,
+charge and knockback durations, the time limit with both tie rules (more
+living units, then B), a full 8v8 that ends by elimination (it prints its
+length), and coordinate round trips.
+
+`Tests/battle_api_test.gd` checks the node's API: signals and event ids,
+read-only events, a handler that frees the node mid-step, refused commands
+(replacing a class in use, re-entrant `step()`) and rejected input (rules
+out of range, unknown `damage_kind`, bad side, star or cell, bad index and
+coordinates). It prints the errors it provokes and announces each group.
 
 ## Known limits
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "battle_types.h"
+#include "bridge_strings.h"
 
 #include <godot_cpp/classes/resource.hpp>
 #include <godot_cpp/variant/string_name.hpp>
@@ -50,19 +51,21 @@ public:
 	StringName get_id() const { return id; }
 	void set_name_key(const String &p_name_key) { name_key = p_name_key; }
 	String get_name_key() const { return name_key; }
-	void set_max_hp(int p_max_hp) { max_hp = p_max_hp; }
+	void set_max_hp(int64_t p_max_hp) { max_hp = clamp_to_int(p_max_hp); }
 	int get_max_hp() const { return max_hp; }
-	void set_attack(int p_attack) { attack = p_attack; }
+	void set_attack(int64_t p_attack) { attack = clamp_to_int(p_attack); }
 	int get_attack() const { return attack; }
-	void set_attacks_per_100s(int p_attacks_per_100s) { attacks_per_100s = p_attacks_per_100s; }
+	void set_attacks_per_100s(int64_t p_attacks_per_100s) { attacks_per_100s = clamp_to_int(p_attacks_per_100s); }
 	int get_attacks_per_100s() const { return attacks_per_100s; }
-	void set_range_cells(int p_range_cells) { range_cells = p_range_cells; }
+	void set_range_cells(int64_t p_range_cells) { range_cells = clamp_to_int(p_range_cells); }
 	int get_range_cells() const { return range_cells; }
-	void set_armor(int p_armor) { armor = p_armor; }
+	void set_armor(int64_t p_armor) { armor = clamp_to_int(p_armor); }
 	int get_armor() const { return armor; }
-	void set_magic_resist(int p_magic_resist) { magic_resist = p_magic_resist; }
+	void set_magic_resist(int64_t p_magic_resist) { magic_resist = clamp_to_int(p_magic_resist); }
 	int get_magic_resist() const { return magic_resist; }
+	// Unknown values are kept so register_class() can reject them by name.
 	void set_damage_kind(DamageKind p_damage_kind) { damage_kind = p_damage_kind; }
+	bool has_valid_damage_kind() const { return damage_kind == DAMAGE_PHYSICAL || damage_kind == DAMAGE_MAGIC; }
 	DamageKind get_damage_kind() const { return damage_kind; }
 	void set_targeting(const StringName &p_targeting) { targeting = p_targeting; }
 	StringName get_targeting() const { return targeting; }

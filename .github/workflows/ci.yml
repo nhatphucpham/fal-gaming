@@ -127,6 +127,7 @@ jobs:
           "$GODOT" --headless --editor --path "$GITHUB_WORKSPACE" --import
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/smoke_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/battle_test.gd
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/battle_api_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --quit-after 2
 
   android:

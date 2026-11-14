@@ -290,6 +290,8 @@ int BattleSim::emit_event(BattleEvent p_event) {
 uint64_t BattleSim::get_state_hash() const {
 	uint64_t hash = FNV_OFFSET_BASIS;
 	hash_value(&hash, tick);
+	hash_value(&hash, finished ? 1 : 0);
+	hash_value(&hash, winner);
 	for (const UnitState &unit : units) {
 		hash_value(&hash, unit.is_alive ? 1 : 0);
 		hash_value(&hash, unit.hp);
@@ -298,6 +300,10 @@ uint64_t BattleSim::get_state_hash() const {
 		hash_value(&hash, unit.attack_charge);
 		hash_value(&hash, get_move_ticks_left(unit));
 		hash_value(&hash, unit.target);
+		hash_value(&hash, unit.has_seen_target_in_range ? 1 : 0);
+		hash_value(&hash, unit.target_out_of_range_ticks);
+		hash_value(&hash, unit.no_path_ticks);
+		hash_value(&hash, unit.is_opening_active ? 1 : 0);
 	}
 	return hash;
 }

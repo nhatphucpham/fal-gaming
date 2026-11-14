@@ -6,6 +6,7 @@
 
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/error_macros.hpp>
+#include <godot_cpp/core/object.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
 using namespace godot;
@@ -13,6 +14,7 @@ using namespace godot;
 namespace {
 
 constexpr int HASH_HEX_DIGITS = 16;
+const Vector2i INVALID_CELL(-1, -1);
 
 String format_hash(uint64_t p_hash) {
 	const char *digits = "0123456789abcdef";
@@ -36,22 +38,26 @@ void Battle::set_rules(const Ref<BattleRulesData> &p_rules) {
 bool Battle::register_class(const Ref<ClassData> &p_class) {
 	ERR_FAIL_COND_V_MSG(is_emitting, false, "Battle: register_class() cannot be called from an event handler");
 	ERR_FAIL_COND_V_MSG(p_class.is_null(), false, "Battle: register_class() got a null ClassData");
-	std::string error;
 	const String where = p_class->get_path().is_empty() ? String() : " in " + p_class->get_path();
+	ERR_FAIL_COND_V_MSG(!p_class->has_valid_damage_kind(), false, vformat("Battle: %s has unknown damage_kind %d%s", p_class->get_id(), p_class->get_damage_kind(), where));
+	std::string error;
 	ERR_FAIL_COND_V_MSG(!sim.register_class(p_class->to_class_def(), &error), false, "Battle: " + to_godot_string(error) + where);
 	return true;
 }
 
-int Battle::add_unit(int p_side, const Ref<UnitData> &p_unit, int p_star, int p_local_col, int p_local_rank) {
+int Battle::add_unit(int64_t p_side, const Ref<UnitData> &p_unit, int64_t p_star, int64_t p_local_col, int64_t p_local_rank) {
 	ERR_FAIL_COND_V_MSG(is_emitting, -1, "Battle: add_unit() cannot be called from an event handler");
 	ERR_FAIL_COND_V_MSG(p_unit.is_null(), -1, "Battle: add_unit() got a null UnitData");
+	ERR_FAIL_COND_V_MSG(!is_valid_side(p_side), -1, vformat("Battle: add_unit() got side %d, expected 0 or 1", p_side));
+	ERR_FAIL_COND_V_MSG(p_star < battle::MIN_STAR || p_star > battle::MAX_STAR, -1, vformat("Battle: add_unit() got star %d for %s, expected 1..3", p_star, p_unit->get_id()));
+	ERR_FAIL_COND_V_MSG(!is_valid_local_cell(p_local_col, p_local_rank), -1, vformat("Battle: add_unit() got col %d rank %d for %s, expected col 1..7 and rank 1..4", p_local_col, p_local_rank, p_unit->get_id()));
 	battle::UnitSpec spec;
 	spec.unit_id = to_std_string(p_unit->get_id());
 	spec.class_id = to_std_string(p_unit->get_class_id());
 	spec.cost = p_unit->get_cost();
-	spec.star = p_star;
+	spec.star = static_cast<int>(p_star);
 	std::string error;
-	const int index = sim.add_unit(p_side, spec, p_local_col, p_local_rank, &error);
+	const int index = sim.add_unit(static_cast<int>(p_side), spec, static_cast<int>(p_local_col), static_cast<int>(p_local_rank), &error);
 	ERR_FAIL_COND_V_MSG(index < 0, -1, "Battle: " + to_godot_string(error));
 	return index;
 }
@@ -71,31 +77,51 @@ Array Battle::step() {
 	Array result;
 	ERR_FAIL_COND_V_MSG(is_emitting, result, "Battle: step() cannot be called from an event_emitted or battle_ended handler");
 	ERR_FAIL_COND_V_MSG(!sim.is_started(), result, "Battle: step() called before start()");
-	// Copy the tick's events before any handler runs: the simulation reuses
-	// its event buffer on the next step.
+	// Build everything returned before any handler runs: the simulation
+	// reuses its event buffer, and a handler may even free this node.
 	const std::vector<battle::BattleEvent> events = sim.step();
 	for (const battle::BattleEvent &event : events) {
-		result.push_back(event_to_dictionary(event));
+		Dictionary dict = event_to_dictionary(event);
+		dict.make_read_only();
+		result.push_back(dict);
 		log_event(event);
 	}
+	result.make_read_only();
+	const bool has_ended = !events.empty() && events.back().type == battle::EventType::BATTLE_ENDED;
+	const int winner = has_ended ? events.back().winner : battle::NO_WINNER;
+	const StringName reason = has_ended ? get_end_reason_name(events.back().reason) : StringName();
+
+	const ObjectID self_id(get_instance_id());
 	is_emitting = true;
 	for (int64_t index = 0; index < result.size(); index++) {
 		emit_signal("event_emitted", result[index]);
+		if (ObjectDB::get_instance(self_id) == nullptr) {
+			return result;
+		}
 	}
-	if (sim.is_finished() && !events.empty() && events.back().type == battle::EventType::BATTLE_ENDED) {
-		emit_signal("battle_ended", events.back().winner, get_end_reason_name(events.back().reason));
+	if (has_ended) {
+		emit_signal("battle_ended", winner, reason);
+		if (ObjectDB::get_instance(self_id) == nullptr) {
+			return result;
+		}
 	}
 	is_emitting = false;
 	return result;
 }
 
-String Battle::run_to_end(int p_max_ticks) {
+String Battle::run_to_end(int64_t p_max_ticks) {
 	ERR_FAIL_COND_V_MSG(is_emitting, get_state_hash(), "Battle: run_to_end() cannot be called from an event handler");
+	ERR_FAIL_COND_V_MSG(p_max_ticks < 0, get_state_hash(), vformat("Battle: run_to_end() needs max_ticks >= 0, got %d", p_max_ticks));
 	if (!sim.is_started()) {
 		start();
 	}
-	for (int steps = 0; steps < p_max_ticks && sim.is_started() && !sim.is_finished(); steps++) {
+	const ObjectID self_id(get_instance_id());
+	for (int64_t steps = 0; steps < p_max_ticks && sim.is_started() && !sim.is_finished(); steps++) {
 		step();
+		// A handler freed this node: nothing of it may be touched any more.
+		if (ObjectDB::get_instance(self_id) == nullptr) {
+			return String();
+		}
 	}
 	return get_state_hash();
 }
@@ -124,9 +150,9 @@ String Battle::get_state_hash() const {
 	return format_hash(sim.get_state_hash());
 }
 
-Dictionary Battle::get_unit_state(int p_index) const {
+Dictionary Battle::get_unit_state(int64_t p_index) const {
 	Dictionary state;
-	ERR_FAIL_INDEX_V_MSG(p_index, get_unit_count(), state, vformat("Battle: no unit with index %d", p_index));
+	ERR_FAIL_INDEX_V_MSG(p_index, static_cast<int64_t>(get_unit_count()), state, vformat("Battle: no unit with index %d", p_index));
 	const battle::UnitState &unit = sim.get_units()[p_index];
 	state["index"] = unit.index;
 	state["side"] = unit.side;
@@ -152,13 +178,24 @@ Array Battle::get_units() const {
 	return states;
 }
 
-Vector2i Battle::local_to_global(int p_side, int p_local_col, int p_local_rank) {
-	const battle::Cell cell = battle::local_to_global(p_side, p_local_col, p_local_rank);
+bool Battle::is_valid_side(int64_t p_side) {
+	return p_side == SIDE_A || p_side == SIDE_B;
+}
+
+bool Battle::is_valid_local_cell(int64_t p_local_col, int64_t p_local_rank) {
+	return p_local_col >= 1 && p_local_col <= battle::BOARD_COLS && p_local_rank >= 1 && p_local_rank <= battle::SIDE_RANKS;
+}
+
+Vector2i Battle::local_to_global(int64_t p_side, int64_t p_local_col, int64_t p_local_rank) {
+	ERR_FAIL_COND_V_MSG(!is_valid_side(p_side) || !is_valid_local_cell(p_local_col, p_local_rank), INVALID_CELL, vformat("Battle: local_to_global() got side %d col %d rank %d", p_side, p_local_col, p_local_rank));
+	const battle::Cell cell = battle::local_to_global(static_cast<int>(p_side), static_cast<int>(p_local_col), static_cast<int>(p_local_rank));
 	return Vector2i(cell.col, cell.row);
 }
 
-Vector2i Battle::global_to_local(int p_side, int p_col, int p_row) {
-	const battle::Cell local = battle::global_to_local(p_side, { p_col, p_row });
+Vector2i Battle::global_to_local(int64_t p_side, int64_t p_col, int64_t p_row) {
+	const bool is_on_board = p_col >= 0 && p_col < battle::BOARD_COLS && p_row >= 0 && p_row < battle::BOARD_ROWS;
+	ERR_FAIL_COND_V_MSG(!is_valid_side(p_side) || !is_on_board, INVALID_CELL, vformat("Battle: global_to_local() got side %d col %d row %d", p_side, p_col, p_row));
+	const battle::Cell local = battle::global_to_local(static_cast<int>(p_side), { static_cast<int>(p_col), static_cast<int>(p_row) });
 	return Vector2i(local.col, local.row);
 }
 

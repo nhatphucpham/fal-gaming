@@ -5,8 +5,8 @@
   viewport and `canvas_items` stretch mode.
 - `Scenes/main.tscn` is the main scene: a `Node2D` root with a `SimClock`.
 - `Tests/smoke_test.gd` checks that the extension loads and that the main
-  scene and its `SimClock` behave as expected. `Tests/battle_test.gd` tests
-  the battle system headless.
+  scene and its `SimClock` behave as expected. `Tests/battle_test.gd` and
+  `Tests/battle_api_test.gd` test the battle system headless.
 - `Data/` holds game content as typed `.tres` resources: `Data/Classes/`,
   `Data/Units/`, `Data/Rules/` and `Data/catalog.tres`, which lists every
   file explicitly so nothing scans directories at runtime (that breaks in

@@ -30,33 +30,29 @@ int derive_scaled_stat(int p_base, int p_cost, int p_star, const Rules &p_rules)
 }
 
 bool validate_rules(const Rules &p_rules, std::string *r_error) {
-	if (p_rules.ticks_per_second < 1 || p_rules.ticks_per_second > MAX_TICKS_PER_SECOND) {
-		return fail("rules ticks_per_second must be 1.." + std::to_string(MAX_TICKS_PER_SECOND) + ", got " + std::to_string(p_rules.ticks_per_second), r_error);
-	}
+	const auto check = [&](const char *p_field, int p_value, int p_min, int p_max) {
+		if (p_value >= p_min && p_value <= p_max) {
+			return true;
+		}
+		return fail(std::string("rules ") + p_field + " must be " + std::to_string(p_min) + ".." + std::to_string(p_max) + ", got " + std::to_string(p_value), r_error);
+	};
 	for (int multiplier : p_rules.cost_multipliers_pct) {
-		if (multiplier < 1 || multiplier > MAX_COST_MULTIPLIER_PCT) {
-			return fail("rules cost_multipliers_pct must be 1.." + std::to_string(MAX_COST_MULTIPLIER_PCT) + ", got " + std::to_string(multiplier), r_error);
+		if (!check("cost_multipliers_pct", multiplier, 1, MAX_COST_MULTIPLIER_PCT)) {
+			return false;
 		}
 	}
-	if (p_rules.star_multiplier_pct < 1 || p_rules.star_multiplier_pct > MAX_STAR_MULTIPLIER_PCT) {
-		return fail("rules star_multiplier_pct must be 1.." + std::to_string(MAX_STAR_MULTIPLIER_PCT) + ", got " + std::to_string(p_rules.star_multiplier_pct), r_error);
-	}
-	if (p_rules.counter_bonus_pct < 0 || p_rules.counter_bonus_pct > MAX_COUNTER_BONUS_PCT) {
-		return fail("rules counter_bonus_pct must be 0.." + std::to_string(MAX_COUNTER_BONUS_PCT) + ", got " + std::to_string(p_rules.counter_bonus_pct), r_error);
-	}
-	if (p_rules.move_ticks_per_cell < 1 || p_rules.charge_ticks_per_cell < 1) {
-		return fail("rules move_ticks_per_cell and charge_ticks_per_cell must be at least 1", r_error);
-	}
-	if (p_rules.time_limit_ticks < 1 || p_rules.repath_ticks < 1 || p_rules.target_lost_ticks < 0) {
-		return fail("rules time_limit_ticks and repath_ticks must be at least 1, target_lost_ticks not negative", r_error);
-	}
-	if (p_rules.hold_line_max_ticks < 0 || p_rules.hold_line_grace_ticks < 0) {
-		return fail("rules hold_line ticks must not be negative", r_error);
-	}
-	if (p_rules.max_units_per_side < 1 || p_rules.max_units_per_side > BOARD_COLS * SIDE_RANKS) {
-		return fail("rules max_units_per_side must be 1.." + std::to_string(BOARD_COLS * SIDE_RANKS) + ", got " + std::to_string(p_rules.max_units_per_side), r_error);
-	}
-	return true;
+	// Tick values stay far below INT_MAX, so tick + duration cannot overflow.
+	return check("ticks_per_second", p_rules.ticks_per_second, 1, MAX_TICKS_PER_SECOND)
+			&& check("star_multiplier_pct", p_rules.star_multiplier_pct, 1, MAX_STAR_MULTIPLIER_PCT)
+			&& check("counter_bonus_pct", p_rules.counter_bonus_pct, 0, MAX_COUNTER_BONUS_PCT)
+			&& check("move_ticks_per_cell", p_rules.move_ticks_per_cell, 1, MAX_MOVE_TICKS)
+			&& check("charge_ticks_per_cell", p_rules.charge_ticks_per_cell, 1, MAX_MOVE_TICKS)
+			&& check("time_limit_ticks", p_rules.time_limit_ticks, 1, MAX_TIME_LIMIT_TICKS)
+			&& check("target_lost_ticks", p_rules.target_lost_ticks, 0, MAX_RULE_TICKS)
+			&& check("repath_ticks", p_rules.repath_ticks, 1, MAX_RULE_TICKS)
+			&& check("hold_line_max_ticks", p_rules.hold_line_max_ticks, 0, MAX_RULE_TICKS)
+			&& check("hold_line_grace_ticks", p_rules.hold_line_grace_ticks, 0, MAX_RULE_TICKS)
+			&& check("max_units_per_side", p_rules.max_units_per_side, 1, BOARD_COLS * SIDE_RANKS);
 }
 
 } // namespace battle
