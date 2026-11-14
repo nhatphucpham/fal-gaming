@@ -114,15 +114,16 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
         <li><a href="#nang-cap"><span class="n">10</span>Nâng cấp</a></li>
         <li><a href="#kinh-te"><span class="n">11</span>Kinh tế</a></li>
         <li><a href="#van-choi"><span class="n">12</span>Ván Hành Quân</a></li>
-        <li><a href="#do-kho"><span class="n">13</span>Độ khó và mở khóa</a></li>
-        <li><a href="#canh-cat"><span class="n">14</span>Cảnh cắt</a></li>
-        <li><a href="#che-do"><span class="n">15</span>Chế độ chơi</a></li>
-        <li><a href="#giao-dien"><span class="n">16</span>Giao diện</a></li>
-        <li><a href="#hinh-tieng"><span class="n">17</span>Hình ảnh và âm thanh</a></li>
-        <li><a href="#ky-thuat"><span class="n">18</span>Kỹ thuật</a></li>
-        <li><a href="#pham-vi"><span class="n">19</span>Bản thử đầu tiên</a></li>
-        <li><a href="#thuat-ngu"><span class="n">20</span>Thuật ngữ</a></li>
-        <li><a href="#cau-hoi"><span class="n">21</span>Câu hỏi còn mở</a></li>
+        <li><a href="#bien-hoa"><span class="n">13</span>Biến hóa giữa các trận</a></li>
+        <li><a href="#do-kho"><span class="n">14</span>Độ khó và mở khóa</a></li>
+        <li><a href="#canh-cat"><span class="n">15</span>Cảnh cắt</a></li>
+        <li><a href="#che-do"><span class="n">16</span>Chế độ chơi</a></li>
+        <li><a href="#giao-dien"><span class="n">17</span>Giao diện</a></li>
+        <li><a href="#hinh-tieng"><span class="n">18</span>Hình ảnh và âm thanh</a></li>
+        <li><a href="#ky-thuat"><span class="n">19</span>Kỹ thuật</a></li>
+        <li><a href="#pham-vi"><span class="n">20</span>Bản thử đầu tiên</a></li>
+        <li><a href="#thuat-ngu"><span class="n">21</span>Thuật ngữ</a></li>
+        <li><a href="#cau-hoi"><span class="n">22</span>Câu hỏi còn mở</a></li>
       </ol>
     </details>
   </nav>
@@ -132,7 +133,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
       <span class="eyebrow">Tài liệu thiết kế game · Falemag</span>
       <h1>Bát Trận</h1>
       <p class="lead">Auto chess kiếm, cung, giáp, phép, nơi <b>hình dạng đội hình là vũ khí</b>. Người chơi chỉ chuẩn bị; trận đánh tự diễn ra, và các tầng kết hợp tự kích hoạt lẫn nhau thành chuỗi combo.</p>
-      <div class="meta"><span>Bản 1.1 · 13/11/2026</span><span>Godot 4.7 · C++ GDExtension</span><span>PC yếu và điện thoại</span><span>Trạng thái: thiết kế, chưa cân bằng</span></div>
+      <div class="meta"><span>Bản 1.2 · 14/11/2026</span><span>Godot 4.7 · C++ GDExtension</span><span>PC yếu và điện thoại</span><span>Trạng thái: thiết kế, chưa cân bằng</span></div>
       <p class="note">Mọi con số trong tài liệu là <b>giá trị khởi điểm</b> để dựng bản thử, sẽ chỉnh khi chơi thử. Mọi tên riêng là tên tạm.</p>
     </header>
 
@@ -184,7 +185,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
         <li><b>Không hồi máu trong trận.</b> Máu chỉ giảm. Chữa thương chỉ có giữa các chặng.</li>
         <li><b>Kết thúc:</b> một bên hết quân. Sau 45 giây, bên có tổng phần trăm máu còn lại cao hơn thắng.</li>
         <li><b>Thua trận:</b> người chơi mất <b>Sĩ khí</b> = 6 + 2 × số quân địch còn sống. Sĩ khí khởi đầu 60; về 0 thì hết ván.</li>
-        <li><b>Chuỗi combo:</b> mỗi khi một tầng kết hợp kích hoạt tầng khác trong vòng 1 giây, chuỗi tăng một nấc (Chuỗi ×2, ×3…). Chuỗi từ ×4 trở lên được cảnh cắt (mục 14).</li>
+        <li><b>Chuỗi combo:</b> mỗi khi một tầng kết hợp kích hoạt tầng khác trong vòng 1 giây, chuỗi tăng một nấc (Chuỗi ×2, ×3…). Chuỗi từ ×4 trở lên được cảnh cắt (mục 15).</li>
         <li><b>Nhật Ký Combo</b> sau trận: combo nào đã nổ, sát thương bao nhiêu, combo nào thiếu một quân là thành.</li>
       </ul>
     </section>
@@ -489,8 +490,37 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
       </table></div>
     </section>
 
+    <section id="bien-hoa">
+      <h2><span class="n">13</span>Biến hóa giữa các trận</h2>
+      <p class="note"><b>Đề xuất, chờ chốt.</b> Mục 04–11 chạy lại ở mọi trận, nên cái dễ nhàm là đánh mãi một đội trên cùng một bàn. Nguyên tắc: <b>đổi câu đố, không đổi chỉ số.</b> Mỗi trận phải bắt người chơi nghĩ lại cách xếp, dù đội vẫn là đội cũ.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Ý tưởng</th><th>Cách chạy</th><th>Đánh vào mục</th></tr></thead>
+        <tbody>
+          <tr><td><b>Địa hình</b></td><td>Mỗi trận bàn có 1–3 ô đặc biệt: <b>Đá</b> (không đứng được, cắt trận đồ), <b>Sông</b> (Kỵ không qua, Băng làm đóng băng thành đường), <b>Đồi</b> (Cung +1 tầm), <b>Rừng</b> (quân đứng đó khó bị chọn), <b>Lửa trại</b> (Hỏa lan). Vì trận đồ theo hình dạng, một tảng đá đủ buộc phải xếp lại cả đội</td><td>04, 08</td></tr>
+          <tr><td><b>Kiểu trận</b></td><td><b>Giáp chiến</b> (thường). <b>Phục kích:</b> một phần địch xuất hiện ở hàng sau của mình. <b>Công thành:</b> địch đứng sau tường, phải phá tường trước. <b>Hộ tống:</b> giữ xe lương ở một ô đến hết 30 giây. <b>Truy binh:</b> địch đến thành ba đợt</td><td>04, 05</td></tr>
+          <tr><td><b>Thời tiết</b></td><td>Mưa: Lôi lan sang quân đứng cạnh, Hỏa yếu. Gió: Phong đẩy thêm 1 ô. Sương: mọi tầm −1. Nắng: Khí đầy nhanh hơn 20%. Báo trước một chặng để kịp đổi đồ</td><td>06, 09</td></tr>
+          <tr><td><b>Phe địch</b></td><td>Sáu phe, mỗi phe một luật bẻ và một lối xếp ưa thích. Ví dụ Thiết Kỵ Bắc Mạc (Kỵ xung phong hai lần), Hồn Sư (quân chết thành hồn 5 giây), Thạch Bảo (Khiên chặn cả phép). Bản đồ cho thấy nhánh nào gặp phe nào, nên chọn đường cũng là chọn câu đố</td><td>05, 07</td></tr>
+          <tr><td><b>Quân Lệnh</b></td><td>Mỗi trận có 1–2 lệnh phụ tùy chọn: thắng với tối đa 5 quân, nổ Chuỗi ×4, không mất quân nào, hạ tướng địch trước giây 15. Đạt thì nhận thưởng hiếm (Ấn, Ngọc, trang Binh Thư)</td><td>11</td></tr>
+          <tr><td><b>Thiên Mệnh của ván</b></td><td>Đầu ván chọn 1 trong 3 lá luật toàn ván, ví dụ: trận đồ được xếp chéo; Khí ×2 nhưng máu −25%; Kỵ xung phong theo hàng ngang. Thêm 2 trận đồ "Thịnh" ngẫu nhiên được +1 cấp cả ván. Mỗi ván một meta khác</td><td>07, 08, 10</td></tr>
+          <tr><td><b>Dị bản</b></td><td>Khoảng 1 trong 15 quân ở chợ là dị bản: chiêu đổi hình vùng hoặc đổi nguyên tố, nội tại nghe một sự kiện khác. Gặp được dị bản là lý do để đổi cả hướng xây đội</td><td>06, 11</td></tr>
+        </tbody>
+      </table></div>
+      <h3>Nhịp trong một ván</h3>
+      <ul class="dots">
+        <li>Không có hai trận liền nhau cùng kiểu trận, cùng phe, hoặc cùng địa hình.</li>
+        <li>Chặng 1–3 chỉ dùng địa hình. Chặng 4 trở đi mới có thời tiết, kiểu trận và Quân Lệnh, theo trục khó dần ở mục 14.</li>
+        <li>Mỗi ván gặp ít nhất ba kiểu trận khác nhau và hai phe.</li>
+        <li>Mọi biến hóa hiện rõ ở màn chuẩn bị bằng biểu tượng trên ô hoặc trên khung trận, không có luật ẩn.</li>
+      </ul>
+      <h3>Qua nhiều ván</h3>
+      <ul class="dots">
+        <li><b>Sổ Trận Đồ</b> ghi trận đồ ẩn đã tìm ra; còn ô trống thì còn thứ để thử.</li>
+        <li><b>Thử Thách Ngày</b> ghép sẵn một bộ: phe, địa hình, Thiên Mệnh. Ai cũng chơi cùng một bộ và so điểm.</li>
+      </ul>
+    </section>
+
     <section id="do-kho">
-      <h2><span class="n">13</span>Độ khó và mở khóa</h2>
+      <h2><span class="n">14</span>Độ khó và mở khóa</h2>
       <h3>Mở dần các tầng</h3>
       <div class="tbl"><table>
         <thead><tr><th>Khi nào</th><th>Mở thêm</th></tr></thead>
@@ -527,7 +557,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
     </section>
 
     <section id="canh-cat">
-      <h2><span class="n">14</span>Cảnh cắt</h2>
+      <h2><span class="n">15</span>Cảnh cắt</h2>
       <p>Trận dừng, màn hình chuyển sang cảnh hai nhân vật đối mặt nhìn ngang, giao đấu 2–3 giây, rồi trận chạy tiếp. Mô phỏng tất định nên dừng không ảnh hưởng kết quả.</p>
       <div class="tbl"><table>
         <thead><tr><th>Điều kiện</th><th>Ưu tiên</th></tr></thead>
@@ -546,7 +576,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
     </section>
 
     <section id="che-do">
-      <h2><span class="n">15</span>Chế độ chơi</h2>
+      <h2><span class="n">16</span>Chế độ chơi</h2>
       <div class="tbl"><table>
         <thead><tr><th>Chế độ</th><th>Mô tả</th><th>Mạng</th></tr></thead>
         <tbody>
@@ -559,7 +589,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
     </section>
 
     <section id="giao-dien">
-      <h2><span class="n">16</span>Giao diện</h2>
+      <h2><span class="n">17</span>Giao diện</h2>
       <ul class="dots">
         <li><b>Điện thoại, dọc:</b> bàn nửa trên, cửa hàng và ghế dự bị nửa dưới. Ngón cái với tới mọi nút.</li>
         <li><b>PC, ngang:</b> bàn ở giữa, đồng bộ bên trái, cửa hàng bên dưới, Nhật Ký Combo bên phải.</li>
@@ -571,17 +601,17 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
     </section>
 
     <section id="hinh-tieng">
-      <h2><span class="n">17</span>Hình ảnh và âm thanh</h2>
+      <h2><span class="n">18</span>Hình ảnh và âm thanh</h2>
       <ul class="dots">
         <li>Sprite trận khoảng 64 px, 4–6 khung mỗi động tác, góc nhìn chéo nhẹ từ trên xuống.</li>
         <li>Sprite cảnh cắt lớn hơn (khoảng 256 px), nhìn ngang, một nền theo địa hình.</li>
-        <li>Phong cách vẽ: còn mở (mục 21).</li>
+        <li>Phong cách vẽ: còn mở (mục 22).</li>
         <li>Giọng tướng sinh trước lúc build bằng TTS tts.falevon.com: câu ra trận, câu tung chiêu, thoại cảnh cắt giữa các cặp có quan hệ. Không gọi mạng khi chơi.</li>
       </ul>
     </section>
 
     <section id="ky-thuat">
-      <h2><span class="n">18</span>Kỹ thuật</h2>
+      <h2><span class="n">19</span>Kỹ thuật</h2>
       <ul class="dots">
         <li>Godot 4.7, renderer GL Compatibility, 2D thuần, atlas sprite.</li>
         <li>Lõi viết bằng C++ GDExtension, tách khỏi phần hiển thị: hiển thị chỉ đọc trạng thái mô phỏng và nội suy giữa các nhịp.</li>
@@ -601,7 +631,7 @@ data/
     </section>
 
     <section id="pham-vi">
-      <h2><span class="n">19</span>Bản thử đầu tiên</h2>
+      <h2><span class="n">20</span>Bản thử đầu tiên</h2>
       <div class="tbl"><table>
         <thead><tr><th>Hạng mục</th><th>Phạm vi</th></tr></thead>
         <tbody>
@@ -618,7 +648,7 @@ data/
     </section>
 
     <section id="thuat-ngu">
-      <h2><span class="n">20</span>Thuật ngữ</h2>
+      <h2><span class="n">21</span>Thuật ngữ</h2>
       <div class="tbl"><table>
         <tbody>
           <tr><td><b>Trận đồ</b></td><td>Hình dạng đội hình trên bàn, xếp đúng thì mở hiệu lực</td></tr>
@@ -637,7 +667,7 @@ data/
     </section>
 
     <section id="cau-hoi">
-      <h2><span class="n">21</span>Câu hỏi còn mở</h2>
+      <h2><span class="n">22</span>Câu hỏi còn mở</h2>
       <ul class="dots">
         <li>Phong cách hình ảnh: pixel art, vẽ tay phẳng, hay cắt giấy có khớp?</li>
         <li>Trọng tâm phát hành: Hành Quân chơi đơn, hay Loạn Chiến 8 người?</li>
