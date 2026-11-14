@@ -33,11 +33,15 @@ const TURN_MIN_PX: float = 6.0
 ## How long the limp collapse plays before the body falls over.
 const COLLAPSE_SEC: float = 0.3
 
-## Multiplies the speed of every animation (the battle speed button).
+## Multiplies the speed of every animation (the battle speed button);
+## running moves and poses change speed too.
 var playback_speed: float = 1.0:
 	set(value):
 		playback_speed = value
 		_animator.playback_speed = value
+		for tween: Tween in [_motion_tween, _figure_tween, _hp_tween, _fade_tween]:
+			if tween != null and tween.is_valid():
+				tween.set_speed_scale(value)
 ## Offset of the figure from its feet position, for lunges, hops and shakes.
 var anim_offset: Vector2 = Vector2.ZERO
 ## Squash and stretch of the figure, multiplied with breathing.
@@ -55,6 +59,12 @@ var is_hp_bar_shown: bool = true:
 	set(value):
 		is_hp_bar_shown = value
 		_bar.queue_redraw()
+## True holds the idle sway still (only blinks redraw): for figures that
+## only wait, on the bench or in the dimmed enemy line-up.
+var is_idle_calm: bool = false:
+	set(value):
+		is_idle_calm = value
+		_animator.is_swaying = not value
 
 var unit: UnitData
 var side: int = 0
@@ -237,6 +247,7 @@ func grow_in() -> void:
 	squash = Vector2(0.3, 0.3)
 	var tween := _new_figure_tween()
 	tween.tween_property(self, ^"squash", Vector2(1.45, 1.45), 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(self, ^"anim_offset", Vector2.ZERO, 0.1)
 	tween.tween_property(self, ^"squash", Vector2(0.9, 1.1), 0.08)
 	tween.tween_property(self, ^"squash", Vector2.ONE, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
@@ -272,7 +283,9 @@ func pop_out() -> void:
 ## A short side-to-side shake: "that did not work".
 func shake() -> void:
 	var tween := _new_figure_tween()
-	for offset_x: float in [-7.0, 6.0, -4.0, 2.0, 0.0]:
+	tween.tween_property(self, ^"anim_offset", Vector2(-7, 0), 0.05)
+	tween.parallel().tween_property(self, ^"squash", Vector2.ONE, 0.05)
+	for offset_x: float in [6.0, -4.0, 2.0, 0.0]:
 		tween.tween_property(self, ^"anim_offset", Vector2(offset_x, 0), 0.05)
 
 
@@ -306,6 +319,8 @@ func lunge(direction: Vector2) -> void:
 	_attack_toward(direction)
 	var tween := _new_figure_tween()
 	tween.tween_property(self, ^"anim_offset", direction.normalized() * 14.0, 0.08).set_ease(Tween.EASE_OUT)
+	# A recoil or wind-up cut short may have left the figure squashed.
+	tween.parallel().tween_property(self, ^"squash", Vector2.ONE, 0.08)
 	tween.tween_property(self, ^"anim_offset", Vector2.ZERO, 0.14).set_ease(Tween.EASE_IN_OUT)
 
 
@@ -341,6 +356,7 @@ func die() -> void:
 	var fall_side := -_flip
 	tween.tween_interval(COLLAPSE_SEC)
 	tween.tween_property(self, ^"lean", fall_side * 1.4, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.parallel().tween_property(self, ^"squash", Vector2.ONE, 0.1)
 	tween.parallel().tween_property(self, ^"anim_offset", Vector2(fall_side * 8.0, 2.0), 0.3)
 	tween.tween_property(self, ^"modulate:a", 0.0, 0.35)
 	tween.tween_callback(hide)
@@ -399,6 +415,7 @@ func fade_to(alpha: float, duration_sec: float = 0.2) -> void:
 ## Tints the view darker by `amount` 0..1 (the enemy half during setup).
 func set_dim(amount: float) -> void:
 	var value := 1.0 - amount
+	is_idle_calm = amount > 0.0
 	var tween := _new_tween()
 	# Only the colour channels: alpha may be mid-animation (drop in, fades).
 	for channel: NodePath in [^"modulate:r", ^"modulate:g", ^"modulate:b"]:

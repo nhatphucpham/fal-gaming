@@ -118,7 +118,11 @@ above the finger; the drop cell is the cell the ghost appears to stand in.
 `lunge(direction)`, `recoil(direction)`, `wind_up(seconds)`,
 `hit_flash()`, `die()` (hides itself), `cheer()`, `fade_to(alpha)`,
 `set_dim(amount)`; `playback_speed` scales every animation, the pose ones
-included. Side 0 faces up and right with a blue ring, side 1 faces down and
+included, and changing it also changes the speed of animations already
+running (a battle slowed mid-cast keeps the wind-up in step with the cast).
+`is_idle_calm` holds the idle sway still so the figure only redraws to
+blink: `set_dim()` sets it for the waiting enemy line-up and `PieceViews`
+for units on the bench. Side 0 faces up and right with a blue ring, side 1 faces down and
 left with a red ring. Idle units breathe (a slow 3.5% scale bob, phase per
 unit), sway and blink. `get_pose()` and `get_flip()` are for tests.
 
@@ -132,10 +136,10 @@ the view's existing methods drive it, so callers need nothing new:
 | `glide_to(..., &"walk")` | glide with a step bob | legs and arms walk; drops the combat stance |
 | `glide_to(..., &"charge")` | gallop bob, stretched | horse gallops, lance levelled |
 | `glide_to(..., &"knockback")` | skid with a tilt | flinches back for the slide |
-| `wind_up(seconds)` | crouch and rise | crouches, weapon raised and glowing in the class colour, a horse rears; held until the next `lunge`/`recoil` releases the strike (or just after `seconds`) |
+| `wind_up(seconds)` | crouch and rise | crouches, weapon raised and glowing in the class colour, a horse rears; held until the next `lunge`/`recoil` releases the strike (or just after `seconds`). A walk cancels it (the skill pose eases away, no strike); a charge keeps it with the weapon levelled and still glowing, so Breakthrough's resolve, sent in the same tick as the charge, lands the strike mid-gallop |
 | `hit_flash()` | white flash, squash | flinches with hurt eyes; a shield raises its shield instead |
 | `die()` | after the collapse, falls over backwards and fades | collapses limp, weapon sinks, dead eyes; no more idle |
-| `cheer()` | two hops | weapon raised, happy eyes; a horse rears |
+| `cheer()` | two hops | weapon raised, happy eyes; a horse rears; ends a wind-up without its strike |
 | `set_petrified(true)` | grey stone | the pose freezes exactly as it is (no tween, sway or blink) |
 
 Turning: the figure (only the figure: never the ring, bars, pips, stone or
@@ -146,11 +150,13 @@ attack it holds its weapon half wound up (the bow drawn) until it walks or
 cheers.
 
 Redraws: a figure redraws only when its pose changed. While idle the sway
-and blink advance about 15 times a second, at a phase offset per unit, so
-16 units do not redraw on the same frame; breathing is a node scale and
-costs no redraw. While a pose tween runs or the legs walk it redraws every
-frame. A petrified figure, a dead one after its fall, a boss and the sage
-(they ignore poses, `UnitPainter.is_posable()`) never redraw on their own.
+and blink advance about 10 times a second, at a phase offset per unit, so
+16 units do not redraw on the same frame; a calm figure (bench, dimmed
+line-up) only redraws when it blinks. Breathing is a node scale and costs
+no redraw. While a pose animation runs, the legs walk or the hit flash
+fades, it redraws at most 30 times a second, and once more when it ends. A
+petrified figure, a dead one after its fall, a boss and the sage (they
+ignore poses, `UnitPainter.is_posable()`) never redraw on their own.
 
 `UnitPose` (RefCounted): the figure's posable fields, all tweenable
 floats (`step`, `stride`, `strike` -1 wound up .. +1 struck, `raise`,
@@ -161,9 +167,14 @@ floats (`step`, `stride`, `strike` -1 wound up .. +1 struck, `raise`,
 `PoseAnimator` (Node, one per view): `walk(seconds, is_charge)`,
 `attack(aim)`, `wind_up(seconds)`, `release()`, `hit()`,
 `flinch_for(seconds)`, `die()`, `cheer()`, `reset()`, `set_frozen(bool)`,
-`get_stance()`; `playback_speed`. Differences between classes (how they
-attack, the stance they hold, who guards, who rears, the step rate) are
-data in its `CLASS_MOTION` registry, not branches.
+`get_stance()`; `playback_speed`, `is_swaying`. Differences between
+classes (how they attack, the stance they hold, who guards, who rears, the
+step rate) are data in its `CLASS_MOTION` registry, not branches. Every
+pose field has its own track (one tween): an animation restarts only the
+fields it moves and every track ends at that field's rest, so no animation
+can strand a field another one was moving (a glow, a raised weapon). When
+the strike's track ends it eases to the stance that holds by then (levelled
+while charging, half wound up in a fight, lowered outside one).
 
 `UnitPainter` (static): `draw_figure(canvas, unit, facing, flash, origin,
 scale, pose = null)`, `draw_bust(canvas, unit, center, scale)` and
@@ -183,16 +194,20 @@ their element's colour; weapons glow in `Palette.CLASS_COLORS`. The visual
 reference is [the figure page](../concept-page/unit-figures.html) (the
 prototype these figures are ported from).
 
-`FigureBrush` draws every shape as batched canvas primitives (quads and
-lines), so all figures on the board take a few draw calls in total
-instead of one per shape (`draw_colored_polygon`, `draw_circle` and
-antialiased polylines cost one or more draw calls each). Only lines
-thinner than 2 units are antialiased: thick antialiased lines are many
-triangles each and look the same at board size. It keeps `poly`,
-`outline`, `circle`, `stick` and `canvas` for `ExtraFigures` and adds a
-transform stack (`push(origin, rotation, scale)`, `pop()`), `stick_path`
-(bent sticks with round ends), `limb` (two bones), `fill_ellipse`, `dot`,
-`line`, `arc` and `glow` (concentric translucent discs, no gradients).
+`FigureBrush` does not draw shape by shape: it turns each shape into
+triangles already in canvas space (one native transform of a cached unit
+disc, segment or the polygon's triangulation) and `finish()` draws the
+whole figure as one triangle array, one draw call per figure, with no
+per-shape canvas calls (those are what GDScript time went into). Outlined
+shapes are an ink shape under the fill. Lines thinner than 2 units are
+antialiased the way Godot does it, with a feather quad on each side fading
+to transparent; thick ones need no antialiasing at board size. It keeps
+`poly`, `outline`, `circle`, `stick` and `canvas` for `ExtraFigures` and
+adds a transform stack (`push(origin, rotation, scale)`, `pop()`),
+`stick_path` (bent sticks with round ends), `limb` (two bones),
+`fill_ellipse`, `dot`, `line`, `arc` and `glow` (concentric translucent
+discs, no gradients). Draw with the brush only: a direct canvas call would
+land under the triangles collected so far.
 
 `Lineup` (RefCounted, the only owner of a side's formation):
 
@@ -253,9 +268,12 @@ None. Data problems are reported with `push_error` (`Sandbox: ...`,
 ## How to extend
 
 - **New class look:** add a drawer to `ClassFigures` that builds the body
-  with `FigureParts.draw_humanoid` (or its own body, like the mage and
-  the rider) and places its weapon from four key poses (`Grip`s for ready,
-  wind, strike and raise) blended by `FigureParts.weapon_grip`; register it
+  with `FigureParts.begin_humanoid`, `draw_trunk` and `end_humanoid` (or
+  its own body, like the mage and the rider) and places its weapon from
+  four key poses (grips: `Vector4` hand x, y, angle, slide; constants
+  where they do not depend on the aim) for ready, wind, strike and raise,
+  blended by `FigureParts.weapon_grip`. Keep drawers free of lambdas and
+  objects: they run on every redraw. Register it
   by class id in `UnitPainter._get_drawers()` and its headgear in
   `_get_headgear()`. If it moves differently (attack style, stance,
   guarding, rearing), add an entry to `PoseAnimator.CLASS_MOTION`. Check it
@@ -297,17 +315,28 @@ without a pose and as a bust. It then checks the animator through
 (the bow drawn for archers), walking drops the stance, a wind-up holds
 until the next recoil releases it, death ends limp and dead-eyed with no
 more sway or redraws, stone freezes the pose and its redraws, idle redraws
-stay near 15 a second, and x4 speed plays the swing four times as fast.
+stay near 10 a second, a calm (dimmed) figure only blinks, x4 speed plays
+the swing four times as fast, and slowing from x4 to x1 mid-cast keeps the
+wind-up held. Last it replays event orders from real battles and checks
+that no skill or hit pose is left behind (every field back at rest, the
+figure unsquashed): cavalry Breakthrough (wind-up, then the charge and the
+resolve in one tick; the strike lands with the resolve and the lance is
+level for the rest of the run), a resolve followed one tick later by a
+walk or an attack, a cast followed by a cheer, and the automatic release.
 
 ## Known limits
 
 - Stars are always 1 in the sandbox; the run uses 1 to 3. Star pips are
   drawn in code (the default font has no star glyph).
 - Long-press info during a battle finds the unit by its current cell.
-- A posed figure costs about ten times the GDScript time of the old static
-  one to redraw (0.25 to 0.35 ms per figure in the debug build on a desktop
-  CPU), so a busy fight spends a few ms per frame redrawing figures; draw
-  calls went down (about 550 instead of 1200 in a 16-unit battle). Thick
+- A posed figure still costs several times the GDScript time of the old
+  static one to redraw: about 0.19 ms per figure in the debug build on a
+  desktop CPU (0.04 to 0.06 ms before poses), most of it building the
+  triangles. Fewer redraws keep it in hand: measured CPU per frame with 24
+  waiting figures (board, bench, dimmed enemies) 0.42 ms (0.13 ms before
+  poses) and with 16 figures in a busy fight 1.6 ms (0.56 ms). Draw calls
+  went down: one per figure, about 550 instead of 1200 for a 16-unit
+  battle screen. Not measured on a phone or in a release build. Thick
   lines are not antialiased (see above).
 - No safe-area insets for phone notches yet; Safari's own bars keep the
   canvas clear of them in a browser tab.

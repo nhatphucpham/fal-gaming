@@ -3,9 +3,14 @@ extends Node
 ## Plays the pose animations of one figure: idle sway and blinks, walk and
 ## gallop, attack, skill wind-up and release, hit, death and cheer. It owns
 ## the UnitPose and asks the figure to redraw only when the pose changed:
-## every frame while an action runs, about 15 times a second (staggered per
-## unit) while only idling, never while frozen (stone) or after death.
-## Action tweens follow playback_speed (the battle speed). UnitView owns one.
+## at most ACTION_REDRAWS_PER_SEC while an action runs, about
+## IDLE_REDRAWS_PER_SEC (staggered per unit) while only idling, on blinks
+## only while calm, never while frozen (stone) or after death.
+## Every pose field has its own track (one tween), so an animation only ever
+## restarts the fields it moves and each track ends at that field's rest;
+## the strike settles to the current stance whenever its track ends.
+## Tracks follow playback_speed (the battle speed), also while running.
+## UnitView owns one.
 ## [codeblock]
 ## var animator := PoseAnimator.new(figure)
 ## animator.set_class(&"class.sword")
@@ -16,18 +21,23 @@ extends Node
 
 enum Ease { OUT, IN, IN_OUT, BACK }
 
-const IDLE_REDRAWS_PER_SEC: float = 15.0
+const IDLE_REDRAWS_PER_SEC: float = 10.0
+## Redraws a second while an action runs (a 60 fps screen skips every other).
+const ACTION_REDRAWS_PER_SEC: float = 30.0
 const SWAY_SPEED: float = 1.7
 const BLINK_SEC: float = 0.12
 const BLINK_GAP_MIN_SEC: float = 2.0
 const BLINK_GAP_RANGE_SEC: float = 3.0
 const HURT_EYES_SEC: float = 0.3
 const HAPPY_EYES_SEC: float = 1.2
+## The weapon levelled while charging.
 const CHARGE_STRIKE: float = -0.6
 const GALLOP_SPEED: float = 9.0
 const CHARGE_GALLOP_SPEED: float = 17.0
 ## A wind-up with no release after this long past its end releases anyway.
 const RELEASE_GRACE_SEC: float = 0.1
+## The skill pose fields a wind-up raises and its release or cancel lowers.
+const WIND_UP_FIELDS: Array[StringName] = [&"crouch", &"raise", &"rear"]
 ## How each class moves; unknown classes use DEFAULT_MOTION. "attack" names
 ## the attack method, "stance" is the strike value held in a fight.
 const CLASS_MOTION: Dictionary[StringName, Dictionary] = {
@@ -39,15 +49,25 @@ const CLASS_MOTION: Dictionary[StringName, Dictionary] = {
 const DEFAULT_MOTION: Dictionary = {"attack": &"_attack_swing", "stance": -0.45, "step_speed": 11.0, "guards": false, "rears": false}
 
 var pose := UnitPose.new()
-## Multiplies the speed of every pose tween and of the walk cycle.
-var playback_speed: float = 1.0
+## Multiplies the speed of every pose track and of the walk cycle; running
+## tracks change speed too.
+var playback_speed: float = 1.0:
+	set(value):
+		playback_speed = value
+		for property: StringName in _tracks:
+			_set_speed(_tracks[property])
+		_set_speed(_release_timer)
+		_set_speed(_eyes_tween)
 ## In a fight the weapon stays half wound up (the bow drawn).
 var is_in_combat: bool = false
 var is_dead: bool = false
 ## Frozen (turned to stone): the pose holds exactly as it is.
 var is_frozen: bool = false
-## True between wind_up() and its release.
+## True between wind_up() and its release (or cancel).
 var is_winding: bool = false
+## False holds the idle sway still: only blinks redraw (bench, the dimmed
+## waiting line-up).
+var is_swaying: bool = true
 
 var _figure: CanvasItem
 var _motion: Dictionary = DEFAULT_MOTION
@@ -55,13 +75,14 @@ var _time: float = 0.0
 var _phase: float = 0.0
 var _slot_offset: float = 0.0
 var _idle_slot: int = -1
+var _action_slot: int = -1
+var _was_active: bool = false
 var _blink_at: float = 0.0
 var _blink_end: float = 0.0
 var _is_charging: bool = false
-# One tween per group of pose fields, so a hit does not cancel a swing.
-var _action_tween: Tween
-var _move_tween: Tween
-var _hurt_tween: Tween
+# One tween per pose field: an animation restarts only the fields it moves.
+var _tracks: Dictionary[StringName, Tween] = {}
+var _release_timer: Tween
 var _eyes_tween: Tween
 
 
@@ -86,9 +107,8 @@ func get_stance() -> float:
 func _process(delta: float) -> void:
 	var is_active := _is_animating()
 	if is_dead:
-		if is_active:
-			_figure.queue_redraw()
-		else:
+		_redraw_while(is_active)
+		if not is_active and not _was_active:
 			set_process(false)
 		return
 	_time += delta
@@ -96,11 +116,15 @@ func _process(delta: float) -> void:
 		pose.step += delta * playback_speed * _motion["step_speed"]
 		pose.gallop += delta * playback_speed * (CHARGE_GALLOP_SPEED if _is_charging else GALLOP_SPEED)
 		is_active = true
-	var slot := floori(_time * IDLE_REDRAWS_PER_SEC + _slot_offset)
-	if is_active or slot != _idle_slot:
-		_idle_slot = slot
+	if is_active or _was_active:
 		_update_idle()
-		_figure.queue_redraw()
+		_redraw_while(is_active)
+		return
+	var slot := floori(_time * IDLE_REDRAWS_PER_SEC + _slot_offset)
+	if slot != _idle_slot:
+		_idle_slot = slot
+		if _update_idle():
+			_figure.queue_redraw()
 
 
 ## Puts the pose back at rest, out of combat; keeps the walk phases.
@@ -121,21 +145,24 @@ func reset() -> void:
 
 
 ## Walks (legs cycle) for `seconds`, dropping the combat stance; a charge
-## gallops faster with the weapon levelled instead.
+## gallops faster with the weapon levelled instead. A walk cancels a
+## wind-up; a charge keeps it (glowing, weapon levelled) for the release.
 func walk(seconds: float, is_charge: bool) -> void:
 	if is_dead:
 		return
+	if is_winding and not is_charge:
+		_cancel_wind_up()
 	_is_charging = is_charge
 	if not is_charge:
 		is_in_combat = false
-	is_winding = false
-	_action_tween = _restart(_action_tween)
-	_tween(_action_tween, &"strike", CHARGE_STRIKE if is_charge else 0.0, 0.15)
-	if is_charge:
-		_tween(_action_tween, &"strike", get_stance(), 0.2, seconds, Ease.IN_OUT)
-	_move_tween = _restart(_move_tween)
-	_tween(_move_tween, &"stride", 1.0, 0.12)
-	_tween(_move_tween, &"stride", 0.0, 0.18, seconds, Ease.IN_OUT)
+	if is_winding:
+		for property: StringName in WIND_UP_FIELDS:
+			_to(_track(property), property, 0.0, 0.15)
+	_to(_track(&"strike"), &"strike", _rest_strike(), 0.15)
+	var stride := _track(&"stride")
+	_to(stride, &"stride", 1.0, 0.12)
+	_to(stride, &"stride", 0.0, 0.18, seconds, Ease.IN_OUT)
+	stride.tween_callback(_end_walk).set_delay(seconds)
 
 
 ## A basic attack toward `aim` (figure angle, 0 up). During a wind-up it is
@@ -144,11 +171,10 @@ func attack(aim: float) -> void:
 	if is_dead:
 		return
 	pose.aim = aim
+	is_in_combat = true
 	if is_winding:
 		release()
 		return
-	is_in_combat = true
-	_action_tween = _restart(_action_tween)
 	call(_motion["attack"])
 
 
@@ -160,13 +186,13 @@ func wind_up(seconds: float) -> void:
 		return
 	is_in_combat = true
 	is_winding = true
-	_action_tween = _restart(_action_tween)
-	_tween(_action_tween, &"crouch", 1.0, seconds * 0.5)
-	_tween(_action_tween, &"raise", 1.0, seconds * 0.8, 0.0, Ease.BACK)
-	_tween(_action_tween, &"glow", 1.0, seconds)
+	_to(_track(&"crouch"), &"crouch", 1.0, seconds * 0.5)
+	_to(_track(&"raise"), &"raise", 1.0, seconds * 0.8, 0.0, Ease.BACK)
+	_to(_track(&"glow"), &"glow", 1.0, seconds)
 	if _motion["rears"]:
-		_tween(_action_tween, &"rear", 1.0, seconds * 0.7, 0.0, Ease.BACK)
-	_action_tween.tween_callback(release).set_delay(seconds + RELEASE_GRACE_SEC)
+		_to(_track(&"rear"), &"rear", 1.0, seconds * 0.7, 0.0, Ease.BACK)
+	_release_timer = _restart(_release_timer)
+	_release_timer.tween_callback(release).set_delay(seconds + RELEASE_GRACE_SEC)
 
 
 ## The skill's strike after a wind-up: the raised weapon comes down with a
@@ -174,16 +200,14 @@ func wind_up(seconds: float) -> void:
 func release() -> void:
 	if not is_winding or is_dead:
 		return
-	is_winding = false
-	_action_tween = _restart(_action_tween)
-	_tween(_action_tween, &"crouch", 0.0, 0.1)
-	_tween(_action_tween, &"raise", 0.0, 0.1)
-	_tween(_action_tween, &"rear", 0.0, 0.14)
-	_tween(_action_tween, &"strike", 1.0, 0.08, 0.0, Ease.BACK)
+	_end_wind_up(0.1)
+	var strike := _track(&"strike")
+	_to(strike, &"strike", 1.0, 0.08, 0.0, Ease.BACK)
+	# A charging rider levels the lance again quickly for the rest of the run.
+	_to(strike, &"strike", _rest_strike(), 0.25 if _is_charging else 0.3, 0.15 if _is_charging else 0.3, Ease.IN_OUT)
 	pose.trail = 1.0
-	_tween(_action_tween, &"trail", 0.0, 0.3, 0.05)
-	_tween(_action_tween, &"glow", 0.0, 0.5, 0.15)
-	_tween(_action_tween, &"strike", get_stance(), 0.3, 0.3, Ease.IN_OUT)
+	_to(_track(&"trail"), &"trail", 0.0, 0.3, 0.05)
+	_to(_track(&"glow"), &"glow", 0.0, 0.5, 0.15)
 
 
 ## Flinches back with hurt eyes; a shield raises its shield instead.
@@ -192,12 +216,13 @@ func hit() -> void:
 		return
 	var guards: bool = _motion["guards"]
 	pose.eyes = UnitPose.Eyes.HURT
-	_hurt_tween = _restart(_hurt_tween)
-	_tween(_hurt_tween, &"flinch", 0.35 if guards else 1.0, 0.04)
-	_tween(_hurt_tween, &"flinch", 0.0, 0.26, 0.06, Ease.IN_OUT)
+	var flinch := _track(&"flinch")
+	_to(flinch, &"flinch", 0.35 if guards else 1.0, 0.04)
+	_to(flinch, &"flinch", 0.0, 0.26, 0.06, Ease.IN_OUT)
 	if guards:
-		_tween(_hurt_tween, &"guard", 1.0, 0.04)
-		_tween(_hurt_tween, &"guard", 0.0, 0.25, 0.2, Ease.IN_OUT)
+		var guard := _track(&"guard")
+		_to(guard, &"guard", 1.0, 0.04)
+		_to(guard, &"guard", 0.0, 0.25, 0.2, Ease.IN_OUT)
 	_eyes_after(HURT_EYES_SEC, 1.5)
 
 
@@ -205,9 +230,9 @@ func hit() -> void:
 func flinch_for(seconds: float) -> void:
 	if is_dead:
 		return
-	_hurt_tween = _restart(_hurt_tween)
-	_tween(_hurt_tween, &"flinch", 0.6, 0.06)
-	_tween(_hurt_tween, &"flinch", 0.0, 0.2, seconds, Ease.IN_OUT)
+	var flinch := _track(&"flinch")
+	_to(flinch, &"flinch", 0.6, 0.06)
+	_to(flinch, &"flinch", 0.0, 0.2, seconds, Ease.IN_OUT)
 
 
 ## Collapses limp with dead eyes; idle stops for good.
@@ -216,30 +241,35 @@ func die() -> void:
 	set_frozen(false)
 	is_dead = true
 	is_winding = false
+	_is_charging = false
 	pose.eyes = UnitPose.Eyes.DEAD
 	for property: StringName in [&"strike", &"raise", &"stride", &"glow", &"trail", &"guard", &"crouch", &"rear"]:
 		pose.set(property, 0.0)
-	_action_tween = _restart(_action_tween)
-	_tween(_action_tween, &"flinch", 0.8, 0.06)
-	_tween(_action_tween, &"flinch", 0.0, 0.2, 0.08)
-	_tween(_action_tween, &"limp", 1.0, 0.34, 0.05, Ease.IN)
+	var flinch := _track(&"flinch")
+	_to(flinch, &"flinch", 0.8, 0.06)
+	_to(flinch, &"flinch", 0.0, 0.2, 0.08)
+	_to(_track(&"limp"), &"limp", 1.0, 0.34, 0.05, Ease.IN)
 	_figure.queue_redraw()
 
 
-## Weapon raised with happy eyes (a horse rears), for the winners.
+## Weapon raised with happy eyes (a horse rears), for the winners. Ends a
+## wind-up without its strike.
 func cheer() -> void:
 	if is_dead:
 		return
+	if is_winding:
+		_cancel_wind_up()
 	is_in_combat = false
-	is_winding = false
+	_is_charging = false
 	pose.eyes = UnitPose.Eyes.HAPPY
-	_action_tween = _restart(_action_tween)
-	_tween(_action_tween, &"strike", 0.0, 0.1)
-	_tween(_action_tween, &"raise", 1.0, 0.18, 0.0, Ease.BACK)
+	_to(_track(&"strike"), &"strike", 0.0, 0.1)
+	var raise := _track(&"raise")
+	_to(raise, &"raise", 1.0, 0.18, 0.0, Ease.BACK)
+	_to(raise, &"raise", 0.0, 0.25, 0.9, Ease.IN_OUT)
 	if _motion["rears"]:
-		_tween(_action_tween, &"rear", 1.0, 0.25, 0.0, Ease.BACK)
-		_tween(_action_tween, &"rear", 0.0, 0.2, 0.6)
-	_tween(_action_tween, &"raise", 0.0, 0.25, 0.9, Ease.IN_OUT)
+		var rear := _track(&"rear")
+		_to(rear, &"rear", 1.0, 0.25, 0.0, Ease.BACK)
+		_to(rear, &"rear", 0.0, 0.2, 0.6)
 	_eyes_after(HAPPY_EYES_SEC, 0.0)
 
 
@@ -251,38 +281,95 @@ func set_frozen(frozen: bool) -> void:
 
 
 func _attack_swing() -> void:
-	_tween(_action_tween, &"strike", 1.0, 0.08, 0.0, Ease.BACK)
+	var strike := _track(&"strike")
+	_to(strike, &"strike", 1.0, 0.08, 0.0, Ease.BACK)
+	_to(strike, &"strike", _rest_strike(), 0.28, 0.2, Ease.IN_OUT)
 	pose.trail = 1.0
-	_tween(_action_tween, &"trail", 0.0, 0.22, 0.04)
-	_tween(_action_tween, &"strike", get_stance(), 0.28, 0.2, Ease.IN_OUT)
+	_to(_track(&"trail"), &"trail", 0.0, 0.22, 0.04)
 
 
 # Loose the arrow, then nock a new one and draw again.
 func _attack_shoot() -> void:
 	pose.arrow = 0.0
 	pose.strike = -1.0
-	_tween(_action_tween, &"strike", 1.0, 0.06)
-	_tween(_action_tween, &"strike", 0.0, 0.16, 0.12, Ease.IN_OUT)
-	_tween(_action_tween, &"arrow", 1.0, 0.01, 0.34)
-	_tween(_action_tween, &"strike", get_stance(), 0.34, 0.36, Ease.IN_OUT)
+	var strike := _track(&"strike")
+	_to(strike, &"strike", 1.0, 0.06)
+	_to(strike, &"strike", 0.0, 0.16, 0.12, Ease.IN_OUT)
+	_to(strike, &"strike", _rest_strike(), 0.34, 0.36, Ease.IN_OUT)
+	_to(_track(&"arrow"), &"arrow", 1.0, 0.01, 0.34)
 
 
 func _attack_cast() -> void:
-	_tween(_action_tween, &"strike", 1.0, 0.09, 0.0, Ease.BACK)
+	var strike := _track(&"strike")
+	_to(strike, &"strike", 1.0, 0.09, 0.0, Ease.BACK)
+	_to(strike, &"strike", _rest_strike(), 0.3, 0.2, Ease.IN_OUT)
 	pose.glow = 1.0
-	_tween(_action_tween, &"glow", 0.0, 0.35, 0.08)
-	_tween(_action_tween, &"strike", get_stance(), 0.3, 0.2, Ease.IN_OUT)
+	_to(_track(&"glow"), &"glow", 0.0, 0.35, 0.08)
+
+
+# Lowers the wind-up fields over `seconds`; the caller adds the strike.
+func _end_wind_up(seconds: float) -> void:
+	is_winding = false
+	_kill(_release_timer)
+	for property: StringName in WIND_UP_FIELDS:
+		_to(_track(property), property, 0.0, seconds * (1.4 if property == &"rear" else 1.0))
+
+
+# A wind-up that ends without its strike (moved away, the battle ended).
+func _cancel_wind_up() -> void:
+	_end_wind_up(0.15)
+	_to(_track(&"glow"), &"glow", 0.0, 0.25)
+
+
+# The strike value to come back to: levelled while charging, else the stance.
+func _rest_strike() -> float:
+	return CHARGE_STRIKE if _is_charging else get_stance()
+
+
+func _end_walk() -> void:
+	_is_charging = false
+	var strike: Tween = _tracks.get(&"strike")
+	if strike == null or not strike.is_valid() or not strike.is_running():
+		_settle_strike()
+
+
+# When the strike track ends, it eases to the stance that holds now (the
+# fight may have started or a charge ended while it ran).
+func _settle_strike() -> void:
+	if is_dead or absf(pose.strike - _rest_strike()) < 0.005:
+		return
+	_to(_track(&"strike"), &"strike", _rest_strike(), 0.2, 0.0, Ease.IN_OUT)
 
 
 # Sway, plume and orb follow the idle clock; the eyes blink now and then.
-func _update_idle() -> void:
-	pose.sway = sin(_time * SWAY_SPEED + _phase)
+# Returns true when the pose changed.
+func _update_idle() -> bool:
+	var changed := false
+	if is_swaying:
+		pose.sway = sin(_time * SWAY_SPEED + _phase)
+		changed = true
 	if pose.eyes == UnitPose.Eyes.OPEN and _time > _blink_at:
 		pose.eyes = UnitPose.Eyes.BLINK
 		_blink_end = _time + BLINK_SEC
+		changed = true
 	elif pose.eyes == UnitPose.Eyes.BLINK and _time > _blink_end:
 		pose.eyes = UnitPose.Eyes.OPEN
 		_blink_at = _time + BLINK_GAP_MIN_SEC + randf() * BLINK_GAP_RANGE_SEC
+		changed = true
+	return changed
+
+
+# Redraws at most ACTION_REDRAWS_PER_SEC while `is_active`, and once more
+# when it stops, so the last pose is drawn.
+func _redraw_while(is_active: bool) -> void:
+	if is_active:
+		var slot := floori(Time.get_ticks_msec() * 0.001 * ACTION_REDRAWS_PER_SEC)
+		if slot != _action_slot or not _was_active:
+			_action_slot = slot
+			_figure.queue_redraw()
+	elif _was_active:
+		_figure.queue_redraw()
+	_was_active = is_active
 
 
 # Opens the eyes again after `seconds` of battle time, then waits
@@ -297,13 +384,23 @@ func _eyes_after(seconds: float, blink_delay_sec: float) -> void:
 
 
 func _is_animating() -> bool:
-	for tween: Tween in [_action_tween, _move_tween, _hurt_tween]:
-		if tween != null and tween.is_valid() and tween.is_running():
+	for property: StringName in _tracks:
+		var tween := _tracks[property]
+		if tween.is_valid() and tween.is_running():
 			return true
 	return false
 
 
-func _tween(tween: Tween, property: StringName, to: float, seconds: float, delay_sec: float = 0.0, curve: Ease = Ease.OUT) -> void:
+# Kills the track of `property` and returns a fresh one at the playback speed.
+func _track(property: StringName) -> Tween:
+	var tween := _restart(_tracks.get(property))
+	_tracks[property] = tween
+	if property == &"strike":
+		tween.finished.connect(_settle_strike)
+	return tween
+
+
+func _to(tween: Tween, property: StringName, to: float, seconds: float, delay_sec: float = 0.0, curve: Ease = Ease.OUT) -> void:
 	var tweener := tween.tween_property(pose, NodePath(property), to, maxf(seconds, 0.0001)).set_delay(delay_sec)
 	match curve:
 		Ease.OUT:
@@ -318,14 +415,25 @@ func _tween(tween: Tween, property: StringName, to: float, seconds: float, delay
 
 # Kills `tween` and returns a fresh parallel one at the playback speed.
 func _restart(tween: Tween) -> Tween:
-	if tween != null and tween.is_valid():
-		tween.kill()
+	_kill(tween)
 	var fresh := create_tween().set_parallel(true)
 	fresh.set_speed_scale(playback_speed)
 	return fresh
 
 
+func _set_speed(tween: Tween) -> void:
+	if tween != null and tween.is_valid():
+		tween.set_speed_scale(playback_speed)
+
+
+func _kill(tween: Tween) -> void:
+	if tween != null and tween.is_valid():
+		tween.kill()
+
+
 func _kill_all() -> void:
-	for tween: Tween in [_action_tween, _move_tween, _hurt_tween, _eyes_tween]:
-		if tween != null and tween.is_valid():
-			tween.kill()
+	for property: StringName in _tracks:
+		_kill(_tracks[property])
+	_tracks.clear()
+	_kill(_release_timer)
+	_kill(_eyes_tween)

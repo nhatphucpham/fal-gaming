@@ -9,8 +9,12 @@ extends SceneTree
 # PoseAnimator through UnitView: an attack turns the figure and settles at
 # the combat stance, walking drops it, a wind-up holds until the next attack
 # releases it, death ends dead-eyed and still, stone freezes the pose and
-# its redraws, idle redraws are throttled, and the battle speed scales every
-# pose animation.
+# its redraws, idle redraws are throttled (a calm figure only blinks), and
+# the battle speed scales every pose animation, also when it changes
+# mid-cast. Then real event orders from the battle replay, which must leave
+# no skill pose behind: cavalry Breakthrough (wind-up, then charge and
+# resolve in one tick), a resolve followed one tick later by a move or an
+# attack, a cast followed by a cheer, and the automatic release.
 
 const CLASS_IDS: Array[StringName] = [
 	&"class.sword", &"class.shield", &"class.spear", &"class.archer", &"class.mage", &"class.cavalry",
@@ -33,7 +37,9 @@ func _initialize() -> void:
 func _run() -> bool:
 	var checks: Array[Callable] = [
 		_check_drawing, _check_attack_stance, _check_walk_drops_stance, _check_wind_up,
-		_check_die, _check_petrify, _check_idle_redraws, _check_speed,
+		_check_die, _check_petrify, _check_idle_redraws, _check_calm_idle, _check_speed,
+		_check_speed_change_mid_cast, _check_breakthrough, _check_move_after_resolve,
+		_check_attack_after_resolve, _check_cheer_after_cast, _check_fallback_release,
 	]
 	for check: Callable in checks:
 		if not await check.call():
@@ -168,7 +174,7 @@ func _check_petrify() -> bool:
 	return ok
 
 
-# Idle (no action) redraws about 15 times a second, not every frame.
+# Idle (no action) redraws about 10 times a second, not every frame.
 func _check_idle_redraws() -> bool:
 	var view := _make_view(&"class.archer", 0)
 	await create_timer(0.3).timeout
@@ -179,10 +185,33 @@ func _check_idle_redraws() -> bool:
 	await create_timer(1.0).timeout
 	process_frame.disconnect(count_frame)
 	view.queue_free()
-	if draws[0] < 8 or draws[0] > 20:
-		push_error("Idle should redraw about 15 times a second, not %d (in %d frames)" % [draws[0], frames[0]])
+	if draws[0] < 7 or draws[0] > 14:
+		push_error("Idle should redraw about 10 times a second, not %d (in %d frames)" % [draws[0], frames[0]])
 		return false
 	return true
+
+
+# A calm figure (bench, dimmed line-up) holds its sway and redraws only to
+# blink, at most twice per blink.
+func _check_calm_idle() -> bool:
+	var view := _make_view(&"class.mage", 1)
+	view.set_dim(0.4)
+	await create_timer(0.3).timeout
+	var sway := view.get_pose().sway
+	var draws := _count_draws(view)
+	await create_timer(2.0).timeout
+	var ok := true
+	if draws[0] > 4 or view.get_pose().sway != sway:
+		push_error("A calm figure should only blink: %d redraws in 2 s, sway %.2f -> %.2f" % [draws[0], sway, view.get_pose().sway])
+		ok = false
+	view.set_dim(0.0)
+	draws = _count_draws(view)
+	await create_timer(0.5).timeout
+	if draws[0] < 3:
+		push_error("A figure no longer dimmed should sway again, %d redraws" % draws[0])
+		ok = false
+	view.queue_free()
+	return ok
 
 
 func _check_speed() -> bool:
@@ -198,6 +227,106 @@ func _check_speed() -> bool:
 		ok = false
 	slow.queue_free()
 	fast.queue_free()
+	return ok
+
+
+# Slowing the battle from x4 to x1 mid-cast slows the wind-up too: it must
+# not release (and strike) before the cast at x1 ends.
+func _check_speed_change_mid_cast() -> bool:
+	var view := _make_view(&"class.sword", 0)
+	view.playback_speed = 4.0
+	view.wind_up(1.0)
+	await create_timer(0.1).timeout
+	view.playback_speed = 1.0
+	await create_timer(0.5).timeout
+	var pose := view.get_pose()
+	var ok := true
+	if pose.raise < 0.5 or pose.trail > 0.0:
+		push_error("At x1 the wind-up should still hold after 0.6 s (raise %.2f, trail %.2f)" % [pose.raise, pose.trail])
+		ok = false
+	view.recoil(Vector2(0, -1))
+	await create_timer(SETTLE_SEC).timeout
+	ok = _expect_settled("after a speed change", view, -0.45) and ok
+	view.queue_free()
+	return ok
+
+
+# Breakthrough: the battle sends the charge move and then the resolve in the
+# same tick. The rider winds up, charges with the lance levelled and glowing,
+# the strike lands with the resolve, and nothing of the skill pose stays.
+func _check_breakthrough() -> bool:
+	var view := _make_view(&"class.cavalry", 0)
+	view.wind_up(0.6)
+	await create_timer(0.6).timeout
+	view.glide_to(view.position + Vector2(0, -160), 0.6, &"charge")
+	view.recoil(Vector2(0, -1))
+	await create_timer(0.05).timeout
+	var pose := view.get_pose()
+	var ok := true
+	if pose.strike < 0.5 or pose.trail < 0.5:
+		push_error("The release should strike with the resolve: strike %.2f, trail %.2f" % [pose.strike, pose.trail])
+		ok = false
+	await create_timer(0.4).timeout
+	ok = _expect_near("lance during the charge", pose.strike, PoseAnimator.CHARGE_STRIKE) and ok
+	ok = _expect_near("raise during the charge", pose.raise, 0.0) and ok
+	if pose.stride < 0.5:
+		push_error("The horse should gallop during the charge, stride %.2f" % pose.stride)
+		ok = false
+	await create_timer(1.2).timeout
+	ok = _expect_settled("after Breakthrough", view, -0.45) and ok
+	view.queue_free()
+	return ok
+
+
+func _check_move_after_resolve() -> bool:
+	var view := _make_view(&"class.sword", 0)
+	view.wind_up(0.45)
+	await create_timer(0.45).timeout
+	view.recoil(Vector2(0, -1))
+	await create_timer(0.05).timeout
+	view.glide_to(view.position + Vector2(0, -80), 0.5, &"walk")
+	await create_timer(1.5).timeout
+	var ok := _expect_settled("move one tick after the resolve", view, 0.0)
+	view.queue_free()
+	return ok
+
+
+func _check_attack_after_resolve() -> bool:
+	var view := _make_view(&"class.spear", 0)
+	view.wind_up(0.45)
+	await create_timer(0.45).timeout
+	view.recoil(Vector2(0, -1))
+	await create_timer(0.05).timeout
+	view.lunge(Vector2(0, -80))
+	await create_timer(1.5).timeout
+	var ok := _expect_settled("attack one tick after the resolve", view, -0.45)
+	view.queue_free()
+	return ok
+
+
+func _check_cheer_after_cast() -> bool:
+	var view := _make_view(&"class.mage", 0)
+	view.recoil(Vector2(0, -1))
+	await create_timer(0.1).timeout
+	view.cheer()
+	await create_timer(1.8).timeout
+	var ok := _expect_settled("cheer after a cast", view, 0.0)
+	view.queue_free()
+	return ok
+
+
+# With no resolve the wind-up releases by itself just after the cast.
+func _check_fallback_release() -> bool:
+	var view := _make_view(&"class.sword", 0)
+	view.wind_up(0.3)
+	await create_timer(0.3 + PoseAnimator.RELEASE_GRACE_SEC + 0.05).timeout
+	var ok := true
+	if view.get_pose().trail < 0.5:
+		push_error("The wind-up should release by itself, trail %.2f" % view.get_pose().trail)
+		ok = false
+	await create_timer(SETTLE_SEC).timeout
+	ok = _expect_settled("after the automatic release", view, -0.45) and ok
+	view.queue_free()
 	return ok
 
 
@@ -248,6 +377,19 @@ func _count_draws(view: UnitView) -> Array[int]:
 		if child is UnitFigure:
 			(child as UnitFigure).draw.connect(func() -> void: draws[0] += 1)
 	return draws
+
+
+# Every skill and hit field back at rest, the strike at `strike`, the
+# figure unsquashed.
+func _expect_settled(label: String, view: UnitView, strike: float) -> bool:
+	var pose := view.get_pose()
+	var ok := _expect_near("%s: strike" % label, pose.strike, strike)
+	for field: String in ["raise", "crouch", "rear", "glow", "trail", "flinch", "guard", "stride"]:
+		ok = _expect_near("%s: %s" % [label, field], pose.get(field), 0.0) and ok
+	if not view.squash.is_equal_approx(Vector2.ONE):
+		push_error("%s: squash should be (1, 1), not %s" % [label, view.squash])
+		ok = false
+	return ok
 
 
 func _expect_near(label: String, value: float, expected: float) -> bool:

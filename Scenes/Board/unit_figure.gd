@@ -12,16 +12,24 @@ var facing: int = UnitPainter.FACING_UP:
 	set(value):
 		facing = value
 		queue_redraw()
-## 0..1, how far every fill is blended toward white.
+## 0..1, how far every fill is blended toward white. While it fades the
+## figure redraws at most PoseAnimator.ACTION_REDRAWS_PER_SEC, and once at
+## the end.
 var flash: float = 0.0:
 	set(value):
 		flash = value
-		queue_redraw()
+		var slot := floori(Time.get_ticks_msec() * 0.001 * PoseAnimator.ACTION_REDRAWS_PER_SEC)
+		if slot != _flash_slot or value <= 0.0 or value >= 1.0:
+			_flash_slot = slot
+			queue_redraw()
 ## The pose to draw; null draws the rest pose.
 var pose: UnitPose:
 	set(value):
 		pose = value
 		queue_redraw()
+
+
+var _flash_slot: int = -1
 
 
 func _draw() -> void:

@@ -30,7 +30,8 @@ used for this, because `advance()` ignores calls while not running.
 
 `speed` is 1, 2 or 4 (the x1 / x2 / x4 button). It multiplies the tick rate
 and the speed scale of every tween the playback, the effects and the unit
-views create, so animations keep pace with the battle.
+views create, so animations keep pace with the battle. A unit view also
+changes the speed of its moves and poses already running.
 
 ## Events to animations
 
@@ -47,7 +48,7 @@ a unit already playing its death shows nothing.
 | --- | --- |
 | `battle_started` | none (the screen has already slid to the battle layout) |
 | `unit_moved` `walk` | glide over `duration_ticks`, with a small step bob; the legs walk and the unit drops its combat stance |
-| `unit_moved` `charge` | faster gallop bob, stretched figure, dust puffs along the path; the horse gallops with the lance levelled |
+| `unit_moved` `charge` | faster gallop bob, stretched figure, dust puffs along the path; the horse gallops with the lance levelled (a rider still winding up keeps the glow, and Breakthrough's resolve in the same tick lands the strike mid-gallop) |
 | `unit_moved` `knockback` | quick skidding slide with a tilt and a dust puff, after the hit lands; the figure flinches back while it slides |
 | `unit_attacked` `melee` | the attacker turns to the target, swings or thrusts at it (a white smear) and lunges; a slash arc on the target cell |
 | `unit_attacked` `ranged` | the archer turns to the target, looses and draws a new arrow, with a recoil; an arrow flies in an arc to the target cell |
