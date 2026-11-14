@@ -2,7 +2,7 @@
 
 > Trạng thái: bản nháp để bàn. **Bản 4 (mục 0) là hướng hiện tại: "Bát Trận"**, concept lấy
 > lối chơi làm gốc, fantasy kiếm/cung/giáp/phép. Bản trực quan có bàn xếp trận bấm thử: artifact
-> "Bát Trận". Tài liệu thiết kế đầy đủ (GDD, có số liệu khởi điểm): `Docs/concept-page/bat-tran-gdd.html`, artifact "Bát Trận GDD". Bản 1.1 thêm mục Kỹ năng: mỗi quân có Chiêu (tự tung khi đầy Khí) và Nội tại ("khi X thì Y"), tướng có chiêu và nội tại riêng. Bản 1.5 (14/11/2026) khớp khung C++ đã merge: SimClock 20 nhịp/giây, ba lớp mô phỏng/cầu nối/hiển thị, dữ liệu `.tres` trong `Data/` theo `Docs/conventions.md`. Các mục sau là lịch sử: bản 1 (mục 1–7), bản 3 (mục 8). Bản 2 "Ấn Truyền" đã bỏ.
+> "Bát Trận". Tài liệu thiết kế đầy đủ (GDD, có số liệu khởi điểm): `Docs/concept-page/bat-tran-gdd.html`, artifact "Bát Trận GDD". Bản 1.1 thêm mục Kỹ năng: mỗi quân có Chiêu (tự tung khi đầy Khí) và Nội tại ("khi X thì Y"), tướng có chiêu và nội tại riêng. Bản 1.5 (14/11/2026) khớp khung C++ đã merge: SimClock 20 nhịp/giây, ba lớp mô phỏng/cầu nối/hiển thị, dữ liệu `.tres` trong `Data/` theo `Docs/conventions.md`. Bản 2.5 (14/11/2026) có trang tóm tắt, chia tám phần, gắn nhãn Đề xuất / Sau bản thử, gộp bảng Tướng Lĩnh và sửa các chỗ lệch số liệu. Các mục sau là lịch sử: bản 1 (mục 1–7), bản 3 (mục 8). Bản 2 "Ấn Truyền" đã bỏ.
 
 ## 0. Bát Trận (bản 4, hướng hiện tại)
 
