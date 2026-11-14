@@ -1,19 +1,71 @@
 # Build and test
 
-Use the standard Godot 4.7.2 editor and open `project.godot`, or follow the
-command-line steps in the README. Godot imports assets into `.godot/`, which is
-generated locally and ignored by Git.
+Gameplay code is C++ in a GDExtension, so the native library must be built
+before Godot opens or imports the project. Without it Godot logs that
+`res://falemag.gdextension` cannot be loaded and that the `SimClock` class is
+missing, and the node loads as an unknown node.
 
-To validate without a display, run the editor import and
-`Tests/smoke_test.gd` as shown in the README. CI does the same and also starts
-the project headlessly. These checks do not replace testing an exported build
-on the target device.
+## Requirements
+
+- Godot 4.7.2 standard edition and its export templates.
+- Python 3 and SCons 4.11 or later (`python -m pip install scons`); older
+  versions do not find Visual Studio 2026.
+- A C++17 compiler: Visual Studio 2022 or 2026 Build Tools (MSVC) on Windows, GCC or
+  Clang on Linux. Android builds also need the Android NDK `28.1.13356709`
+  installed through the Android SDK, with `ANDROID_HOME` set. Web builds need
+  Emscripten 4.0.20 activated through emsdk.
+- The `Native/godot-cpp` submodule (`git submodule update --init`).
+
+## Build the extension
+
+Run SCons from the repository root. If `scons` is not on your PATH (common
+with the Microsoft Store Python), use `python -m SCons` instead. The first
+build also compiles godot-cpp and takes a few minutes; later builds only
+recompile changed files.
+
+| Target | Command |
+| --- | --- |
+| Editor and debug builds on this machine | `scons target=template_debug` |
+| Release export on this machine | `scons target=template_release` |
+| Android arm64 | `scons platform=android arch=arm64 target=template_debug` (debug APK) or `target=template_release` |
+| Android arm32 (older phones) | `scons platform=android arch=arm32 target=template_debug` or `target=template_release` |
+| Web (no threads) | `scons platform=web threads=no target=template_debug` or `target=template_release` |
+
+Libraries are written to `bin/` with names such as
+`libfalemag.windows.template_debug.x86_64.dll`, matching the entries in
+`falemag.gdextension`. The `bin/` folder is ignored by Git. Build the matching
+library for each platform and export type (debug or release) before
+exporting.
+
+godot-cpp is pinned to `10.0.0-stable` and built against the Godot 4.7 API
+(`api_version` in `SConstruct`). The extension needs Godot 4.7 or later.
+
+## Validate
+
+After building, run the editor import and `Tests/smoke_test.gd` as shown in
+the README. The smoke test checks that the extension is loaded, that the main
+scene contains a `SimClock`, and that it ticks as expected.
+
+The first import of a fresh checkout loads the extension mid-scan, and Godot
+4.7.2 then crashes on exit (exit code 134). Running the import again
+succeeds. CI avoids it by writing
+`res://falemag.gdextension` to `.godot/extension_list.cfg` before importing.
+
+CI builds debug and release libraries for Linux x86_64, Windows x86_64,
+Android arm64 and arm32, and the web (wasm32 without threads), and uploads
+them as workflow artifacts. It then runs the import and smoke test with the
+Linux library, and checks that the Android and Web exports contain theirs.
+These checks do not replace testing an exported build on the target device.
 
 On pull requests a separate `Docs` workflow checks that code changes also
 update the documentation; see [Coding conventions](conventions.md), section 8.
 
-A C++ toolchain is not needed yet. It will be required, and documented here,
-when the GDExtension is added.
+## Adding C++ classes
+
+Put sources in `Native/src/`, register each class in
+`Native/src/register_types.cpp`, and rebuild. Use
+`GDREGISTER_RUNTIME_CLASS` for nodes that should not run inside the editor.
+`Native/` holds a `.gdignore` so Godot does not import it.
 
 ## Android
 
@@ -32,8 +84,9 @@ without a custom Gradle build. Choices made to keep it light:
   scene instead of black bars.
 - The `INTERNET` permission is on for online play and the TTS service.
 
-A debug export from the empty project is about 28 MB and a release export
-about 26 MB; almost all of it is the engine library. A custom engine build
+Before the GDExtension was added, a debug export was about 28 MB and a
+release export about 26 MB; almost all of it is the engine library, and the
+native library adds little. A custom engine build
 with unused modules disabled can shrink it further when that matters.
 
 ### Export locally
@@ -60,10 +113,11 @@ exports; it does not run the game. Install the APK on a real low-end phone
 
 ### Native libraries
 
-When the GDExtension is added, its `.gdextension` file needs an
-`android.debug.arm64` and `android.release.arm64` entry pointing at the
-`.so` built with the Android NDK. The preset packages those libraries into the
-APK without a Gradle build, so no preset change is needed.
+`falemag.gdextension` lists `android.debug.arm64` and `android.release.arm64`
+(plus arm32, which the preset does not export yet). Build the matching `.so`
+with the Android NDK before exporting; the preset packages it into the APK
+without a Gradle build. In CI the `android` job downloads the
+`falemag-android-arm64` library from the `native` job.
 
 ## Web
 
@@ -76,9 +130,8 @@ iPhone, where APKs do not install. Choices:
   crackle under load than a threaded build.
 - **GDExtension support** (`variant/extensions_support=true`). Needed for the
   C++ code. The engine is about 10.6 MB gzipped instead of 10.1 MB. The C++
-  library must be built for `platform=web` with `threads=no` to match, and
-  listed as `web.release.wasm32` / `web.debug.wasm32` in the `.gdextension`
-  file.
+  library is built with `platform=web threads=no` to match, and the CI `web`
+  job downloads it from the `native` job before exporting.
 - ETC2/ASTC and S3TC/BPTC textures are both exported, so phones and desktops
   each get a compressed format.
 - It is a progressive web app: on iPhone, **Share > Add to Home Screen**
