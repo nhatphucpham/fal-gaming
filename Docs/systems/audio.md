@@ -88,3 +88,11 @@ generator's output was checked by header, length, peak and silence only.
 ## Known limits
 
 - Synthesised placeholders, not recorded or composed audio.
+
+## iPhone silent switch
+
+Safari mutes Web Audio while the iPhone's ring/silent switch is on silent.
+The Web export preset's `html/head_include` sets
+`navigator.audioSession.type = 'playback'` (Safari 16.4 and later), so the
+game is heard like a video is; the in-game speaker button is the mute.
+Older Safari versions stay silent with the switch on.
