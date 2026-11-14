@@ -108,6 +108,7 @@ bool resolve_passive(PassiveDef *r_passive, std::string *r_error) {
 	return check_range(owner, "condition_radius", r_passive->condition_radius, 0, MAX_AREA_SIZE, r_error)
 			&& check_range(owner, "every_nth", r_passive->every_nth, 1, MAX_PASSIVE_EVERY_NTH, r_error)
 			&& check_range(owner, "limit_per_battle", r_passive->limit_per_battle, 0, MAX_PASSIVE_LIMIT, r_error)
+			&& check_range(owner, "window_ticks", r_passive->window_ticks, 0, MAX_EFFECT_TICKS, r_error)
 			&& resolve_effect(owner, &r_passive->effect, r_error);
 }
 

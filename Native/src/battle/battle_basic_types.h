@@ -16,6 +16,7 @@ enum Side {
 	SIDE_A = 0,
 	SIDE_B = 1,
 };
+constexpr int SIDE_COUNT = 2;
 
 // A global board cell: col 0..6, row 0..7. Side A owns rows 0..3.
 struct Cell {

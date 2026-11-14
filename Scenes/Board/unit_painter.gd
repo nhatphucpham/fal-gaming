@@ -50,7 +50,7 @@ static func draw_figure(canvas: CanvasItem, unit: UnitData, facing: int, flash: 
 	var brush := Brush.new(canvas, unit, facing, flash)
 	var drawer: Callable = _get_drawers().get(unit.class_id, Callable(UnitPainter, &"_draw_plain"))
 	drawer.call(brush)
-	if unit.cost >= Catalog.MAX_COST:
+	if unit.cost >= Catalog.MAX_COST and not unit.is_boss:
 		brush.draw_crown()
 	canvas.draw_set_transform(Vector2.ZERO)
 
@@ -84,6 +84,8 @@ static func _get_drawers() -> Dictionary[StringName, Callable]:
 			&"class.cavalry": Callable(UnitPainter, &"_draw_cavalry"),
 			&"class.archer": Callable(UnitPainter, &"_draw_archer"),
 			&"class.mage": Callable(UnitPainter, &"_draw_mage"),
+			&"class.colossus": Callable(ExtraFigures, &"draw_colossus"),
+			&"class.sage": Callable(ExtraFigures, &"draw_sage"),
 		}
 	return _class_drawers
 

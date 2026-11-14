@@ -38,20 +38,6 @@ star = 2
 local_col = 3
 local_rank = 1
 
-[sub_resource type="Resource" id="Slot_6"]
-script = ExtResource("2_slot")
-unit_id = &"unit.wind_mage"
-star = 2
-local_col = 4
-local_rank = 2
-
-[sub_resource type="Resource" id="Slot_7"]
-script = ExtResource("2_slot")
-unit_id = &"unit.wind_mage"
-star = 2
-local_col = 3
-local_rank = 3
-
 [sub_resource type="Resource" id="Slot_8"]
 script = ExtResource("2_slot")
 unit_id = &"unit.lac_hong"
@@ -59,8 +45,15 @@ star = 2
 local_col = 5
 local_rank = 3
 
+[sub_resource type="Resource" id="Slot_9"]
+script = ExtResource("2_slot")
+unit_id = &"unit.boss_cu_nham"
+star = 1
+local_col = 4
+local_rank = 2
+
 [resource]
 script = ExtResource("1_stage")
 id = &"stage.12"
 name_key = "STAGE_12"
-slots = Array[ExtResource("2_slot")]([SubResource("Slot_1"), SubResource("Slot_2"), SubResource("Slot_3"), SubResource("Slot_4"), SubResource("Slot_5"), SubResource("Slot_6"), SubResource("Slot_7"), SubResource("Slot_8")])
+slots = Array[ExtResource("2_slot")]([SubResource("Slot_1"), SubResource("Slot_2"), SubResource("Slot_3"), SubResource("Slot_4"), SubResource("Slot_9"), SubResource("Slot_5"), SubResource("Slot_8")])

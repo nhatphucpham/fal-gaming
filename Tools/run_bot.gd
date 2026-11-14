@@ -22,6 +22,10 @@ var _morale_after: Dictionary[int, int] = {}
 var _first_wins: Dictionary[int, int] = {}
 var _first_attempts: Dictionary[int, int] = {}
 var _given_up: int = 0
+var _epiphanies: int = 0
+var _boss_casts: int = 0
+var _boss_petrified: int = 0
+var _boss_fights: int = 0
 var _verbose: bool = false
 
 
@@ -63,7 +67,7 @@ func _play(run: RunState) -> bool:
 			print("stage %d level %d gold %d supply %d board %s" % [stage, run.level, run.gold, run.supply, run.get_board_slots().map(func(s: LineupSlot) -> String: return "%s*%d" % [String(s.unit_id).trim_prefix("unit."), s.star])])
 		run.begin_battle()
 		var result := _fight(run)
-		run.finish_battle(result[0], result[1])
+		run.finish_battle(result[0], result[1], result[2])
 		_attempts[stage] = _attempts.get(stage, 0) + 1
 		_wins[stage] = _wins.get(stage, 0) + (1 if result[0] else 0)
 		_morale_after[stage] = _morale_after.get(stage, 0) + run.morale
@@ -72,23 +76,45 @@ func _play(run: RunState) -> bool:
 			_first_attempts[stage] = _first_attempts.get(stage, 0) + 1
 			_first_wins[stage] = _first_wins.get(stage, 0) + (1 if result[0] else 0)
 		if run.phase == RunState.Phase.REWARD:
+			# The bot always takes the first Kỳ Ngộ card.
+			if run.epiphanies.has_pending():
+				run.choose_epiphany(0)
+				_epiphanies += 1
 			run.choose_reward(_pick_reward(run))
 	return run.phase == RunState.Phase.WON
 
 
-# [is_win, enemies alive]
+# [is_win, enemies alive, damage dealt by piece id], with the player's Kỳ
+# Ngộ mutations on side A, as the run screen fights.
 func _fight(run: RunState) -> Array:
 	var stage := run.get_stage_data()
 	var slots := run.get_board_slots()
 	if slots.is_empty():
-		return [false, stage.slots.size()]
+		return [false, stage.slots.size(), {}]
 	var battle := BattleFactory.create(_catalog)
-	BattleFactory.add_slots(battle, _catalog, Battle.SIDE_A, slots)
+	battle.set_synergy_overrides(Battle.SIDE_A, run.get_synergy_overrides())
+	var indexes := BattleFactory.add_slots(battle, _catalog, Battle.SIDE_A, slots)
 	BattleFactory.add_slots(battle, _catalog, Battle.SIDE_B, stage.slots)
+	var is_boss := run.is_boss_stage()
+	if is_boss:
+		battle.event_emitted.connect(_count_boss_event.bind(indexes))
+		_boss_fights += 1
 	battle.run_to_end(MAX_BATTLE_TICKS)
-	var result := [battle.get_winner() == Battle.SIDE_A, BattleFactory.count_alive(battle, Battle.SIDE_B)]
+	var damage := {}
+	var pieces := run.get_board_pieces()
+	for index: int in indexes.size():
+		if indexes[index] >= 0:
+			damage[pieces[index].id] = battle.get_unit_state(indexes[index])["damage_dealt"]
+	var result := [battle.get_winner() == Battle.SIDE_A, BattleFactory.count_alive(battle, Battle.SIDE_B), damage]
 	battle.free()
 	return result
+
+
+func _count_boss_event(event: Dictionary, player_indexes: Array[int]) -> void:
+	if event["type"] == &"skill_resolved" and player_indexes.has(event["unit"]):
+		_boss_casts += 1
+	elif event["type"] == &"status_applied" and event["status"] == &"status.petrified":
+		_boss_petrified += 1
 
 
 func _prepare(run: RunState) -> void:
@@ -323,3 +349,4 @@ func _report(runs: int, won: int, cleared_total: int) -> void:
 			continue
 		print("%5d  %7d  %14.0f  %8d  %16.0f  %5.1f" % [stage, firsts, 100.0 * _first_wins.get(stage, 0) / firsts, attempts, 100.0 * _wins.get(stage, 0) / attempts, float(_morale_after.get(stage, 0)) / attempts])
 	print("run win rate: %.1f%% (%d/%d), average stages cleared %.1f, given up after %d battles: %d" % [100.0 * won / runs, won, runs, float(cleared_total) / runs, MAX_BATTLES_PER_RUN, _given_up])
+	print("ky ngo taken: %d (%.2f per run); boss fights %d, player casts %d, Hoa Da %d (%.2f per fight)" % [_epiphanies, float(_epiphanies) / runs, _boss_fights, _boss_casts, _boss_petrified, float(_boss_petrified) / maxi(1, _boss_fights)])

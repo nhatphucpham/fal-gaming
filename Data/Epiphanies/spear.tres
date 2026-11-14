@@ -1,0 +1,59 @@
+[gd_resource type="Resource" script_class="EpiphanyFamily" format=3]
+
+[ext_resource type="Script" path="res://Systems/Run/epiphany_family.gd" id="1_family"]
+[ext_resource type="Script" path="res://Systems/Run/epiphany_data.gd" id="2_epiphany"]
+
+[sub_resource type="Resource" id="ep_0"]
+script = ExtResource("2_epiphany")
+id = &"epiphany.spear_lower_4"
+family = &"milestone.class_spear"
+kind = &"lower"
+name_key = "EPIPHANY_KIND_LOWER"
+description_key = "EPIPHANY_SPEAR_LOWER_4"
+tier = 1
+
+[sub_resource type="Resource" id="ep_1"]
+script = ExtResource("2_epiphany")
+id = &"epiphany.spear_lower_2"
+family = &"milestone.class_spear"
+kind = &"lower"
+name_key = "EPIPHANY_KIND_LOWER"
+description_key = "EPIPHANY_SPEAR_LOWER_2"
+tier = 0
+
+[sub_resource type="ModifierData" id="mod_2_0"]
+handler = &"mod.stat_add"
+scope = &"scope.counted"
+value = 30
+param = &"armor"
+
+[sub_resource type="Resource" id="ep_2"]
+script = ExtResource("2_epiphany")
+id = &"epiphany.spear_iron_shaft"
+family = &"milestone.class_spear"
+kind = &"variant"
+name_key = "EPIPHANY_KIND_VARIANT"
+description_key = "EPIPHANY_SPEAR_IRON_SHAFT"
+tier = 0
+modifiers = Array[ModifierData]([SubResource("mod_2_0")])
+
+[sub_resource type="ModifierData" id="mod_3_0"]
+handler = &"mod.damage_dealt_pct"
+scope = &"scope.counted"
+value = 25
+
+[sub_resource type="Resource" id="ep_3"]
+script = ExtResource("2_epiphany")
+id = &"epiphany.spear_deep_thrust"
+family = &"milestone.class_spear"
+kind = &"variant"
+name_key = "EPIPHANY_KIND_VARIANT"
+description_key = "EPIPHANY_SPEAR_DEEP_THRUST"
+tier = 1
+modifiers = Array[ModifierData]([SubResource("mod_3_0")])
+
+[resource]
+script = ExtResource("1_family")
+family = &"milestone.class_spear"
+line_keys = Array[String](["EPIPHANY_SPEAR_LINE_1", "EPIPHANY_SPEAR_LINE_2"])
+epiphanies = Array[ExtResource("2_epiphany")]([SubResource("ep_0"), SubResource("ep_1"), SubResource("ep_2"), SubResource("ep_3")])

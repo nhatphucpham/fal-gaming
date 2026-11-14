@@ -6,7 +6,8 @@ extends RefCounted
 ## in the "+N" panel and as shop card badges. It previews a drag (evaluated
 ## only when the hovered cell changes, on a copied line-up), plays the roll
 ## call at battle start and shatters outlines the battle breaks. It never
-## changes the run. See Docs/systems/synergy.md.
+## changes the run. The player's side is evaluated with the run's Kỳ Ngộ
+## mutations, the enemy's without. See Docs/systems/synergy.md.
 
 var result: Dictionary = {}
 var enemy_result: Dictionary = {}
@@ -39,7 +40,15 @@ func _init(run: RunState, layout: RunLayout, enemy_lineup: Lineup) -> void:
 func refresh(animate: bool = true) -> void:
 	if _synergy == null:
 		return
-	result = _synergy.evaluate(LineupSynergy.run_pieces(_run))
+	var evaluated := _synergy.evaluate(LineupSynergy.run_pieces(_run), _run.get_synergy_overrides())
+	if evaluated.is_empty():
+		# Synergy refused the line-up or the mutations; it logged why.
+		push_error("SynergyHud: evaluate() gave no result for stage %d" % _run.stage)
+		return
+	var before := _formation_ids(result)
+	result = evaluated
+	if animate and _formation_ids(result).any(func(id: StringName) -> bool: return not before.has(id)):
+		Sound.play(&"formation_on")
 	_layout.synergy_bar.end_preview()
 	_layout.synergy_bar.show_result(result)
 	_layout.outlines.show_side(Battle.SIDE_A, result, animate)
@@ -63,7 +72,10 @@ func preview(piece_id: int, shop_unit: UnitData, local_cell: Vector2i) -> void:
 	if pieces.is_empty():
 		end_preview()
 		return
-	var preview_result := _synergy.evaluate(pieces)
+	var preview_result := _synergy.evaluate(pieces, _run.get_synergy_overrides())
+	if preview_result.is_empty():
+		end_preview()
+		return
 	_layout.synergy_bar.show_preview(preview_result)
 	_layout.outlines.show_preview(preview_result)
 
@@ -89,10 +101,11 @@ func end_battle() -> void:
 
 func on_formation_broken(side: int, formation_id: StringName, cells: Array) -> void:
 	_layout.outlines.shatter(side, formation_id, cells)
+	Sound.play(&"formation_break")
 
 
 func open_panel() -> void:
-	_layout.synergy_panel.open(result, _catalog)
+	_layout.synergy_panel.open(result, _catalog, "", _run.epiphanies)
 
 
 ## Milestone counts of a side's line-up by counted id (class or race), for
@@ -122,9 +135,17 @@ func _refresh_shop_hints() -> void:
 			if not hint:
 				var pieces := LineupSynergy.run_pieces(_run)
 				pieces.append({"unit": unit, "col": free.x, "rank": free.y})
-				hint = _reached(_synergy.evaluate(pieces)) > reached
+				var trial := _synergy.evaluate(pieces, _run.get_synergy_overrides())
+				hint = not trial.is_empty() and _reached(trial) > reached
 		hints.append(hint)
 	_layout.shop.update_synergy_hints(hints)
+
+
+func _formation_ids(evaluated: Dictionary) -> Array[StringName]:
+	var ids: Array[StringName] = []
+	for entry: Dictionary in evaluated.get("formations", []):
+		ids.append(entry["id"])
+	return ids
 
 
 func _reached(evaluated: Dictionary) -> int:

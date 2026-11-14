@@ -30,6 +30,10 @@ const MAX_COST: int = 5
 ## One entry per Data/Synergies/ file (class and race milestones).
 @export var milestones: Array[MilestoneData] = []
 @export var hop_luc: HopLucData
+## One entry per Data/Epiphanies/ file (a family's Kỳ Ngộ list).
+@export var epiphanies: Array[EpiphanyFamily] = []
+## The sound ids and their files (Data/Audio/sounds.tres).
+@export var sounds: SoundBank
 
 var _synergy: Synergy
 
@@ -61,6 +65,25 @@ func get_milestone(id: StringName) -> MilestoneData:
 	for milestone: MilestoneData in milestones:
 		if milestone != null and milestone.id == id:
 			return milestone
+	return null
+
+
+## The Kỳ Ngộ list of a milestone family, or null.
+func get_epiphany_family(family: StringName) -> EpiphanyFamily:
+	for entry: EpiphanyFamily in epiphanies:
+		if entry != null and entry.family == family:
+			return entry
+	return null
+
+
+## The Kỳ Ngộ mutation with this id, or null.
+func get_epiphany(id: StringName) -> EpiphanyData:
+	for entry: EpiphanyFamily in epiphanies:
+		if entry == null:
+			continue
+		for epiphany: EpiphanyData in entry.epiphanies:
+			if epiphany != null and epiphany.id == id:
+				return epiphany
 	return null
 
 
@@ -123,7 +146,51 @@ func validate() -> PackedStringArray:
 	problems.append_array(_validate_units())
 	problems.append_array(_validate_run())
 	problems.append_array(_validate_synergy())
+	problems.append_array(_validate_epiphanies())
+	if sounds == null:
+		problems.append("Catalog: sounds is not set in %s" % resource_path)
+	else:
+		problems.append_array(sounds.validate())
 	return problems
+
+
+# Each family's own checks, doubled ids, then each mutation through the
+# native synergy rules (a Biến Dị's modifiers must be legal on a milestone).
+func _validate_epiphanies() -> PackedStringArray:
+	var problems := PackedStringArray()
+	var families: Dictionary[StringName, bool] = {}
+	var ids: Dictionary[StringName, bool] = {}
+	var synergy := _make_checked_synergy()
+	for entry: EpiphanyFamily in epiphanies:
+		if entry == null or families.has(entry.family):
+			problems.append("Catalog: an epiphanies entry is empty or doubled")
+			continue
+		families[entry.family] = true
+		var family_problems := entry.validate(self)
+		problems.append_array(family_problems)
+		for epiphany: EpiphanyData in entry.epiphanies:
+			if epiphany == null:
+				continue
+			if ids.has(epiphany.id):
+				problems.append("Catalog: epiphany id %s is used twice" % epiphany.id)
+			ids[epiphany.id] = true
+			# to_override() trusts the tier, so only clean families reach it.
+			if synergy != null and family_problems.is_empty():
+				var override := epiphany.to_override(get_milestone(epiphany.family))
+				if synergy.evaluate([], [override]).is_empty():
+					problems.append("Catalog: epiphany %s in %s is refused by the synergy rules (see the Synergy error above)" % [epiphany.id, entry.resource_path])
+	return problems
+
+
+# A fresh Synergy set up from this data, or null when the data is bad
+# (_validate_synergy() reports why). Not cached: validate() must see edits.
+func _make_checked_synergy() -> Synergy:
+	if hop_luc == null:
+		return null
+	var synergy := Synergy.new()
+	if not synergy.setup(formations, milestones, hop_luc).is_empty():
+		return null
+	return synergy
 
 
 # Ids, text keys, the class and race ids they name, then the native checks
@@ -254,5 +321,5 @@ func _validate_run() -> PackedStringArray:
 		if not String(stage.id).begins_with("stage.") or seen.has(stage.id):
 			problems.append("Catalog: %s has a bad or duplicate id '%s'" % [stage.resource_path, stage.id])
 		seen[stage.id] = true
-		problems.append_array(stage.validate(self, run_rules.get_enemy_count(index + 1)))
+		problems.append_array(stage.validate(self, run_rules.get_enemy_count(index + 1), 1 if index + 1 == run_rules.boss_stage else 0))
 	return problems

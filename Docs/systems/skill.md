@@ -5,7 +5,7 @@
 Khí (the skill gauge), the active skill every class casts when its Khí is
 full, the 3-star Hậu chiêu (a second step after the skill), passives that
 fire on battle triggers, and the statuses they leave (taunted, guard, armor
-break, stun). Skills, passives and their effects are data; the simulation
+break, stun, petrified). Skills, passives and their effects are data; the simulation
 runs them through registries keyed by id. It does not draw anything: the
 presentation is in [Battle playback](battle_playback.md).
 
@@ -67,7 +67,9 @@ within the damage pipeline's 1000% cap), `duration_ticks` 0..10000, `count`
 `PassiveData` (`Data/Passives/<name>.tres`): `id`, `name_key`,
 `description_key`, `trigger` (`trigger.*`), `condition` (`condition.*` or
 empty), `condition_radius` 0..8, `every_nth` 1..100 (fires on every Nth
-matching trigger), `limit_per_battle` 0..100 (0 unlimited),
+matching trigger), `window_ticks` 0..10000 (when above 0, fires only when
+`every_nth` triggers fall within that many ticks, a sliding window that
+empties when it fires; Hóa Đá uses 3 within 60), `limit_per_battle` 0..100 (0 unlimited),
 `once_per_source` (at most once per other unit), `effect`
 (`SkillEffectData`).
 
@@ -81,8 +83,8 @@ coefficient by star, each 1..400) and `crit_multiplier_pct` 150 (100..300).
 | --- | --- |
 | Selector | `select.self` (the caster's cell), `select.column_most_enemies` (the column with most enemies, anchored on its frontmost enemy), `select.densest_area` (the enemy cell within `selector_range`, 0 any, whose area holds most enemies) |
 | Area | `area.single`, `area.square` (size = radius), `area.front3`, `area.column_ahead` (size cells ahead, 0 to the end), `area.column`, `area.plus` |
-| Effect | `effect.damage` (value % of attack), `effect.taunt`, `effect.guard` (value % less damage), `effect.armor_break` (value % less armor), `effect.stun` (cancels a cast), `effect.knockback` (one cell away from the caster), `effect.add_qi`, `effect.crit` and `effect.impact_bonus_per_cell` (passive modifiers), `effect.charge_column`, `effect.arrow_volley` |
-| Trigger | `trigger.basic_attack_landed`, `trigger.damaged`, `trigger.arrow_blocked`, `trigger.melee_hit_taken`, `trigger.charge_impact_incoming`, `trigger.charge_impact`, `trigger.element_reaction` |
+| Effect | `effect.damage` (value % of attack), `effect.taunt`, `effect.guard` (value % less damage), `effect.armor_break` (value % less armor), `effect.stun` (cancels a cast), `effect.petrify` (`status.petrified` for `duration_ticks`; cancels a cast), `effect.knockback` (one cell away from the caster), `effect.add_qi`, `effect.crit` and `effect.impact_bonus_per_cell` (passive modifiers), `effect.charge_column`, `effect.arrow_volley` |
+| Trigger | `trigger.basic_attack_landed`, `trigger.damaged`, `trigger.arrow_blocked`, `trigger.melee_hit_taken`, `trigger.charge_impact_incoming`, `trigger.charge_impact`, `trigger.element_reaction`, `trigger.enemy_skill_resolved` (a unit of the other side resolved its skill's main step, not a Hậu chiêu) |
 | Condition | `condition.within_radius`, `condition.victim_or_in_range` |
 
 ### The content
@@ -120,11 +122,13 @@ coefficient by star, each 1..400) and `crit_multiplier_pct` 150 (100..300).
 - **Statuses.** Active while the tick is below `end_tick`; reapplying keeps
   the later end and the bigger amount. Taunted units target the taunter and
   do not re-pick; guard lowers damage taken; armor break lowers armor for
-  physical damage; stun skips actions. A dead taunter frees its victims.
+  physical damage; stun skips actions; petrified skips actions and makes
+  every hit immune (see [Battle](battle.md)). A dead taunter frees its victims.
 - **Passives.** A trigger fires the owner's passive if the condition holds,
   the per-source and per-battle limits allow it, and the trigger count
-  reaches `every_nth`. `basic_attack_landed` fires before the hit so a
-  modifier (`effect.crit`) applies to it.
+  reaches `every_nth` (inside `window_ticks` when it is set). A petrified
+  owner neither fires nor counts. `basic_attack_landed` fires before the
+  hit so a modifier (`effect.crit`) applies to it.
 - **Order.** Each tick: statuses expire, due Hậu chiêu run, then units act
   in the battle order. Everything is integer and ordered; all of it is in
   the state hash.
@@ -154,7 +158,7 @@ adds `get_skill(id)`, `get_passive(id)`, `get_unit_skill(unit)` and
 | `skill_cast_started` | `unit`, `skill`, `cells` (Array of Vector2i), `end_tick` (the resolve tick) | 0 |
 | `skill_resolved` | `unit`, `skill`, `cells`, `is_after_skill` | the cast start |
 | `passive_triggered` | `unit`, `passive` | the trigger event |
-| `status_applied` | `unit`, `status` (`status.taunted`/`guard`/`armor_break`/`stun`), `source`, `end_tick`, `amount` | the effect's resolve |
+| `status_applied` | `unit`, `status` (`status.taunted`/`guard`/`armor_break`/`stun`/`petrified`), `source`, `end_tick`, `amount` | the effect's resolve |
 | `status_ended` | `unit`, `status` | 0 (expiry, or the taunter died); a dying unit's own statuses end silently |
 
 `damage_dealt` adds `skill` (the skill or passive id, empty for a basic
@@ -186,8 +190,9 @@ taunt redirection, guard and expiry, armor break, the reposition move.
 `Tests/passive_test.gd`: Khí gain and cap, each passive (riposte every 3rd
 melee hit, brace once before the impact, momentum, steady aim's 4th attack,
 bedrock), refused data, unit overrides, determinism with skills, and an
-8v8 that prints its length and casts per unit. Run both as in the README;
-CI runs them. `Tests/skill_test_kit.gd` holds their shared set-up.
+8v8 that prints its length and casts per unit. `Tests/boss_test.gd`
+checks the sliding window and `status.petrified` against a reference
+model (see [Boss](boss.md)). Run them as in the README; CI runs them. `Tests/skill_test_kit.gd` holds their shared set-up.
 
 ## Known limits
 

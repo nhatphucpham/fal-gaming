@@ -1,0 +1,20 @@
+[gd_resource type="ClassData" format=3]
+
+[resource]
+id = &"class.colossus"
+name_key = "CLASS_COLOSSUS"
+max_hp = 2100
+attack = 60
+attacks_per_100s = 55
+range_cells = 1
+armor = 50
+magic_resist = 40
+damage_kind = 0
+targeting = &"target.nearest"
+opening = &""
+attack_shape = &"shape.row3"
+counters = Array[StringName]([])
+is_ranged = false
+blocks_arrows = true
+immune_to_knockback = true
+stops_charge = true

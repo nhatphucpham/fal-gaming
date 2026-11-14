@@ -59,9 +59,9 @@ custom_minimum_size = Vector2(0, 108)
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/margin_left = 52
-theme_override_constants/margin_top = 12
+theme_override_constants/margin_top = 24
 theme_override_constants/margin_right = 52
-theme_override_constants/margin_bottom = 8
+theme_override_constants/margin_bottom = 0
 
 [node name="TopRow" type="HBoxContainer" parent="Column/Layout/TopBar"]
 layout_mode = 2

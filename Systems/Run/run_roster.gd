@@ -338,7 +338,8 @@ func _piece_from_row(row: Dictionary) -> RunPiece:
 	piece.has_fought = reader.get_bool("has_fought")
 	var bench_slot := reader.get_int("bench")
 	var cell := Vector2i(reader.get_int("col"), reader.get_int("rank"))
-	if not reader.is_valid or piece.id < 1 or _catalog.get_unit(piece.unit_id) == null:
+	var unit := _catalog.get_unit(piece.unit_id) if reader.is_valid else null
+	if not reader.is_valid or piece.id < 1 or unit == null or unit.is_boss:
 		return null
 	if piece.star < 1 or piece.star > _merge_limits(piece.unit_id)[1]:
 		return null

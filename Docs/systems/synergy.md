@@ -26,7 +26,8 @@ both sides. It holds no state between calls and never changes the run.
   (crits, every-Nth bonus, pierce, multi-cell knockback).
 - Bridge, `Native/src/synergy/`: `ModifierData`, `SynergyTierData`,
   `MilestoneData`, `FormationData`, `HopLucData` (resources) and `Synergy`
-  (RefCounted).
+  (RefCounted); `synergy_overrides.h/.cpp` applies Kỳ Ngộ overrides to a
+  copy of the configuration.
 - Content: `Data/Synergies/` (milestones), `Data/Formations/`,
   `Data/Rules/hop_luc.tres`, all listed in `Data/catalog.tres`;
   `Catalog.get_synergy()` builds and caches the `Synergy`.
@@ -125,10 +126,20 @@ and milestones counting an unknown class or race.
 | --- | --- | --- |
 | `setup(formations, milestones, hop_luc) -> PackedStringArray` | method | Validates and builds; problems as messages, empty when ready |
 | `is_ready() -> bool` | method | After a clean `setup()` |
-| `evaluate(pieces: Array) -> Dictionary` | method | Pieces `{unit: UnitData, col, rank}` or `{unit_id, class_id, race_id, cost, col, rank}` (local cells). Returns `class_milestones` and `race_milestones` (`id`, `counted_id`, `count`, `thresholds`, `reached`), `formations` and `near_formations` (see [Formation](formation.md)), `hop_luc`, `hop_luc_tier` (the tier reached, 0 if none), `next_tier` (0 past the last) |
+| `evaluate(pieces: Array, overrides: Array = []) -> Dictionary` | method | Pieces `{unit: UnitData, col, rank}` or `{unit_id, class_id, race_id, cost, col, rank}` (local cells); `overrides` are Kỳ Ngộ overrides of that side (below). Returns `class_milestones` and `race_milestones` (`id`, `counted_id`, `count`, `thresholds`, `reached`, `tier_modifiers`: per tier, an array of `{handler, value}`), `formations` and `near_formations` (see [Formation](formation.md)), `hop_luc`, `hop_luc_tier` (the tier reached, 0 if none), `next_tier` (0 past the last) |
 
 `Battle.set_synergy(synergy)` (refused once units exist) turns synergies on
 for both sides; `BattleFactory.create()` does it with the catalog's.
+
+**Overrides.** A Kỳ Ngộ changes one side's milestones for the rest of a
+run (see [Kỳ Ngộ](epiphany.md)). It is passed as data, so the preparation
+screen and the battle build the same configuration: an array of
+`{"milestone": id, "tier": index, "at"?: count, "modifiers"?: [ModifierData]}`,
+where `at` replaces the tier's threshold (Hạ Mốc) and `modifiers` its
+modifiers (Biến Dị). `Synergy.evaluate(pieces, overrides)` uses them for
+the info row; `Battle.set_synergy_overrides(side, overrides)` for one
+side of a battle. An unknown milestone or tier, a bad entry or tiers out
+of order is refused with an error. The enemy side never has any.
 
 Presentation:
 
@@ -194,7 +205,9 @@ the run and the outlines come back after it, the preview follows RunState
 (a merging card on a free or taken cell, the legend limit), a broken
 formation shatters its own instance's outline, the enemy's formations are
 outlined, a battle with synergies plays
-through. All run in CI.
+through. `Tests/epiphany_test.gd` checks overrides in `evaluate()` and in
+battle (lowered threshold, changed modifiers, the enemy side untouched).
+All run in CI.
 
 ## Known limits
 

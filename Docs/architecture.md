@@ -18,15 +18,24 @@
   and `passive_test.gd` (skills, Khí, passives and statuses, sharing
   `skill_test_kit.gd`), `sandbox_test.gd`
   (the sandbox screen and one full battle), `run_test.gd` (the run's rules)
-  and `run_flow_test.gd` (stage 1 through the real screens).
+  and `run_flow_test.gd` (stage 1 through the real screens), the formation
+  and synergy tests, `epiphany_test.gd` (Kỳ Ngộ), `boss_test.gd` (Cự Nham
+  and Hóa Đá), `cutscene_test.gd` (the cutscene screen) and
+  `audio_test.gd` (the Audio autoload).
 - `Tools/` holds developer scripts that are not tests and not exported:
   `run_bot.gd`, the balance bot that plays whole runs (see
-  [Run](systems/run.md)).
+  [Run](systems/run.md)), and `make_sfx.gd`, which writes the sound files
+  under `Assets/Sfx/` (see [Audio](systems/audio.md)).
+- `Assets/Sfx/` holds the 24 sound effects and 2 music loops as 16-bit
+  mono WAV files, stored with Git LFS.
 - `Data/` holds game content as typed `.tres` resources: `Data/Classes/`,
   `Data/Units/`, `Data/Skills/` and `Data/Passives/` (each class's skill and
   passive), `Data/Rules/` (battle rules and `run_rules.tres`),
   `Data/Stages/` (the run's 12 enemy line-ups), `Data/Sandbox/sandbox.tres`
-  (the sandbox's enemy line-ups) and `Data/catalog.tres`, which lists every
+  (the sandbox's enemy line-ups), `Data/Epiphanies/` (the Kỳ Ngộ options of
+  each milestone family), `Data/Bosses/` (the boss Cự Nham, a `UnitData`
+  kept apart from the shop's units), `Data/Cutscenes/` (written cutscenes),
+  `Data/Audio/sounds.tres` (the sound bank) and `Data/catalog.tres`, which lists every
   unit, class, skill, passive and stage file explicitly so nothing scans directories at runtime (that breaks in
   exported and web builds).
 - `Systems/` holds GDScript bridge services and data scripts, one folder per
@@ -35,11 +44,14 @@
   `Battle`) and `BattleFactory` (a `Battle` with the catalog's rules and
   line-ups added). `Systems/Run/` has the run's rules as pure-data
   GDScript: `RunState` and its parts (`RunRoster`, `Shop`, `RunPiece`),
-  the data types `RunRules` and `StageData`, and `RunSave` (with
+  the data types `RunRules` and `StageData`, Kỳ Ngộ (`EpiphanyTracker`,
+  `EpiphanyFamily`, `EpiphanyData`, `EpiphanyBattle`), and `RunSave` (with
   `RunSaveFields` and `SaveReader` to check a save) and
   `RunSettings` for `user://`. `Systems/Lineup/` has `Lineup`, the single owner of a side's
   formation (pure data with signals), and its data types `LineupSlot` and
-  `LineupPreset`.
+  `LineupPreset`. `Systems/Audio/` has the `Audio` autoload
+  (`AudioService`), the static facade `Sound` that presentation code calls,
+  and the data types `SoundBank` and `SoundData`.
 - `Scenes/Board/` holds the reusable battlefield: `BoardView`, `UnitView`,
   `UnitPainter` and `LineupViews`. `Scenes/Battle/` holds `BattlePlayback`
   and `BattleFx`, which play a `Battle` on a board, and `SkillPlayback`,
@@ -47,21 +59,26 @@
   the sandbox screen and its setup interaction; it is the only part that
   knows about the sandbox. `Scenes/Run/` holds the run screen and its
   parts (layout, HUD, preparation controller, piece views, rewards, end
-  screen) and `Scenes/Title/` the title screen. See
+  screen, boss HUD, Kỳ Ngộ and story interludes) and `Scenes/Title/` the
+  title screen and the "Cách chơi" screen. `Scenes/Cutscene/` holds the
+  cutscene screen, its backdrop, ink wipe and choice cards, and
+  `EpiphanyCutscene`, which builds a Kỳ Ngộ scene from a run. See
   [Board](systems/board.md), [Battle playback](systems/battle_playback.md)
   and [Run](systems/run.md).
 - `UI/` holds the palette, the theme (built in code), and reusable widgets:
   buttons, unit cards, the roster strip, the info panel, the result banner,
   the battle status bars, the drag ghost and the pointer gesture helper, and
   for the run the shop, bench, sell zone, cost buttons, resource chips,
-  icons drawn in code, the timer, reward cards and confetti.
+  icons drawn in code, the timer, reward cards and confetti, the Kỳ Ngộ
+  seal, the boss badge, bar and card, and the mute button.
 - `Locale/strings.csv` holds every player-facing text (columns `keys,vi,en`),
   imported into `strings.vi.translation` and `strings.en.translation` and
   registered in `project.godot`. The fallback locale is `vi`, and `Main`
   sets `vi` at start since Vietnamese is the only player language for now.
   Keys follow the data (`UNIT_*`, `CLASS_*`, `RACE_*`) or the screen
   (`BUTTON_*`, `RESULT_*`, `INFO_*`, `STAGE_*`, `REWARD_*`, `END_*`,
-  `FORMATION_*`, `MILESTONE_*`, `HOP_LUC*`, `SYNERGY_*`).
+  `FORMATION_*`, `MILESTONE_*`, `HOP_LUC*`, `SYNERGY_*`, `EPIPHANY_*`,
+  `CUTSCENE_*`, `STORY_*`, `BOSS_*`, `HOWTO_*`, `SOUND_*`).
 - `export_presets.cfg` holds export presets. Each preset excludes `Tests/`
   and `Tools/`.
 
@@ -76,6 +93,21 @@ plays on the board; the result banner shows what was won or lost, "Tiếp tục"
 opens the reward cards, and a reward starts the next preparation. When the
 run is won or lost the end screen shows the result and returns to the title.
 Every switch between screens is a slide.
+
+When a Kỳ Ngộ fires after a battle, its cutscene plays before the reward
+cards, and the choice is made there. After the reward of stage 11, the
+story scene with Liễu Mi and Ba Khắc plays before stage 12, the boss
+stage. "Cách chơi" on the title screen opens four tips.
+
+## Autoload
+
+`Audio` (`Systems/Audio/audio.gd`, class `AudioService`) is the only
+autoload. It owns the sound players, the mute setting and the web audio
+unlock. Scripts reach it through the static class `Sound`, because an
+autoload's name is not known when a script runs with `--script` (the
+tests), while its node exists at runtime. Only presentation code plays
+sounds; the run's rules and the battle never do. See
+[Audio](systems/audio.md).
 
 The run's rules are GDScript, not C++: they decide only what to buy, place
 and pay between battles, never how a battle goes, so they need no fixed

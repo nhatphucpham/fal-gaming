@@ -83,6 +83,9 @@ struct UnitState {
 	int basic_attacks = 0;
 	// Extra range from modifiers, fixed at battle start.
 	int range_bonus = 0;
+	// Damage this unit dealt so far (after mitigation); a statistic for the
+	// run (Kỳ Ngộ), not part of the state hash: nothing reads it in battle.
+	int64_t damage_dealt = 0;
 	// An attack shape a modifier gave the unit at battle start, or nullptr.
 	const ShapeHandler *shape_override = nullptr;
 	// Indexes into BattleSim's modifiers that land on this unit.
@@ -169,6 +172,8 @@ struct BattleEvent {
 	std::string modifier_id;
 	// damage_dealt: a modifier blocked the whole hit.
 	bool is_blocked_by_modifier = false;
+	// damage_dealt: the victim is petrified and took nothing.
+	bool is_immune = false;
 };
 
 } // namespace battle

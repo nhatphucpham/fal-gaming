@@ -49,13 +49,35 @@ bool BattleSim::set_synergy(const rules::SynergyConfig &p_config, std::string *r
 	if (!rules::resolve_config(&config, r_error)) {
 		return false;
 	}
-	synergy = config;
+	for (rules::SynergyConfig &side : side_synergy) {
+		side = config;
+	}
 	has_synergy = true;
 	return true;
 }
 
+bool BattleSim::set_side_synergy(int p_side, const rules::SynergyConfig &p_config, std::string *r_error) {
+	if (!units.empty()) {
+		return fail("the synergy configuration cannot change after units were added", r_error);
+	}
+	if (!has_synergy) {
+		return fail("set the synergy for both sides before one side's", r_error);
+	}
+	if (p_side != SIDE_A && p_side != SIDE_B) {
+		return fail("invalid side " + std::to_string(p_side), r_error);
+	}
+	rules::SynergyConfig config = p_config;
+	if (!rules::resolve_config(&config, r_error)) {
+		return false;
+	}
+	side_synergy[p_side] = config;
+	return true;
+}
+
 void BattleSim::clear_synergy() {
-	synergy = rules::SynergyConfig();
+	for (rules::SynergyConfig &side : side_synergy) {
+		side = rules::SynergyConfig();
+	}
 	has_synergy = false;
 }
 
@@ -74,6 +96,7 @@ void BattleSim::install_synergy() {
 }
 
 void BattleSim::install_side(int p_side) {
+	const rules::SynergyConfig &synergy = side_synergy[p_side];
 	std::vector<int> unit_of_piece;
 	std::vector<formation::Piece> pieces;
 	for (const UnitState &unit : units) {
@@ -173,7 +196,7 @@ void BattleSim::run_volleys() {
 		if (modifier.kind != ModifierKind::VOLLEY || tick % modifier.ticks != 0 || !units[modifier.unit].is_alive || !sources[modifier.source].is_active) {
 			continue;
 		}
-		if (!has_status(units[modifier.unit], StatusKind::STUN)) {
+		if (!has_status(units[modifier.unit], StatusKind::STUN) && !has_status(units[modifier.unit], StatusKind::PETRIFIED)) {
 			fire_volley(modifier);
 		}
 	}

@@ -2,6 +2,7 @@
 
 #include "skill_areas.h"
 #include "skill_effects.h"
+#include "skill_passives.h"
 #include "skill_selectors.h"
 
 #include "battle/battle_sim.h"
@@ -40,6 +41,23 @@ bool select_cells(const BattleSim &p_sim, int p_caster, const SkillStepDef &p_st
 	return true;
 }
 
+// Passives on the other side that count skill casts (the boss's Hóa Đá),
+// in unit index order.
+void notify_enemy_skill_resolved(BattleSim &p_sim, int p_caster, int p_cause) {
+	const int caster_side = p_sim.get_units()[p_caster].side;
+	const int unit_count = static_cast<int>(p_sim.get_units().size());
+	for (int unit = 0; unit < unit_count; unit++) {
+		if (p_sim.get_units()[unit].side == caster_side) {
+			continue;
+		}
+		PassiveContext context;
+		context.source = p_caster;
+		context.cell = p_sim.get_units()[p_caster].cell;
+		context.cause = p_cause;
+		fire_passive(p_sim, unit, PassiveTrigger::ENEMY_SKILL_RESOLVED, context);
+	}
+}
+
 void resolve_step(BattleSim &p_sim, int p_caster, const std::vector<EffectDef> &p_effects, const Cell &p_anchor, const std::vector<Cell> &p_cells, bool p_is_after_skill, int p_cause) {
 	const SkillDef &skill = p_sim.get_skill(p_caster);
 	BattleEvent event;
@@ -59,9 +77,12 @@ void resolve_step(BattleSim &p_sim, int p_caster, const std::vector<EffectDef> &
 	for (const EffectDef &effect : p_effects) {
 		// A caster killed by its own skill's consequences stops there.
 		if (!p_sim.get_units()[p_caster].is_alive) {
-			return;
+			break;
 		}
 		effect.handler->apply(context, effect);
+	}
+	if (!p_is_after_skill) {
+		notify_enemy_skill_resolved(p_sim, p_caster, context.cause);
 	}
 }
 

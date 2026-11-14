@@ -119,7 +119,7 @@ allowed.
   action order: a walk takes exactly `move_ticks_per_cell` ticks per cell, a
   charge `charge_ticks_per_cell`, a knockback its event's `duration_ticks`.
   The unit occupies its destination from the start. The attack charge gains `attacks_per_100s`, capped
-  at full. A stunned unit does nothing more; a unit casting or starting a
+  at full. A stunned or petrified unit does nothing more; a unit casting or starting a
   skill casts (see [Skill](skill.md)); a skill charge runs. Then an active
   opening decides the action. Otherwise the unit keeps or
   picks a target; if the target is in range it attacks when the charge is
@@ -158,6 +158,11 @@ allowed.
   `DAMAGED` / `MELEE_HIT_TAKEN` passive for it), a fish-scales split shares it, and a sword's
   reflection deals fixed damage back if the victim lives (see
   [Synergy](synergy.md)).
+- **Petrified.** A unit with `status.petrified` (the boss rule Hóa Đá,
+  see [Boss](boss.md)) takes no damage: every hit on it is a
+  `damage_dealt` with `amount` 0 and `is_immune` true, and gives no Khí,
+  fires no passive and reflects nothing. It does not act, and its own
+  passive neither fires nor counts its triggers until the status ends.
 - **Synergies.** With `set_synergy()`, `start()` evaluates both line-ups
   (formations are frozen then) and installs their modifiers; tick 1 emits
   one `synergy_activated` per milestone tier, formation and Hợp Lực, side A
@@ -188,6 +193,7 @@ function that calls `step()`, or call `step()` in a loop.
 | `SIDE_A`, `SIDE_B` | constants | 0 and 1 |
 | `set_rules(rules: BattleRulesData)` | method | Required before `add_unit`; refused once units exist |
 | `set_synergy(synergy: Synergy)`, `get_synergy()` | methods | Turns milestones, formations and Hợp Lực on for both sides (null turns them off); refused once units exist |
+| `set_synergy_overrides(side, overrides: Array)` | method | Kỳ Ngộ overrides for one side only, on top of `set_synergy()`'s data (see [Synergy](synergy.md)); an empty array removes them. Needs `set_synergy()` first; refused once units exist, from an event handler, or with a bad override. Calling `set_synergy()` again drops them |
 | `register_class(class_data: ClassData) -> bool` | method | Adds or replaces a class by id. Validates stats and handler ids; false and an error on bad data or when an added unit uses that id (call `clear()` first) |
 | `add_unit(side, unit: UnitData, star, local_col, local_rank) -> int` | method | Unit index, or -1 with an error (no rules, bad side, unknown class, bad cell, cell taken, star not 1..3, derived max_hp below 1, side full, started) |
 | `clear()` | method | Removes units, resets the tick; keeps classes and rules |
@@ -195,8 +201,8 @@ function that calls `step()`, or call `step()` in a loop.
 | `step() -> Array[Dictionary]` | method | Advances one tick, returns and emits its events; nothing after the end. While its signals run, `step`, `run_to_end`, `start`, `clear`, `add_unit`, `register_class` and `set_rules` are refused with an error |
 | `run_to_end(max_ticks: int) -> String` | method | Starts if needed, steps until the end or `max_ticks` (>= 0), returns the hash; empty if a handler freed the node |
 | `is_started()`, `is_finished()`, `get_winner()`, `get_tick()` | methods | Winner is -1 while running |
-| `get_state_hash() -> String` | method | FNV-1a 64, 16 hex digits, over the tick, `finished`, `winner` and, per unit in index order: alive, hp, col, row, attack charge, move ticks left, target, has seen target in range, target out-of-range ticks, no-path ticks, opening active, Khí, cast (ticks left and cells), charge, passive counters, statuses, max hp, basic attacks made and range bonus; then the synergy sources (active, split used, level) and modifiers (unit, kind, value, uses); then the scheduled Hậu chiêu |
-| `get_unit_count()`, `get_unit_state(index)`, `get_units()` | methods | `{index, side, unit_id, class_id, star, alive, hp, max_hp, attack, range_cells, col, row, target, move_ticks_left, qi, qi_max, casting, statuses}`; `range_cells` includes a synergy range bonus |
+| `get_state_hash() -> String` | method | FNV-1a 64, 16 hex digits, over the tick, `finished`, `winner` and, per unit in index order: alive, hp, col, row, attack charge, move ticks left, target, has seen target in range, target out-of-range ticks, no-path ticks, opening active, Khí, cast (ticks left and cells), charge, passive counters (with the sliding window's hits, as ticks ago), statuses, max hp, basic attacks made and range bonus; then the synergy sources (active, split used, level) and modifiers (unit, kind, value, uses); then the scheduled Hậu chiêu |
+| `get_unit_count()`, `get_unit_state(index)`, `get_units()` | methods | `{index, side, unit_id, class_id, star, alive, hp, max_hp, attack, range_cells, col, row, target, move_ticks_left, qi, qi_max, casting, statuses, damage_dealt}`; `range_cells` includes a synergy range bonus; `damage_dealt` is the damage this unit has done so far (the run uses it for Kỳ Ngộ) |
 | `local_to_global(side, local_col, local_rank) -> Vector2i` | static | Global (col, row); (-1, -1) with an error for a bad side or cell |
 | `global_to_local(side, col, row) -> Vector2i` | static | (local col, rank); rank leaves 1..4 in the enemy half; (-1, -1) with an error off the board |
 | `log_enabled` | property | Prints the info log events below; default false |
@@ -222,7 +228,7 @@ indexes; cells are global.
 | `battle_started` | | 0 |
 | `unit_moved` | `unit`, `from_col`, `from_row`, `to_col`, `to_row`, `duration_ticks`, `kind`: `walk`/`charge`/`knockback` | knockback: the attack |
 | `unit_attacked` | `unit`, `target`, `kind`: `melee`/`ranged`/`magic`, `to_col`, `to_row` | 0 |
-| `damage_dealt` | `source`, `target`, `amount`, `hp_after`, `is_counter`, `is_crit`, `blocked_by` (-1 if none), `skill` (skill or passive id, a formation id for a volley or split share, empty for a basic attack), `is_blocked_by_modifier` | the attack, or the skill's resolve, volley or split |
+| `damage_dealt` | `source`, `target`, `amount`, `hp_after`, `is_counter`, `is_crit`, `blocked_by` (-1 if none), `skill` (skill or passive id, a formation id for a volley or split share, empty for a basic attack), `is_blocked_by_modifier`, `is_immune` (the target is petrified; `amount` is 0) | the attack, or the skill's resolve, volley or split |
 | `unit_died` | `unit`, `killer` | the damage |
 | `charge_ended` | `unit`, `hit` (-1 if none) | the impact attack, or 0 |
 | `battle_ended` | `winner` (0 A, 1 B), `reason`: `elimination`/`time_limit` | 0 |

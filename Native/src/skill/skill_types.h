@@ -82,6 +82,8 @@ enum class PassiveTrigger {
 	CHARGE_IMPACT_INCOMING,
 	CHARGE_IMPACT,
 	ELEMENT_REACTION,
+	// A unit of the other side resolved a skill (main step, not the Hậu chiêu).
+	ENEMY_SKILL_RESOLVED,
 };
 
 struct PassiveDef {
@@ -96,6 +98,9 @@ struct PassiveDef {
 	int limit_per_battle = 0;
 	// Fires at most once per source unit per battle.
 	bool once_per_source = false;
+	// When above 0: fires when every_nth triggers fall within this many
+	// ticks (a sliding window), then the window empties.
+	int window_ticks = 0;
 	EffectDef effect;
 	PassiveTrigger trigger = PassiveTrigger::BASIC_ATTACK_LANDED;
 	const ConditionHandler *condition = nullptr;
@@ -106,8 +111,10 @@ enum class StatusKind {
 	GUARD = 1,
 	ARMOR_BREAK = 2,
 	STUN = 3,
+	// Turned to stone: takes no damage and does nothing (boss rule Hóa Đá).
+	PETRIFIED = 4,
 };
-constexpr int STATUS_COUNT = 4;
+constexpr int STATUS_COUNT = 5;
 
 // A status is active while the tick is below end_tick.
 struct StatusSlot {
@@ -143,6 +150,8 @@ struct PassiveCounters {
 	int fire_count = 0;
 	// Bit i set: already fired against unit i (once_per_source).
 	uint64_t used_sources = 0;
+	// Ticks of the triggers inside the window (window_ticks), oldest first.
+	std::vector<int> window_hits;
 };
 
 // The skill side of one unit in a battle.

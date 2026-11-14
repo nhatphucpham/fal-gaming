@@ -2,6 +2,9 @@
 
 #include "battle/battle_board.h"
 #include "battle/battle_sim.h"
+#include "skill_statuses.h"
+
+#include <algorithm>
 
 namespace battle {
 
@@ -20,6 +23,7 @@ const TriggerEntry TRIGGERS[] = {
 	{ "trigger.charge_impact_incoming", PassiveTrigger::CHARGE_IMPACT_INCOMING },
 	{ "trigger.charge_impact", PassiveTrigger::CHARGE_IMPACT },
 	{ "trigger.element_reaction", PassiveTrigger::ELEMENT_REACTION },
+	{ "trigger.enemy_skill_resolved", PassiveTrigger::ENEMY_SKILL_RESOLVED },
 };
 
 bool check_within_radius(const BattleSim &, const UnitState &p_owner, const PassiveDef &p_passive, const PassiveContext &p_context) {
@@ -35,6 +39,19 @@ const ConditionHandler CONDITION_HANDLERS[] = {
 	{ "condition.within_radius", check_within_radius },
 	{ "condition.victim_or_in_range", check_victim_or_in_range },
 };
+
+// Adds a trigger at p_tick to the sliding window and drops the ones that
+// fell out of it; true (and the window emptied) once every_nth are inside.
+bool fill_window(PassiveCounters &r_counters, const PassiveDef &p_passive, int p_tick) {
+	std::vector<int> &hits = r_counters.window_hits;
+	hits.erase(std::remove_if(hits.begin(), hits.end(), [&](int p_hit) { return p_tick - p_hit >= p_passive.window_ticks; }), hits.end());
+	hits.push_back(p_tick);
+	if (static_cast<int>(hits.size()) < p_passive.every_nth) {
+		return false;
+	}
+	hits.clear();
+	return true;
+}
 
 uint64_t source_bit(int p_source) {
 	return p_source >= 0 && p_source < 64 ? (uint64_t(1) << p_source) : 0;
@@ -63,7 +80,9 @@ bool find_passive_trigger(const std::string &p_id, PassiveTrigger *r_trigger) {
 
 void fire_passive(BattleSim &p_sim, int p_unit, PassiveTrigger p_trigger, PassiveContext &p_context) {
 	const UnitState &owner = p_sim.get_units()[p_unit];
-	if (!owner.is_alive || !owner.skills.has_passive) {
+	// Stone does nothing: a petrified unit's passive neither fires nor
+	// counts, so Hóa Đá cannot keep renewing itself under a stream of casts.
+	if (!owner.is_alive || !owner.skills.has_passive || has_status(owner, StatusKind::PETRIFIED)) {
 		return;
 	}
 	const PassiveDef &passive = p_sim.get_passive(p_unit);
@@ -76,7 +95,7 @@ void fire_passive(BattleSim &p_sim, int p_unit, PassiveTrigger p_trigger, Passiv
 		return;
 	}
 	counters.trigger_count++;
-	if (counters.trigger_count % passive.every_nth != 0) {
+	if (passive.window_ticks > 0 ? !fill_window(counters, passive, p_sim.get_tick()) : counters.trigger_count % passive.every_nth != 0) {
 		return;
 	}
 	counters.fire_count++;

@@ -5,9 +5,11 @@
 A run is 12 stages against fixed enemy line-ups. Before each battle the
 player buys units from a shop, keeps them on a bench, places them on the
 board and merges copies into higher stars; after it they pick a reward.
-`RunState` holds every rule of a run and its save. It does not draw anything
+`RunState` holds every rule of a run and its save, including the Kỳ Ngộ
+meters and mutations ([epiphany.md](epiphany.md)). It does not draw anything
 or run battles: the run screen plays each battle with `Battle` and
-`BattlePlayback` and reports the result back.
+`BattlePlayback` and reports the result back. Stage 12 holds the boss Cự
+Nham ([boss.md](boss.md)).
 
 ## Layer and files
 
@@ -22,7 +24,9 @@ or run battles: the run screen plays each battle with `Battle` and
   `save_reader.gd` (`SaveReader`, typed reads of save fields),
   `run_save_fields.gd` (`RunSaveFields`, reads and checks a save's
   top-level fields for `load_save_data()`),
-  `run_settings.gd` (`RunSettings`).
+  `run_settings.gd` (`RunSettings`), and the Kỳ Ngộ files
+  `epiphany_tracker.gd`, `epiphany_battle.gd`, `epiphany_data.gd`,
+  `epiphany_family.gd`.
 - `Systems/Content/battle_factory.gd` (`BattleFactory`): makes a `Battle`
   from the catalog's rules and adds line-ups; shared with the sandbox.
 - `Scenes/Run/`: `run_screen.gd` (`RunScreen`), `run_layout.gd`
@@ -30,12 +34,16 @@ or run battles: the run screen plays each battle with `Battle` and
   (`PrepController`), `piece_views.gd` (`PieceViews`), `reward_screen.gd`
   (`RewardScreen`), `end_screen.gd` (`EndScreen`), `synergy_hud.gd`
   (`SynergyHud`) and `lineup_synergy.gd` (`LineupSynergy`), see
-  [Synergy](synergy.md).
-- `Scenes/Title/title_screen.gd` (`TitleScreen`).
+  [Synergy](synergy.md); `boss_hud.gd` (`BossHud`, see [Boss](boss.md));
+  `run_interludes.gd` (`RunInterludes`, the cutscenes, see
+  [Cutscene](cutscene.md)).
+- `Scenes/Title/title_screen.gd` (`TitleScreen`), `how_to_screen.gd`
+  (`HowToScreen`, "Cách chơi").
 - `UI/`: `shop_bar.gd`, `shop_card.gd`, `bench_bar.gd`, `sell_zone.gd`,
   `cost_button.gd`, `resource_chip.gd`, `icon_painter.gd`, `timer_badge.gd`,
   `prep_timer.gd`, `reward_card.gd`, `confetti_burst.gd`, `synergy_bar.gd`,
-  `synergy_panel.gd`.
+  `synergy_panel.gd`, `epiphany_seal.gd`, `mute_button.gd`, `boss_badge.gd`,
+  `boss_card.gd`, `boss_bar.gd`.
 - `Tools/run_bot.gd`: the balance bot (not exported).
 - Depends on: `Catalog` (units, `run_rules`, `stages`), `Battle`,
   `BattlePlayback`, `BoardView`, `UnitView`, `LineupViews`, `PieceDrag`.
@@ -59,12 +67,14 @@ touches code. `Catalog.validate()` checks it with `RunRules.validate()`.
 | `shop_odds` | one row per level 3..9 | Percent of cost 1..5 per slot (level 3: 75/25/0/0/0; level 9: 10/18/30/32/10) |
 | `stage_income` | 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 10 | Gold at the start of each stage's preparation |
 | `stage_supply`, `winter_from_stage`, `winter_supply` | 2, 9, 1 | Supply per preparation; 1 from stage 9 |
-| `enemy_counts` | 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8 | Enemy units per stage, checked against `Data/Stages/` |
+| `enemy_counts` | 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 7 | Enemy units per stage, checked against `Data/Stages/` (stage 12: the boss and 6 guards) |
 | `win_gold`, `win_supply` | 1, 2 | Paid for a won battle |
 | `loss_morale_base`, `loss_morale_per_enemy` | 6, 2 | A loss costs 6 + 2 per enemy still alive |
 | `rest_morale`, `hunt_supply` | 15, 6 | Rewards "Nghỉ ngơi" and "Săn bắn" (morale never above the maximum) |
 | `black_market_levels`, `black_market_free_refreshes` | 1, 1 | "Chợ đen": the next stage's shop rolls one level higher, with one free refresh |
 | `rewards_after_loss` | 2 | Rewards offered after a loss (a win offers all three) |
+| `boss_stage`, `boss_reveal_stage` | 12, 6 | The stage with exactly one boss; from which stage the prep shows the boss badge |
+| `ngo_*`, `epiphanies_per_run` | see [epiphany.md](epiphany.md) | Kỳ Ngộ numbers |
 
 Selling gives back `cost x star` gold, plus `star` supply once the piece has
 fought in a battle.
@@ -74,8 +84,10 @@ fought in a battle.
 as `LineupSlot`s of side B in local (col, rank). They are listed in stage
 order in `Data/catalog.tres` (`stages`), so nothing scans folders.
 `StageData.validate()` checks an empty `name_key`, unknown units, cells off
-the half, doubled cells and the unit count. Stage 12 is "Đại Trận Lạc Hồng", with the legend
-Lạc Hồng at 2 stars. From stage 4 the enemies stand in formations and
+the half, doubled cells and the unit count, and the boss count (one at `boss_stage`, none elsewhere).
+Stage 12 is "Đại Trận Lạc Hồng": the boss Cự Nham with six 2-star guards
+(three marksmen, the legend Lạc Hồng, an iron guard and a wolf shield).
+The shop never offers a boss and a save holding one is refused. From stage 4 the enemies stand in formations and
 reach milestones the player can read during the preparation (their outlines
 are drawn on the enemy half): 4 Hộ Pháp and Thương Che Cung, 5 Hạc Dực
 and Thương Che Cung, 6 Tường Khiên and Hộ Pháp, 7 Song Kiếm and Hộ Pháp
@@ -88,9 +100,11 @@ Tường Khiên and Hộ Pháp; Phương Trận, Ngư Lân and Tam Tài often co
 `start()` begins stage 1's preparation. Each preparation pays the stage's
 gold and supply and rolls the shop (`stage_started`). `begin_battle()` ends
 it; the screen plays the battle and calls `finish_battle(is_win,
-enemies_alive)`. A win pays gold and supply; a loss costs morale. Morale at
-0 ends the run (`LOST`), a win at stage 12 ends it (`WON`); otherwise the
-run offers rewards (`REWARD`) and `choose_reward()` begins the next stage.
+enemies_alive, piece_damage)`. A win pays gold and supply; a loss costs
+morale. Morale at 0 ends the run (`LOST`), a win at stage 12 ends it
+(`WON`); otherwise the run offers rewards (`REWARD`), adds the battle's Ngộ
+(which may fire a Kỳ Ngộ: `epiphany_offered`, and the reward waits for
+`choose_epiphany()`), and `choose_reward()` begins the next stage.
 A loss at stage 12 repeats it, without gold or supply income, and the
 rest reward is not offered there, so morale only falls and the repeats end. Pieces always stay
 with the player between stages.
@@ -100,7 +114,8 @@ with the player between stages.
 `RunState` (RefCounted). Every command returns a `Result`: `OK`,
 `NOT_ENOUGH_GOLD`, `NOT_ENOUGH_SUPPLY`, `BENCH_FULL`, `BOARD_FULL`,
 `LEGEND_LIMIT`, `BAD_TARGET`, `NO_PIECE`, `EMPTY_SLOT`, `MAX_LEVEL`,
-`WRONG_PHASE` or `NOT_OFFERED`. A refused command changes nothing. Board
+`WRONG_PHASE`, `NOT_OFFERED` or `EPIPHANY_PENDING`. A refused command
+changes nothing. Board
 cells are local (col, rank) of side A.
 
 | Member | Kind | Description |
@@ -112,8 +127,11 @@ cells are local (col, rank) of side A.
 | `refresh_shop()`, `buy_supply()`, `level_up()` | commands | The three economy buttons |
 | `sell(piece_id)` | command | Removes the piece, pays `get_sell_value()` |
 | `move_to_board(piece_id, cell)`, `move_to_bench(piece_id, slot)` | commands | Move, or swap with the piece there |
-| `begin_battle()`, `finish_battle(is_win, enemies_alive)` | commands | Around a battle |
-| `choose_reward(reward)` | command | `Reward.REST`, `HUNT` or `BLACK_MARKET`, if offered |
+| `begin_battle()`, `finish_battle(is_win, enemies_alive, piece_damage = {})` | commands | Around a battle; `piece_damage` maps board piece ids to the damage they dealt (Kỳ Ngộ) |
+| `choose_epiphany(option)` | command | Option 0 or 1 of the pending Kỳ Ngộ |
+| `choose_reward(reward)` | command | `Reward.REST`, `HUNT` or `BLACK_MARKET`, if offered; `EPIPHANY_PENDING` while a Kỳ Ngộ waits |
+| `epiphanies`, `get_synergy_overrides()`, `is_boss_stage()` | field, queries | The Kỳ Ngộ tracker, the player's mutations as Synergy overrides, the boss stage |
+| `epiphany_offered(family)`, `epiphany_chosen(epiphany_id)` | signals | A Kỳ Ngộ fired; one was taken |
 | `get_piece`, `get_pieces`, `get_bench_piece`, `get_board_piece`, `get_board_pieces`, `get_board_count`, `get_capacity` | queries | Pieces and places |
 | `get_shop_offers`, `get_refresh_cost`, `get_level_up_cost`, `get_sell_value`, `would_merge` | queries | Shop and prices |
 | `preview_board(piece_id, unit_id, cell, board) -> Result` | query | The board (copies, into `board`) as buying a card of `unit_id` onto `cell`, or with an empty `unit_id` moving `piece_id` there, would leave it, worked out on a copy of the roster with the same rules (a merging purchase ignores the cell, capacity, legend limit); the run is unchanged. The drag preview uses it |
@@ -130,18 +148,25 @@ without a usable save), `has_save()`, `delete()`; each takes an optional
 file path and otherwise uses the static `RunSave.path`
 (`user://run_save.json`), which only tests change. `RunSettings` (static):
 `load_prep_seconds()`, `save_prep_seconds(seconds)`,
-`next_prep_seconds(seconds)` over 60, 90 and 0 (unlimited).
+`next_prep_seconds(seconds)` over 60, 90 and 0 (unlimited), `load_muted()`,
+`save_muted(muted)`. Both settings share `user://settings.json` (a save
+rewrites the file with the other setting kept); the static
+`RunSettings.path` moves it, and the tests that open screens set it.
 
 `Main`: `show_title()`, `start_new_run(seed = -1) -> RunScreen`,
 `continue_run() -> RunScreen` (null, the save deleted and the title shown
 again when the save cannot be used), `open_sandbox() -> SandboxScreen`.
 
 `RunScreen` (Main sets `run`, `sim_clock` and `prep_seconds` before adding
-it; a run in `REWARD` opens straight on the reward cards): `start_battle() -> bool` ("Ra trận", or the timer ran out),
+it; a run in `REWARD` opens on its pending Kỳ Ngộ cutscene, if any, then the
+reward cards): `start_battle() -> bool` ("Ra trận", or the timer ran out),
 `continue_after_battle()` (the banner's "Tiếp tục"), `cycle_speed()`,
 `press_refresh()`, `press_buy_supply()`, `press_level_up()`, the fields
-`controller`, `playback`, `reward_screen`, `layout`, `is_saving` and
-`last_battle_won`, and the signal `run_finished(run)`.
+`controller`, `playback`, `reward_screen`, `layout`, `synergy_hud`,
+`boss_hud`, `interludes`, `is_saving` and `last_battle_won`, and the signal
+`run_finished(run)`. It builds each battle with
+`Battle.set_synergy_overrides(SIDE_A, run.get_synergy_overrides())` before
+adding units, and reads each piece's `damage_dealt` at the end.
 
 `PrepController`: `tap_shop_card(slot)`, `tap_bench_slot(slot)`,
 `tap_cell(cell)`, `tap_sell_zone()`, `drop_shop_card(slot, drop_point)`,
@@ -192,15 +217,26 @@ cells here are global.
   different look, so it is not mistaken for the preparation timer: a steel
   ring on a darker face, steel digits, a small crossed-swords mark at its
   lower right, and no red pulse (`TimerBadge.show_battle_seconds()`).
-- Three cards (two after a loss) offer the reward; the end screen shows the
-  result, stages cleared and the board's units.
+- Three cards (two after a loss) offer the reward, after the Kỳ Ngộ
+  cutscene when one fired; the end screen shows the result, stages cleared
+  and the board's units.
+- The top bar has the sound switch (`MuteButton`) and, from stage 6, the
+  boss badge; in the boss battle the boss bar takes the title's place.
+- Every control keeps at least 24 px (`RunLayout.SAFE_EDGE_PX`) from the top
+  and bottom edges of the 720 x 1280 base: the top bar's buttons start at
+  y 28 and "Ra trận" ends 33 px above the bottom. The sandbox's top bar and
+  the title follow the same rule.
+- The title screen's "Cách chơi" shows four tips; its first tap unlocks
+  audio on the web.
 
 ## Save format
 
 `user://run_save.json` (the browser's IndexedDB on the web), written with
 `FileAccess` at the start of a run, after every successful preparation
-command (`prep_changed`), when a battle ends in the reward choice, and
-after every reward. It is deleted as soon as the run is won or lost (when
+command (`prep_changed`), when a battle ends in the reward choice, the
+moment a Kỳ Ngộ card is taken, and after every reward (the reward that
+leads to stage 12 only once the story scene has ended; see
+[cutscene.md](cutscene.md)). It is deleted as soon as the run is won or lost (when
 the result banner appears). So closing the game at any point after a
 battle cannot replay it: a non-final battle resumes on its reward cards,
 with its result (morale, gold, supply) already applied; and a refresh or
@@ -213,7 +249,7 @@ repaired, when:
   or a field has the wrong JSON type (numbers must be whole, `seed` and
   `rng_state` decimal strings that fit 64 bits, `black_market` and
   `has_fought` booleans, `phase`, ids and reward ids strings);
-- `version` is not 2; `phase` is not `"prep"` or `"reward"`; `stage` is
+- `version` is not 3; `phase` is not `"prep"` or `"reward"`; `stage` is
   outside 1..`stage_count`, `level` outside `start_level`..`max_level`,
   `morale` outside 1..`max_morale`, `gold` or `supply` negative,
   `stages_cleared` negative or past the stages fought (below `stage` in
@@ -231,7 +267,9 @@ repaired, when:
   capacity or more than `legend_board_limit` legends; or a group of copies
   could still merge. The game merges right after every purchase, so such a
   group means the file was not written by it; refusing is simpler and safer
-  than merging on load.
+  than merging on load;
+- a piece or offer is a boss unit;
+- `epiphany` is missing or impossible (see [epiphany.md](epiphany.md#save)).
 
 A bench piece's `col` and `rank` must be present as whole numbers, but
 their values are ignored (it has no cell), and `free_refreshes` is clamped
@@ -241,7 +279,7 @@ never raises a script error.
 
 ```json
 {
-  "version": 2,
+  "version": 3,
   "seed": "4242", "rng_state": "1234567890123", "phase": "reward",
   "stage": 2, "stages_cleared": 1, "morale": 48,
   "gold": 9, "supply": 4, "level": 3, "next_piece_id": 6,
@@ -249,7 +287,10 @@ never raises a script error.
               "bench": -1, "col": 3, "rank": 1}],
   "shop": ["unit.archer", "", "unit.spearman", "unit.shield_guard", "unit.wolf_blade"],
   "black_market": false, "free_refreshes": 0,
-  "rewards": ["reward.hunt", "reward.black_market"]
+  "rewards": ["reward.hunt", "reward.black_market"],
+  "epiphany": {"meters": {"milestone.class_shield": 3, "...": 0},
+               "chosen": ["epiphany.archer_lower_2"],
+               "pending_family": "", "pending_options": [], "last_stage": 1}
 }
 ```
 
@@ -258,9 +299,10 @@ piece has a `bench` slot, or `bench` -1 and a board `col` and `rank`.
 `phase` `"prep"` resumes the preparation with the same shop; `"reward"`
 opens on the same reward cards (`rewards`, `REWARD_IDS` ids), and the
 choice then rolls the same next shop as without the reload, since
-`rng_state` is saved after the rewards were drawn. Version 1 (before the
-phase and rewards) is refused like any unknown version, without a
-migration: such a save only existed during development. Raising `version`
+`rng_state` is saved after the rewards (and any Kỳ Ngộ options) were
+drawn. Versions 1 and 2 (before the phase and rewards, before Kỳ Ngộ) are
+refused like any unknown version, without a migration: such saves only
+existed during development. Raising `version`
 makes older saves unusable: add a migration in `RunSave.load_run()` when
 the format changes and players have saves.
 
@@ -269,7 +311,9 @@ the format changes and players have saves.
 `Tools/run_bot.gd` plays whole runs with a greedy player: it buys the
 best-value units, merges, levels up when it can, keeps the strongest units
 on the board, picks Rest at 40 morale or less, else Hunt while levels
-remain, else the black market, and gives a run up after 60 battles. It has
+remain, else the black market, always takes the first Kỳ Ngộ card, fights
+with its mutations on (like the run screen) and gives a run up after 60
+battles. It has
 two formation habits: a mage or archer goes right behind a front-rank
 shield (Hộ Pháp) or spear (Thương Che Cung), and three archers stand
 together in rank 4 (Mưa Tên). Run it after changing stages or rules:
@@ -285,24 +329,26 @@ each run's first battle at that stage; stage 12 is retried after a loss.
 | --- | --- | --- |
 | 1 | 97 | 59.7 |
 | 2-4 | 100 | 59.7 |
-| 5 | 92 | 58.9 |
-| 6 | 87 | 57.5 |
-| 7 | 84 | 55.5 |
-| 8 | 79 | 53.5 |
-| 9 | 83 | 53.0 |
-| 10 | 55 | 47.9 |
-| 11 | 40 | 42.2 |
-| 12 | 33 (12 per attempt over 784 attempts) | 20.1 |
+| 5 | 93 | 59.0 |
+| 6 | 92 | 58.2 |
+| 7 | 84 | 56.4 |
+| 8 | 80 | 54.7 |
+| 9 | 89 | 54.8 |
+| 10 | 65 | 50.3 |
+| 11 | 51 | 45.8 |
+| 12 | 37 (13 per attempt over 828 attempts) | 22.2 |
 
-Run win rate 32.7% (98 of 300), 9.5 stages cleared on average (35.0% from
-seed 1000); unchanged since a hit a shield's "Chặn" blocks stopped giving
-the shield Khí. History: 37.7% with skills (milestone 4). Turning synergies on
-for both sides with the old stages and bot gave 48.0%; the formation stages
-with the old bot (no habits) 8.3%; with the habits 63.7%. The retune made
-stage 9 lighter (one mage off its Hộ Pháp) and stages 10-12 heavier (2-star
-marksmen, a 2-star Lạc Hồng at 11, a wolf shield instead of a pike guard at
-12). A person who reads the enemy line-up and places units against it does
-better than the bot.
+Run win rate 36.3% (109 of 300), 9.9 stages cleared on average; the bot
+takes 3.9 Kỳ Ngộ per run, and in the boss fights the player side casts
+about 11 skills and the boss turns to stone 2.1 times per fight. History:
+32.7% before milestone 6 (stage 12 with eight units and no boss); with the
+boss at 2600 hp and 70 attack and casts counted while it was stone, 22.7%;
+2100 hp and 60 attack gave 32.7%, and not counting casts while it is stone
+36.3%. 37.7% with skills (milestone 4). Turning synergies on for both sides
+with the old stages and bot gave 48.0%; the formation stages with the old
+bot (no habits) 8.3%; with the habits 63.7%. A person who reads the enemy
+line-up and places units against it, and spaces their skills against the
+boss, does better than the bot.
 
 ## Log events
 
@@ -353,7 +399,8 @@ and settings problems with one `push_warning` each (`Run: could not write
   gap picks nothing up, that the sell zone ignores a cancelled or slid-off
   release and sells on a 0.5 s hold and on a slide that ends on it; then a
   lost run deletes its save at the banner, and a version-1 save is deleted
-  when "Chơi tiếp" fails, leaving a title without it. Both tests set `RunSave.path` to a test file
+  when "Chơi tiếp" fails, leaving a title without it. A Kỳ Ngộ that fires
+  after the first battle is passed through its cutscene (first card). Both tests set `RunSave.path` to a test file
   (`user://run_save_test.json`, `user://run_test_save.json`) and delete it,
   so the player's save is never touched.
 

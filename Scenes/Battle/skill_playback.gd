@@ -94,6 +94,7 @@ func _on_cast_started(event: Dictionary) -> void:
 		centers.append(_playback.cell_center(cell))
 	_playback.spawn_fx(SkillFx.area_glow(centers, color, seconds))
 	_show_name(view, event["skill"], color)
+	Sound.play(&"skill_cast")
 
 
 func _on_skill_resolved(event: Dictionary) -> void:
@@ -103,6 +104,7 @@ func _on_skill_resolved(event: Dictionary) -> void:
 	view.skill_overlay.set_casting(false)
 	view.recoil(Vector2(0, -1 if view.side == 0 else 1))
 	_shake()
+	Sound.play(&"spell")
 	if _big_effects >= MAX_BIG_EFFECTS:
 		return
 	_big_effects += 1
@@ -130,12 +132,22 @@ func _on_status_applied(event: Dictionary) -> void:
 		view.skill_overlay.set_casting(false)
 	elif status == &"status.taunted":
 		_playback.spawn_fx(SkillFx.taunt_mark(view.position + Vector2(0, -66)))
+	elif status == &"status.petrified":
+		view.skill_overlay.set_casting(false)
+		view.set_petrified(true)
+		_playback.spawn_fx(SkillFx.name_popup(view.position + Vector2(0, -96), view.tr("STATUS_PETRIFIED"), Palette.STEEL))
+		Sound.play(&"petrify")
+		_playback.unit_petrified.emit(event["unit"], true)
 
 
 func _on_status_ended(event: Dictionary) -> void:
 	var view := _playback.get_view(event["unit"])
-	if view != null:
-		view.skill_overlay.remove_status(event["status"])
+	if view == null:
+		return
+	view.skill_overlay.remove_status(event["status"])
+	if event["status"] == &"status.petrified":
+		view.set_petrified(false)
+		_playback.unit_petrified.emit(event["unit"], false)
 
 
 func _show_name(view: UnitView, skill_id: StringName, color: Color) -> void:

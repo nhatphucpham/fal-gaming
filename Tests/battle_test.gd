@@ -61,8 +61,8 @@ func _check_catalog() -> bool:
 	if not problems.is_empty():
 		push_error("Catalog is invalid: %s" % ", ".join(problems))
 		return false
-	if _catalog.classes.size() != 6 or _catalog.units.size() != 25:
-		push_error("Catalog has %d classes and %d units, expected 6 and 25" % [_catalog.classes.size(), _catalog.units.size()])
+	if _catalog.classes.size() != 7 or _catalog.units.size() != 26:
+		push_error("Catalog has %d classes and %d units, expected 7 and 26 (with the boss)" % [_catalog.classes.size(), _catalog.units.size()])
 		return false
 	return true
 

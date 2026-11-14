@@ -137,6 +137,10 @@ jobs:
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/synergy_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/formation_battle_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/synergy_ui_test.gd
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/epiphany_test.gd
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/boss_test.gd
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/cutscene_test.gd
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/audio_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --quit-after 2
 
   android:

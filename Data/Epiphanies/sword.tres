@@ -1,0 +1,65 @@
+[gd_resource type="Resource" script_class="EpiphanyFamily" format=3]
+
+[ext_resource type="Script" path="res://Systems/Run/epiphany_family.gd" id="1_family"]
+[ext_resource type="Script" path="res://Systems/Run/epiphany_data.gd" id="2_epiphany"]
+
+[sub_resource type="Resource" id="ep_0"]
+script = ExtResource("2_epiphany")
+id = &"epiphany.sword_lower_2"
+family = &"milestone.class_sword"
+kind = &"lower"
+name_key = "EPIPHANY_KIND_LOWER"
+description_key = "EPIPHANY_SWORD_LOWER_2"
+tier = 0
+
+[sub_resource type="ModifierData" id="mod_1_0"]
+handler = &"mod.attack_speed_pct"
+scope = &"scope.counted"
+value = 20
+
+[sub_resource type="Resource" id="ep_1"]
+script = ExtResource("2_epiphany")
+id = &"epiphany.sword_swift_edge"
+family = &"milestone.class_sword"
+kind = &"variant"
+name_key = "EPIPHANY_KIND_VARIANT"
+description_key = "EPIPHANY_SWORD_SWIFT_EDGE"
+tier = 0
+modifiers = Array[ModifierData]([SubResource("mod_1_0")])
+
+[sub_resource type="ModifierData" id="mod_2_0"]
+handler = &"mod.nth_attack_bonus_pct"
+scope = &"scope.counted"
+value = 100
+count = 3
+
+[sub_resource type="Resource" id="ep_2"]
+script = ExtResource("2_epiphany")
+id = &"epiphany.sword_third_cut"
+family = &"milestone.class_sword"
+kind = &"variant"
+name_key = "EPIPHANY_KIND_VARIANT"
+description_key = "EPIPHANY_SWORD_THIRD_CUT"
+tier = 1
+modifiers = Array[ModifierData]([SubResource("mod_2_0")])
+
+[sub_resource type="ModifierData" id="mod_3_0"]
+handler = &"mod.max_hp_pct"
+scope = &"scope.counted"
+value = 25
+
+[sub_resource type="Resource" id="ep_3"]
+script = ExtResource("2_epiphany")
+id = &"epiphany.sword_iron_body"
+family = &"milestone.class_sword"
+kind = &"variant"
+name_key = "EPIPHANY_KIND_VARIANT"
+description_key = "EPIPHANY_SWORD_IRON_BODY"
+tier = 2
+modifiers = Array[ModifierData]([SubResource("mod_3_0")])
+
+[resource]
+script = ExtResource("1_family")
+family = &"milestone.class_sword"
+line_keys = Array[String](["EPIPHANY_SWORD_LINE_1", "EPIPHANY_SWORD_LINE_2"])
+epiphanies = Array[ExtResource("2_epiphany")]([SubResource("ep_0"), SubResource("ep_1"), SubResource("ep_2"), SubResource("ep_3")])

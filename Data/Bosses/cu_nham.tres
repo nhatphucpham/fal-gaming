@@ -1,0 +1,13 @@
+[gd_resource type="UnitData" format=3]
+
+[ext_resource type="PassiveData" path="res://Data/Passives/hoa_da.tres" id="passive"]
+
+[resource]
+id = &"unit.boss_cu_nham"
+name_key = "UNIT_BOSS_CU_NHAM"
+class_id = &"class.colossus"
+race_id = &"race.stone"
+cost = 5
+element_id = &""
+passive_override = ExtResource("passive")
+is_boss = true

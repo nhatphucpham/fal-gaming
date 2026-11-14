@@ -93,8 +93,8 @@ REWARD_BLACK_MARKET_EFFECT,Hàng tốt hơn chặng sau,Better wares next stage
 END_WIN,Chiến thắng,Victory
 END_LOSS,Thất bại,Defeat
 END_STAGES_FORMAT,Đã qua %d/%d chặng,Cleared %d/%d stages
-PREP_TIME_FORMAT,Thời gian xếp quân: %s,Preparation time: %s
-PREP_UNLIMITED,không giới hạn,unlimited
+PREP_TIME_FORMAT,Xếp quân: %s,Prep: %s
+PREP_UNLIMITED,vô hạn,no limit
 INFO_SKILL,Chiêu,Skill
 INFO_PASSIVE,Nội tại,Passive
 INFO_QI,Khí,Qi
@@ -189,3 +189,83 @@ SYNERGY_SPLIT,Chia đòn,Split
 SYNERGY_DOUBLE,Gấp đôi,Double
 SYNERGY_STOPPED,Mất đà,Stopped
 SYNERGY_REFLECT,Phản,Reflect
+EPIPHANY_SHIELD_LOWER_4,Khiên 4 chỉ cần 3 Khiên,Shield 4 needs only 3 shields
+EPIPHANY_SHIELD_LOWER_2,Khiên 2 chỉ cần 1 Khiên,Shield 2 needs only 1 shield
+EPIPHANY_SHIELD_STONE_SKIN,Khiên 2: Khiên chịu ít hơn 15% sát thương,Shield 2: shields take 15% less damage
+EPIPHANY_SHIELD_THORN_WALL,Khiên 4: Khiên phản 40% sát thương cận chiến,Shield 4: shields reflect 40% of melee damage
+EPIPHANY_SHIELD_LINE_1,"Tấm khiên này đã đỡ trăm mũi tên, mà ta vẫn chưa hiểu nó.","This shield has stopped a hundred arrows, yet I still do not understand it."
+EPIPHANY_SHIELD_LINE_2,Đứng vững không phải là đứng yên.,Standing firm is not standing still.
+EPIPHANY_SHIELD_LINE_3,"Ngươi muốn bức tường dày hơn, hay sắc hơn?","Do you want the wall thicker, or sharper?"
+EPIPHANY_SWORD_LOWER_2,Kiếm 2 chỉ cần 1 Kiếm,Sword 2 needs only 1 sword
+EPIPHANY_SWORD_SWIFT_EDGE,Kiếm 2: Kiếm chém nhanh hơn 20%,Sword 2: swords attack 20% faster
+EPIPHANY_SWORD_THIRD_CUT,Kiếm 3: mỗi nhát thứ ba +100% sát thương,Sword 3: every third cut deals +100%
+EPIPHANY_SWORD_IRON_BODY,Kiếm 4: Kiếm thêm 25% máu tối đa,Sword 4: swords gain 25% max hp
+EPIPHANY_SWORD_LINE_1,"Lưỡi kiếm của ta mẻ rồi, nhưng tay ta thì chưa.","My blade is chipped, but my hand is not."
+EPIPHANY_SWORD_LINE_2,Một nhát nhanh hay một nhát nặng?,"One quick cut, or one heavy cut?"
+EPIPHANY_SPEAR_LOWER_4,Thương 4 chỉ cần 3 Thương,Spear 4 needs only 3 spears
+EPIPHANY_SPEAR_LOWER_2,Thương 2 chỉ cần 1 Thương,Spear 2 needs only 1 spear
+EPIPHANY_SPEAR_IRON_SHAFT,Thương 2: Thương thêm 30 giáp,Spear 2: spears gain 30 armor
+EPIPHANY_SPEAR_DEEP_THRUST,Thương 4: Thương gây thêm 25% sát thương,Spear 4: spears deal 25% more damage
+EPIPHANY_SPEAR_LINE_1,"Mũi thương chỉ một điểm, nhưng nhắm trúng thì xuyên cả núi.","A spear has only one point, but aimed true it pierces a mountain."
+EPIPHANY_SPEAR_LINE_2,"Ngươi muốn giữ hàng, hay đâm thủng hàng địch?","Will you hold the line, or break theirs?"
+EPIPHANY_CAVALRY_LOWER_2,Kỵ 2 chỉ cần 1 Kỵ,Cavalry 2 needs only 1 rider
+EPIPHANY_CAVALRY_THICK_HIDE,Kỵ 2: Kỵ thêm 20% máu tối đa,Cavalry 2: riders gain 20% max hp
+EPIPHANY_CAVALRY_THUNDER_HOOVES,Kỵ 3: xung phong mạnh hơn 60% thay vì đẩy lùi,Cavalry 3: charges hit 60% harder instead of pushing back
+EPIPHANY_CAVALRY_LINE_1,Gió ở thảo nguyên chưa bao giờ đứng lại.,The steppe wind never stops.
+EPIPHANY_CAVALRY_LINE_2,Ngựa của ngươi nghe được tiếng trống từ xa.,Your horse can hear the drums from afar.
+EPIPHANY_CAVALRY_LINE_3,"Phi nhanh hơn, hay đâm mạnh hơn?","Ride faster, or strike harder?"
+EPIPHANY_ARCHER_LOWER_2,Cung 2 chỉ cần 1 Cung,Archer 2 needs only 1 archer
+EPIPHANY_ARCHER_FIRST_BLOOD,Cung 2: mũi đầu chí mạng và +10% sát thương,Archer 2: first shot crits and +10% damage
+EPIPHANY_ARCHER_FOURTH_ARROW,Cung 3: mỗi mũi thứ tư +80% sát thương,Archer 3: every fourth arrow deals +80%
+EPIPHANY_ARCHER_QUICK_DRAW,Cung 4: Cung bắn nhanh hơn 25%,Archer 4: archers attack 25% faster
+EPIPHANY_ARCHER_LINE_1,Gió đổi chiều thì tên cũng phải đổi đường.,"When the wind turns, the arrow must change its path."
+EPIPHANY_ARCHER_LINE_2,Ta đã thấy mũi tên bay chậm lại trong mắt mình.,I have seen an arrow slow down in my own eyes.
+EPIPHANY_MAGE_LOWER_4,Pháp 4 chỉ cần 3 Pháp,Mage 4 needs only 3 mages
+EPIPHANY_MAGE_LOWER_2,Pháp 2 chỉ cần 1 Pháp,Mage 2 needs only 1 mage
+EPIPHANY_MAGE_FOCUSED_SPELL,Pháp 2: chiêu của Pháp mạnh hơn 20%,Mage 2: mage skills deal 20% more
+EPIPHANY_MAGE_EARLY_CHANT,Pháp 4: Pháp vào trận với 40 Khí,Mage 4: mages start with 40 qi
+EPIPHANY_MAGE_LINE_1,Chữ trên bùa đang tự viết lại.,The words on the charm are rewriting themselves.
+EPIPHANY_MAGE_LINE_2,Phép thuật không mạnh hơn ý chí người niệm.,No spell is stronger than the will behind it.
+EPIPHANY_MAGE_LINE_3,"Ngươi chọn sức mạnh, hay thời cơ?","Do you choose power, or timing?"
+EPIPHANY_HUMAN_LOWER_5,Nhân 5 chỉ cần 4,Human 5 needs only 4
+EPIPHANY_HUMAN_LOWER_3,Nhân 3 chỉ cần 2,Human 3 needs only 2
+EPIPHANY_HUMAN_STURDY_FOLK,Nhân 1: người Nhân thêm 10% máu thay vì nâng cấp trận đồ,Human 1: humans gain 10% max hp instead of formation levels
+EPIPHANY_HUMAN_LINE_1,"Làng ta nhỏ, nhưng ai cũng biết cầm giáo.","Our village is small, but everyone can hold a spear."
+EPIPHANY_HUMAN_LINE_2,"Một người đi nhanh, nhiều người đi xa.","Alone you go fast, together you go far."
+EPIPHANY_WOLF_LOWER_5,Lang 5 chỉ cần 4,Wolf-folk 5 needs only 4
+EPIPHANY_WOLF_LOWER_3,Lang 3 chỉ cần 2,Wolf-folk 3 needs only 2
+EPIPHANY_WOLF_PACK_FURY,Lang 3: Lang Tộc gây thêm 15% sát thương,Wolf-folk 3: wolf-folk deal 15% more damage
+EPIPHANY_WOLF_LINE_1,"Trăng tròn rồi, bầy đang gọi.","The moon is full, and the pack is calling."
+EPIPHANY_WOLF_LINE_2,"Sói đơn độc thì đói, cả bầy thì no.",A lone wolf starves; the pack feasts.
+EPIPHANY_WOLF_LINE_3,Ngươi nghe tiếng hú chứ?,Do you hear the howl?
+EPIPHANY_KIND_LOWER,Hạ Mốc,Lower
+EPIPHANY_KIND_VARIANT,Biến Dị,Variant
+EPIPHANY_TITLE_FORMAT,Kỳ Ngộ: %s,Epiphany: %s
+EPIPHANY_METER_FORMAT,Ngộ %d/%d,Insight %d/%d
+EPIPHANY_SEAL,Kỳ Ngộ,Epiphany
+CUTSCENE_SAGE,Ẩn Sĩ,Hermit
+CUTSCENE_SKIP,Bỏ qua,Skip
+CLASS_COLOSSUS,Cự Thạch,Colossus
+RACE_STONE,Đá,Stone
+UNIT_BOSS_CU_NHAM,Cự Nham,Cu Nham
+PASSIVE_HOA_DA,Hóa Đá,Turn to Stone
+PASSIVE_HOA_DA_DESC,"Khi phe địch tung chiêu lần thứ ba trong 3 giây thì hóa đá 2 giây: miễn mọi sát thương, không hành động","When the enemy side casts a third skill within 3 seconds, it turns to stone for 2 seconds: immune to all damage, cannot act"
+STATUS_PETRIFIED,Hóa Đá,Stone
+BOSS_BADGE,Trùm,Boss
+BOSS_CARD_TITLE,Chặng %d: %s,Stage %d: %s
+BOSS_RULE,"Hóa Đá: chiêu thứ ba của quân ta trong 3 giây làm hắn hóa đá 2 giây, miễn mọi sát thương.","Turn to Stone: your third skill within 3 seconds turns him to stone for 2 seconds, immune to all damage."
+BOSS_HINT,Mẹo: đừng tung chiêu dồn dập.,Tip: do not fire your skills all at once.
+BOSS_DEFEATED,Cự Nham đã vỡ!,Cu Nham crumbles!
+STORY_BOSS_LINE_1,"Phía trước là Cự Nham. Đá núi thành người, giữ ải này trăm năm.","Ahead stands Cu Nham. Mountain stone turned man, guarding this pass for a hundred years."
+STORY_BOSS_LINE_2,Tên ta bắn trúng nó cũng chỉ như mưa rơi lên vách đá.,My arrows would strike him like rain on a cliff.
+STORY_BOSS_LINE_3,"Người xưa kể: đánh dồn dập thì nó hóa đá, chẳng gì làm xước nổi.","The old tales say: strike too fast and he turns to stone, and nothing can scratch him."
+STORY_BOSS_LINE_4,"Vậy ta chờ. Từng mũi một, đúng lúc nó tỉnh lại.","Then I will wait. One arrow at a time, just as he wakes."
+STORY_BOSS_LINE_5,Kiên nhẫn là binh khí sắc nhất. Đi thôi.,Patience is the sharpest weapon. Let us go.
+HOWTO_TITLE,Cách chơi,How to play
+HOWTO_TIP_1,"Mua quân ở chợ, kéo lên bàn cờ. Ba quân giống nhau gộp thành một quân mạnh hơn.",Buy units in the shop and drag them onto the board. Three of a kind merge into a stronger unit.
+HOWTO_TIP_2,"Xếp quân cùng hệ, cùng tộc để đạt mốc; xếp đúng hình để thành trận. Chạm dải hệ dưới bàn cờ để xem chi tiết.",Group classes and races to reach milestones; place them in shapes to form formations. Tap the bar under the board for details.
+HOWTO_TIP_3,Quân đầy Khí thì tung chiêu. Đánh xong được chọn phần thưởng; thua thì mất sĩ khí.,Units with full qi cast their skill. After a battle pick a reward; a loss costs morale.
+HOWTO_TIP_4,Hệ nào đánh nhiều sẽ tích Ngộ. Đầy Ngộ thì gặp Kỳ Ngộ: chọn một biến đổi giữ đến hết ván.,Families that fight build insight. A full meter brings an Epiphany: pick a change that lasts the whole run.
+BUTTON_HOWTO,Cách chơi,How to play
+SOUND_ON,Âm: Bật,Sound: On
+SOUND_OFF,Âm: Tắt,Sound: Off

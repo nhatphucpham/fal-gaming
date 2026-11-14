@@ -9,6 +9,32 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Added
 
+- Kỳ Ngộ: every class and race family fills a Ngộ meter after each
+  battle (+1 while active, +1 more after a loss, +2 for the family that
+  dealt the most damage). When one is full, a cutscene plays before the
+  rewards: the unit talks with the hermit Ẩn Sĩ, then you pick one of two
+  cards, Hạ Mốc (the milestone needs one unit fewer) or Biến Dị (the
+  milestone changes its effect). At most one per stage and four per run,
+  each family once; it lasts the whole run, for your side only, and is
+  saved. A family close to its Kỳ Ngộ shakes in the info row, and a changed
+  milestone wears a gold seal.
+- Cutscenes: painted backdrop, two figures, typed lines with a tap to
+  finish or go on, "Bỏ qua" to skip (never past a choice), an ink wipe in
+  and out and a gold flash on the choice. Before stage 12 Liễu Mi and Ba
+  Khắc talk in their camp.
+- The boss Cự Nham on stage 12, with six guards: drawn larger, with its
+  name and a wide health bar at the top. Hóa Đá: the third skill your side
+  casts within 3 s turns it to stone for 2 s, immune and still. From stage
+  6 a "Trùm" badge opens its card with the hint "đừng tung chiêu dồn dập".
+  Beating it crumbles it under confetti.
+- Sound: 24 effects (taps, buying, merging, hits, skills, formations,
+  Kỳ Ngộ, the boss, win and loss) and music for the preparation and the
+  battle, faster with the battle speed. A mute button on the title and run
+  screens; the choice is kept. On the web, sound starts after the first
+  tap.
+- "Cách chơi" on the title screen: four tips on buying, the board, skills
+  and the boss.
+
 - Synergies: the shape of the line-up is a weapon. Nghề (class milestones:
   2-4 different units of a class, e.g. 2 shields +20 armor, 4 shields block
   each one's first hit, 4 archers or spears pierce the enemy behind), Tộc
@@ -101,6 +127,9 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Changed
 
+- Every button keeps at least 24 px from the top and bottom of the
+  screen.
+- The preparation time setting reads "Xếp quân: 60 s".
 - Stages 4-12 field formations and milestones you can read in the
   preparation; stages 9-12 were retuned for synergies.
 - Stages 7 to 12 each have one 2-star enemy fewer (now 1-star), to keep

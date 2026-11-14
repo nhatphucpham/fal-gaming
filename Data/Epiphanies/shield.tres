@@ -1,0 +1,58 @@
+[gd_resource type="Resource" script_class="EpiphanyFamily" format=3]
+
+[ext_resource type="Script" path="res://Systems/Run/epiphany_family.gd" id="1_family"]
+[ext_resource type="Script" path="res://Systems/Run/epiphany_data.gd" id="2_epiphany"]
+
+[sub_resource type="Resource" id="ep_0"]
+script = ExtResource("2_epiphany")
+id = &"epiphany.shield_lower_4"
+family = &"milestone.class_shield"
+kind = &"lower"
+name_key = "EPIPHANY_KIND_LOWER"
+description_key = "EPIPHANY_SHIELD_LOWER_4"
+tier = 1
+
+[sub_resource type="Resource" id="ep_1"]
+script = ExtResource("2_epiphany")
+id = &"epiphany.shield_lower_2"
+family = &"milestone.class_shield"
+kind = &"lower"
+name_key = "EPIPHANY_KIND_LOWER"
+description_key = "EPIPHANY_SHIELD_LOWER_2"
+tier = 0
+
+[sub_resource type="ModifierData" id="mod_2_0"]
+handler = &"mod.damage_taken_pct"
+scope = &"scope.counted"
+value = 15
+
+[sub_resource type="Resource" id="ep_2"]
+script = ExtResource("2_epiphany")
+id = &"epiphany.shield_stone_skin"
+family = &"milestone.class_shield"
+kind = &"variant"
+name_key = "EPIPHANY_KIND_VARIANT"
+description_key = "EPIPHANY_SHIELD_STONE_SKIN"
+tier = 0
+modifiers = Array[ModifierData]([SubResource("mod_2_0")])
+
+[sub_resource type="ModifierData" id="mod_3_0"]
+handler = &"mod.reflect_melee_pct"
+scope = &"scope.counted"
+value = 40
+
+[sub_resource type="Resource" id="ep_3"]
+script = ExtResource("2_epiphany")
+id = &"epiphany.shield_thorn_wall"
+family = &"milestone.class_shield"
+kind = &"variant"
+name_key = "EPIPHANY_KIND_VARIANT"
+description_key = "EPIPHANY_SHIELD_THORN_WALL"
+tier = 1
+modifiers = Array[ModifierData]([SubResource("mod_3_0")])
+
+[resource]
+script = ExtResource("1_family")
+family = &"milestone.class_shield"
+line_keys = Array[String](["EPIPHANY_SHIELD_LINE_1", "EPIPHANY_SHIELD_LINE_2", "EPIPHANY_SHIELD_LINE_3"])
+epiphanies = Array[ExtResource("2_epiphany")]([SubResource("ep_0"), SubResource("ep_1"), SubResource("ep_2"), SubResource("ep_3")])

@@ -22,6 +22,10 @@ const BAR_Y: float = -40.0
 const QI_BAR_HEIGHT: float = 3.0
 const BREATH_AMOUNT: float = 0.035
 const BREATH_SPEED: float = 2.4
+## A boss is drawn this much bigger; its feet stay in its cell and its
+## shoulders reach over the neighbours. Its hp shows in the wide boss bar.
+const BOSS_SCALE: float = 1.6
+const STONE_TINT := Color(0.62, 0.6, 0.58)
 
 ## Multiplies the speed of every animation (the battle speed button).
 var playback_speed: float = 1.0
@@ -34,6 +38,8 @@ var bob: float = 0.0
 ## Tilt of the figure in radians (charging, falling).
 var lean: float = 0.0
 var is_dead: bool = false
+## Turned to stone (Hóa Đá): grey, not breathing.
+var is_petrified: bool = false
 ## False hides the hp bar but keeps the star pips (bench and preparation:
 ## full health says nothing).
 var is_hp_bar_shown: bool = true:
@@ -62,12 +68,16 @@ var _hp_tween: Tween
 var _fade_tween: Tween
 # Scale of each star pip, for the stamping animation.
 var _star_scales: Array[float] = [1.0, 1.0, 1.0]
+var _size_scale: float = 1.0
+var _stone: StoneLayer
 
 
 func _init() -> void:
 	_figure = UnitFigure.new()
 	_figure.position = FEET
 	add_child(_figure)
+	_stone = StoneLayer.new()
+	add_child(_stone)
 	# The bar is drawn behind the figure so hats, crowns and blades stay whole.
 	_bar = Node2D.new()
 	_bar.show_behind_parent = true
@@ -85,6 +95,8 @@ func setup(unit_data: UnitData, unit_side: int, star_level: int) -> void:
 	star = star_level
 	_figure.unit = unit_data
 	_figure.facing = UnitPainter.FACING_UP if unit_side == 0 else UnitPainter.FACING_DOWN
+	_size_scale = BOSS_SCALE if unit_data.is_boss else 1.0
+	_stone.size_scale = _size_scale
 	_breath_phase = float(hash(unit_data.id) % 628) / 100.0 + randf() * 0.5
 	queue_redraw()
 	_bar.queue_redraw()
@@ -92,8 +104,8 @@ func setup(unit_data: UnitData, unit_side: int, star_level: int) -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
-	var breath := sin(_time * BREATH_SPEED + _breath_phase) * BREATH_AMOUNT
-	_figure.scale = squash * Vector2(1.0 - breath * 0.4, 1.0 + breath) * FIGURE_SCALE
+	var breath := 0.0 if is_petrified else sin(_time * BREATH_SPEED + _breath_phase) * BREATH_AMOUNT
+	_figure.scale = squash * Vector2(1.0 - breath * 0.4, 1.0 + breath) * FIGURE_SCALE * _size_scale
 	_figure.position = FEET + anim_offset + Vector2(0.0, -bob)
 	_figure.rotation = lean
 	if _qi_ratio >= 1.0 and is_hp_bar_shown:
@@ -102,7 +114,7 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	var ring_color := Palette.PLAYER_RING if side == 0 else Palette.ENEMY_RING
-	var ring := UnitPainter.Brush.ellipse(FEET, RING_RADIUS.x, RING_RADIUS.y, 20)
+	var ring := UnitPainter.Brush.ellipse(FEET, RING_RADIUS.x * _size_scale, RING_RADIUS.y * _size_scale, 20)
 	draw_colored_polygon(ring, Color(ring_color, 0.35))
 	ring.append(ring[0])
 	draw_polyline(ring, ring_color, 2.5, true)
@@ -115,6 +127,8 @@ func _draw() -> void:
 
 
 func _draw_bar() -> void:
+	if unit != null and unit.is_boss:
+		return
 	var has_qi := is_hp_bar_shown and _qi_ratio >= 0.0
 	# With a Khí bar the hp bar moves up so the pair keeps clear of the head.
 	var origin := Vector2(-BAR_SIZE.x / 2.0, BAR_Y - (QI_BAR_HEIGHT if has_qi else 0.0))
@@ -279,6 +293,7 @@ func hit_flash() -> void:
 ## Falls over and fades out; stays in the tree, hidden.
 func die() -> void:
 	is_dead = true
+	_stone.is_stone = false
 	skill_overlay.clear()
 	_reset_tween(_motion_tween)
 	var tween := _new_figure_tween()
@@ -286,6 +301,34 @@ func die() -> void:
 	tween.tween_property(self, ^"lean", fall_side * 1.4, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.parallel().tween_property(self, ^"anim_offset", Vector2(fall_side * 8.0, 2.0), 0.3)
 	tween.tween_property(self, ^"modulate:a", 0.0, 0.35)
+	tween.tween_callback(hide)
+
+
+## Turns the figure to grey stone (Hóa Đá) or back to life.
+func set_petrified(petrified: bool) -> void:
+	is_petrified = petrified
+	_stone.is_stone = petrified
+	var tween := _new_tween()
+	tween.tween_property(_figure, ^"modulate", STONE_TINT if petrified else Color.WHITE, 0.15)
+	if petrified:
+		tween.parallel().tween_property(self, ^"squash", Vector2(1.06, 0.94), 0.08)
+		tween.tween_property(self, ^"squash", Vector2.ONE, 0.1)
+
+
+## The boss's end: shakes, cracks spread, then it crumbles into a heap of
+## dust and fades (instead of falling over). Stays in the tree, hidden.
+func crumble() -> void:
+	is_dead = true
+	skill_overlay.clear()
+	_reset_tween(_motion_tween)
+	var tween := _new_figure_tween()
+	for offset_x: float in [-5.0, 5.0, -4.0, 4.0, -2.0, 0.0]:
+		tween.tween_property(self, ^"anim_offset", Vector2(offset_x, 0), 0.06)
+	_stone.is_stone = false
+	tween.parallel().tween_property(_stone, ^"cracks", 1.0, 0.36)
+	tween.tween_property(self, ^"squash", Vector2(1.25, 0.15), 0.45).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	tween.parallel().tween_method(_set_dust, 0.0, 1.0, 0.6)
+	tween.tween_property(self, ^"modulate:a", 0.0, 0.3)
 	tween.tween_callback(hide)
 
 

@@ -164,7 +164,8 @@ func cycle_speed() -> void:
 func _roster_units() -> Array[UnitData]:
 	var indexed: Array[Array] = []
 	for index: int in _catalog.units.size():
-		indexed.append([_catalog.units[index].cost, index])
+		if not _catalog.units[index].is_boss:
+			indexed.append([_catalog.units[index].cost, index])
 	indexed.sort()
 	var units: Array[UnitData] = []
 	for pair: Array in indexed:
