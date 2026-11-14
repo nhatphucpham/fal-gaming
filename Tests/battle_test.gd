@@ -268,23 +268,43 @@ func _check_time_limit() -> bool:
 	if ended.get("reason") != &"time_limit" or ended.get("winner") != Battle.SIDE_B or battle.get_tick() != 10:
 		push_error("Tied time limit ended as %s at tick %d" % [ended, battle.get_tick()])
 		return false
-	return _check_unit_count_tie()
+	return _check_higher_score() and _check_unit_count_tie()
+
+
+# The higher hp-share score wins even with fewer units: an A mage hits two
+# B units (max_hp 3) twice for 1 each (3333 + 3333) and stays at full hp
+# (10000). Its second attack lands on tick 68, the time limit.
+func _check_higher_score() -> bool:
+	var rules := _holding_rules(68)
+	var battle := _new_battle(rules)
+	var fragile := _fragile_class(3)
+	battle.register_class(fragile)
+	var mage := _add(battle, Battle.SIDE_A, MAGE, 4, 3)
+	var b_units: Array[int] = [
+		_add_test_unit(battle, Battle.SIDE_B, fragile, 4, 1),
+		_add_test_unit(battle, Battle.SIDE_B, fragile, 3, 1),
+	]
+	var ended := _end_event(battle)
+	for index: int in b_units:
+		if battle.get_unit_state(index)["hp"] != 1:
+			push_error("Higher-score setup broke: %s" % battle.get_unit_state(index))
+			return false
+	if battle.get_unit_state(mage)["hp"] != battle.get_unit_state(mage)["max_hp"]:
+		push_error("Higher-score setup broke: the mage was hit")
+		return false
+	if ended.get("reason") != &"time_limit" or ended.get("winner") != Battle.SIDE_A or battle.get_tick() != 68:
+		push_error("Higher score with fewer units ended as %s at tick %d" % [ended, battle.get_tick()])
+		return false
+	return true
 
 
 # Equal hp share, more living units: two A units with max_hp 2 each lose 1 hp
 # to one mage hit (5000 + 5000) against the full-hp mage (10000). The mage's
 # first attack lands on tick 34, the time limit.
 func _check_unit_count_tie() -> bool:
-	var rules := _catalog.battle_rules.duplicate() as BattleRulesData
-	rules.time_limit_ticks = 34
-	rules.hold_line_grace_ticks = 1000
-	rules.hold_line_max_ticks = 1000
+	var rules := _holding_rules(34)
 	var battle := _new_battle(rules)
-	var fragile := _catalog.get_class_data(&"class.shield").duplicate() as ClassData
-	fragile.id = &"class.test_fragile"
-	fragile.max_hp = 2
-	fragile.attack = 0
-	fragile.magic_resist = 10000
+	var fragile := _fragile_class(2)
 	battle.register_class(fragile)
 	var a_units: Array[int] = [
 		_add_test_unit(battle, Battle.SIDE_A, fragile, 4, 3),
@@ -359,6 +379,25 @@ func _add_test_archer(battle: Battle) -> int:
 	unit.id = &"unit.test_archer"
 	unit.class_id = class_data.id
 	return battle.add_unit(Battle.SIDE_A, unit, 1, 4, 3)
+
+
+# Rules where shields hold the line for the whole battle.
+func _holding_rules(time_limit_ticks: int) -> BattleRulesData:
+	var rules := _catalog.battle_rules.duplicate() as BattleRulesData
+	rules.time_limit_ticks = time_limit_ticks
+	rules.hold_line_grace_ticks = 1000
+	rules.hold_line_max_ticks = 1000
+	return rules
+
+
+# A holding test class that takes exactly 1 damage from a mage and deals none.
+func _fragile_class(max_hp: int) -> ClassData:
+	var fragile := _catalog.get_class_data(&"class.shield").duplicate() as ClassData
+	fragile.id = &"class.test_fragile"
+	fragile.max_hp = max_hp
+	fragile.attack = 0
+	fragile.magic_resist = 10000
+	return fragile
 
 
 # Adds a unit of a test class that is already registered.

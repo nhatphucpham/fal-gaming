@@ -156,6 +156,10 @@ int BattleSim::add_unit(int p_side, const UnitSpec &p_spec, int p_local_col, int
 	unit.cost = p_spec.cost;
 	unit.star = p_spec.star;
 	unit.max_hp = derive_scaled_stat(unit_class.def.max_hp, p_spec.cost, p_spec.star, rules);
+	if (unit.max_hp < 1) {
+		fail(p_spec.unit_id + " would have max_hp " + std::to_string(unit.max_hp) + " at cost " + std::to_string(p_spec.cost) + " star " + std::to_string(p_spec.star) + "; raise the class max_hp or the multipliers", r_error);
+		return NO_UNIT;
+	}
 	unit.hp = unit.max_hp;
 	unit.attack = derive_scaled_stat(unit_class.def.attack, p_spec.cost, p_spec.star, rules);
 	unit.cell = local_to_global(p_side, p_local_col, p_local_rank);
@@ -260,7 +264,8 @@ int BattleSim::get_time_limit_winner() const {
 	int alive[2] = { 0, 0 };
 	for (const UnitState &unit : units) {
 		if (unit.is_alive) {
-			scores[unit.side] += static_cast<int64_t>(unit.hp) * HP_SCORE_SCALE / unit.max_hp;
+			// add_unit refuses max_hp < 1; the guard keeps a bad state from trapping.
+			scores[unit.side] += unit.max_hp > 0 ? static_cast<int64_t>(unit.hp) * HP_SCORE_SCALE / unit.max_hp : 0;
 			alive[unit.side]++;
 		}
 	}

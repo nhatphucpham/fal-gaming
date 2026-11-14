@@ -30,7 +30,8 @@ private:
 	int range_cells = 1;
 	int armor = 0;
 	int magic_resist = 0;
-	DamageKind damage_kind = DAMAGE_PHYSICAL;
+	// Stored as int so an unknown value survives for register_class() to reject.
+	int damage_kind = DAMAGE_PHYSICAL;
 	StringName targeting = "target.nearest";
 	StringName opening;
 	StringName attack_shape = "shape.single";
@@ -63,10 +64,10 @@ public:
 	int get_armor() const { return armor; }
 	void set_magic_resist(int64_t p_magic_resist) { magic_resist = clamp_to_int(p_magic_resist); }
 	int get_magic_resist() const { return magic_resist; }
-	// Unknown values are kept so register_class() can reject them by name.
-	void set_damage_kind(DamageKind p_damage_kind) { damage_kind = p_damage_kind; }
+	// A DamageKind value; anything else is saturated, kept and later rejected.
+	void set_damage_kind(int64_t p_damage_kind) { damage_kind = clamp_to_int(p_damage_kind); }
+	int64_t get_damage_kind() const { return damage_kind; }
 	bool has_valid_damage_kind() const { return damage_kind == DAMAGE_PHYSICAL || damage_kind == DAMAGE_MAGIC; }
-	DamageKind get_damage_kind() const { return damage_kind; }
 	void set_targeting(const StringName &p_targeting) { targeting = p_targeting; }
 	StringName get_targeting() const { return targeting; }
 	void set_opening(const StringName &p_opening) { opening = p_opening; }

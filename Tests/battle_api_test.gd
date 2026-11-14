@@ -127,7 +127,7 @@ func _check_refused_commands() -> bool:
 
 
 func _check_rejected_input() -> bool:
-	print("Battle API test: the next 8 errors are expected")
+	print("Battle API test: the next 11 errors are expected")
 	var rules := _catalog.battle_rules.duplicate() as BattleRulesData
 	rules.move_ticks_per_cell = HUGE
 	var refused := Battle.new()
@@ -136,12 +136,21 @@ func _check_rejected_input() -> bool:
 	if refused.get_rules() != null:
 		push_error("set_rules accepted move_ticks_per_cell %d" % HUGE)
 		return false
+	rules = _catalog.battle_rules.duplicate() as BattleRulesData
+	rules.cost_multipliers_pct = PackedInt64Array([100, (1 << 32) + 100, 155, 190, 230])
+	refused.set_rules(rules)
+	if refused.get_rules() != null:
+		push_error("set_rules accepted cost multiplier %d" % ((1 << 32) + 100))
+		return false
 	var battle := _new_battle()
 	var bad_kind := _catalog.get_class_data(&"class.sword").duplicate() as ClassData
 	bad_kind.id = &"class.test_bad_kind"
-	bad_kind.damage_kind = 7 as ClassData.DamageKind
-	if battle.register_class(bad_kind):
-		push_error("register_class accepted damage_kind 7")
+	for kind: int in [7, (1 << 32) + 1]:
+		bad_kind.damage_kind = kind as ClassData.DamageKind
+		if battle.register_class(bad_kind):
+			push_error("register_class accepted damage_kind %d" % kind)
+			return false
+	if not _check_zero_hp_refused():
 		return false
 	var sword := _catalog.get_unit(SWORD)
 	if battle.add_unit(2, sword, 1, 4, 1) != -1 or battle.add_unit(Battle.SIDE_A, sword, HUGE + 1, 4, 1) != -1 or battle.add_unit(Battle.SIDE_A, sword, 1, HUGE + 4, 1) != -1:
@@ -154,6 +163,22 @@ func _check_rejected_input() -> bool:
 		push_error("Coordinate helpers accepted a bad cell or side")
 		return false
 	return battle.get_unit_count() == 0
+
+
+# A cost multiplier of 1% turns max_hp 50 into 0: such a unit is refused.
+func _check_zero_hp_refused() -> bool:
+	var rules := _catalog.battle_rules.duplicate() as BattleRulesData
+	rules.cost_multipliers_pct = PackedInt64Array([1, 125, 155, 190, 230])
+	var battle := Battle.new()
+	_battles.append(battle)
+	battle.set_rules(rules)
+	var weak := _catalog.get_class_data(&"class.sword").duplicate() as ClassData
+	weak.max_hp = 50
+	battle.register_class(weak)
+	if battle.add_unit(Battle.SIDE_A, _catalog.get_unit(SWORD), 1, 4, 1) != -1:
+		push_error("add_unit accepted a unit with derived max_hp 0")
+		return false
+	return true
 
 
 func _new_battle() -> Battle:

@@ -6,15 +6,16 @@
 
 using namespace godot;
 
-void BattleRulesData::set_cost_multipliers_pct(const PackedInt32Array &p_values) {
+// Elements are saturated, not wrapped; set_rules() checks their range.
+void BattleRulesData::set_cost_multipliers_pct(const PackedInt64Array &p_values) {
 	ERR_FAIL_COND_MSG(p_values.size() != battle::MAX_COST, vformat("Battle: cost_multipliers_pct needs %d values, got %d", battle::MAX_COST, p_values.size()));
 	for (int index = 0; index < battle::MAX_COST; index++) {
-		rules.cost_multipliers_pct[index] = p_values[index];
+		rules.cost_multipliers_pct[index] = clamp_to_int(p_values[index]);
 	}
 }
 
-PackedInt32Array BattleRulesData::get_cost_multipliers_pct() const {
-	PackedInt32Array values;
+PackedInt64Array BattleRulesData::get_cost_multipliers_pct() const {
+	PackedInt64Array values;
 	for (int value : rules.cost_multipliers_pct) {
 		values.push_back(value);
 	}
@@ -37,7 +38,7 @@ void BattleRulesData::_bind_methods() {
 	BATTLE_BIND_ACCESSORS(BattleRulesData, max_units_per_side);
 
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "ticks_per_second", PROPERTY_HINT_RANGE, "1,240,1"), "set_ticks_per_second", "get_ticks_per_second");
-	ADD_PROPERTY(PropertyInfo(Variant::PACKED_INT32_ARRAY, "cost_multipliers_pct"), "set_cost_multipliers_pct", "get_cost_multipliers_pct");
+	ADD_PROPERTY(PropertyInfo(Variant::PACKED_INT64_ARRAY, "cost_multipliers_pct"), "set_cost_multipliers_pct", "get_cost_multipliers_pct");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "star_multiplier_pct", PROPERTY_HINT_RANGE, "1,300,1"), "set_star_multiplier_pct", "get_star_multiplier_pct");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "counter_bonus_pct", PROPERTY_HINT_RANGE, "0,100,1"), "set_counter_bonus_pct", "get_counter_bonus_pct");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "move_ticks_per_cell", PROPERTY_HINT_RANGE, "1,1000,1"), "set_move_ticks_per_cell", "get_move_ticks_per_cell");

@@ -2,7 +2,7 @@
 
 [resource]
 ticks_per_second = 20
-cost_multipliers_pct = PackedInt32Array(100, 125, 155, 190, 230)
+cost_multipliers_pct = PackedInt64Array(100, 125, 155, 190, 230)
 star_multiplier_pct = 180
 counter_bonus_pct = 30
 move_ticks_per_cell = 10

@@ -73,14 +73,18 @@ checked by `Battle.register_class()`.
 `get_attack_charge_full()` is derived, not stored: `100 * ticks_per_second`.
 
 Classes and rules outside these ranges are refused with a `Battle:` error,
-and so is an unknown `damage_kind`. The resources' int setters saturate
-64-bit GDScript ints instead of wrapping, so huge values are refused too.
+and so is an unknown `damage_kind`. Every int setter of the three resources
+(`damage_kind` included) and each element of `cost_multipliers_pct` (a
+`PackedInt64Array`) saturate 64-bit GDScript ints to the `int` range instead
+of wrapping, so huge values stay out of range and are refused too.
 The ranges keep scaled stats and tick arithmetic inside `int` and the damage
 numerator below `9e17` (int64 holds about `9.2e18`); `compute_damage` also
 clamps its inputs.
 
 Stats: `hp = base_hp * cost_mult / 100`, then `* 180 / 100` per star above 1,
 truncating at each step; the same for attack. Other stats do not scale.
+`add_unit` refuses a unit whose derived max_hp is below 1; an attack of 0 is
+allowed.
 
 ## Rules
 
@@ -142,7 +146,7 @@ function that calls `step()`, or call `step()` in a loop.
 | `SIDE_A`, `SIDE_B` | constants | 0 and 1 |
 | `set_rules(rules: BattleRulesData)` | method | Required before `add_unit`; refused once units exist |
 | `register_class(class_data: ClassData) -> bool` | method | Adds or replaces a class by id. Validates stats and handler ids; false and an error on bad data or when an added unit uses that id (call `clear()` first) |
-| `add_unit(side, unit: UnitData, star, local_col, local_rank) -> int` | method | Unit index, or -1 with an error (no rules, bad side, unknown class, bad cell, cell taken, star not 1..3, side full, started) |
+| `add_unit(side, unit: UnitData, star, local_col, local_rank) -> int` | method | Unit index, or -1 with an error (no rules, bad side, unknown class, bad cell, cell taken, star not 1..3, derived max_hp below 1, side full, started) |
 | `clear()` | method | Removes units, resets the tick; keeps classes and rules |
 | `start()` | method | Freezes the setup; the first `step()` emits `battle_started` |
 | `step() -> Array[Dictionary]` | method | Advances one tick, returns and emits its events; nothing after the end. While its signals run, `step`, `run_to_end`, `start`, `clear`, `add_unit`, `register_class` and `set_rules` are refused with an error |
@@ -205,14 +209,15 @@ and checks: validation and counts, stat derivation, determinism of a 5v5
 (same hash twice, a different hash when one unit moves), sword and counter
 damage, arrow blocking, charge with knockback and without it (shield,
 spear), hold line, switching to an enemy in range, mage row hits, walk,
-charge and knockback durations, the time limit with both tie rules (more
-living units, then B), a full 8v8 that ends by elimination (it prints its
-length), and coordinate round trips.
+charge and knockback durations, the time limit (the higher score wins with
+fewer units, then both tie rules: more living units, then B), a full 8v8
+that ends by elimination (it prints its length), and coordinate round trips.
 
 `Tests/battle_api_test.gd` checks the node's API: signals and event ids,
 read-only events, a handler that frees the node mid-step, refused commands
 (replacing a class in use, re-entrant `step()`) and rejected input (rules
-out of range, unknown `damage_kind`, bad side, star or cell, bad index and
+out of range, a cost multiplier above 32 bits, unknown and 64-bit
+`damage_kind`, a derived max_hp of 0, bad side, star or cell, bad index and
 coordinates). It prints the errors it provokes and announces each group.
 
 ## Known limits

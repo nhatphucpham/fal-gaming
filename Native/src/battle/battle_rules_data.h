@@ -4,7 +4,7 @@
 #include "bridge_strings.h"
 
 #include <godot_cpp/classes/resource.hpp>
-#include <godot_cpp/variant/packed_int32_array.hpp>
+#include <godot_cpp/variant/packed_int64_array.hpp>
 
 namespace godot {
 
@@ -28,8 +28,8 @@ public:
 	void set_ticks_per_second(int64_t p_value) { rules.ticks_per_second = clamp_to_int(p_value); }
 	int get_ticks_per_second() const { return rules.ticks_per_second; }
 	// Exactly five values, for costs 1..5; other sizes are rejected.
-	void set_cost_multipliers_pct(const PackedInt32Array &p_values);
-	PackedInt32Array get_cost_multipliers_pct() const;
+	void set_cost_multipliers_pct(const PackedInt64Array &p_values);
+	PackedInt64Array get_cost_multipliers_pct() const;
 	void set_star_multiplier_pct(int64_t p_value) { rules.star_multiplier_pct = clamp_to_int(p_value); }
 	int get_star_multiplier_pct() const { return rules.star_multiplier_pct; }
 	void set_counter_bonus_pct(int64_t p_value) { rules.counter_bonus_pct = clamp_to_int(p_value); }
