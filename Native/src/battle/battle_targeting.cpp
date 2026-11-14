@@ -60,10 +60,26 @@ int pick_densest_row3(const BattleSim &p_sim, const UnitState &p_attacker, Targe
 	return target == NO_UNIT ? pick_nearest_enemy(p_sim, p_attacker, p_pool) : target;
 }
 
+bool is_backliner(const BattleSim &p_sim, const UnitState &p_unit) {
+	const ClassDef &def = p_sim.get_class_def(p_unit);
+	return def.is_ranged || def.damage_kind == DamageKind::MAGIC;
+}
+
+// Nearest, but at an equal distance a ranged or magic enemy comes before a
+// melee one: a rider next to a shield and a mage goes for the mage.
+int pick_flank(const BattleSim &p_sim, const UnitState &p_attacker, TargetPool p_pool) {
+	auto in_pool = [&](const UnitState &p_unit) { return p_pool == TargetPool::ALL || p_sim.is_in_range(p_attacker, p_unit); };
+	auto flank_score = [&](const UnitState &p_unit) {
+		return get_distance_cells(p_attacker.cell, p_unit.cell) * 2 + (is_backliner(p_sim, p_unit) ? 0 : 1);
+	};
+	return pick_best_enemy(p_sim, p_attacker, in_pool, flank_score);
+}
+
 const TargetingHandler TARGETING_HANDLERS[] = {
 	{ "target.nearest", pick_nearest_enemy, false },
 	{ "target.column_first", pick_column_first, false },
 	{ "target.densest_row3", pick_densest_row3, true },
+	{ "target.flank", pick_flank, false },
 };
 
 } // namespace

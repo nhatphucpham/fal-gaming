@@ -11,9 +11,10 @@ extends RefCounted
 ## [/codeblock]
 
 const PATH: String = "user://run_save.json"
-## 2 added the phase and the offered rewards, 3 the Kỳ Ngộ state; older
-## saves are ignored.
-const VERSION: int = 3
+## 2 added the phase and the offered rewards, 3 the Kỳ Ngộ state, 4 the
+## road encounters, the win streak and the loot reward; older saves are
+## ignored.
+const VERSION: int = 4
 
 ## Where save(), load_run(), has_save() and delete() go without a path
 ## argument. Only tests change it, so they never touch the player's save.

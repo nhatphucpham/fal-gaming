@@ -6,8 +6,11 @@ extends Control
 ## this screen sends it commands, plays the battle with BattlePlayback and
 ## saves after every preparation command, battle result and reward. A
 ## pending Kỳ Ngộ plays its cutscene before the reward cards (also for a run
-## loaded in its reward choice); the story scene plays on reaching the boss
-## stage. Sounds and music follow the run's signals. Main sets
+## loaded in its reward choice), a road encounter after them (also for a run
+## loaded during one); the story scene plays on reaching the boss stage.
+## Gold won by a streak, a bet, the loot reward or an encounter flies into
+## the gold chip as coins when the next preparation shows. Sounds and music
+## follow the run's signals. Main sets
 ## [member run], [member sim_clock] and [member prep_seconds] before adding
 ## it. See Docs/systems/run.md.
 
@@ -17,6 +20,8 @@ signal run_finished(run: RunState)
 const SPEEDS: Array[int] = [1, 2, 4]
 const ENEMY_DIM: float = 0.18
 const STATUS_EVERY_TICKS: int = 2
+## How long the preparation slides back before gains fly into the gold chip.
+const GAIN_FLY_DELAY_SEC: float = 0.45
 
 var run: RunState
 var sim_clock: SimClock
@@ -43,6 +48,13 @@ var _enemy_lineup := Lineup.new(10)
 var _enemy_views: LineupViews
 var _speed_index: int = 0
 var _deltas: Array = []
+# The banner's extra chips ([caption, gold]): streak and bet.
+var _banner_extras: Array = []
+# Gold won since the last preparation that still has to fly into the chip
+# (held back from it meanwhile, RunHud.hold_gold).
+var _gold_to_fly: int = 0
+# Pieces a road encounter gave, celebrated when the preparation shows.
+var _gifted_ids: Array[int] = []
 var _is_battling: bool = false
 # Battle unit index of each board piece in the battle now, by piece id.
 var _piece_indices: Dictionary[int, int] = {}
@@ -77,6 +89,8 @@ func _ready() -> void:
 	_update_speed_label()
 	if run.phase == RunState.Phase.REWARD:
 		_enter_reward()
+	elif run.phase == RunState.Phase.ENCOUNTER:
+		_enter_encounter()
 	else:
 		_enter_prep()
 
@@ -120,7 +134,7 @@ func start_battle() -> bool:
 
 ## The banner's "Tiếp tục": on to the reward, or to the end of the run.
 func continue_after_battle() -> void:
-	if run.phase == RunState.Phase.BATTLE or run.phase == RunState.Phase.PREP:
+	if run.phase == RunState.Phase.BATTLE or run.phase == RunState.Phase.PREP or run.phase == RunState.Phase.ENCOUNTER:
 		return
 	layout.banner.dismiss()
 	playback.abort()
@@ -174,6 +188,15 @@ func _connect_signals() -> void:
 	playback.battle_finished.connect(func(winner: int, reason: StringName) -> void:
 		_finish_battle(winner == Battle.SIDE_A, BattleFactory.count_alive(_battle, Battle.SIDE_B), reason))
 	run.battle_resolved.connect(_on_battle_resolved)
+	run.streak_paid.connect(func(_streak: int, gold: int) -> void: _add_extra_gain("RESULT_STREAK", gold))
+	run.bet_settled.connect(func(_is_win: bool, gold: int) -> void: _add_extra_gain("RESULT_BET", gold))
+	run.encounter_chosen.connect(_on_encounter_chosen)
+	run.piece_gifted.connect(func(piece_id: int) -> void: _gifted_ids.append(piece_id))
+	run.pieces_merged.connect(func(result_id: int, consumed: Array[int]) -> void:
+		for consumed_id: int in consumed:
+			if _gifted_ids.has(consumed_id):
+				_gifted_ids.erase(consumed_id)
+				_gifted_ids.append(result_id))
 	run.prep_changed.connect(_save)
 	playback.unit_petrified.connect(boss_hud.on_petrified)
 	_connect_sounds()
@@ -204,6 +227,62 @@ func _enter_prep() -> void:
 	controller.is_enabled = true
 	boss_hud.show_prep()
 	Sound.play_music(&"music_prep")
+	_show_gains()
+
+
+# Coins for the gold won since the last preparation fly from the middle of
+# the screen into the gold chip, which held that gold back and counts up as
+# they land; a free unit grows in with confetti.
+func _show_gains() -> void:
+	for piece_id: int in _gifted_ids:
+		_pieces.celebrate(piece_id)
+	_gifted_ids.clear()
+	if _gold_to_fly <= 0:
+		return
+	var gold := _gold_to_fly
+	_gold_to_fly = 0
+	create_tween().tween_callback(func() -> void:
+		var burst := CoinBurst.new()
+		layout.add_child(burst)
+		burst.landed.connect(_hud.release_gold.bind(gold))
+		burst.launch(layout.get_global_rect().get_center(), layout.gold_chip.get_icon_center(), gold)).set_delay(GAIN_FLY_DELAY_SEC)
+
+
+# Gold that just arrived and will fly into the chip at the next preparation.
+func _add_gold_to_fly(gold: int) -> void:
+	_gold_to_fly += gold
+	_hud.hold_gold(gold)
+
+
+func _add_extra_gain(caption_key: String, gold: int) -> void:
+	if gold <= 0:
+		return
+	_banner_extras.append([tr(caption_key), gold])
+	_add_gold_to_fly(gold)
+
+
+func _on_encounter_chosen(encounter_id: StringName, option: int) -> void:
+	var data := _catalog.get_encounter(encounter_id)
+	for effect: EncounterEffect in data.options[option].effects:
+		if effect.kind == EncounterEffects.GOLD and effect.amount > 0:
+			_add_gold_to_fly(effect.amount)
+
+
+# A run loaded during a road encounter: the stage's board behind it, then
+# the encounter again (its draw is in the save).
+func _enter_encounter() -> void:
+	_show_stage()
+	layout.timer_badge.visible = false
+	controller.is_enabled = false
+	boss_hud.show_prep()
+	Sound.play_music(&"music_prep")
+	_play_encounter()
+
+
+# The card taken is saved at once (the run is then in the next
+# preparation); the preparation shows once the ink has wiped the scene.
+func _play_encounter() -> void:
+	interludes.play_encounter(_save, _enter_prep)
 
 
 # A run loaded in its reward choice: the stage's board behind the cards, no
@@ -276,6 +355,7 @@ func _finish_battle(is_win: bool, enemies_alive: int, reason: StringName) -> voi
 	last_battle_won = is_win
 	Sound.set_battle_speed(1)
 	_deltas.clear()
+	_banner_extras.clear()
 	var piece_damage := {}
 	for piece_id: int in _piece_indices:
 		piece_damage[piece_id] = _battle.get_unit_state(_piece_indices[piece_id])["damage_dealt"]
@@ -292,11 +372,12 @@ func _finish_battle(is_win: bool, enemies_alive: int, reason: StringName) -> voi
 	if reason == &"" and not is_win:
 		reason_text = tr("RESULT_EMPTY_BOARD")
 	var deltas := _deltas.duplicate()
+	var extras := _banner_extras.duplicate()
 	var show_banner := func() -> void:
 		# After the boss falls, play_victory() has already played "win".
 		if not is_boss_win:
 			Sound.play(&"win" if is_win else &"lose")
-		layout.banner.present(is_win, reason_text, deltas, "BUTTON_CONTINUE")
+		layout.banner.present(is_win, reason_text, deltas, "BUTTON_CONTINUE", extras)
 	if is_boss_win:
 		create_tween().tween_callback(show_banner).set_delay(boss_hud.play_victory())
 	else:
@@ -312,6 +393,14 @@ func _on_battle_resolved(_is_win: bool, gold_delta: int, supply_delta: int, mora
 func _on_reward_chosen(reward: RunState.Reward) -> void:
 	var previous_stage := run.stage
 	if run.choose_reward(reward) != RunState.Result.OK:
+		return
+	if reward == RunState.Reward.LOOT:
+		_add_gold_to_fly(run.rules.loot_gold)
+	# A road encounter waits: saved now, so closing the app during it offers
+	# the same one again.
+	if run.phase == RunState.Phase.ENCOUNTER:
+		_save()
+		_play_encounter()
 		return
 	# Before the boss stage the save waits for the story scene's end: closed
 	# during it, the run reloads at the reward choice and the story plays

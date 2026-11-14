@@ -2,8 +2,10 @@ class_name RunInterludes
 extends RefCounted
 ## The cutscenes between stages, played over the run screen: a pending Kỳ
 ## Ngộ (its choice goes to RunState.choose_epiphany the moment a card is
-## taken) and, once per run, the story scene before the boss stage. Each
-## takes a callback for when it is over. See Docs/systems/cutscene.md.
+## taken), a pending road encounter ("Dọc đường", its choice goes to
+## RunState.choose_encounter the same way) and, once per run, the story
+## scene before the boss stage. Each takes a callback for when it is over.
+## See Docs/systems/cutscene.md and Docs/systems/encounter.md.
 
 ## The cutscene playing now, or null (tests step through it).
 var cutscene: CutsceneScreen
@@ -34,6 +36,22 @@ func play_epiphany(chosen: Callable, then: Callable) -> bool:
 		take.call(choice)
 		then.call())
 	cutscene.choice_made.connect(take)
+	return true
+
+
+## Plays the pending road encounter. The card taken goes to the run at once
+## (which begins the next preparation) and `chosen` is called; `then` once
+## the wipe is over. A card the run cannot pay is greyed and refused. False
+## (and nothing played) when none is pending.
+func play_encounter(chosen: Callable, then: Callable) -> bool:
+	var data := EncounterCutscene.build(_run)
+	if data == null:
+		return false
+	var title := _host.tr("ENCOUNTER_TITLE_FORMAT") % _host.tr(_run.encounters.get_pending().name_key)
+	_play(data, title, func(_choice: int) -> void: then.call())
+	cutscene.choice_made.connect(func(choice: int) -> void:
+		if _run.choose_encounter(choice) == RunState.Result.OK:
+			chosen.call())
 	return true
 
 

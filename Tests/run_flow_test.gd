@@ -19,6 +19,8 @@ const TEST_SAVE_PATH: String = "user://run_save_test.json"
 const MAX_FRAMES: int = 3000
 const STEP_SEC: float = 0.25
 const SLIDE_WAIT_SEC: float = 0.5
+## A run past stage 10 has met all five road encounters.
+const FIVE_ENCOUNTERS: Array[String] = ["encounter.merchants", "encounter.wager", "encounter.deserters", "encounter.villagers", "encounter.stranger"]
 
 var _main: Node
 var _screen: RunScreen
@@ -58,7 +60,7 @@ func _run() -> bool:
 	var checks: Array[Callable] = [
 		_check_place, _check_bench_gap_drag, _check_sell_zone_release, _check_battle, _check_reward,
 		_check_reward_after_reload, _check_second_fight_press, _check_prep_saves, _check_sell_zone_hold_and_slide,
-		_check_loss_deletes_save, _check_bad_save_cleared, _check_epiphany_flow, _check_story_and_boss_loss,
+		_check_loss_deletes_save, _check_bad_save_cleared, _check_epiphany_flow, _check_encounter_resume, _check_loot_gold_chip, _check_story_and_boss_loss,
 		_check_boss_win,
 	]
 	for check: Callable in checks:
@@ -338,6 +340,17 @@ func _push_mouse(at: Vector2, is_pressed: bool, is_canceled: bool = false) -> vo
 	root.push_input(event, true)
 
 
+# A finger on the screen, sent through Input like a phone's touch (mouse
+# emulation from touch is on, as on the phone). `at` is in the game's
+# coordinates; Input takes window pixels.
+func _push_touch(at: Vector2, is_pressed: bool) -> void:
+	var event := InputEventScreenTouch.new()
+	event.index = 0
+	event.pressed = is_pressed
+	event.position = root.get_screen_transform() * at
+	Input.parse_input_event(event)
+
+
 func _push_motion(at: Vector2) -> void:
 	var event := InputEventMouseMotion.new()
 	event.position = at
@@ -398,10 +411,154 @@ func _check_epiphany_flow() -> bool:
 		push_error("The reward cards should follow the Kỳ Ngộ cutscene")
 		return false
 	await _hold_reward_card(0)
-	if run.phase != RunState.Phase.PREP or run.stage != 3 or not _screen.controller.is_enabled:
-		push_error("A reward after the Kỳ Ngộ should begin stage 3, got stage %d in %s" % [run.stage, RunState.Phase.keys()[run.phase]])
+	# Stage 2 is a road stage: the encounter cutscene comes before stage 3.
+	saved = RunSave.load_run(_main._catalog)
+	var road := _screen.interludes.cutscene
+	if run.phase != RunState.Phase.ENCOUNTER or road == null or saved == null or saved.phase != RunState.Phase.ENCOUNTER:
+		push_error("A reward at stage 2 should open a saved road encounter, got %s" % RunState.Phase.keys()[run.phase])
+		return false
+	await _skip_when_typing(road)
+	await process_frame
+	if not await _touch_encounter_card(run, road):
+		return false
+	await create_timer(1.5).timeout
+	if run.phase != RunState.Phase.PREP or run.stage != 3 or not _screen.controller.is_enabled or _screen.interludes.is_playing():
+		push_error("The road encounter should begin stage 3, got stage %d in %s" % [run.stage, RunState.Phase.keys()[run.phase]])
 		return false
 	return await _check_second_fight_press()
+
+
+# Touches (a real screen touch through Input) the first card the run can
+# pay for; the choice lands in the run at once.
+func _touch_encounter_card(run: RunState, cutscene: CutsceneScreen) -> bool:
+	var cards := cutscene.find_children("*", "CutsceneChoiceCard", true, false)
+	var pending := run.encounters.get_pending()
+	if not cutscene.is_choosing() or pending == null or cards.size() != pending.options.size():
+		push_error("The road encounter should show one card per option")
+		return false
+	for index: int in cards.size():
+		var card := cards[index] as CutsceneChoiceCard
+		if card.is_disabled() != (run.get_encounter_refusal(index) != RunState.Result.OK):
+			push_error("Encounter card %d disabled should match whether the run can pay" % index)
+			return false
+		if card.is_disabled():
+			continue
+		var center := card.get_global_rect().get_center()
+		_push_touch(center, true)
+		await create_timer(0.2).timeout
+		_push_touch(center, false)
+		await create_timer(0.3).timeout
+		if run.phase == RunState.Phase.ENCOUNTER:
+			push_error("A touch on encounter card %d did not choose it" % index)
+			return false
+		return true
+	push_error("Every road encounter should offer one card the run can pay")
+	return false
+
+
+# A run closed at a road encounter (here: no gold, so the deserters' paid
+# card is out) resumes on the same encounter. Touching the greyed card
+# shakes it and changes nothing; the other card goes on to stage 3.
+func _check_encounter_resume() -> bool:
+	var run := _saved_run({"phase": "encounter", "stage": 2, "stages_cleared": 2, "gold": 0, "rewards": [],
+		"encounter": {"drawn": ["encounter.deserters"], "pending": "encounter.deserters", "taken": -1, "bet_gold": 0}}, {})
+	if run == null:
+		return false
+	_screen = _main.continue_run()
+	if _screen == null:
+		push_error("Continuing a run saved at a road encounter failed")
+		return false
+	await create_timer(SLIDE_WAIT_SEC).timeout
+	run = _screen.run
+	var cutscene := _screen.interludes.cutscene
+	if run.phase != RunState.Phase.ENCOUNTER or cutscene == null or run.encounters.get_pending().id != &"encounter.deserters":
+		push_error("Continuing should replay the same road encounter")
+		return false
+	await _skip_when_typing(cutscene)
+	await process_frame
+	var cards := cutscene.find_children("*", "CutsceneChoiceCard", true, false)
+	if cards.size() != 2 or not (cards[0] as CutsceneChoiceCard).is_disabled() or (cards[1] as CutsceneChoiceCard).is_disabled():
+		push_error("With no gold the deserters' paid card should be greyed out and the other open")
+		return false
+	var refused: Array[int] = []
+	cutscene.choice_refused.connect(func(choice: int) -> void: refused.append(choice))
+	var center := (cards[0] as Control).get_global_rect().get_center()
+	_push_touch(center, true)
+	await create_timer(0.2).timeout
+	_push_touch(center, false)
+	await create_timer(0.5).timeout
+	if refused != [0] or run.phase != RunState.Phase.ENCOUNTER or run.gold != 0:
+		push_error("A touch on the greyed card should be refused and change nothing (refused %s)" % [refused])
+		return false
+	var shown := _watch_gold_chip()
+	if not await _touch_encounter_card(run, cutscene):
+		return false
+	await create_timer(1.5).timeout
+	if not await _expect_gold_chip_rises(shown, run):
+		return false
+	var deserters: EncounterData = _main._catalog.get_encounter(&"encounter.deserters")
+	var expected := run.rules.get_stage_income(3)
+	for effect: EncounterEffect in deserters.options[1].effects:
+		if effect.kind == EncounterEffects.GOLD:
+			expected += effect.amount
+	if run.phase != RunState.Phase.PREP or run.stage != 3 or run.gold != expected:
+		push_error("The deserters' free card should pay its gold and begin stage 3 with %d gold, got %d" % [expected, run.gold])
+		return false
+	return await _check_second_fight_press()
+
+
+# The loot reward's gold waits in the gold chip until its coins land: the
+# chip counts up to the new total and never shows it early and drops back.
+func _check_loot_gold_chip() -> bool:
+	var run := _saved_run({"phase": "reward", "stage": 3, "stages_cleared": 3, "rewards": ["reward.rest", "reward.hunt", "reward.loot"],
+		"encounter": {"drawn": ["encounter.merchants"], "pending": "", "taken": 0, "bet_gold": 0}}, {})
+	if run == null:
+		return false
+	_screen = _main.continue_run()
+	if _screen == null:
+		push_error("Continuing a run saved at its reward choice failed")
+		return false
+	await create_timer(SLIDE_WAIT_SEC).timeout
+	run = _screen.run
+	var expected := run.gold + run.rules.loot_gold + run.rules.get_stage_income(4)
+	var shown := _watch_gold_chip()
+	await _hold_reward_card(2)
+	if run.phase != RunState.Phase.PREP or run.stage != 4 or run.gold != expected:
+		push_error("The loot card should pay %d gold and begin stage 4, got %d gold at stage %d" % [run.rules.loot_gold, run.gold, run.stage])
+		return false
+	return await _expect_gold_chip_rises(shown, run)
+
+
+# Records the gold chip's shown number every frame until
+# _expect_gold_chip_rises() stops it.
+func _watch_gold_chip() -> Array[int]:
+	var shown: Array[int] = []
+	var chip := _screen.layout.gold_chip
+	var record := func() -> void: shown.append(chip.get_shown_value())
+	process_frame.connect(record)
+	shown.append(chip.get_shown_value())
+	set_meta(&"gold_watch", record)
+	return shown
+
+
+# Waits until the gold chip shows the run's gold (the coins landed), then
+# checks that its number never went down on the way.
+func _expect_gold_chip_rises(shown: Array[int], run: RunState) -> bool:
+	var frames := 0
+	while _screen.layout.gold_chip.get_shown_value() != run.gold and frames < MAX_FRAMES:
+		await process_frame
+		frames += 1
+	await create_timer(0.5).timeout
+	process_frame.disconnect(get_meta(&"gold_watch"))
+	remove_meta(&"gold_watch")
+	for index: int in range(1, shown.size()):
+		if shown[index] < shown[index - 1]:
+			push_error("The gold chip went down from %d to %d during the gain: %s" % [shown[index - 1], shown[index], shown])
+			return false
+	if shown.back() != run.gold:
+		push_error("The gold chip should end at %d, shows %s" % [run.gold, shown])
+		return false
+	return true
 
 
 # Stage 11 won: the reward leads to the story scene, and the save keeps the
@@ -410,7 +567,8 @@ func _check_epiphany_flow() -> bool:
 # loss the boss bar is gone at the reward cards, the battle speed no longer
 # pitches sounds, and the next reward goes straight to stage 12 again.
 func _check_story_and_boss_loss() -> bool:
-	var run := _saved_run({"phase": "reward", "stage": 11, "stages_cleared": 11, "rewards": ["reward.rest", "reward.hunt", "reward.black_market"]}, {})
+	var run := _saved_run({"phase": "reward", "stage": 11, "stages_cleared": 11, "rewards": ["reward.rest", "reward.hunt", "reward.black_market"],
+		"encounter": {"drawn": FIVE_ENCOUNTERS, "pending": "", "taken": 0, "bet_gold": 0}}, {})
 	if run == null:
 		return false
 	_screen = _main._open_run(run)
@@ -472,7 +630,8 @@ func _check_boss_win() -> bool:
 	for index: int in units.size():
 		var unit: Array = units[index]
 		pieces.append({"id": index + 1, "unit_id": unit[0], "star": unit[1], "bench": -1, "col": unit[2], "rank": unit[3], "has_fought": true})
-	var run := _saved_run({"stage": 12, "stages_cleared": 11, "level": 9, "pieces": pieces, "next_piece_id": units.size() + 1}, {})
+	var run := _saved_run({"stage": 12, "stages_cleared": 11, "level": 9, "pieces": pieces, "next_piece_id": units.size() + 1,
+		"encounter": {"drawn": FIVE_ENCOUNTERS, "pending": "", "taken": 0, "bet_gold": 0}}, {})
 	if run == null:
 		return false
 	_screen = _main._open_run(run)

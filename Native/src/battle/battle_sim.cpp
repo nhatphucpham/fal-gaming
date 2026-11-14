@@ -213,6 +213,12 @@ bool BattleSim::start(std::string *r_error) {
 	}
 	started = true;
 	install_synergy();
+	for (UnitState &unit : units) {
+		const OpeningHandler *opening = classes[unit.class_index].opening;
+		if (unit.is_opening_active && opening != nullptr && opening->start != nullptr) {
+			opening->start(*this, unit.index);
+		}
+	}
 	return true;
 }
 

@@ -7,12 +7,39 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ## Unreleased
 
+### Changed
+
+- Cavalry charges with sense: a rider charges only an enemy in its lane
+  (its own column, else the nearest in a neighbouring column, stopping
+  diagonally in front of it); with nobody in its lane it walks instead of
+  running blind to the far edge. After the impact it turns to a fragile
+  back-liner next to it rather than chopping at a shield. Dust bursts where
+  a charge hits. Đột Trận no longer pulls the rider back when it is
+  already in front of an enemy.
+- Stage 1 has two enemies instead of three, and stages 5-8 are gentler:
+  one 2-star enemy each, the rest 1-star.
+- Saves from before this version (format 3) are not continued.
+
 ### Added
 
 - Voice: an optional `Voice` module can speak dialogue lines with the
   Falevon TTS service and keeps every line in a cache, so it is generated
   once. Nothing in the game speaks yet; `Scenes/Dev/voice_demo.tscn` tries
   it. Without a key or a connection the game shows the text only.
+- Road encounters ("Dọc đường"): after the reward of stages 2, 4, 6, 8
+  and 10 the army meets someone on a painted road (merchants, deserters,
+  a wager, villagers, a stranger and more; eight in all, never one twice
+  in a run) and you pick one of two cards: gold, supply, morale, a free
+  unit, free shop refreshes, or a bet paid if you win the next battle. A
+  card you cannot pay for is greyed out and shakes when touched. Gold won
+  flies as coins to the gold chip, which counts up when they land (it
+  never shows the gold early and drops back). Closing the game during an
+  encounter brings it back, with a black market taken just before it.
+- Win streak: from the 2nd win in a row +1 gold, from the 4th +2, shown as
+  its own chip under the result with a coin sound.
+- Reward "Kho báu": +5 gold. A win offers three rewards drawn from
+  rest, hunt, black market and loot.
+- `Tools/run_bot.gd --weak`: a new-player stand-in for balance runs.
 
 - `Tools/build_and_test.bat` builds, imports and tests the project on
   Windows in one go, checking each step (Godot path and version, Python,

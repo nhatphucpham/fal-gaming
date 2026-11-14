@@ -71,6 +71,7 @@ void BattleSim::hash_skill_state(uint64_t *r_hash, const UnitState &p_unit) cons
 	hash_value(r_hash, skills.charge.is_skill ? 1 : 0);
 	hash_value(r_hash, skills.charge.cells_run);
 	hash_value(r_hash, skills.charge.columns_left);
+	hash_value(r_hash, skills.charge.is_active ? skills.charge.target : NO_UNIT);
 	hash_value(r_hash, skills.passive.trigger_count);
 	hash_value(r_hash, skills.passive.fire_count);
 	hash_value(r_hash, static_cast<int64_t>(skills.passive.used_sources));

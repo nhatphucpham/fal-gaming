@@ -16,7 +16,7 @@ var _kit := Kit.new()
 
 
 func _initialize() -> void:
-	var ok := _run()
+	var ok: bool = await _run()
 	_kit.free_battles()
 	if ok:
 		print("Boss test passed")
@@ -33,10 +33,10 @@ func _run() -> bool:
 		return false
 	var checks: Array[Callable] = [
 		_check_window_burst, _check_window_slow, _check_petrified, _check_determinism,
-		_check_stage_12, _check_shop_and_save, _check_view_scale,
+		_check_stage_12, _check_shop_and_save, _check_view_scale, _check_grow_after_drop,
 	]
 	for check: Callable in checks:
-		if not check.call():
+		if not await check.call():
 			push_error("Boss test failed in %s" % check.get_method())
 			return false
 	return true
@@ -176,6 +176,23 @@ func _check_view_scale() -> bool:
 		push_error("The boss should be drawn %.1fx, got %.2f" % [UnitView.BOSS_SCALE, ratio])
 		return false
 	return true
+
+
+# A view told to grow in right after dropping in (a piece gifted by a road
+# encounter, celebrated in the frame the board is rebuilt) ends visible and
+# in place.
+func _check_grow_after_drop() -> bool:
+	var view := UnitView.new()
+	view.setup(_kit.catalog.get_unit(Kit.SHIELD), Battle.SIDE_A, 1)
+	root.add_child(view)
+	view.drop_in()
+	view.grow_in()
+	await create_timer(1.0).timeout
+	var ok := is_equal_approx(view.modulate.a, 1.0) and view.anim_offset.is_zero_approx() and view.squash.is_equal_approx(Vector2.ONE)
+	if not ok:
+		push_error("A view grown in after a drop should end visible in place: alpha %.2f offset %s squash %s" % [view.modulate.a, view.anim_offset, view.squash])
+	view.free()
+	return ok
 
 
 # The boss at its stage-12 cell with two guards, against `casters` on rank 1.

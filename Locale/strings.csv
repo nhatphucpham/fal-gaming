@@ -90,6 +90,60 @@ REWARD_HUNT,Đi săn,Hunt
 REWARD_HUNT_EFFECT,+%d lương,+%d supply
 REWARD_BLACK_MARKET,Chợ đen,Black market
 REWARD_BLACK_MARKET_EFFECT,Hàng tốt hơn chặng sau,Better wares next stage
+REWARD_LOOT,Kho báu,Treasure
+REWARD_LOOT_EFFECT,+%d vàng,+%d gold
+RESULT_STREAK,chuỗi thắng,win streak
+RESULT_BET,cược thắng,bet won
+ENCOUNTER_TITLE_FORMAT,Dọc đường: %s,On the road: %s
+ENCOUNTER_CANNOT_PAY,Không đủ để chọn,Cannot afford
+ENCOUNTER_FX_GOLD,%s vàng,%s gold
+ENCOUNTER_FX_SUPPLY,%s lương,%s supply
+ENCOUNTER_FX_MORALE,%s sĩ khí,%s morale
+ENCOUNTER_FX_FREE_UNIT,Một quân giá %d,One unit of cost %d
+ENCOUNTER_FX_FREE_REFRESHES,%d lần làm mới miễn phí,%d free refreshes
+ENCOUNTER_FX_BET,Thắng trận sau: +%d vàng,Win the next battle: +%d gold
+ENCOUNTER_MERCHANTS,Đoàn buôn,Merchant caravan
+ENCOUNTER_MERCHANTS_A,Bán đồ,Sell
+ENCOUNTER_MERCHANTS_B,Đổi lương,Trade for food
+ENCOUNTER_MERCHANTS_LINE_1,"Đoàn buôn đi qua, hàng đầy xe. Tướng quân có gì muốn đổi không?","A caravan passes, carts full. Anything to trade, general?"
+ENCOUNTER_MERCHANTS_LINE_2,"Quân ta thu được ít chiến lợi phẩm, xem giá thế nào.",We took some spoils. Let us see your price.
+ENCOUNTER_WAGER,Đánh cược,The wager
+ENCOUNTER_WAGER_A,Lấy ngay,Take it now
+ENCOUNTER_WAGER_B,Đặt cược,Place the bet
+ENCOUNTER_WAGER_LINE_1,Trinh sát báo: trận tới địch yếu hơn ta tưởng.,The scout reports: the next enemy is weaker than we thought.
+ENCOUNTER_WAGER_LINE_2,Phú hộ trong làng dám cược ta thua. Tướng quân có theo không?,"A rich villager bets we lose. Will you take it, general?"
+ENCOUNTER_WAGER_LINE_3,"Lấy tiền ngay cũng tốt, mà cược cũng hay...","Coin now is good, yet a wager is tempting..."
+ENCOUNTER_DESERTERS,Toán đào ngũ,Deserters
+ENCOUNTER_DESERTERS_A,Thu nhận,Take them in
+ENCOUNTER_DESERTERS_B,Nhận chuộc,Take the ransom
+ENCOUNTER_DESERTERS_LINE_1,"Bọn ta bỏ trại giặc mà đi. Cho bọn ta theo, chỉ cần chút lộ phí.","We left the enemy camp. Take us in, for a little road money."
+ENCOUNTER_DESERTERS_LINE_2,Hay để các ngươi nộp tiền chuộc rồi đi đường khác?,Or pay a ransom and take another road?
+ENCOUNTER_VILLAGERS,Dân làng tạ ơn,Grateful village
+ENCOUNTER_VILLAGERS_A,Dự tiệc,Join the feast
+ENCOUNTER_VILLAGERS_B,Nhận quà,Take the gift
+ENCOUNTER_VILLAGERS_LINE_1,Nhờ quân ta mà làng được yên. Dân làng xin đãi một bữa.,Thanks to your army the village is safe. Let us feed you.
+ENCOUNTER_VILLAGERS_LINE_2,Hay tướng quân nhận chút tiền dân góp?,Or will you take the coins we gathered?
+ENCOUNTER_STRANGER,Kẻ lạ ở quán,Stranger at the inn
+ENCOUNTER_STRANGER_A,Nghe mách,Take the tip
+ENCOUNTER_STRANGER_B,Cho theo,Let him join
+ENCOUNTER_STRANGER_LINE_1,"Ta biết chợ nào có hàng tốt, lại có ít bạc lẻ cho ngươi.","I know a market with good wares, and I have spare coins."
+ENCOUNTER_STRANGER_LINE_2,"Hoặc ta theo ngươi ra trận, chẳng cần trả công.","Or I ride with you, no pay asked."
+ENCOUNTER_STRANGER_LINE_3,Ngươi là ai mà hào phóng vậy?,"Who are you, to be so generous?"
+ENCOUNTER_SURPLUS,Bán lương thừa,Surplus rations
+ENCOUNTER_SURPLUS_A,Bán lương,Sell rations
+ENCOUNTER_SURPLUS_B,Giữ lại,Keep them
+ENCOUNTER_SURPLUS_LINE_1,"Kho lương còn dư, lái buôn trả giá cao lắm.","We have rations to spare, and traders pay well."
+ENCOUNTER_SURPLUS_LINE_2,"Bán thì có vàng, giữ thì quân no.","Sell for gold, or keep the men fed."
+ENCOUNTER_TEACHER,Thầy đồ,Village teacher
+ENCOUNTER_TEACHER_A,Học trữ lương,Learn to store
+ENCOUNTER_TEACHER_B,Xin chữ,Ask for a word
+ENCOUNTER_TEACHER_LINE_1,"Lão dạy chữ trong làng, cũng biết đôi điều về đồn điền.","I teach letters here, and know a little of farming."
+ENCOUNTER_TEACHER_LINE_2,"Tướng quân muốn học cách trữ lương, hay xin lão một chữ cho may?","Learn to store food, or take a lucky word from me?"
+ENCOUNTER_STOREHOUSE,Kho bỏ hoang,Abandoned storehouse
+ENCOUNTER_STOREHOUSE_A,Khuân hết,Take it all
+ENCOUNTER_STOREHOUSE_B,Lấy vừa đủ,Take a little
+ENCOUNTER_STOREHOUSE_LINE_1,"Có kho của giặc bỏ lại, vàng còn nhiều nhưng xác chết cũng nhiều.","An enemy store left behind: much gold, many dead."
+ENCOUNTER_STOREHOUSE_LINE_2,"Khuân hết thì quân sợ, lấy vừa thì yên lòng.",Take it all and the men grow fearful; take a little and they stay calm.
 END_WIN,Chiến thắng,Victory
 END_LOSS,Thất bại,Defeat
 END_STAGES_FORMAT,Đã qua %d/%d chặng,Cleared %d/%d stages
@@ -264,7 +318,7 @@ STORY_BOSS_LINE_5,Kiên nhẫn là binh khí sắc nhất. Đi thôi.,Patience i
 HOWTO_TITLE,Cách chơi,How to play
 HOWTO_TIP_1,"Mua quân ở chợ, kéo lên bàn cờ. Ba quân giống nhau gộp thành một quân mạnh hơn.",Buy units in the shop and drag them onto the board. Three of a kind merge into a stronger unit.
 HOWTO_TIP_2,"Xếp quân cùng hệ, cùng tộc để đạt mốc; xếp đúng hình để thành trận. Chạm dải hệ dưới bàn cờ để xem chi tiết.",Group classes and races to reach milestones; place them in shapes to form formations. Tap the bar under the board for details.
-HOWTO_TIP_3,Quân đầy Khí thì tung chiêu. Đánh xong được chọn phần thưởng; thua thì mất sĩ khí.,Units with full qi cast their skill. After a battle pick a reward; a loss costs morale.
+HOWTO_TIP_3,"Quân đầy Khí thì tung chiêu. Đánh xong được chọn phần thưởng, đôi khi gặp chuyện dọc đường kiếm thêm vàng; thua thì mất sĩ khí.","Units with full qi cast their skill. After a battle pick a reward, and now and then a roadside encounter brings gold; a loss costs morale."
 HOWTO_TIP_4,Hệ nào đánh nhiều sẽ tích Ngộ. Đầy Ngộ thì gặp Kỳ Ngộ: chọn một biến đổi giữ đến hết ván.,Families that fight build insight. A full meter brings an Epiphany: pick a change that lasts the whole run.
 BUTTON_HOWTO,Cách chơi,How to play
 SOUND_ON,Âm: Bật,Sound: On
