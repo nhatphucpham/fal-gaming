@@ -9,6 +9,13 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Added
 
+- `Tools/build_and_test.bat` builds, imports and tests the project on
+  Windows in one go, checking each step (Godot path and version, Python,
+  SCons, the godot-cpp submodule, the compiler) and saying how to fix the
+  first one that fails.
+- `Tools/build_and_test.sh` does the same in Git Bash, MSYS2 or Linux.
+- README: step-by-step Windows setup with PowerShell commands (Git,
+  Python, Visual Studio Build Tools, Godot 4.7.2, clone, build, test).
 - Kỳ Ngộ: every class and race family fills a Ngộ meter after each
   battle (+1 while active, +1 more after a loss, +2 for the family that
   dealt the most damage). When one is full, a cutscene plays before the
