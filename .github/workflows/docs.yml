@@ -10,9 +10,15 @@ on:
 permissions:
   contents: read
 
+# Pushing and editing the description can fire together; only the newest run
+# for a pull request matters.
+concurrency:
+  group: docs-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   docs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

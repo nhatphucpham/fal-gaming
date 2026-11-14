@@ -57,6 +57,16 @@ them as workflow artifacts. It then runs the import and smoke test with the
 Linux library, and checks that the Android and Web exports contain theirs.
 These checks do not replace testing an exported build on the target device.
 
+CI runs once per commit: on pull requests, and on pushes to `master`. A
+branch without a pull request is not built. A newer commit on a pull request
+cancels the run for the older one; runs on `master` are never cancelled.
+
+The Linux jobs run on the pinned `ubuntu-24.04` image, not `ubuntu-latest`,
+so a runner image update cannot change the compiler, glibc or Android SDK
+under the build without a commit. To move to a newer image, change
+`runs-on` in `.github/workflows/` in its own pull request and check that
+every job still passes.
+
 On pull requests a separate `Docs` workflow checks that code changes also
 update the documentation; see [Coding conventions](conventions.md), section 8.
 
@@ -106,7 +116,7 @@ one named by `GODOT_ANDROID_KEYSTORE_DEBUG_PATH`, `_USER` and `_PASSWORD`. A
 release build needs your own keystore through the matching
 `GODOT_ANDROID_KEYSTORE_RELEASE_*` variables; never commit a keystore.
 
-CI exports a debug APK on every push and uploads it as the
+CI exports a debug APK on every run and uploads it as the
 `falemag-android-debug` artifact, kept for seven days. It proves the preset
 exports; it does not run the game. Install the APK on a real low-end phone
 (`adb install -r Falemag.apk`) to check performance.
@@ -137,7 +147,7 @@ iPhone, where APKs do not install. Choices:
 - It is a progressive web app: on iPhone, **Share > Add to Home Screen**
   opens it full screen in landscape.
 
-CI exports a release build on every push and uploads it as the `falemag-web`
+CI exports a release build on every run and uploads it as the `falemag-web`
 artifact. On pushes to `master` the `pages` job publishes it to
 <https://nhatphucpham.github.io/fal-gaming/>. This needs **Settings > Pages >
 Source: GitHub Actions** turned on once in the repository.
