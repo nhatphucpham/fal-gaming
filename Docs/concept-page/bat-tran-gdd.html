@@ -67,7 +67,7 @@ ol.dots li::marker{color:var(--accent);font-weight:700}
 .flow{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:14px}
 .flow .st{border:1px solid var(--line);border-radius:8px;padding:6px 10px;background:var(--surface)}
 .flow .ar{color:var(--muted)}
-code{font-family:var(--mono);font-size:.9em;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+code{font-family:var(--mono);font-size:.9em;background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:0 4px;overflow-wrap:anywhere}
 pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;overflow-x:auto;margin:0}
 /* bàn thử */
 .lab{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:22px;align-items:start}
@@ -136,7 +136,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
       <span class="eyebrow">Tài liệu thiết kế game · Falemag</span>
       <h1>Bát Trận</h1>
       <p class="lead">Auto chess kiếm, cung, giáp, phép, nơi <b>hình dạng đội hình là vũ khí</b>. Người chơi chỉ chuẩn bị; trận đánh tự diễn ra, và các tầng kết hợp tự kích hoạt lẫn nhau thành chuỗi combo.</p>
-      <div class="meta"><span>Bản 1.4 · 14/11/2026</span><span>Godot 4.7 · C++ GDExtension</span><span>PC yếu và điện thoại</span><span>Trạng thái: thiết kế, chưa cân bằng</span></div>
+      <div class="meta"><span>Bản 1.5 · 14/11/2026</span><span>Godot 4.7 · C++ GDExtension</span><span>PC yếu và điện thoại</span><span>Trạng thái: thiết kế, chưa cân bằng</span></div>
       <p class="note">Mọi con số trong tài liệu là <b>giá trị khởi điểm</b> để dựng bản thử, sẽ chỉnh khi chơi thử. Mọi tên riêng là tên tạm.</p>
     </header>
 
@@ -185,7 +185,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
         <li><b>Bàn:</b> mỗi bên 5 cột × 3 hàng (tiền, trung, hậu). Hai bàn đối mặt nhau, hàng tiền của hai bên giáp nhau.</li>
         <li><b>Lượt chuẩn bị:</b> cố định 60 giây trước mỗi trận, ở mọi chế độ. Đồng hồ đếm ngược ở đầu màn hình; 10 giây cuối chuyển đỏ. Hết giờ, quân đang cầm trên tay về chỗ cũ và trận bắt đầu.</li>
         <li><b>Quân số:</b> tối đa 8 quân trên bàn mỗi bên. Ghế dự bị chứa thêm 6 quân, không ra trận.</li>
-        <li><b>Mô phỏng:</b> chạy 15 nhịp mỗi giây, tất định (cùng đầu vào cho cùng kết quả). Quân tự chọn mục tiêu theo luật của lớp (mục 06).</li>
+        <li><b>Mô phỏng:</b> chạy 20 nhịp mỗi giây trên SimClock, tất định (cùng đầu vào cho cùng kết quả). Quân tự chọn mục tiêu theo luật của lớp (mục 06).</li>
         <li><b>Không hồi máu trong trận.</b> Máu chỉ giảm. Chữa thương chỉ có giữa các chặng.</li>
         <li><b>Kết thúc:</b> một bên hết quân. Sau 45 giây, bên có tổng phần trăm máu còn lại cao hơn thắng.</li>
         <li><b>Thua trận:</b> người chơi mất <b>Sĩ khí</b> = 6 + 2 × số quân địch còn sống. Sĩ khí khởi đầu 60; về 0 thì hết ván.</li>
@@ -762,22 +762,52 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
 
     <section id="ky-thuat">
       <h2><span class="n">22</span>Kỹ thuật</h2>
+      <p>Khung C++ đã có trên master: godot-cpp 10.0.0 (API Godot 4.7), SCons, <code>falemag.gdextension</code>, node <code>SimClock</code>, và CI build Linux, Windows, Android, Web. Mục này bám theo quy ước trong <code>Docs/conventions.md</code> và <code>Docs/architecture.md</code> của repo.</p>
+      <h3>Ba lớp</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Lớp</th><th>Ở đâu</th><th>Phần của Bát Trận</th></tr></thead>
+        <tbody>
+          <tr><td><b>Mô phỏng</b></td><td>C++, <code>Native/src/&lt;system&gt;/</code></td><td>Luật trận: chọn mục tiêu, di chuyển, sát thương, Khí, chiêu, nội tại, trận đồ, nguyên tố, chuỗi. Không đọc đồng hồ, input, file hay mạng</td></tr>
+          <tr><td><b>Cầu nối</b></td><td>Node C++ hoặc GDScript, <code>Systems/&lt;System&gt;/</code></td><td>Đưa mô phỏng ra Godot: lệnh xuống (<code>place_unit</code>, <code>start_battle</code>), tín hiệu lên (<code>skill_cast</code>, <code>unit_died</code>, <code>chain_advanced</code>)</td></tr>
+          <tr><td><b>Hiển thị</b></td><td>Scene, GDScript, <code>Scenes/</code>, <code>UI/</code></td><td>Bàn, sprite, thanh máu và Khí, cảnh cắt, chợ quân, âm thanh. Chỉ gửi lệnh và nghe tín hiệu, không sửa trạng thái trận</td></tr>
+        </tbody>
+      </table></div>
+      <h3>Nhịp và tất định</h3>
       <ul class="dots">
-        <li>Godot 4.7, renderer GL Compatibility, 2D thuần, atlas sprite.</li>
-        <li>Lõi viết bằng C++ GDExtension, tách khỏi phần hiển thị: hiển thị chỉ đọc trạng thái mô phỏng và nội suy giữa các nhịp.</li>
-        <li>Số học điểm cố định, RNG có seed, nên một trận tái hiện được từ (đội A, đội B, seed). Dùng cho phát lại, Thử Thách Ngày và chống gian lận.</li>
+        <li>Trận chạy trên <code>SimClock</code> ở <b>20 nhịp mỗi giây</b> (mặc định của khung). Bản trước ghi 15 nhịp; đổi sang 20 vì 15 không chia hết 1.000.000 micro giây và sẽ lệch dần.</li>
+        <li>Mọi thời gian trong tài liệu ghi bằng giây cho dễ đọc; dữ liệu lưu bằng nhịp: 1 giây = 20 nhịp, 0,5 giây = 10 nhịp, lượt chuẩn bị 60 giây = 1200 nhịp.</li>
+        <li>Máu, sát thương, vị trí, đồng hồ trong trận đều là số nguyên hoặc điểm cố định. Số thực chỉ dùng cho hiển thị.</li>
+        <li>Một RNG có seed do mô phỏng giữ, chỉ dùng cho chợ quân, sự kiện và bản đồ. Trong trận không dùng RNG (mục 06).</li>
+        <li>Duyệt quân theo thứ tự cố định (mục 06, Di chuyển), không duyệt <code>unordered_map</code>. Một trận tái hiện được từ (đội A, đội B, seed), dùng cho phát lại, Thử Thách Ngày, chống gian lận và công cụ cân bằng.</li>
       </ul>
-<pre>native/
-  battle_sim      mô phỏng 15 nhịp/giây, tất định
-  formation       nhận diện trận đồ trên bàn 5×3
-  combo           phản ứng nguyên tố, đếm chuỗi, nhật ký combo
-  skills          Khí, chiêu, nội tại nghe sự kiện
-  rules           khắc chế, nghề, tộc, Binh Thư, Trận Nhãn
-data/
-  units/*.json    lớp, tộc, chỉ số, tướng
-  skills/*.json   chiêu (mục tiêu, hình vùng, hiệu ứng), nội tại (sự kiện → hiệu ứng)
-  formations/*.json   hình (mảng ô tương đối) + hiệu lực
-  items/*.json  elements/*.json  books/*.json  eyes/*.json</pre>
+      <h3>Hệ thống dự kiến</h3>
+<pre>Native/src/
+  battle/       vòng trận, chọn mục tiêu, di chuyển, sát thương
+  formation/    nhận diện trận đồ trên bàn 5×3
+  skill/        Khí, chiêu, nội tại nghe sự kiện
+  combo/        nguyên tố, phản ứng, đếm chuỗi, nhật ký combo
+  rules/        khắc chế, nghề, tộc, Binh Thư, Trận Nhãn
+Systems/
+  Run/          ván Hành Quân, bản đồ, chợ quân, kinh tế
+Data/
+  Units/  Skills/  Formations/  Items/  Elements/  WarBooks/  BoardSigils/  Bosses/  Events/</pre>
+      <ul class="dots">
+        <li>Nội dung là dữ liệu: file <code>.tres</code> trong <code>Data/</code>, mỗi thứ có id cố định: <code>unit.shield_guard</code> (Thuẫn Binh), <code>skill.hold_ground</code> (Trấn Thủ), <code>formation.shield_wall</code> (Tường Khiên). Chiêu và nội tại đi qua registry, không có <code>switch</code> theo từng quân.</li>
+        <li>Mỗi hệ thống có một trang <code>Docs/systems/&lt;system&gt;.md</code> viết từ mẫu <code>_template.md</code>, trong cùng PR với code.</li>
+        <li>Nhật Ký Combo đọc từ log sự kiện theo dạng chuẩn của repo, ví dụ <code>[info][Battle][t=240] skill_cast unit=unit.fire_adept skill=skill.arcane_circle</code>.</li>
+        <li>Code và tên định danh bằng tiếng Anh; chữ người chơi thấy bằng tiếng Việt, qua file dịch.</li>
+      </ul>
+      <h3>Thứ tự dựng bản thử</h3>
+      <ol class="dots">
+        <li><code>battle</code>: hai bên đánh nhau trên SimClock với 2 lớp, chỉ số và công thức sát thương mục 06.</li>
+        <li>Chọn mục tiêu và di chuyển đủ 6 lớp; khắc chế.</li>
+        <li>Dữ liệu <code>Data/Units</code>, bàn xếp quân kéo thả, xem trận trên bản web.</li>
+        <li><code>formation</code>: 12 trận đồ.</li>
+        <li><code>skill</code>: Khí, chiêu, nội tại, Hậu chiêu.</li>
+        <li><code>combo</code>: 3 nguyên tố, phản ứng, chuỗi.</li>
+        <li>Ván 8 chặng: chợ quân, vàng, lương, lượt chuẩn bị 60 giây, chúa tể Cự Nham.</li>
+        <li>Cảnh cắt Liễu Mi và Ba Khắc.</li>
+      </ol>
     </section>
 
     <section id="pham-vi">
@@ -791,7 +821,7 @@ data/
           <tr><td>Kết hợp</td><td>12 trận đồ, 3 nguyên tố (Hỏa, Băng, Phong) với 3 phản ứng</td></tr>
           <tr><td>Nâng cấp</td><td>Nâng sao, 6 món trang bị, 2 loại Trận Nhãn</td></tr>
           <tr><td>Ván</td><td>8 chặng, có vàng và lương, chúa tể Cự Nham, 4 sự kiện</td></tr>
-          <tr><td>Nền tảng</td><td>Windows và Android</td></tr>
+          <tr><td>Nền tảng</td><td>Web (chơi được trên iPhone qua trình duyệt), Windows, Android</td></tr>
         </tbody>
       </table></div>
       <p><b>Câu hỏi bản thử phải trả lời:</b> người chơi có tự đổi đội chỉ để nối một chuỗi combo dài hơn không? Nếu có, lõi game đã vui.</p>
