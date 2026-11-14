@@ -25,7 +25,7 @@ chuẩn bị; trận tự đánh, các tầng kết hợp tự kích hoạt nhau
 - **Phát hành:** trọng tâm là Hành Quân chơi đơn. Bản web chơi thử, rồi PC (Steam), rồi Android và iOS.
   Bóng Quân (đánh bản chụp đội người khác) sau phát hành; Loạn Chiến 8 người khi đủ người chơi.
 - **Mô hình:** mua một lần. Điện thoại chơi thử miễn phí đến hết bậc ải 1. Không gacha, không bán sức mạnh.
-- **Hình ảnh:** bàn và giao diện cắt giấy, tô phẳng, màu tranh dân gian; cảnh cắt là pixel art nhìn ngang kiểu cảnh giao đấu của game chiến thuật đời GBA.
+- **Hình ảnh:** bàn và giao diện cắt giấy, tô phẳng, màu tranh dân gian; cảnh cắt là hoạt hình 2D vẽ tay độ phân giải cao, nhìn ngang kiểu cảnh giao đấu của game chiến thuật, rig xương 2D.
 
 ## Mong muốn của Phúc và giới hạn kỹ thuật
 

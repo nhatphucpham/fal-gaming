@@ -528,7 +528,7 @@ nav.toc li.part:first-child{margin-top:2px}
       <ul class="dots">
         <li>Sprite chia lớp: thân theo tộc, đầu, tóc, giáp theo lớp, vũ khí theo lớp và giá, bảng màu theo xuất thân. Vài chục bộ phận ra hàng trăm dáng, nhẹ cho máy yếu.</li>
         <li>Quân giá cao có giáp và vũ khí cầu kỳ hơn, nhìn là biết đắt. Tướng Lĩnh có sprite vẽ riêng hoàn toàn.</li>
-        <li>Bộ phận ghép dùng cho sprite trên bàn (64 px, cắt giấy). Sprite cảnh cắt là pixel art (96–128 px), vẽ theo bộ hoạt ảnh chung của từng lớp rồi ghép đầu, giáp, vũ khí và đổi bảng màu; Tướng Lĩnh có hoạt ảnh pixel vẽ tay riêng.</li>
+        <li>Bộ phận ghép dùng cho sprite trên bàn (64 px, cắt giấy) và cho rig cảnh cắt (mảnh HD cùng tên: đầu, tóc, giáp, vũ khí). Ghép một lần, Xưởng Quân xuất cả hai cỡ; Tướng Lĩnh có mảnh và động tác vẽ tay riêng.</li>
       </ul>
     </section>
 
@@ -1013,8 +1013,9 @@ nav.toc li.part:first-child{margin-top:2px}
       <h2><span class="n">23</span>Hình ảnh và âm thanh</h2>
       <ul class="dots">
         <li><b>Trên bàn và giao diện:</b> cắt giấy có khớp, tô phẳng, viền đậm, bảng màu tranh dân gian. Mỗi lớp một dáng bóng riêng, nhìn bóng là biết lớp. Sprite trận khoảng 64 px, động tác chạy bằng khớp, 3–5 tư thế khóa mỗi động tác, góc nhìn chéo nhẹ từ trên xuống.</li>
-        <li><b>Cảnh cắt:</b> pixel art nhìn ngang kiểu cảnh giao đấu của game chiến thuật đời GBA. Hai nhân vật đứng hai bên, sprite cao khoảng 96–128 px, 8–14 khung mỗi đòn (vào thế, ra đòn, trúng), nền pixel theo địa hình, thanh máu và tên hai bên ở cạnh dưới. Mỗi sprite tối đa 16 màu, bảng màu ấm như phần còn lại của game. Tự vẽ toàn bộ, không dùng lại hình của game nào.</li>
-        <li><b>Chân dung thoại:</b> bán thân pixel 96×96 px cạnh hộp thoại trong cảnh cắt, 2–3 nét mặt cho mỗi Tướng Lĩnh.</li>
+        <li><b>Cảnh cắt:</b> hoạt hình 2D vẽ tay độ phân giải cao, bố cục nhìn ngang kiểu cảnh giao đấu của game chiến thuật: hai nhân vật đứng hai bên, nền vẽ theo địa hình, tên, máu và chỉ số hai bên ở cạnh dưới. Nhân vật cao khoảng 480–600 px ở màn 1080p, nét viền sạch, tô bóng hai tầng (cel shading), bảng màu ấm như phần còn lại của game. Tự vẽ toàn bộ, không dùng lại hình của game nào.</li>
+        <li><b>Hoạt ảnh cảnh cắt:</b> rig xương 2D (Skeleton2D của Godot) trên các mảnh vẽ HD, không vẽ từng khung, để làm được 80–100 nhân vật. Mỗi lớp một bộ động tác chung (vào thế, ra đòn, trúng, ngã); Tướng Lĩnh có thêm đòn riêng và vài khung vẽ tay ở lúc ra đòn cho mạnh. Máy yếu tự hạ xuống bản 720p.</li>
+        <li><b>Chân dung thoại:</b> bán thân HD cạnh hộp thoại, 3–4 nét mặt cho mỗi Tướng Lĩnh.</li>
         <li>Giọng Tướng Lĩnh và nhân vật có tên sinh trước lúc build bằng TTS tts.falevon.com: câu ra trận, câu tung chiêu, thoại cảnh cắt giữa các cặp có quan hệ. Không gọi mạng khi chơi.</li>
         <li>Giọng TTS là giọng máy: ghi rõ trên trang cửa hàng; Tướng Lĩnh có thể thu giọng người sau.</li>
       </ul>
@@ -1135,7 +1136,7 @@ Data/
     <section id="cau-hoi">
       <h2><span class="n">27</span>Quyết định đã chốt</h2>
       <ul class="dots">
-        <li><b>Phong cách hình ảnh:</b> bàn và giao diện theo kiểu cắt giấy có khớp, tô phẳng, viền đậm, bảng màu tranh dân gian. Cảnh cắt dùng pixel art nhìn ngang kiểu cảnh giao đấu của game chiến thuật đời GBA (Phúc chọn, 14/11/2026). Tự vẽ toàn bộ.</li>
+        <li><b>Phong cách hình ảnh:</b> bàn và giao diện theo kiểu cắt giấy có khớp, tô phẳng, viền đậm, bảng màu tranh dân gian. Cảnh cắt là hoạt hình 2D vẽ tay độ phân giải cao, bố cục nhìn ngang kiểu cảnh giao đấu của game chiến thuật (Phúc chọn, 14/11/2026). Tự vẽ toàn bộ.</li>
         <li><b>Trọng tâm phát hành:</b> Hành Quân chơi đơn. Thứ tự: bản web chơi thử, rồi PC (Steam), rồi Android và iOS. Sau phát hành thêm Bóng Quân: đánh với bản chụp đội của người chơi khác, không cần online cùng lúc. Loạn Chiến 8 người chỉ làm khi đã đủ người chơi.</li>
         <li><b>Tên chính thức:</b> Bát Trận. Tên trên cửa hàng quốc tế: "Bat Tran: Eight Formations". Kiểm tra nhãn hiệu và tên miền trước khi công bố.</li>
         <li><b>Số tầng kết hợp:</b> giữ đủ tám tầng. Bản thử bật hết để đo. Bản phát hành mở từng tầng theo mục 19; người mới chỉ cần nhìn vòng Hợp Lực. Trong trận, cùng lúc chỉ nháy tối đa 3 loại hiệu ứng tầng.</li>
