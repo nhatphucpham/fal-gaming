@@ -8,8 +8,9 @@ missing, and the node loads as an unknown node.
 ## Requirements
 
 - Godot 4.7.2 standard edition and its export templates.
-- Python 3 and SCons 4.11 or later (`python -m pip install scons`); older
-  versions do not find Visual Studio 2026.
+- Python 3 and SCons (`python -m pip install scons`): 4.11 or later on
+  Windows, since older versions do not find Visual Studio 2026; 4.0 or later
+  elsewhere.
 - A C++17 compiler: Visual Studio 2022 or 2026 Build Tools (MSVC) on Windows, GCC or
   Clang on Linux. Android builds also need the Android NDK `28.1.13356709`
   installed through the Android SDK, with `ANDROID_HOME` set. Web builds need
@@ -41,6 +42,44 @@ godot-cpp is pinned to `10.0.0-stable` and built against the Godot 4.7 API
 (`api_version` in `SConstruct`). The extension needs Godot 4.7 or later.
 
 ## Validate
+
+For a first-time setup on Windows (Git, Python, Visual Studio Build Tools
+and Godot, with PowerShell commands) see the README, section "Set up, build
+and test on Windows".
+
+On Windows, `Tools/build_and_test.bat` does the build, the import and every
+test in `Tests/`, and stops with a hint at the first setup step that fails
+(Godot missing or not 4.7, assets left as Git LFS pointers, no Python 3,
+`Native/godot-cpp` empty, a failed build or import). It updates the submodule
+and installs or upgrades SCons to 4.11 or later itself, and warns when SCons
+fell back to MinGW instead of MSVC. The smoke test runs first and stops the
+run if it fails; the other tests then all run in name order and the failed
+ones are listed at the end. Last, like CI, it starts the main scene
+headless for two frames (`--quit-after 2`). It finds the Godot
+console executable through the `GODOT` variable or its `DEFAULT_GODOT` line,
+runs from the repository root wherever it is started, and waits for a key at
+the end so a double-clicked window stays open (`nopause` skips that, `editor`
+opens the editor after the tests pass). It runs every `Tests/*_test.gd`, so a
+new test file is picked up without editing it; keep helper scripts in
+`Tests/` named otherwise, such as `*_kit.gd`.
+
+When `GODOT` is not set, the `.bat` looks for a Godot 4.7 console
+executable at `DEFAULT_GODOT` (`C:\Godot\...`), then on `PATH`, then under
+`C:\Godot`, `Program Files\Godot`, Downloads and Desktop, subfolders
+included. The `.sh` takes `godot` from `PATH` when it reports 4.7, and
+otherwise searches those folders up to four levels deep.
+
+Both scripts stop early when `Assets/Sfx/arrow.wav` is missing (a clone or
+checkout that did not finish) or is still a Git LFS pointer.
+
+`Tools/build_and_test.sh` does the same steps in bash: Git Bash or MSYS2 on
+Windows (it passes Windows paths to Godot and turns off MSYS path rewriting,
+and prefers the python.org `py` launcher so SCons uses MSVC rather than
+MSYS2's MinGW), and Linux, where it builds the `.so` and looks for
+`Godot_v4.7*_linux.x86_64` in `~/Godot`, `~/Downloads`, `~/Desktop` and
+`/opt/godot`. On Linux it accepts SCons 4.0 or later, and when pip cannot
+install it (a system Python that blocks pip) it suggests the package manager
+or a virtual environment.
 
 After building, run the editor import, `Tests/smoke_test.gd`,
 `Tests/battle_test.gd`, `Tests/battle_api_test.gd`, `Tests/skill_test.gd`,
