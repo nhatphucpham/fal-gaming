@@ -5,10 +5,14 @@ tactics. It targets low-end PCs and mobile phones, and may later support
 online play.
 
 The project is at an early stage: a C++ GDExtension with a fixed-step clock
-and a headless, deterministic battle core (classes, units and rules as data
-under `Data/`), a main scene, smoke and battle tests, Windows, Android and Web
-export presets, and CI. The battle has no screen yet; story and controls are
-not yet implemented.
+and a deterministic battle core (classes, units and rules as data under
+`Data/`), and a first playable screen, the sandbox, made for a phone held
+upright: place up to 8 units from the full roster on your half of the 7 x 8
+board by tapping or dragging, see the enemy line-up, press **Ra trận** and
+watch the battle play out with animation at x1, x2 or x4. Text is in
+Vietnamese. There are smoke, battle and sandbox tests, Windows, Android and
+Web export presets, and CI. The shop, the run of stages and the story are not
+yet implemented.
 
 ## Requirements
 
@@ -37,6 +41,7 @@ echo res://falemag.gdextension> .godot\extension_list.cfg
 "%GODOT%" --headless --path "%CD%" --script res://Tests/smoke_test.gd
 "%GODOT%" --headless --path "%CD%" --script res://Tests/battle_test.gd
 "%GODOT%" --headless --path "%CD%" --script res://Tests/battle_api_test.gd
+"%GODOT%" --headless --path "%CD%" --script res://Tests/sandbox_test.gd
 ```
 
 In the editor, press **F5** to run the project or **F6** to run the current
@@ -65,7 +70,8 @@ Git.
 - [Architecture](Docs/architecture.md)
 - [Coding conventions](Docs/conventions.md): rules for every change
 - [System doc template](Docs/systems/_template.md)
-- Systems: [SimClock](Docs/systems/sim_clock.md), [Battle](Docs/systems/battle.md)
+- Systems: [SimClock](Docs/systems/sim_clock.md), [Battle](Docs/systems/battle.md),
+  [Board](Docs/systems/board.md), [Battle playback](Docs/systems/battle_playback.md)
 - [Changelog](CHANGELOG.md)
 - [Agent instructions](AGENTS.md)
 

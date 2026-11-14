@@ -23,7 +23,8 @@ rounds or economy; presentation listens to its events.
   `battle` (the `Battle` node), `battle_event_dictionary` (events to
   dictionaries), `bridge_strings.h` (string helpers).
 - Content: `Systems/Content/catalog.gd` (`Catalog`) and `Data/`.
-- Depends on: nothing. The caller drives `step()`, usually from `SimClock`.
+- Depends on: nothing. The caller drives `step()`, usually from `SimClock`;
+  on screen that is `BattlePlayback` (see [Battle playback](battle_playback.md)).
 
 ## Data
 

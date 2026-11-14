@@ -1,0 +1,19 @@
+[remap]
+
+importer="csv_translation"
+type="Translation"
+uid="uid://cslacfel2o803"
+
+[deps]
+
+files=["res://Locale/strings.vi.translation", "res://Locale/strings.en.translation"]
+
+source_file="res://Locale/strings.csv"
+dest_files=["res://Locale/strings.vi.translation", "res://Locale/strings.en.translation"]
+
+[params]
+
+compress=1
+delimiter=0
+unescape_keys=false
+unescape_translations=true

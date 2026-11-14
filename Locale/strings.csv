@@ -1,0 +1,61 @@
+keys,vi,en
+GAME_TITLE,Bát Trận,Bat Tran
+ENEMY_LABEL,Địch: %s,Enemy: %s
+PRESET_RABBLE,Toán lính ô hợp,Ragtag band
+PRESET_BORDER_PATROL,Đội tuần biên,Border patrol
+PRESET_SHIELD_WALL,Tường Khiên,Shield wall
+BUTTON_FIGHT,Ra trận,Fight
+BUTTON_NEXT_ENEMY,Đổi địch,Next enemy
+BUTTON_CLEAR,Xóa bàn,Clear board
+BUTTON_REARRANGE,Xếp lại,Rearrange
+SPEED_FORMAT,x%d,x%d
+COUNT_FORMAT,%d/%d,%d/%d
+TIMER_FORMAT,%d giây,%d s
+RESULT_WIN,Thắng trận,Victory
+RESULT_LOSS,Thua trận,Defeat
+RESULT_TIME_LIMIT,Hết giờ: bên còn nhiều máu hơn thắng,Time is up: the side with more health wins
+INFO_COST,Giá %d,Cost %d
+INFO_HP,Máu,Health
+INFO_ATTACK,Công,Attack
+INFO_ATTACK_SPEED,Tốc đánh,Attack speed
+INFO_ATTACK_SPEED_VALUE,%s/giây,%s/s
+INFO_RANGE,Tầm,Range
+INFO_RANGE_VALUE,%d ô,%d cells
+INFO_ARMOR,Giáp,Armor
+INFO_MAGIC_RESIST,Kháng phép,Magic resist
+RACE_HUMAN,Nhân,Human
+RACE_WOLF,Lang Tộc,Wolf folk
+CLASS_SHIELD,Khiên,Shield
+CLASS_SWORD,Kiếm,Sword
+CLASS_SPEAR,Thương,Spear
+CLASS_CAVALRY,Kỵ,Cavalry
+CLASS_ARCHER,Cung,Archer
+CLASS_MAGE,Pháp,Mage
+UNIT_SHIELD_GUARD,Thuẫn Binh,Shield Guard
+UNIT_BLADE_WANDERER,Đao Khách,Blade Wanderer
+UNIT_WOLF_SPEAR,Lang Thương,Wolf Spear
+UNIT_WOLF_RIDER,Lang Kỵ,Wolf Rider
+UNIT_ARCHER,Cung Thủ,Archer
+UNIT_FIRE_ADEPT,Hỏa Pháp Đồ,Fire Adept
+UNIT_WOLF_SHIELD,Lang Thuẫn,Wolf Shield
+UNIT_WOLF_BLADE,Lang Đao,Wolf Blade
+UNIT_SPEARMAN,Thương Binh,Spearman
+UNIT_LIGHT_RIDER,Khinh Kỵ,Light Rider
+UNIT_WOLF_ARCHER,Lang Cung,Wolf Archer
+UNIT_ICE_MAGE,Băng Pháp Sư,Ice Mage
+UNIT_IRON_GUARD,Thiết Vệ,Iron Guard
+UNIT_BLOOD_WOLF,Huyết Lang,Blood Wolf
+UNIT_WOLF_MARKSMAN,Lang Xạ,Wolf Marksman
+UNIT_WIND_MAGE,Phong Pháp Sư,Wind Mage
+UNIT_PIKE_GUARD,Trường Thương Vệ,Pike Guard
+UNIT_WOLF_KING_SHIELD,Lang Vương Thuẫn,Wolf King Shield
+UNIT_HEAVY_RIDER,Trọng Kỵ,Heavy Rider
+UNIT_MOON_SPEAR,Nguyệt Thương,Moon Spear
+UNIT_THUNDER_MAGE,Lôi Pháp Sư,Thunder Mage
+UNIT_LIEU_MI,Liễu Mi,Lieu Mi
+UNIT_BA_KHAC,Ba Khắc,Ba Khac
+UNIT_LAC_HONG,Lạc Hồng,Lac Hong
+UNIT_THIET_NHA,Thiết Nha,Thiet Nha
+SIDE_PLAYER,Ta: %d quân,Us: %d units
+SIDE_ENEMY,Địch: %d quân,Enemy: %d units
+DECIMAL_SEPARATOR,",","."

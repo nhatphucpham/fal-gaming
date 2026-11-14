@@ -43,12 +43,16 @@ godot-cpp is pinned to `10.0.0-stable` and built against the Godot 4.7 API
 ## Validate
 
 After building, run the editor import, `Tests/smoke_test.gd`,
-`Tests/battle_test.gd` and `Tests/battle_api_test.gd` as shown in the
-README. The smoke test checks that the extension is loaded, that the main
-scene contains a `SimClock`, and that it ticks as expected. The battle tests
-load `Data/catalog.tres` and run short battles headless (see
-[Battle](systems/battle.md)); the first prints the length of a sample 8v8
-battle, the second prints the errors it provokes on purpose.
+`Tests/battle_test.gd`, `Tests/battle_api_test.gd` and `Tests/sandbox_test.gd`
+as shown in the README.
+The sandbox test drives the sandbox screen headless through the functions its
+gestures call and plays one battle to the end (see
+[Board](systems/board.md)). The smoke test checks that the
+extension is loaded, that the main scene contains a `SimClock`, and that it
+ticks as expected. The battle tests load `Data/catalog.tres` and run short
+battles headless (see [Battle](systems/battle.md)); the first prints the
+length of a sample 8v8 battle, the second prints the errors it provokes on
+purpose.
 
 The first import of a fresh checkout loads the extension mid-scan, and Godot
 4.7.2 then crashes on exit (exit code 134). Running the import again
@@ -57,8 +61,8 @@ succeeds. CI avoids it by writing
 
 CI builds debug and release libraries for Linux x86_64, Windows x86_64,
 Android arm64 and arm32, and the web (wasm32 without threads), and uploads
-them as workflow artifacts. It then runs the import, the smoke test and the
-battle tests with the Linux library, and checks that the Android and Web
+them as workflow artifacts. It then runs the import, the smoke, battle and
+sandbox tests with the Linux library, and checks that the Android and Web
 exports contain theirs.
 These checks do not replace testing an exported build on the target device.
 
@@ -101,9 +105,9 @@ without a custom Gradle build. Choices made to keep it light:
   GPUs. Textures import with ETC2/ASTC compression
   (`rendering/textures/vram_compression/import_etc2_astc`), which Android
   export requires and which keeps GPU memory low.
-- The screen follows the sensor in landscape, uses immersive mode, and
-  stretches with `aspect="expand"` so tall phone screens show more of the
-  scene instead of black bars.
+- The screen is held in portrait (`display/window/handheld/orientation`),
+  uses immersive mode, and stretches with `aspect="expand"` so tall phone
+  screens get more spacing instead of black bars.
 - The `INTERNET` permission is on for online play and the TTS service.
 
 Before the GDExtension was added, a debug export was about 28 MB and a
@@ -157,7 +161,7 @@ iPhone, where APKs do not install. Choices:
 - ETC2/ASTC and S3TC/BPTC textures are both exported, so phones and desktops
   each get a compressed format.
 - It is a progressive web app: on iPhone, **Share > Add to Home Screen**
-  opens it full screen in landscape.
+  opens it full screen in portrait (`progressive_web_app/orientation`).
 
 CI exports a release build on every run and uploads it as the `falemag-web`
 artifact. On pushes to `master` the `pages` job publishes it to
