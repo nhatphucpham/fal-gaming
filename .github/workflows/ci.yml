@@ -1,8 +1,18 @@
 name: CI
 
+# Branch pushes are built through their pull request, so a push builds only on
+# master. That keeps one run per commit instead of two.
 on:
   push:
+    branches: [master]
   pull_request:
+
+# A newer commit on a pull request cancels the run for the older one. Runs on
+# master get a group of their own, so no build is cancelled or left waiting
+# (the pages job below has its own group for deploys).
+concurrency:
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -10,6 +20,9 @@ permissions:
 env:
   SCONS_CACHE: ${{ github.workspace }}/.scons-cache
 
+# Linux runner images are pinned like the actions: ubuntu-latest moves to Ubuntu
+# 26.04 (actions/runner-images#14748), which would change the compiler, glibc
+# and preinstalled Android SDK under the build. Move to a newer image on purpose.
 jobs:
   native:
     name: Native (${{ matrix.name }})
@@ -19,19 +32,19 @@ jobs:
       matrix:
         include:
           - name: linux-x86_64
-            os: ubuntu-latest
+            os: ubuntu-24.04
             flags: platform=linux arch=x86_64
           - name: windows-x86_64
             os: windows-latest
             flags: platform=windows arch=x86_64
           - name: android-arm64
-            os: ubuntu-latest
+            os: ubuntu-24.04
             flags: platform=android arch=arm64 ndk_version=28.1.13356709
           - name: android-arm32
-            os: ubuntu-latest
+            os: ubuntu-24.04
             flags: platform=android arch=arm32 ndk_version=28.1.13356709
           - name: web-wasm32
-            os: ubuntu-latest
+            os: ubuntu-24.04
             flags: platform=web threads=no
     defaults:
       run:
@@ -85,7 +98,7 @@ jobs:
 
   godot:
     needs: native
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -117,7 +130,7 @@ jobs:
 
   android:
     needs: godot
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -181,7 +194,7 @@ jobs:
 
   web:
     needs: godot
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -245,7 +258,7 @@ jobs:
   pages:
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
     needs: web
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       pages: write
       id-token: write
