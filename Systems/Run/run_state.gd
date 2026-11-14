@@ -312,38 +312,42 @@ func to_save_data() -> Dictionary:
 
 
 ## Restores a run saved by to_save_data() into its preparation. False (and
-## nothing usable) when the data is malformed or names unknown units.
+## nothing usable) when a field is missing, of the wrong type or out of
+## range, or the pieces or offers break a rule (see Docs/systems/run.md).
 func load_save_data(data: Dictionary) -> bool:
-	for key: String in ["seed", "rng_state", "stage", "morale", "gold", "supply", "level", "pieces", "shop"]:
-		if not data.has(key):
-			return false
-	if not data["pieces"] is Array or not data["shop"] is Array:
+	var reader := SaveReader.new(data)
+	# stages_cleared -1: not in the file, so counted from the stage.
+	var values := {
+		"stage": reader.get_int("stage"), "morale": reader.get_int("morale"),
+		"gold": reader.get_int("gold"), "supply": reader.get_int("supply"),
+		"level": reader.get_int("level"), "stages_cleared": reader.get_int("stages_cleared", -1),
+	}
+	var seed_value := reader.get_int_string("seed")
+	var rng_state := reader.get_int_string("rng_state")
+	var next_id := reader.get_int("next_piece_id", 1)
+	var is_black_market := reader.get_bool("black_market", false)
+	var free_refreshes := reader.get_int("free_refreshes", 0)
+	var rows := reader.get_array("pieces")
+	var offers := _offers_from_save(reader)
+	if not reader.is_valid or not _are_values_in_range(values):
 		return false
-	if not _roster.load_save_data(data["pieces"], int(data.get("next_piece_id", 1))):
+	if not _roster.load_save_data(rows, next_id, rules.get_capacity(values["level"])):
 		return false
-	for piece: RunPiece in _roster.get_all():
-		if catalog.get_unit(piece.unit_id) == null:
-			return false
-	var offers: Array[StringName] = []
-	for offer: Variant in data["shop"]:
-		var unit_id := StringName(str(offer))
-		if unit_id != &"" and catalog.get_unit(unit_id) == null:
-			return false
-		offers.append(unit_id)
-	run_seed = str(data["seed"]).to_int()
+	stage = values["stage"]
+	stages_cleared = values["stages_cleared"] if values["stages_cleared"] >= 0 else stage - 1
+	morale = values["morale"]
+	gold = values["gold"]
+	supply = values["supply"]
+	level = values["level"]
+	run_seed = seed_value
 	_rng.seed = run_seed
-	_rng.state = str(data["rng_state"]).to_int()
-	stage = clampi(int(data["stage"]), 1, rules.stage_count)
-	stages_cleared = int(data.get("stages_cleared", stage - 1))
-	morale = int(data["morale"])
-	gold = int(data["gold"])
-	supply = int(data["supply"])
-	level = clampi(int(data["level"]), rules.start_level, rules.max_level)
+	_rng.state = rng_state
 	_shop.set_offers(offers)
-	_is_black_market = bool(data.get("black_market", false))
-	_free_refreshes = int(data.get("free_refreshes", 0))
+	_is_black_market = is_black_market
+	# Only a black-market stage has free refreshes, and never more than it gives.
+	_free_refreshes = clampi(free_refreshes, 0, rules.black_market_free_refreshes if is_black_market else 0)
 	phase = Phase.PREP
-	return morale > 0
+	return true
 
 
 # --- Internals -----------------------------------------------------------
@@ -373,6 +377,31 @@ func _buy(shop_slot: int, bench_slot: int, cell: Vector2i) -> Result:
 	piece_bought.emit(piece.id, shop_slot)
 	_roster.merge_all()
 	return Result.OK
+
+
+# The saved shop offers as ids (missing slots stay empty). More offers than
+# slots, a wrong type or an unknown unit marks `reader` invalid.
+func _offers_from_save(reader: SaveReader) -> Array[StringName]:
+	var saved := reader.get_array("shop")
+	var offers: Array[StringName] = []
+	for offer: Variant in saved:
+		if not offer is String or (offer != "" and catalog.get_unit(StringName(offer)) == null):
+			reader.is_valid = false
+			return []
+		offers.append(StringName(offer))
+	if offers.size() > rules.shop_slots:
+		reader.is_valid = false
+	return offers
+
+
+func _are_values_in_range(values: Dictionary) -> bool:
+	var stage_value: int = values["stage"]
+	var cleared: int = values["stages_cleared"]
+	return stage_value >= 1 and stage_value <= rules.stage_count \
+		and values["morale"] >= 1 and values["morale"] <= rules.max_morale \
+		and values["gold"] >= 0 and values["supply"] >= 0 \
+		and values["level"] >= rules.start_level and values["level"] <= rules.max_level \
+		and cleared >= -1 and cleared < stage_value
 
 
 func _check_move(piece: RunPiece) -> Result:

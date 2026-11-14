@@ -1,7 +1,9 @@
 class_name RewardCard
 extends Control
 ## A large reward card: a drawn icon, a title and one line of effect. A tap
-## (press and release on the card) emits `chosen`; the card sinks while held.
+## or a short drag released on the card emits `chosen`; the card sinks while
+## held. Input goes through PointerGesture, so a cancelled touch chooses
+## nothing, and neither does a long press.
 
 signal chosen()
 
@@ -13,9 +15,12 @@ var _title: Label
 var _effect: Label
 var _is_down: bool = false
 var _tween: Tween
+var _gesture := PointerGesture.new()
 
 
 func _init() -> void:
+	_gesture.tapped.connect(_choose_if_inside)
+	_gesture.drag_ended.connect(_choose_if_inside)
 	custom_minimum_size = CARD_SIZE
 	size = CARD_SIZE
 	pivot_offset = CARD_SIZE / 2.0
@@ -34,24 +39,24 @@ func setup(kind: StringName, title: String, effect: String) -> void:
 
 
 func _gui_input(event: InputEvent) -> void:
-	var button := event as InputEventMouseButton
-	if button == null or button.button_index != MOUSE_BUTTON_LEFT:
-		return
-	accept_event()
-	if button.pressed:
-		_is_down = true
-		_scale_to(Vector2(0.95, 0.95), 0.06)
-	elif _is_down:
-		_is_down = false
-		_scale_to(Vector2.ONE, 0.12)
-		if Rect2(Vector2.ZERO, size).has_point(button.position):
-			chosen.emit()
+	if _gesture.handle_input(event):
+		accept_event()
+	_update_pressed()
+
+
+func _input(event: InputEvent) -> void:
+	_gesture.handle_global_input(event)
+	_update_pressed()
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_MOUSE_EXIT and _is_down:
-		_is_down = false
-		_scale_to(Vector2.ONE, 0.12)
+	if _gesture != null:
+		_gesture.handle_notification(what)
+		_update_pressed()
+
+
+func _process(delta: float) -> void:
+	_gesture.update(delta)
 
 
 func _draw() -> void:
@@ -63,6 +68,20 @@ func _draw() -> void:
 	draw_circle(medallion, 66.0, Palette.INDIGO_DARK)
 	IconPainter.draw(self, icon_kind, medallion, ICON_PX)
 	draw_line(Vector2(28, 250), Vector2(CARD_SIZE.x - 28, 250), Palette.PAPER_DARK, 2.0)
+
+
+func _choose_if_inside(pointer: Vector2) -> void:
+	var local := get_global_transform_with_canvas().affine_inverse() * pointer
+	if Rect2(Vector2.ZERO, size).has_point(local):
+		chosen.emit()
+
+
+# Sinks the card while a press is held and lifts it when the press ends.
+func _update_pressed() -> void:
+	if _gesture.is_pressed() == _is_down:
+		return
+	_is_down = _gesture.is_pressed()
+	_scale_to(Vector2(0.95, 0.95) if _is_down else Vector2.ONE, 0.06 if _is_down else 0.12)
 
 
 func _make_label(font_size: int, at: Vector2, label_size: Vector2) -> Label:

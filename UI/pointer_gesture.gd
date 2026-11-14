@@ -109,6 +109,11 @@ func is_dragging() -> bool:
 	return _is_dragging
 
 
+## True while a press is held (dragging or not), until release or cancel.
+func is_pressed() -> bool:
+	return _is_down
+
+
 func _handle_button(button: InputEventMouseButton) -> bool:
 	if button.button_index == MOUSE_BUTTON_RIGHT:
 		if button.pressed:

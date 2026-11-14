@@ -104,8 +104,6 @@ func continue_after_battle() -> void:
 	if run.phase == RunState.Phase.REWARD:
 		reward_screen.present(run.get_reward_options(), run.rules)
 		return
-	if is_saving:
-		RunSave.delete()
 	run_finished.emit(run)
 
 
@@ -183,6 +181,10 @@ func _finish_battle(is_win: bool, enemies_alive: int, reason: StringName) -> voi
 	last_battle_won = is_win
 	_deltas.clear()
 	run.finish_battle(is_win, enemies_alive)
+	# The run is over now, not when the banner is dismissed: a save left
+	# behind would let "Chơi tiếp" replay the deciding battle.
+	if is_saving and (run.phase == RunState.Phase.WON or run.phase == RunState.Phase.LOST):
+		RunSave.delete()
 	var reason_text := tr("RESULT_TIME_LIMIT") if reason == &"time_limit" else ""
 	if reason == &"" and not is_win:
 		reason_text = tr("RESULT_EMPTY_BOARD")
@@ -207,7 +209,7 @@ func _on_tick_advanced(tick: int) -> void:
 	var rules := _catalog.battle_rules
 	var seconds_left := ceili(float(rules.time_limit_ticks - tick) / rules.ticks_per_second)
 	layout.timer_badge.visible = true
-	layout.timer_badge.show_seconds(seconds_left, rules.time_limit_ticks / rules.ticks_per_second, false)
+	layout.timer_badge.show_battle_seconds(seconds_left, rules.time_limit_ticks / rules.ticks_per_second)
 	if tick % STATUS_EVERY_TICKS == 0 or _battle.is_finished():
 		layout.battle_status.show_battle(_battle)
 

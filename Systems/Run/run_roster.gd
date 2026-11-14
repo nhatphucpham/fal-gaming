@@ -133,7 +133,11 @@ func get_all() -> Array[RunPiece]:
 	return pieces
 
 
+## The piece on bench `slot`, or null (also for a slot off the bench, such
+## as NO_BENCH, which board pieces carry).
 func get_bench_piece(slot: int) -> RunPiece:
+	if slot < 0 or slot >= bench_size:
+		return null
 	for piece: RunPiece in _pieces.values():
 		if piece.bench_slot == slot:
 			return piece
@@ -226,23 +230,24 @@ func to_save_data() -> Array:
 	return rows
 
 
-## Replaces every piece from save rows. False when a row is malformed.
-func load_save_data(rows: Array, next_id: int) -> bool:
+## Replaces every piece from save rows. False (pieces left empty) when a
+## row is malformed or the pieces break a placement rule: two on one place,
+## an unknown unit, a star past the unit's maximum, more on the board than
+## `capacity` or the legend limit, or a group that should have merged.
+func load_save_data(rows: Array, next_id: int, capacity: int) -> bool:
 	_pieces.clear()
 	for row: Variant in rows:
-		if not row is Dictionary or not _is_valid_row(row):
-			return false
-		var piece := RunPiece.new()
-		piece.id = int(row["id"])
-		piece.unit_id = StringName(row["unit_id"])
-		piece.star = int(row["star"])
-		piece.has_fought = bool(row["has_fought"])
-		piece.bench_slot = int(row["bench"])
-		piece.cell = Vector2i(int(row["col"]), int(row["rank"]))
-		if _pieces.has(piece.id) or not _is_free(piece):
+		var piece := _piece_from_row(row) if row is Dictionary else null
+		if piece == null or _pieces.has(piece.id) or not _is_free(piece):
+			_pieces.clear()
 			return false
 		_pieces[piece.id] = piece
-	_next_id = next_id
+	# The game merges right after every purchase, so a saved group that can
+	# still merge was not written by it: refused rather than merged on load.
+	if count_board() > capacity or _count_board_legends() > _rules.legend_board_limit or not find_merge(_merge_limits).is_empty():
+		_pieces.clear()
+		return false
+	_next_id = maxi(1, next_id)
 	for piece_id: int in _pieces:
 		_next_id = maxi(_next_id, piece_id + 1)
 	return true
@@ -298,13 +303,30 @@ func _is_legend(piece: RunPiece) -> bool:
 	return _catalog.get_unit(piece.unit_id).cost == _rules.legend_cost
 
 
-func _is_valid_row(row: Dictionary) -> bool:
-	for key: String in ["id", "unit_id", "star", "has_fought", "bench", "col", "rank"]:
-		if not row.has(key):
-			return false
-	var on_bench := int(row["bench"]) >= 0 and int(row["bench"]) < bench_size
-	var on_board := Lineup.is_valid_cell(Vector2i(int(row["col"]), int(row["rank"])))
-	return on_bench != on_board and int(row["star"]) >= 1 and int(row["star"]) <= 3
+# One save row as a piece, normalised so it stands in exactly one place
+# (bench piece: no cell; board piece: no bench slot); null when invalid.
+func _piece_from_row(row: Dictionary) -> RunPiece:
+	var reader := SaveReader.new(row)
+	var piece := RunPiece.new()
+	piece.id = reader.get_int("id")
+	piece.unit_id = StringName(reader.get_string("unit_id"))
+	piece.star = reader.get_int("star")
+	piece.has_fought = reader.get_bool("has_fought")
+	var bench_slot := reader.get_int("bench")
+	var cell := Vector2i(reader.get_int("col"), reader.get_int("rank"))
+	if not reader.is_valid or piece.id < 1 or _catalog.get_unit(piece.unit_id) == null:
+		return null
+	if piece.star < 1 or piece.star > _merge_limits(piece.unit_id)[1]:
+		return null
+	if bench_slot == RunPiece.NO_BENCH:
+		if not Lineup.is_valid_cell(cell):
+			return null
+		piece.cell = cell
+	elif bench_slot >= 0 and bench_slot < bench_size:
+		piece.bench_slot = bench_slot
+	else:
+		return null
+	return piece
 
 
 func _is_free(piece: RunPiece) -> bool:

@@ -48,8 +48,9 @@ After building, run the editor import, `Tests/smoke_test.gd`,
 The run test checks the rules of a run (`RunState`, the shop, merges, the
 save) without any screen; the run flow test plays stage 1 through the real
 screens, from Main's new run to stage 2's preparation (see
-[Run](systems/run.md)). The run flow test writes and then deletes
-`user://run_save.json`, so it replaces a run saved on the same machine.
+[Run](systems/run.md)). The run flow test points `RunSave.path` at
+`user://run_save_test.json` and deletes that file at the end, so a run
+saved on the same machine is left alone.
 The sandbox test drives the sandbox screen headless through the functions its
 gestures call and plays one battle to the end (see
 [Board](systems/board.md)). The smoke test checks that the

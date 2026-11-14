@@ -50,6 +50,8 @@ and touch the same way: a press that moves less than 14 px and is released
 is a tap; held 0.4 s it is a long press (a right click is one too); moved
 further it is a drag. Other mouse buttons are ignored while a press is held
 (a right click mid-drag does nothing; the left release still drops).
+`is_dragging()` and `is_pressed()` (a press held, dragging or not) let a
+widget draw its pressed state.
 
 The first finger down owns the press. Touch indexes are not 0-based: on the
 web Godot passes on the browser's touch identifier, and iOS Safari hands out

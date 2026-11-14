@@ -11,11 +11,13 @@ extends Resource
 @export var slots: Array[LineupSlot] = []
 
 
-## Problems against the catalog: unknown units, cells off the half or
-## doubled, and a unit count other than `expected_units`.
+## Problems against the catalog: an empty name_key, unknown units, cells
+## off the half or doubled, and a unit count other than `expected_units`.
 func validate(catalog: Catalog, expected_units: int) -> PackedStringArray:
 	var problems := PackedStringArray()
 	var where := "%s (%s)" % [id, resource_path]
+	if name_key.is_empty():
+		problems.append("Run: stage %s has no name_key" % where)
 	if slots.size() != expected_units:
 		problems.append("Run: stage %s has %d units, expected %d" % [where, slots.size(), expected_units])
 	var seen: Dictionary[Vector2i, bool] = {}

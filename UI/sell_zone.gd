@@ -2,6 +2,8 @@ class_name SellZone
 extends Control
 ## Covers the shop while a piece is selected or dragged: "Bán +N vàng" with
 ## a coin, to tap or drop the piece on. Hidden (and click-through) otherwise.
+## Taps go through PointerGesture: a cancelled touch, or a release off the
+## zone, sells nothing.
 ## [codeblock]
 ## sell_zone.appear(4)
 ## sell_zone.tapped.connect(_sell_selected)
@@ -14,9 +16,13 @@ var _is_hover: bool = false
 var _is_shown: bool = false
 var _time: float = 0.0
 var _tween: Tween
+var _gesture := PointerGesture.new()
 
 
 func _init() -> void:
+	_gesture.tapped.connect(func(pointer: Vector2) -> void:
+		if contains_global(pointer):
+			tapped.emit())
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	modulate.a = 0.0
 	visible = false
@@ -47,6 +53,7 @@ func vanish() -> void:
 		return
 	_is_shown = false
 	_is_hover = false
+	_gesture.cancel()
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_fade_to(0.0)
 
@@ -69,15 +76,22 @@ func set_hover(value: bool) -> void:
 
 
 func _gui_input(event: InputEvent) -> void:
-	var button := event as InputEventMouseButton
-	if button != null and button.button_index == MOUSE_BUTTON_LEFT and not button.pressed and _is_shown:
+	# Every button is eaten, so no press falls through to the shop below.
+	if _gesture.handle_input(event) or event is InputEventMouseButton:
 		accept_event()
-		tapped.emit()
-	elif button != null:
-		accept_event()
+
+
+func _input(event: InputEvent) -> void:
+	_gesture.handle_global_input(event)
+
+
+func _notification(what: int) -> void:
+	if _gesture != null:
+		_gesture.handle_notification(what)
 
 
 func _process(delta: float) -> void:
+	_gesture.update(delta)
 	if visible:
 		_time += delta
 		queue_redraw()

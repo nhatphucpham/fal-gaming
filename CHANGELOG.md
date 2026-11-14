@@ -58,3 +58,19 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 - The game opens on the title screen; the sandbox is reached from "Bàn thử"
   and has a "Về" button back.
 - In the run, hp bars show only during a battle, not while units wait.
+- During a battle the countdown badge shows the battle's time limit with a
+  steel ring, a crossed-swords mark and no red pulse, so it no longer looks
+  like the preparation timer.
+
+### Fixed
+
+- In the run, a drag that starts between two bench slots no longer picks up
+  (and can no longer sell) a unit on the board.
+- The sell zone and the reward cards ignore a cancelled touch, and the sell
+  zone sells only when the tap ends on it.
+- The run save is deleted as soon as the run is won or lost, so closing the
+  game at the result banner no longer lets "Chơi tiếp" replay that battle.
+- A damaged or edited run save (wrong types, impossible values, two units
+  on one place, too many units on the board) is ignored with one warning
+  instead of loading a broken run or raising script errors.
+- The run flow test no longer overwrites a run saved on the same machine.

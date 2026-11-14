@@ -19,6 +19,7 @@ or run battles: the run screen plays each battle with `Battle` and
   (`RunRoster`, pieces and placement rules, used only by `RunState`),
   `run_piece.gd` (`RunPiece`), `shop.gd` (`Shop`), `run_rules.gd`
   (`RunRules`), `stage_data.gd` (`StageData`), `run_save.gd` (`RunSave`),
+  `save_reader.gd` (`SaveReader`, typed reads of save fields),
   `run_settings.gd` (`RunSettings`).
 - `Systems/Content/battle_factory.gd` (`BattleFactory`): makes a `Battle`
   from the catalog's rules and adds line-ups; shared with the sandbox.
@@ -67,8 +68,8 @@ fought in a battle.
 (`stage.01` ..), `name_key` (`STAGE_01` ..) and `slots`, the enemy line-up
 as `LineupSlot`s of side B in local (col, rank). They are listed in stage
 order in `Data/catalog.tres` (`stages`), so nothing scans folders.
-`StageData.validate()` checks unknown units, cells off the half, doubled
-cells and the unit count. Stage 12 is "Đại Trận Lạc Hồng", with the legend
+`StageData.validate()` checks an empty `name_key`, unknown units, cells off
+the half, doubled cells and the unit count. Stage 12 is "Đại Trận Lạc Hồng", with the legend
 Lạc Hồng at 2 stars.
 
 ## Stage flow
@@ -111,7 +112,9 @@ cells are local (col, rank) of side A.
 | `phase_changed(phase)`, `stage_started(stage)`, `battle_resolved(is_win, gold_delta, supply_delta, morale_delta)` | signals | Stage flow |
 
 `RunSave` (static): `save(run)`, `load_run(catalog) -> RunState` (null
-without a usable save), `has_save()`, `delete()`. `RunSettings` (static):
+without a usable save), `has_save()`, `delete()`; each takes an optional
+file path and otherwise uses the static `RunSave.path`
+(`user://run_save.json`), which only tests change. `RunSettings` (static):
 `load_prep_seconds()`, `save_prep_seconds(seconds)`,
 `next_prep_seconds(seconds)` over 60, 90 and 0 (unlimited).
 
@@ -139,23 +142,54 @@ cells here are global.
   the card there.
 - Tap or drag a piece to move it between bench and board, or swap. While a
   piece is selected or dragged, the shop turns into the sell zone with its
-  value.
+  value. A drag that starts in the gap between bench slots picks up
+  nothing. The sell zone and the reward cards use `PointerGesture` like the
+  other widgets: a tap must end on them, and a cancelled touch does nothing
+  (a reward card also takes a short drag released on it, not a long press).
 - A refused command shakes the button or flashes the lacking resource; a
   full bench flashes red.
 - Long press (or right click) shows a unit's stats, also during a battle.
 - The preparation timer (60 s, 90 s or none, set on the title screen)
   starts the battle when it runs out. It pauses when the window loses focus,
-  the app is paused, or the browser tab is hidden.
+  the app is paused, or the browser tab is hidden. Its badge has a gold
+  ring that turns red and pulses in the last 10 seconds.
+- During a battle the same badge counts down the battle's time limit in a
+  different look, so it is not mistaken for the preparation timer: a steel
+  ring on a darker face, steel digits, a small crossed-swords mark at its
+  lower right, and no red pulse (`TimerBadge.show_battle_seconds()`).
 - Three cards (two after a loss) offer the reward; the end screen shows the
   result, stages cleared and the board's units.
 
 ## Save format
 
 `user://run_save.json` (the browser's IndexedDB on the web), written with
-`FileAccess` at the start of a run and after every reward, deleted when the
-run ends. A broken file, a missing key, an unknown unit or an unknown
-version is warned about once; "Chơi tiếp" then stays on the title, and
-"Ván mới" overwrites the file.
+`FileAccess` at the start of a run and after every reward, and deleted as
+soon as the run is won or lost (when the result banner appears, so closing
+the game there cannot replay the deciding battle). A save that cannot be
+used is warned about once (`Run: ... ignored`); "Chơi tiếp" then stays on
+the title, and "Ván mới" overwrites the file. The whole save is refused,
+never repaired, when:
+
+- it is not JSON, a key is missing, or a field has the wrong JSON type
+  (numbers must be whole, `seed` and `rng_state` decimal strings that fit
+  64 bits, `black_market` and `has_fought` booleans, ids strings);
+- `version` is not 1; `stage` is outside 1..`stage_count`, `level`
+  outside `start_level`..`max_level`, `morale` outside 1..`max_morale`,
+  `gold` or `supply` negative, `stages_cleared` not below `stage`;
+- the shop has more offers than slots, or an unknown unit;
+- a piece has an unknown unit, an id below 1 or used twice, a star outside
+  1..`max_star` (`legend_max_star` for cost 5), a `bench` other than -1 or
+  a slot, or (with `bench` -1) a cell off the half; two pieces share a cell
+  or a slot; the board holds more than the level's capacity or more than
+  `legend_board_limit` legends; or a group of copies could still merge.
+  The game merges right after every purchase, so such a group means the
+  file was not written by it; refusing is simpler and safer than merging
+  on load.
+
+A bench piece's `col` and `rank` are ignored (it has no cell), and
+`free_refreshes` is clamped to what the rules give (`black_market_free_refreshes`
+on a black-market stage, else 0). Fields are read through `SaveReader`, so a
+hostile file never raises a script error.
 
 ```json
 {
@@ -171,8 +205,7 @@ version is warned about once; "Chơi tiếp" then stays on the title, and
 ```
 
 `seed` and `rng_state` are strings because JSON numbers are doubles. A
-piece has a `bench` slot (-1 when on the board) or a board `col` and
-`rank`. A run is always saved in its preparation, so loading resumes there
+piece has a `bench` slot, or `bench` -1 and a board `col` and `rank`. A run is always saved in its preparation, so loading resumes there
 with the same shop. Raising `version` makes older saves unusable: add a
 migration in `RunSave.load_run()` when the format changes.
 
@@ -222,7 +255,11 @@ and settings problems with one `push_warning` each (`Run: could not write
   and `name_key = "STAGE_13"`, list it at the end of `stages` in
   `Data/catalog.tres`, raise `stage_count` and add one entry to
   `stage_income` and `enemy_counts` in the rules, and add `STAGE_13` to
-  `Locale/strings.csv`. `Catalog.validate()` reports anything missing.
+  `Locale/strings.csv`. `Catalog.validate()` reports a stage count that
+  does not match `stage_count`, a bad or doubled `id`, an empty `name_key`,
+  a wrong unit count and missing `stage_income` or `enemy_counts` entries;
+  it does not check that the `STAGE_13` translation exists, so look at the
+  stage name in the top bar.
 - **Add a reward:** add it to `RunState.Reward` and `REWARD_IDS`, apply it
   in `choose_reward()`, give it a look in `RewardScreen._looks()` and its
   `REWARD_*` strings.
@@ -233,11 +270,19 @@ and settings problems with one `push_warning` each (`Run: could not write
   stages, start values, a seed's shops, buying and selling, refresh, refused
   purchases, merges on the bench and board and chained, legends, levels,
   moves and swaps, income, battle results, rewards, the black market,
-  stage 12 repeats, a lost run, the save round trip and broken saves.
+  stage 12 repeats, a lost run, bench queries off the bench, the save
+  round trip and broken saves (wrong types, out-of-range values, doubled
+  cells and slots, unknown units, over capacity, unmerged copies), which
+  must be refused without script errors.
 - `Tests/run_flow_test.gd`: stage 1 through the real screens: Main starts a
   run, units are bought and placed with the controller's taps, the battle
   plays at x4, input is refused meanwhile, "Tiếp tục" opens the rewards and
-  one starts stage 2, which is in the save. It deletes the save at the end.
+  one starts stage 2, which is in the save. With real input events it
+  checks that a drag from a bench gap picks nothing up and that the sell
+  zone ignores a cancelled or slid-off release; then a lost run deletes its
+  save at the banner. Both tests set `RunSave.path` to a test file
+  (`user://run_save_test.json`, `user://run_test_save.json`) and delete it,
+  so the player's save is never touched.
 
 ```
 godot --headless --path . --script res://Tests/run_test.gd

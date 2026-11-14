@@ -1,9 +1,10 @@
 class_name RunSave
 extends RefCounted
-## Saves and loads the run in progress as JSON at user://run_save.json (on
-## the web that is the browser's IndexedDB). A missing file is normal; a
-## broken file, an unknown version or a failed write is reported once with
-## push_warning and otherwise ignored, so the game keeps running.
+## Saves and loads the run in progress as JSON at [member path] (normally
+## user://run_save.json; on the web that is the browser's IndexedDB). A
+## missing file is normal; a broken file, an unknown version or a failed
+## write is reported once with push_warning and otherwise ignored, so the
+## game keeps running.
 ## [codeblock]
 ## RunSave.save(run)
 ## var run := RunSave.load_run(catalog)   # null without a usable save
@@ -12,52 +13,64 @@ extends RefCounted
 const PATH: String = "user://run_save.json"
 const VERSION: int = 1
 
+## Where save(), load_run(), has_save() and delete() go without a path
+## argument. Only tests change it, so they never touch the player's save.
+static var path: String = PATH
 static var _has_warned: bool = false
 
 
 ## Writes the run. False (with one warning) when the file cannot be written.
-static func save(run: RunState, path: String = PATH) -> bool:
+static func save(run: RunState, file_path: String = "") -> bool:
+	var target := _resolve(file_path)
 	var data := run.to_save_data()
 	data["version"] = VERSION
-	var file := FileAccess.open(path, FileAccess.WRITE)
+	var file := FileAccess.open(target, FileAccess.WRITE)
 	if file == null:
-		_warn("could not write %s (error %d)" % [path, FileAccess.get_open_error()])
+		_warn("could not write %s (error %d)" % [target, FileAccess.get_open_error()])
 		return false
 	file.store_string(JSON.stringify(data, "\t"))
 	file.close()
 	return true
 
 
-static func has_save(path: String = PATH) -> bool:
-	return FileAccess.file_exists(path)
+static func has_save(file_path: String = "") -> bool:
+	return FileAccess.file_exists(_resolve(file_path))
 
 
 ## The saved run, ready in its preparation, or null when there is none or
 ## it cannot be used (warned once).
-static func load_run(catalog: Catalog, path: String = PATH) -> RunState:
-	if not FileAccess.file_exists(path):
+static func load_run(catalog: Catalog, file_path: String = "") -> RunState:
+	var source := _resolve(file_path)
+	if not FileAccess.file_exists(source):
 		return null
 	var json := JSON.new()
-	var data: Variant = json.data if json.parse(FileAccess.get_file_as_string(path)) == OK else null
+	var data: Variant = json.data if json.parse(FileAccess.get_file_as_string(source)) == OK else null
 	if not data is Dictionary:
-		_warn("%s is not a save file; ignored" % path)
+		_warn("%s is not a save file; ignored" % source)
 		return null
-	if int(data.get("version", -1)) != VERSION:
-		_warn("%s has version %s, expected %d; ignored" % [path, data.get("version", "none"), VERSION])
+	var reader := SaveReader.new(data)
+	var version := reader.get_int("version")
+	if not reader.is_valid or version != VERSION:
+		_warn("%s has version %s, expected %d; ignored" % [source, data.get("version", "none"), VERSION])
 		return null
 	var run := RunState.new(catalog, 0)
 	if not run.load_save_data(data):
-		_warn("%s has broken run data; ignored" % path)
+		_warn("%s has broken run data; ignored" % source)
 		return null
 	return run
 
 
 ## Removes the save (the run ended).
-static func delete(path: String = PATH) -> void:
-	if FileAccess.file_exists(path):
-		var error := DirAccess.remove_absolute(path)
+static func delete(file_path: String = "") -> void:
+	var target := _resolve(file_path)
+	if FileAccess.file_exists(target):
+		var error := DirAccess.remove_absolute(target)
 		if error != OK:
-			_warn("could not delete %s (error %d)" % [path, error])
+			_warn("could not delete %s (error %d)" % [target, error])
+
+
+static func _resolve(file_path: String) -> String:
+	return file_path if file_path != "" else path
 
 
 static func _warn(message: String) -> void:

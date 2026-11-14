@@ -33,7 +33,7 @@ func _init() -> void:
 	custom_minimum_size = Vector2(0, SLOT_SIZE.y)
 	_gesture.tapped.connect(func(pointer: Vector2) -> void: _emit_slot(slot_tapped, pointer))
 	_gesture.long_pressed.connect(func(pointer: Vector2) -> void: _emit_slot(slot_long_pressed, pointer))
-	_gesture.drag_started.connect(func(start: Vector2, pointer: Vector2) -> void: drag_started.emit(slot_at_global(start), pointer))
+	_gesture.drag_started.connect(_on_drag_started)
 	_gesture.drag_moved.connect(func(pointer: Vector2) -> void: drag_moved.emit(pointer))
 	_gesture.drag_ended.connect(func(pointer: Vector2) -> void: drag_ended.emit(pointer))
 	_gesture.drag_cancelled.connect(func() -> void: drag_cancelled.emit())
@@ -158,6 +158,13 @@ func _layout() -> void:
 	for index: int in _anchors.size():
 		_anchors[index].position = _slot_rect(index).get_center() + ANCHOR_OFFSET
 	queue_redraw()
+
+
+# A drag from the gap between slots picks up nothing.
+func _on_drag_started(start: Vector2, pointer: Vector2) -> void:
+	var slot := slot_at_global(start)
+	if slot != NO_SLOT:
+		drag_started.emit(slot, pointer)
 
 
 func _emit_slot(bar_signal: Signal, pointer: Vector2) -> void:

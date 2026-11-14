@@ -12,10 +12,11 @@ var _failures: int = 0
 
 func _initialize() -> void:
 	_catalog = load("res://Data/catalog.tres") as Catalog
+	RunSave.path = SAVE_PATH
 	var checks: Array[Callable] = [
 		_check_catalog, _check_start, _check_shop_determinism, _check_buy_sell,
 		_check_refresh, _check_buy_refusals, _check_merge_bench, _check_merge_board,
-		_check_merge_chain, _check_legends, _check_levels, _check_moves,
+		_check_merge_chain, _check_legends, _check_levels, _check_moves, _check_bench_queries,
 		_check_income, _check_battle_results, _check_rewards, _check_black_market,
 		_check_stage_12, _check_run_lost, _check_save_round_trip, _check_bad_saves,
 	]
@@ -79,7 +80,7 @@ func _check_catalog() -> bool:
 	]
 	var found := broken.validate(_catalog, 3)
 	var text := "\n".join(found)
-	return _expect(found.size() == 4 and text.contains("unknown unit") and text.contains("two units") and text.contains("off the board") and text.contains("expected 3"), "StageData.validate missed problems: %s" % found)
+	return _expect(found.size() == 5 and text.contains("no name_key") and text.contains("unknown unit") and text.contains("two units") and text.contains("off the board") and text.contains("expected 3"), "StageData.validate missed problems: %s" % found)
 
 
 func _check_start() -> bool:
@@ -164,14 +165,17 @@ func _check_merge_chain() -> bool:
 
 
 func _check_legends() -> bool:
-	var run := _make([["lieu_mi", 1, 0, 0, 0], ["ba_khac", 2, -1, 1, 1], ["thiet_nha", 2, -1, 2, 1], ["lac_hong", 2, 1, 0, 0]], ["lieu_mi", "lac_hong", "", "", ""], {"level": 5})
+	var run := _make([["lieu_mi", 2, 0, 0, 0], ["lieu_mi", 1, 2, 0, 0], ["ba_khac", 2, -1, 1, 1], ["thiet_nha", 2, -1, 2, 1]], ["lieu_mi", "", "", "", ""], {"level": 5})
 	run.buy(0)
+	# The new copy merges with the 1-star into a second 2-star; two 2-star
+	# legends must then stay apart (they would merge if legends went to 3).
 	var lieu := run.get_bench_piece(0)
-	if not _expect(lieu != null and lieu.star == 2 and run.get_pieces().size() == 4, "Two copies of a cost-5 must make a 2-star"):
+	var second := run.get_bench_piece(2)
+	if not _expect(run.get_pieces().size() == 4 and lieu != null and second != null and lieu.star == 2 and second.star == 2 and second.unit_id == &"unit.lieu_mi", "Two copies of a cost-5 must make a 2-star"):
 		return false
-	run.buy(1)
-	if not _expect(run.get_pieces().size() == 5, "Two 2-star cost-5 units must not merge into a 3-star"):
-		return false
+	for piece: RunPiece in run.get_pieces():
+		if not _expect(piece.star < 3, "Two 2-star cost-5 units must not merge into a 3-star"):
+			return false
 	if not _expect(run.move_to_board(lieu.id, Vector2i(4, 4)) == RunState.Result.LEGEND_LIMIT, "A third cost-5 on the board must be refused"):
 		return false
 	var ba_khac := run.get_board_piece(Vector2i(1, 1))
@@ -216,6 +220,13 @@ func _check_moves() -> bool:
 		return false
 	var board_archer := run.get_board_piece(Vector2i(1, 1))
 	return _expect(run.move_to_board(board_archer.id, Vector2i(7, 4)) == RunState.Result.OK and run.get_board_piece(Vector2i(7, 4)) == board_archer, "Board to board move")
+
+
+# Board pieces carry bench slot NO_BENCH (-1): asking for that slot, or any
+# slot off the bench, must not find them (a drag from a bench gap sold one).
+func _check_bench_queries() -> bool:
+	var run := _make([["archer", 1, -1, 4, 2], ["spearman", 1, 5, 0, 0]], [""])
+	return _expect(run.get_bench_piece(RunPiece.NO_BENCH) == null and run.get_bench_piece(-7) == null and run.get_bench_piece(6) == null and run.get_bench_piece(5) != null, "get_bench_piece must be null off the bench")
 
 
 func _check_income() -> bool:
@@ -343,10 +354,71 @@ func _check_bad_saves() -> bool:
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	file.store_string("{not json")
 	file.close()
-	var broken := RunSave.load_run(_catalog, SAVE_PATH)
-	file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
-	file.store_string(JSON.stringify({"version": 99}))
+	if not _expect(RunSave.load_run(_catalog) == null, "A file that is not JSON must be ignored"):
+		return false
+	var bad_count := 0
+	for case: Array in _bad_save_cases():
+		_write_save(case[1], case[2] if case.size() > 2 else [])
+		if not _expect(RunSave.load_run(_catalog) == null, "A save with %s must be ignored" % case[0]):
+			bad_count += 1
+	if bad_count > 0:
+		return false
+	# A bench row's col and rank are ignored, and free refreshes are capped.
+	_write_save({"free_refreshes": 5}, [_row(1, "archer", 1, 0, 9, 9)])
+	var loaded := RunSave.load_run(_catalog)
+	var bench_ok := loaded != null and loaded.get_bench_piece(0) != null and loaded.get_board_count() == 0 and loaded.get_refresh_cost() == 2
+	_write_save({"free_refreshes": 5, "black_market": true})
+	var market := RunSave.load_run(_catalog)
+	var market_ok := market != null and market.get_refresh_cost() == 0 and market.refresh_shop() == RunState.Result.OK and market.get_refresh_cost() == 2
+	RunSave.delete()
+	return _expect(bench_ok and market_ok and not RunSave.has_save(), "Valid saves must load with normalised pieces and capped refreshes")
+
+
+# [label, top-level fields to change, pieces (empty: one archer on bench 0)].
+func _bad_save_cases() -> Array:
+	var on_board := func(id: int, unit: String, col: int) -> Dictionary: return _row(id, unit, 1, -1, col, 1)
+	return [
+		["version 99", {"version": 99}], ["version as text", {"version": "1"}], ["version as object", {"version": {}}],
+		["stage as object", {"stage": {}}], ["stage as text", {"stage": "abc"}], ["stage 1.5", {"stage": 1.5}],
+		["morale null", {"morale": null}], ["gold as array", {"gold": []}], ["black_market as text", {"black_market": "yes"}],
+		["seed as object", {"seed": {}}], ["seed not a number", {"seed": "abc"}], ["rng_state past 64 bits", {"rng_state": "99999999999999999999"}],
+		["free_refreshes as text", {"free_refreshes": "1"}], ["pieces as text", {"pieces": "none"}], ["shop of numbers", {"shop": [5, 6]}],
+		["too many offers", {"shop": ["", "", "", "", "", ""]}], ["an unknown offer", {"shop": ["unit.nobody"]}],
+		["morale 0", {"morale": 0}], ["morale 9999", {"morale": 9999}], ["gold -1", {"gold": -1}], ["supply -1", {"supply": -1}],
+		["level 2", {"level": 2}], ["level 10", {"level": 10}], ["stage 0", {"stage": 0}], ["stage 13", {"stage": 13}],
+		["stages_cleared past the stage", {"stages_cleared": 5}],
+		["a piece id as text", {}, [_row("abc", "archer", 1, 0, 0, 0)]],
+		["a unit id as number", {}, [_row(1, 5, 1, 0, 0, 0)]],
+		["a bench slot as object", {}, [_row(1, "archer", 1, {}, 0, 0)]],
+		["has_fought as text", {}, [_row(1, "archer", 1, 0, 0, 0, "x")]],
+		["a piece row as text", {}, ["archer"]],
+		["an unknown unit", {}, [_row(1, "nobody", 1, 0, 0, 0)]],
+		["star 0", {}, [_row(1, "archer", 0, 0, 0, 0)]], ["star 4", {}, [_row(1, "archer", 4, 0, 0, 0)]],
+		["a 3-star cost-5", {}, [_row(1, "lac_hong", 3, 0, 0, 0)]],
+		["two pieces on one cell", {}, [on_board.call(1, "archer", 4), on_board.call(2, "spearman", 4)]],
+		["bench 7 with a valid cell", {}, [on_board.call(1, "archer", 4), _row(2, "spearman", 1, 7, 4, 1)]],
+		["two pieces on one bench slot", {}, [_row(1, "archer", 1, 2, 0, 0), _row(2, "spearman", 1, 2, 0, 0)]],
+		["a cell off the board", {}, [_row(1, "archer", 1, -1, 9, 9)]],
+		["two pieces with one id", {}, [_row(1, "archer", 1, 0, 0, 0), _row(1, "spearman", 1, 1, 0, 0)]],
+		["more on the board than the level", {}, [on_board.call(1, "archer", 1), on_board.call(2, "spearman", 2), on_board.call(3, "shield_guard", 3), on_board.call(4, "fire_adept", 4)]],
+		["three legends on the board", {"level": 5}, [on_board.call(1, "lac_hong", 1), on_board.call(2, "lieu_mi", 2), on_board.call(3, "ba_khac", 3)]],
+		["three unmerged copies", {}, [_row(1, "archer", 1, 0, 0, 0), _row(2, "archer", 1, 1, 0, 0), _row(3, "archer", 1, 2, 0, 0)]],
+	]
+
+
+func _row(id: Variant, unit: Variant, star: int, bench: Variant, col: int, rank: int, has_fought: Variant = false) -> Dictionary:
+	return {"id": id, "unit_id": "unit." + unit if unit is String else unit, "star": star, "has_fought": has_fought, "bench": bench, "col": col, "rank": rank}
+
+
+# A valid stage-2 save with `fields` changed and these piece rows.
+func _write_save(fields: Dictionary, pieces: Array = []) -> void:
+	var data := {
+		"version": RunSave.VERSION, "seed": "1", "rng_state": "5", "stage": 2, "stages_cleared": 1,
+		"morale": 60, "gold": 5, "supply": 1, "level": 3, "next_piece_id": 2,
+		"pieces": pieces if not pieces.is_empty() else [_row(1, "archer", 1, 0, 0, 0)],
+		"shop": ["unit.archer", "", "", "", ""], "black_market": false, "free_refreshes": 0,
+	}
+	data.merge(fields, true)
+	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	file.store_string(JSON.stringify(data))
 	file.close()
-	var future := RunSave.load_run(_catalog, SAVE_PATH)
-	RunSave.delete(SAVE_PATH)
-	return _expect(broken == null and future == null and not RunSave.has_save(SAVE_PATH), "Broken or unknown saves must be ignored")
