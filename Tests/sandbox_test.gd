@@ -38,7 +38,9 @@ func _run() -> bool:
 	_main = scene.instantiate()
 	root.add_child(_main)
 	await process_frame
-	_sandbox = _main.get_node("UI/SandboxScreen") as SandboxScreen
+	# The title screen's "Bàn thử" opens the sandbox; let its slide finish.
+	_sandbox = _main.open_sandbox()
+	await create_timer(0.5).timeout
 	_setup = _sandbox.setup_controller
 	_lineup = _sandbox.player_lineup
 	var checks: Array[Callable] = [_check_impact_order, _check_cap, _check_move_swap_remove, _check_drops, _check_enemy_presets]

@@ -59,3 +59,39 @@ UNIT_THIET_NHA,Thiết Nha,Thiet Nha
 SIDE_PLAYER,Ta: %d quân,Us: %d units
 SIDE_ENEMY,Địch: %d quân,Enemy: %d units
 DECIMAL_SEPARATOR,",","."
+STAGE_01,Toán lính ô hợp,Ragtag band
+STAGE_02,Đội tuần biên,Border patrol
+STAGE_03,Tiền tiêu Lang Tộc,Wolf folk outpost
+STAGE_04,Trại cung Nam Sơn,Southern archer camp
+STAGE_05,Thiết Kỵ Bắc Mạc,Iron riders of the north
+STAGE_06,Tường Khiên,Shield wall
+STAGE_07,Huyết Lang Cốc,Blood wolf valley
+STAGE_08,Thạch Bảo,Stone fort
+STAGE_09,Gió Bấc,North wind
+STAGE_10,Băng Hà Trận,Frozen river battle
+STAGE_11,Ải Nhạn Môn,Wild goose pass
+STAGE_12,Đại Trận Lạc Hồng,Lac Hong's great array
+STAGE_FORMAT,Chặng %d/%d,Stage %d/%d
+BUTTON_REFRESH,Làm mới,Refresh
+BUTTON_BUY_SUPPLY,Mua lương,Buy supply
+BUTTON_LEVEL_UP,Lên cấp,Level up
+BUTTON_CONTINUE,Tiếp tục,Continue
+BUTTON_BACK,Về,Back
+BUTTON_HOME,Về màn hình chính,Back to title
+BUTTON_NEW_RUN,Ván mới,New run
+BUTTON_CONTINUE_RUN,Chơi tiếp,Continue
+BUTTON_SANDBOX,Bàn thử,Sandbox
+SELL_FORMAT,Bán +%d vàng,Sell +%d gold
+RESULT_EMPTY_BOARD,Không có quân nào ra trận,No units went to battle
+REWARD_TITLE,Chọn phần thưởng,Choose a reward
+REWARD_REST,Hạ trại nghỉ,Make camp
+REWARD_REST_EFFECT,+%d sĩ khí,+%d morale
+REWARD_HUNT,Đi săn,Hunt
+REWARD_HUNT_EFFECT,+%d lương,+%d supply
+REWARD_BLACK_MARKET,Chợ đen,Black market
+REWARD_BLACK_MARKET_EFFECT,Hàng tốt hơn chặng sau,Better wares next stage
+END_WIN,Chiến thắng,Victory
+END_LOSS,Thất bại,Defeat
+END_STAGES_FORMAT,Đã qua %d/%d chặng,Cleared %d/%d stages
+PREP_TIME_FORMAT,Thời gian xếp quân: %s,Preparation time: %s
+PREP_UNLIMITED,không giới hạn,unlimited

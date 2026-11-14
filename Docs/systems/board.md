@@ -11,14 +11,16 @@ cell signals, and keeps the player's formation. It does not run battles
 - Layer: presentation, plus one pure-data bridge class (`Lineup`).
 - `Scenes/Board/`: `board_view.gd` and `board_view.tscn` (`BoardView`),
   `unit_view.gd` (`UnitView`), `unit_figure.gd` (`UnitFigure`),
-  `unit_painter.gd` (`UnitPainter`), `lineup_views.gd` (`LineupViews`).
+  `unit_painter.gd` (`UnitPainter`), `lineup_views.gd` (`LineupViews`),
+  `piece_drag.gd` (`PieceDrag`).
 - `Systems/Lineup/`: `lineup.gd` (`Lineup`), `lineup_slot.gd`
   (`LineupSlot`), `lineup_preset.gd` (`LineupPreset`).
 - `UI/pointer_gesture.gd` (`PointerGesture`): tap, long press and drag from
   pointer events, shared by the board and the roster strip.
-- The sandbox screen that uses them: `Scenes/Sandbox/sandbox_screen.gd`
-  (`SandboxScreen`) and `Scenes/Sandbox/setup_controller.gd`
-  (`SetupController`), with widgets from `UI/`.
+- The screens that use them: the sandbox (`Scenes/Sandbox/sandbox_screen.gd`,
+  `SandboxScreen`, and `Scenes/Sandbox/setup_controller.gd`,
+  `SetupController`) and the run (`Scenes/Run/`, see [Run](run.md)), with
+  widgets from `UI/`.
 - Depends on: `Battle` for coordinates (`local_to_global`,
   `global_to_local`) and stats, `Catalog` for unit data, `Palette`.
 
@@ -124,7 +126,30 @@ crown. Mages carry an orb in their element's colour.
 
 `LineupViews` (RefCounted) keeps one `UnitView` per `Lineup` entry on a
 board and animates each signal: drop in, glide, pop out. `rebuild()` makes
-fresh views (after a battle), `fade_out_all()` cross-fades a preset away.
+fresh views (after a battle), `fade_out_all()` cross-fades a preset away,
+`set_dim(amount)` darkens the enemy while it only waits and
+`set_hp_bars_shown(shown)` hides the hp bars outside a battle (full health
+says nothing).
+
+`UnitView` also has `is_hp_bar_shown`, and the run's animations:
+`stamp_stars(star, delay)` (a merge's new star lands), `grow_in()`,
+`hop_to(position, seconds)` (a short arc between bench and board) and
+`shrink_to(position, seconds)` (a sold piece flies into the coin pile).
+
+`PieceDrag` (RefCounted) is the one drag of a unit over the board, shared
+by `SetupController` and the run's `PrepController`:
+
+| Member | Kind | Description |
+| --- | --- | --- |
+| `begin(unit, pointer, source)` | method | Shows the `DragGhost`; `source` is the view being moved (it fades) or null for a card |
+| `follow(pointer) -> Vector2` | method | Moves the ghost, lights the cell under its feet, returns the drop point |
+| `get_drop_point(pointer) -> Vector2` | method | Where the ghost's feet are for this pointer (the ghost floats above the finger) |
+| `accept()` | method | The piece landed: the ghost fades, the source shows again |
+| `reject(home)` | method | The ghost flies to `home` and the piece shakes (from its stored rest position) |
+| `cancel()` | method | Focus lost or a second finger: everything goes back at once |
+| `is_active() -> bool` | method | A drag is in progress |
+
+The caller decides what a drop means; `PieceDrag` only shows it.
 
 `SetupController` (sandbox only): `tap_roster_card(unit_id)`,
 `tap_cell(cell)`, `drop_card(unit_id, cell)`, `drop_piece(entry_id, cell)`,
@@ -148,9 +173,9 @@ None. Data problems are reported with `push_error` (`Sandbox: ...`,
   function. Add `RACE_<NAME>` to `Locale/strings.csv`.
 - **New sandbox enemy:** add a `LineupPreset` to `Data/Sandbox/sandbox.tres`
   and its `name_key` to `Locale/strings.csv`.
-- **Another screen** (the shop in milestone 3) reuses `BoardView`,
-  `UnitView`, `Lineup`, `LineupViews` and `BattlePlayback`, and writes its
-  own controller like `SetupController`.
+- **Another screen** reuses `BoardView`, `UnitView`, `Lineup`,
+  `LineupViews`, `PieceDrag` and `BattlePlayback`, and writes its own
+  controller like `SetupController` or `PrepController`.
 
 ## Tests
 
@@ -172,7 +197,8 @@ the freed battle views. The look is checked by eye from screenshots.
 
 ## Known limits
 
-- Stars are always 1 in the sandbox; star pips are drawn for 1 to 3.
+- Stars are always 1 in the sandbox; the run uses 1 to 3. Star pips are
+  drawn in code (the default font has no star glyph).
 - Long-press info during a battle finds the unit by its current cell.
 - No safe-area insets for phone notches yet; Safari's own bars keep the
   canvas clear of them in a browser tab.

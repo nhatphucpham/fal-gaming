@@ -1,7 +1,6 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://Scenes/main.gd" id="1_main"]
-[ext_resource type="PackedScene" path="res://Scenes/Sandbox/sandbox_screen.tscn" id="2_sandbox"]
 
 [node name="Main" type="Node2D"]
 script = ExtResource("1_main")
@@ -9,5 +8,3 @@ script = ExtResource("1_main")
 [node name="SimClock" type="SimClock" parent="."]
 
 [node name="UI" type="CanvasLayer" parent="."]
-
-[node name="SandboxScreen" parent="UI" instance=ExtResource("2_sandbox")]

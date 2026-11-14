@@ -1,13 +1,15 @@
 class_name ResultBanner
 extends Control
 ## The end-of-battle banner: slides in with "Thắng trận" or "Thua trận", an
-## optional reason line and a "Xếp lại" button.
+## optional reason line, optional resource changes that count up (gold and
+## supply won, morale lost) and one button ("Xếp lại" unless set).
 ## [codeblock]
-## banner.rearrange_pressed.connect(_return_to_setup)
+## banner.button_pressed.connect(_return_to_setup)
 ## banner.present(true, "")
+## banner.present(false, "", [[&"morale", -12]], "BUTTON_CONTINUE")
 ## [/codeblock]
 
-signal rearrange_pressed()
+signal button_pressed()
 
 const PANEL_WIDTH_PX: float = 560.0
 const SLIDE_PX: float = 260.0
@@ -17,6 +19,7 @@ var _panel: PanelContainer
 var _title: Label
 var _reason: Label
 var _button: PressButton
+var _deltas_row: HBoxContainer
 var _win_box: StyleBoxFlat
 var _loss_box: StyleBoxFlat
 var _tween: Tween
@@ -56,17 +59,24 @@ func _init() -> void:
 	# A wrapping label needs a fixed width, or it measures one word per line.
 	_reason.custom_minimum_size = Vector2(PANEL_WIDTH_PX - 56.0, 0)
 	rows.add_child(_reason)
+	_deltas_row = HBoxContainer.new()
+	_deltas_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_deltas_row.add_theme_constant_override(&"separation", 16)
+	rows.add_child(_deltas_row)
 	_button = PressButton.new()
 	_button.text = "BUTTON_REARRANGE"
 	_button.custom_minimum_size = Vector2(300, 88)
 	_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_button.theme_type_variation = &"PrimaryButton"
-	_button.pressed.connect(func() -> void: rearrange_pressed.emit())
+	_button.pressed.connect(func() -> void: button_pressed.emit())
 	rows.add_child(_button)
 
 
-## Slides the banner in. `reason_text` is shown under the title when not empty.
-func present(is_win: bool, reason_text: String) -> void:
+## Slides the banner in. `reason_text` is shown under the title when not
+## empty; each of `deltas` ([icon kind, amount]) counts up from 0 in a chip.
+func present(is_win: bool, reason_text: String, deltas: Array = [], button_key: String = "BUTTON_REARRANGE") -> void:
+	_button.text = button_key
+	_show_deltas(deltas)
 	_title.text = "RESULT_WIN" if is_win else "RESULT_LOSS"
 	_title.add_theme_color_override(&"font_color", Palette.GOLD if is_win else Palette.CREAM)
 	_panel.add_theme_stylebox_override(&"panel", _win_box if is_win else _loss_box)
@@ -95,6 +105,26 @@ func dismiss() -> void:
 	_tween.parallel().tween_property(_panel, ^"modulate:a", 0.0, 0.2)
 	_tween.parallel().tween_property(_shade, ^"modulate:a", 0.0, 0.2)
 	_tween.tween_callback(hide)
+
+
+func _show_deltas(deltas: Array) -> void:
+	for child: Node in _deltas_row.get_children():
+		child.queue_free()
+	_deltas_row.visible = not deltas.is_empty()
+	for index: int in deltas.size():
+		var pair: Array = deltas[index]
+		var chip := ResourceChip.new()
+		chip.setup(pair[0])
+		chip.custom_minimum_size = Vector2(130, 64)
+		_deltas_row.add_child(chip)
+		chip.set_value(0, false)
+		var amount: int = pair[1]
+		chip.is_signed = true
+		# Count up after the banner has landed, one chip after another.
+		var tween := chip.create_tween()
+		tween.tween_interval(0.35 + index * 0.2)
+		tween.tween_callback(func() -> void: chip.set_value(amount))
+		chip.modulate = Palette.CREAM if amount >= 0 else Color("ffb4a6")
 
 
 func _restart_tween() -> void:

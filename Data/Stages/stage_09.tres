@@ -1,0 +1,59 @@
+[gd_resource type="Resource" script_class="StageData" format=3]
+
+[ext_resource type="Script" path="res://Systems/Run/stage_data.gd" id="1_stage"]
+[ext_resource type="Script" path="res://Systems/Lineup/lineup_slot.gd" id="2_slot"]
+
+[sub_resource type="Resource" id="Slot_1"]
+script = ExtResource("2_slot")
+unit_id = &"unit.iron_guard"
+star = 2
+local_col = 5
+local_rank = 1
+
+[sub_resource type="Resource" id="Slot_2"]
+script = ExtResource("2_slot")
+unit_id = &"unit.light_rider"
+star = 2
+local_col = 3
+local_rank = 1
+
+[sub_resource type="Resource" id="Slot_3"]
+script = ExtResource("2_slot")
+unit_id = &"unit.wolf_shield"
+star = 2
+local_col = 6
+local_rank = 1
+
+[sub_resource type="Resource" id="Slot_4"]
+script = ExtResource("2_slot")
+unit_id = &"unit.wolf_blade"
+star = 2
+local_col = 4
+local_rank = 2
+
+[sub_resource type="Resource" id="Slot_5"]
+script = ExtResource("2_slot")
+unit_id = &"unit.wind_mage"
+star = 2
+local_col = 2
+local_rank = 3
+
+[sub_resource type="Resource" id="Slot_6"]
+script = ExtResource("2_slot")
+unit_id = &"unit.wolf_marksman"
+star = 2
+local_col = 5
+local_rank = 3
+
+[sub_resource type="Resource" id="Slot_7"]
+script = ExtResource("2_slot")
+unit_id = &"unit.thunder_mage"
+star = 2
+local_col = 7
+local_rank = 3
+
+[resource]
+script = ExtResource("1_stage")
+id = &"stage.09"
+name_key = "STAGE_09"
+slots = Array[ExtResource("2_slot")]([SubResource("Slot_1"), SubResource("Slot_2"), SubResource("Slot_3"), SubResource("Slot_4"), SubResource("Slot_5"), SubResource("Slot_6"), SubResource("Slot_7")])

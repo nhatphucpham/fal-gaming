@@ -9,6 +9,25 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Added
 
+- A run of 12 stages, from a new title screen with "Ván mới", "Chơi tiếp"
+  (when a run is saved), "Bàn thử" and the preparation time (60 s, 90 s or
+  unlimited). Each stage starts with a preparation: buy units from a shop of
+  five cards (higher costs glow), keep them on a bench of six, place them on
+  your half of the board by tap or drag, swap, sell by dropping on the shop,
+  refresh the shop, buy supply and spend it to level up for more units on
+  the board. Three copies of a unit merge into 2 and then 3 stars (legends:
+  two copies, at most 2 stars and two on the board), with a flight and a
+  burst of confetti. The enemy line-up of the stage waits dimmed on the top
+  half. "Ra trận", or the end of the timer, starts the battle on the same
+  board; the banner shows the gold, supply or morale won or lost, then pick
+  one of three rewards (two after a loss): rest, hunt or the black market.
+  Morale at 0 ends the run; winning stage 12, "Đại Trận Lạc Hồng", wins it.
+  The run is saved after every reward. The end screen shows the result,
+  the stages cleared and your army.
+- The preparation timer pauses when the game window or browser tab is not
+  in front.
+- `Tools/run_bot.gd`, a balance bot that plays whole runs and prints the
+  win rate of each stage.
 - A first playable screen, the sandbox, laid out for a phone held upright
   (desktop windows work too): a roster of every unit, the 7 x 8 board with the
   enemy line-up shown dimmed on the top half, and the buttons "Ra trận",
@@ -36,3 +55,6 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 - The game is now portrait (720 x 1280 base size); in a landscape window the
   game column stays centred.
+- The game opens on the title screen; the sandbox is reached from "Bàn thử"
+  and has a "Về" button back.
+- In the run, hp bars show only during a battle, not while units wait.

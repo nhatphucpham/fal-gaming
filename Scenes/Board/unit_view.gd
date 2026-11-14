@@ -32,6 +32,12 @@ var bob: float = 0.0
 ## Tilt of the figure in radians (charging, falling).
 var lean: float = 0.0
 var is_dead: bool = false
+## False hides the hp bar but keeps the star pips (bench and preparation:
+## full health says nothing).
+var is_hp_bar_shown: bool = true:
+	set(value):
+		is_hp_bar_shown = value
+		_bar.queue_redraw()
 
 var unit: UnitData
 var side: int = 0
@@ -48,6 +54,8 @@ var _motion_tween: Tween
 var _figure_tween: Tween
 var _hp_tween: Tween
 var _fade_tween: Tween
+# Scale of each star pip, for the stamping animation.
+var _star_scales: Array[float] = [1.0, 1.0, 1.0]
 
 
 func _init() -> void:
@@ -98,11 +106,18 @@ func _draw() -> void:
 
 func _draw_bar() -> void:
 	var origin := Vector2(-BAR_SIZE.x / 2.0, BAR_Y)
-	_bar.draw_rect(Rect2(origin - Vector2(2, 2), BAR_SIZE + Vector2(4, 4)), Palette.INK)
-	_bar.draw_rect(Rect2(origin, Vector2(BAR_SIZE.x * _hp_trail, BAR_SIZE.y)), Palette.CREAM)
-	var fill := Palette.PLAYER_HP if side == 0 else Palette.ENEMY_HP
-	_bar.draw_rect(Rect2(origin, Vector2(BAR_SIZE.x * _hp_ratio, BAR_SIZE.y)), fill)
-	UnitPainter.draw_star_pips(_bar, Vector2(0.0, BAR_Y - 6.0), star)
+	if is_hp_bar_shown:
+		_bar.draw_rect(Rect2(origin - Vector2(2, 2), BAR_SIZE + Vector2(4, 4)), Palette.INK)
+		_bar.draw_rect(Rect2(origin, Vector2(BAR_SIZE.x * _hp_trail, BAR_SIZE.y)), Palette.CREAM)
+		var fill := Palette.PLAYER_HP if side == 0 else Palette.ENEMY_HP
+		_bar.draw_rect(Rect2(origin, Vector2(BAR_SIZE.x * _hp_ratio, BAR_SIZE.y)), fill)
+	var pips_y := BAR_Y - 6.0 if is_hp_bar_shown else BAR_Y
+	var spacing := 4.5 * 2.2
+	for index: int in star:
+		var pip_scale: float = _star_scales[mini(index, _star_scales.size() - 1)]
+		if pip_scale > 0.01:
+			var center := Vector2((index - (star - 1) / 2.0) * spacing, pips_y)
+			UnitPainter.draw_star_pips(_bar, center, 1, 4.5 * pip_scale)
 
 
 ## Shows hp as a share of max, 0..1; the bar slides down with a pale trail.
@@ -126,6 +141,44 @@ func drop_in() -> void:
 	tween.tween_property(self, ^"squash", Vector2(1.3, 0.7), 0.05)
 	tween.parallel().tween_method(_set_dust, 0.0, 1.0, 0.35)
 	tween.tween_property(self, ^"squash", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## Shows `star_level` stars, stamping them on one at a time.
+func stamp_stars(star_level: int, delay_sec: float = 0.0) -> void:
+	star = star_level
+	_star_scales = [0.0, 0.0, 0.0]
+	_bar.queue_redraw()
+	var tween := _new_tween()
+	tween.tween_interval(delay_sec)
+	for index: int in star_level:
+		tween.tween_method(_set_star_scale.bind(index), 2.2, 1.0, 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## The merge result: shrinks, then grows past full size and bounces.
+func grow_in() -> void:
+	squash = Vector2(0.3, 0.3)
+	var tween := _new_figure_tween()
+	tween.tween_property(self, ^"squash", Vector2(1.45, 1.45), 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(self, ^"squash", Vector2(0.9, 1.1), 0.08)
+	tween.tween_property(self, ^"squash", Vector2.ONE, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+## Jumps in an arc to `target` (local position) over `seconds`.
+func hop_to(target: Vector2, seconds: float) -> void:
+	_reset_tween(_motion_tween)
+	_motion_tween = _new_tween()
+	_motion_tween.tween_method(_hop_step.bind(position, target), 0.0, 1.0, seconds).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+## Flies to `target` (local position) while shrinking away, then frees
+## itself (a sold unit going into the gold counter).
+func shrink_to(target: Vector2, seconds: float) -> void:
+	is_dead = true
+	_reset_tween(_motion_tween)
+	_motion_tween = _new_tween()
+	_motion_tween.tween_property(self, ^"position", target, seconds).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	_motion_tween.parallel().tween_property(self, ^"squash", Vector2(0.15, 0.15), seconds).set_ease(Tween.EASE_IN)
+	_motion_tween.tween_callback(queue_free)
 
 
 ## Pops up and vanishes, then frees itself.
@@ -234,6 +287,16 @@ func set_dim(amount: float) -> void:
 func _walk_step(progress: float, from: Vector2, target: Vector2, cells: float) -> void:
 	position = from.lerp(target, progress)
 	bob = absf(sin(progress * PI * cells)) * 4.0
+
+
+func _hop_step(progress: float, from: Vector2, target: Vector2) -> void:
+	position = from.lerp(target, progress)
+	bob = sin(progress * PI) * minf(40.0, 12.0 + from.distance_to(target) * 0.12)
+
+
+func _set_star_scale(value: float, index: int) -> void:
+	_star_scales[index] = value
+	_bar.queue_redraw()
 
 
 func _gallop_step(progress: float, from: Vector2, target: Vector2) -> void:

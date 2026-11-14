@@ -2,7 +2,8 @@ class_name SetupController
 extends Node
 ## Setup-phase interaction of the sandbox: picking roster cards, placing,
 ## moving, swapping and removing the player's units by tap or drag, and the
-## valid-cell highlights. Gestures from the board and the roster call the
+## valid-cell highlights. The drag itself (ghost, fading, hover) is a
+## PieceDrag, shared with the run screen. Gestures from the board and the roster call the
 ## public tap_* and drop_* methods, which tests call directly. Cells here are
 ## global board cells; the Lineup gets local ones.
 
@@ -23,7 +24,7 @@ var is_enabled: bool = true:
 
 var _board: BoardView
 var _roster: RosterStrip
-var _ghost: DragGhost
+var _drag: PieceDrag
 var _catalog: Catalog
 var _lineup: Lineup
 var _views: LineupViews
@@ -39,7 +40,7 @@ var _drag_entry: int = Lineup.NO_ENTRY
 func setup(board: BoardView, roster: RosterStrip, ghost: DragGhost, catalog: Catalog, player: LineupViews, player_lineup: Lineup, enemy: LineupViews, enemy_lineup: Lineup) -> void:
 	_board = board
 	_roster = roster
-	_ghost = ghost
+	_drag = PieceDrag.new(board, ghost)
 	_catalog = catalog
 	_views = player
 	_lineup = player_lineup
@@ -177,9 +178,8 @@ func _on_card_drag_started(unit_id: StringName, pointer: Vector2) -> void:
 		return
 	deselect()
 	_drag_unit = unit_id
-	_ghost.begin(_catalog.get_unit(unit_id), pointer)
 	_refresh_targets()
-	_on_drag_moved(pointer)
+	_drag.begin(_catalog.get_unit(unit_id), pointer, null)
 
 
 func _on_board_drag_started(cell: Vector2i, pointer: Vector2) -> void:
@@ -190,31 +190,28 @@ func _on_board_drag_started(cell: Vector2i, pointer: Vector2) -> void:
 		return
 	deselect()
 	_drag_entry = entry
-	_views.get_view(entry).fade_to(0.3, 0.1)
-	_ghost.begin(_catalog.get_unit(_lineup.get_slot(entry).unit_id), pointer)
 	_refresh_targets()
-	_on_drag_moved(pointer)
+	_drag.begin(_catalog.get_unit(_lineup.get_slot(entry).unit_id), pointer, _views.get_view(entry))
 
 
 func _on_drag_moved(pointer: Vector2) -> void:
 	if _drag_unit == &"" and _drag_entry == Lineup.NO_ENTRY:
 		return
-	_ghost.follow(pointer)
-	_board.set_hover_cell(_board.cell_at_global(_ghost.get_drop_point(pointer)))
+	_drag.follow(pointer)
 
 
 func _on_card_drag_ended(pointer: Vector2) -> void:
 	if _drag_unit == &"":
 		return
 	var unit_id := _drag_unit
-	var cell := _board.cell_at_global(_ghost.get_drop_point(pointer))
+	var cell := _board.cell_at_global(_drag.get_drop_point(pointer))
 	_drag_unit = &""
 	_board.clear_marks()
 	if drop_card(unit_id, cell):
-		_ghost.finish()
+		_drag.accept()
 		return
 	var card := _roster.get_card(unit_id)
-	_ghost.reject(card.get_portrait_center() if card != null else pointer)
+	_drag.reject(card.get_portrait_center() if card != null else pointer)
 	action_refused.emit()
 
 
@@ -222,25 +219,14 @@ func _on_board_drag_ended(pointer: Vector2) -> void:
 	if _drag_entry == Lineup.NO_ENTRY:
 		return
 	var entry := _drag_entry
-	var cell := _board.cell_at_global(_ghost.get_drop_point(pointer))
+	var cell := _board.cell_at_global(_drag.get_drop_point(pointer))
 	_drag_entry = Lineup.NO_ENTRY
 	_board.clear_marks()
-	var view := _views.get_view(entry)
 	var home_cell := _views.to_board_cell(_lineup.get_slot(entry).get_cell())
-	if cell == home_cell:
-		_ghost.finish()
-		view.fade_to(1.0, 0.1)
+	if cell == home_cell or drop_piece(entry, cell):
+		_drag.accept()
 		return
-	var home := _board.cell_to_global(home_cell)
-	if drop_piece(entry, cell):
-		_ghost.finish()
-		if view != null and is_instance_valid(view) and not view.is_dead:
-			view.fade_to(1.0, 0.1)
-		return
-	_ghost.reject(home)
-	if view != null:
-		view.fade_to(1.0, 0.3)
-		view.shake()
+	_drag.reject(_board.cell_to_global(home_cell))
 	action_refused.emit()
 
 
@@ -248,18 +234,12 @@ func _on_board_drag_ended(pointer: Vector2) -> void:
 # ghost and the cell marks go. Safe to call when nothing is dragged.
 func _cancel_drag() -> void:
 	var was_dragging := is_dragging()
-	if _drag_entry != Lineup.NO_ENTRY:
-		var view := _views.get_view(_drag_entry)
-		if view != null:
-			view.fade_to(1.0, 0.1)
 	_drag_unit = &""
 	_drag_entry = Lineup.NO_ENTRY
-	if _ghost != null:
-		_ghost.finish()
 	if _board == null:
 		return
+	_drag.cancel()
 	if was_dragging:
-		_board.set_hover_cell(BoardView.INVALID_CELL)
 		_board.set_target_cells([])
 	_board.cancel_gesture()
 	_roster.cancel_gesture()
