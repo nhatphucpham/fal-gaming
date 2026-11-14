@@ -27,4 +27,13 @@ which turn-based combat, auto-battles and lockstep networking can build on.
 After a long stall it fires at most `max_ticks_per_frame` ticks and drops the
 rest, so a slow phone does not fall further behind.
 
-No third-party plugin is included.
+The class is documented in [SimClock](systems/sim_clock.md). No third-party
+plugin is included.
+
+## Layers and documentation
+
+Code is organized in three layers (simulation, bridge, presentation) as
+described in [Coding conventions](conventions.md). Each system gets a page in
+`Docs/systems/`, written from `Docs/systems/_template.md` when the system is
+added. A system page written elsewhere before this rule moves there the next
+time it changes.

@@ -1,0 +1,42 @@
+name: Docs
+
+# Code changes must come with docs (Docs/conventions.md, section 8). This is a
+# separate workflow so that editing the description to add [no-docs] reruns
+# only this check, not the builds.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+
+jobs:
+  docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Check that code changes update docs
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          changed="$(git -c core.quotePath=false diff --name-only "$BASE_SHA...$HEAD_SHA")"
+          printf 'Changed files:\n%s\n' "$changed"
+          # Code is anything except docs, tests, Markdown, .uid files and
+          # editor or Git settings.
+          code="$(printf '%s\n' "$changed" | grep -Ev '^(Docs/|Tests/)|\.(md|uid)$|(^|/)\.(gitignore|gitattributes|editorconfig)$' || true)"
+          docs="$(printf '%s\n' "$changed" | grep -E '^(Docs/|CHANGELOG\.md$|README\.md$|AGENTS\.md$)' || true)"
+          if [ -z "$code" ]; then
+            echo "No code changed."
+          elif [ -n "$docs" ]; then
+            echo "Code changed and docs were updated."
+          elif printf '%s\n' "$PR_BODY" | grep -Eq '^[[:space:]>*`-]*\[no-docs\][`[:space:]]*[^`[:space:]]'; then
+            echo "Code changed without docs; the description gives a [no-docs] reason."
+          else
+            printf 'Code changed without a docs update:\n%s\n' "$code"
+            echo "::error::Update Docs/, README.md, AGENTS.md or CHANGELOG.md, or start a line of the PR description with [no-docs] and a reason. See Docs/conventions.md, section 8."
+            exit 1
+          fi

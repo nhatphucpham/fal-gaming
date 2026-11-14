@@ -57,6 +57,9 @@ them as workflow artifacts. It then runs the import and smoke test with the
 Linux library, and checks that the Android and Web exports contain theirs.
 These checks do not replace testing an exported build on the target device.
 
+On pull requests a separate `Docs` workflow checks that code changes also
+update the documentation; see [Coding conventions](conventions.md), section 8.
+
 ## Adding C++ classes
 
 Put sources in `Native/src/`, register each class in
