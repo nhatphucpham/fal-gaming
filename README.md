@@ -1,44 +1,67 @@
-# Falemag — Godot 2D Game Project
+# Falemag
 
-Falemag is a single-player 2D game project built with Godot 4.7.2, targeting
-Windows 64-bit first. It currently contains an empty starter scene, a smoke
-test, and a Windows export preset. The genre, gameplay, and controls have yet
-to be defined; the project is not yet a playable game.
+Falemag is a lightweight 2D game built with Godot 4.7.2, focused on story and
+tactics. It targets low-end PCs and mobile phones, and may later support
+online play.
+
+The project is at the starter stage: a C++ GDExtension with one sample node,
+a main scene that uses it, a smoke test, Windows, Android and Web export
+presets, and CI. Gameplay, story, and controls are not yet implemented.
 
 ## Requirements
 
-- [Godot 4.7.2 standard edition](https://godotengine.org/download/archive/4.7.2-stable/).
-- Windows 64-bit for the initial target; Git and Git LFS.
-- Godot 4.7.2 export templates to export a Windows build. Install them through
-  **Editor > Manage Export Templates**.
+- [Godot 4.7.2 standard edition](https://godotengine.org/download/archive/4.7.2-stable/)
+  and its matching export templates (**Editor > Manage Export Templates**).
+- Git and Git LFS.
+- Python 3, SCons and a C++ compiler (Visual Studio 2022 or 2026 Build Tools on
+  Windows) to build the GDExtension. See [Build and test](Docs/build.md).
 
 ## Clone, open and test (Windows cmd.exe)
 
-Replace the path below with your downloaded Godot console executable:
+Replace the path below with your Godot console executable:
 
 ```bat
 git lfs install
-git clone https://github.com/nhatphucpham/fal-gaming.git
+git clone --recurse-submodules https://github.com/nhatphucpham/fal-gaming.git
 cd fal-gaming
+python -m pip install scons
+python -m SCons target=template_debug
 set "GODOT=C:\Godot\Godot_v4.7.2-stable_win64_console.exe"
+rem Avoids a Godot 4.7.2 crash on the first import (see Docs/build.md)
+mkdir .godot
+echo res://falemag.gdextension> .godot\extension_list.cfg
 "%GODOT%" --headless --editor --path "%CD%" --import
 "%GODOT%" --editor --path "%CD%"
 "%GODOT%" --headless --path "%CD%" --script res://Tests/smoke_test.gd
 ```
 
-In the editor, press **F6** to run the current scene or **F5** to run the
-project. The main scene is intentionally empty.
+In the editor, press **F5** to run the project or **F6** to run the current
+scene.
 
-## Export for Windows
+## Export
 
-After installing export templates, from the project directory:
+From the project directory, after installing export templates:
 
 ```bat
+python -m SCons target=template_release
 mkdir build\windows
 "%GODOT%" --headless --path "%CD%" --export-release "Windows Desktop" "%CD%\build\windows\Falemag.exe"
 ```
 
-The export is unsigned. The `build` directory is ignored by Git. See
-[build guide](Docs/build.md), [architecture](Docs/architecture.md),
-[conventions](Docs/conventions.md), and [agent instructions](AGENTS.md).
-Use short-lived branches and pull requests into `main`.
+The `Web` preset builds the version to try on any phone, including iPhone:
+CI publishes it from `master` to <https://nhatphucpham.github.io/fal-gaming/>.
+The `Android` preset exports an arm64 APK. It needs the Android SDK and
+JDK 17 set in **Editor > Editor Settings > Export > Android**; see
+[Build and test](Docs/build.md). The `build` directory is ignored by
+Git.
+
+## Documentation
+
+- [Build and test](Docs/build.md)
+- [Architecture](Docs/architecture.md)
+- [Coding conventions](Docs/conventions.md): rules for every change
+- [System doc template](Docs/systems/_template.md)
+- [Changelog](CHANGELOG.md)
+- [Agent instructions](AGENTS.md)
+
+Work on short-lived branches and open pull requests into `master`.

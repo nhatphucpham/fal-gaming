@@ -1,23 +1,23 @@
+# Godot
 /.godot/
+/android/
+
+# Native build output (GDExtension libraries and SCons files)
+/bin/
+/.scons-cache/
+.sconsign*.dblite
+*.o
+*.os
+*.obj
+*.lib
+*.exp
+*.pdb
+
+# Exported builds
 /build/
-/Binaries/
-/Intermediate/
-/Saved/
-/DerivedDataCache/
-**/Binaries/
-**/Intermediate/
-**/Saved/
-**/DerivedDataCache/
-.vs/
+
+# Editors and OS
+.vscode/
 .idea/
-*.sln
-*.suo
-*.opensdf
-*.sdf
-*.VC.db
-*.VC.opendb
-*.xcodeproj/
-*.xcworkspace/
-/Build/
-/Dist/
-/Packaged/
+.DS_Store
+Thumbs.db
