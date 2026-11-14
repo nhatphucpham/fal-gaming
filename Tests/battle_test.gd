@@ -41,7 +41,9 @@ func _run() -> bool:
 		return false
 	var checks: Array[Callable] = [
 		_check_stats, _check_determinism, _check_damage, _check_arrow_block,
-		_check_charge, _check_hold_line, _check_target_in_range, _check_mage_row3,
+		_check_charge, _check_charge_neighbour, _check_no_blind_charge, _check_rider_switches_target,
+		_check_charge_tie_mirrored, _check_charge_board_edges, _check_charge_target_dies,
+		_check_charge_target_leaves, _check_breakthrough_charge_target, _check_charge_determinism, _check_hold_line, _check_target_in_range, _check_mage_row3,
 		_check_move_durations, _check_time_limit, _check_full_battle,
 		_check_coordinates,
 	]
@@ -160,6 +162,230 @@ func _check_charge() -> bool:
 	var impact: Dictionary = events.filter(func(event: Dictionary) -> bool: return event["type"] == &"unit_attacked").back()
 	if events.back()["hit"] != spear or not _has_event(events, &"damage_dealt", "target", spear) or _has_event(events, &"unit_moved", "kind", &"knockback") or battle.get_unit_state(spear)["row"] != impact["to_row"]:
 		push_error("Spear was knocked back by a charge: %s" % [events])
+		return false
+	return true
+
+
+# With no enemy ahead in its own column, the rider charges the nearest one
+# in a neighbouring column: it stops diagonally in front of it and hits. The
+# knockback is the same as a straight charge's: one row straight back.
+func _check_charge_neighbour() -> bool:
+	var battle := _new_battle()
+	var cavalry := _add(battle, Battle.SIDE_A, CAVALRY, 4, 1)
+	var archer := _add(battle, Battle.SIDE_B, ARCHER, 3, 2)
+	var archer_start: Dictionary = battle.get_unit_state(archer)
+	var events := _events_until(battle, &"charge_ended")
+	var rider: Dictionary = battle.get_unit_state(cavalry)
+	var hit: Dictionary = battle.get_unit_state(archer)
+	if events.is_empty() or events.back()["hit"] != archer or events.back()["tick"] > 15:
+		push_error("The rider should charge the archer in the next column at once: %s" % [events])
+		return false
+	if absi(rider["col"] - archer_start["col"]) != 1 or archer_start["row"] - rider["row"] != 1:
+		push_error("The rider should stop diagonally in front of the archer, stopped at %s" % rider)
+		return false
+	if hit["row"] != archer_start["row"] + 1 or hit["col"] != archer_start["col"] or not _has_event(events, &"unit_moved", "kind", &"knockback"):
+		push_error("The diagonal impact should push the archer one row back: %s" % hit)
+		return false
+	return true
+
+
+# No charge (and no charge_ended) when no enemy stands in the rider's lane:
+# far to the side, only on the back rank to the sides, or with an ally in
+# front. The rider walks instead.
+func _check_no_blind_charge() -> bool:
+	var layouts := [
+		["an enemy far to the side", [], [[ARCHER, 7, 2]]],
+		["back-rank enemies to the sides", [], [[ARCHER, 1, 4], [ARCHER, 6, 4]]],
+		["an ally in front", [[SHIELD, 4, 1]], [[ARCHER, 4, 3]]],
+	]
+	for layout: Array in layouts:
+		var battle := _new_battle()
+		var cavalry := _add(battle, Battle.SIDE_A, CAVALRY, 4, 2 if layout[1].size() > 0 else 1)
+		for entry: Array in layout[1]:
+			_add(battle, Battle.SIDE_A, entry[0], entry[1], entry[2])
+		for entry: Array in layout[2]:
+			_add(battle, Battle.SIDE_B, entry[0], entry[1], entry[2])
+		var before: Array[Dictionary] = []
+		var has_attacked := false
+		battle.start()
+		while not has_attacked and not battle.is_finished() and battle.get_tick() < MAX_TICKS:
+			for event: Dictionary in battle.step():
+				if event.get("unit", -1) == cavalry:
+					before.append(event)
+					has_attacked = has_attacked or event["type"] == &"unit_attacked"
+		if not has_attacked or _has_event(before, &"charge_ended", "unit", cavalry) or _has_event(before, &"unit_moved", "kind", &"charge"):
+			push_error("With %s the rider should walk, not charge: %s" % [layout[0], before])
+			return false
+		if not _has_event(before, &"unit_moved", "kind", &"walk"):
+			push_error("With %s the rider should walk to its target" % layout[0])
+			return false
+	return true
+
+
+# A rider whose charge hit a shield in its column turns to a fragile mage
+# standing diagonally next to it instead of chopping at the shield.
+func _check_rider_switches_target() -> bool:
+	var battle := _new_battle()
+	var cavalry := _add(battle, Battle.SIDE_A, CAVALRY, 4, 1)
+	var shield := _add(battle, Battle.SIDE_B, SHIELD, 4, 1)
+	var mage := _add(battle, Battle.SIDE_B, MAGE, 5, 1)
+	var events := _events_until(battle, &"charge_ended")
+	if events.is_empty() or events.back()["hit"] != shield:
+		push_error("The rider should charge the shield in its column first: %s" % [events])
+		return false
+	var next := {}
+	while next.is_empty() and not battle.is_finished() and battle.get_tick() < MAX_TICKS:
+		for event: Dictionary in battle.step():
+			if event["type"] == &"unit_attacked" and event["unit"] == cavalry:
+				next = event
+				break
+	if next.get("target", -1) != mage:
+		push_error("After the impact the rider should attack the mage, attacked %s" % [next])
+		return false
+	return true
+
+
+# Two enemies equally near in both neighbouring columns: the rider takes the
+# one on its own left (global col - 1 for side A, + 1 for side B, which
+# faces the other way), the same local column for both sides.
+func _check_charge_tie_mirrored() -> bool:
+	for side: int in [Battle.SIDE_A, Battle.SIDE_B]:
+		var battle := _new_battle()
+		var cavalry := _add(battle, side, CAVALRY, 4, 1)
+		var enemies: Array[int] = [_add(battle, 1 - side, ARCHER, 3, 2), _add(battle, 1 - side, ARCHER, 5, 2)]
+		var own_left: int = battle.get_unit_state(cavalry)["col"] + (-1 if side == Battle.SIDE_A else 1)
+		var expected := enemies.filter(func(enemy: int) -> bool: return battle.get_unit_state(enemy)["col"] == own_left)
+		var events := _events_until(battle, &"charge_ended")
+		if expected.size() != 1 or events.is_empty() or events.back()["type"] != &"charge_ended" or events.back()["hit"] != expected[0]:
+			push_error("A side %d rider should charge the enemy on its own left (col %d): %s" % [side, own_left, events])
+			return false
+	return true
+
+
+# A rider in an edge column (local 1 or 7, either side) has one neighbouring
+# column: it charges the enemy there and stops diagonally in front of it.
+func _check_charge_board_edges() -> bool:
+	for side: int in [Battle.SIDE_A, Battle.SIDE_B]:
+		for col: int in [1, 7]:
+			var battle := _new_battle()
+			var cavalry := _add(battle, side, CAVALRY, col, 1)
+			var rider_col: int = battle.get_unit_state(cavalry)["col"]
+			var neighbour_col := rider_col + (1 if rider_col == 0 else -1)
+			var enemy_cell := Battle.global_to_local(1 - side, neighbour_col, Battle.local_to_global(1 - side, 1, 2).y)
+			var archer := _add(battle, 1 - side, ARCHER, enemy_cell.x, enemy_cell.y)
+			var archer_start: Dictionary = battle.get_unit_state(archer)
+			var events := _events_until(battle, &"charge_ended")
+			var rider: Dictionary = battle.get_unit_state(cavalry)
+			var rows_ahead: int = (archer_start["row"] - rider["row"]) * (1 if side == Battle.SIDE_A else -1)
+			if events.is_empty() or events.back()["type"] != &"charge_ended" or events.back()["hit"] != archer or rider["col"] != rider_col or rows_ahead != 1:
+				push_error("A side %d rider in local col %d should charge the archer in col %d: %s, rider %s" % [side, col, neighbour_col, events, rider])
+				return false
+	return true
+
+
+# Slow charges (30 ticks a cell) so the lane can change on the way.
+func _slow_charge_rules() -> BattleRulesData:
+	var rules := _catalog.battle_rules.duplicate() as BattleRulesData
+	rules.charge_ticks_per_cell = 30
+	return rules
+
+
+# The rider's target in its own column dies on the way (an archer kills it):
+# it picks again from where it is, the archer in the next column, and hits
+# it diagonally without leaving its column.
+func _check_charge_target_dies() -> bool:
+	var battle := _new_battle(_slow_charge_rules())
+	var cavalry := _add(battle, Battle.SIDE_A, CAVALRY, 4, 4)
+	_add(battle, Battle.SIDE_A, ARCHER, 3, 2)
+	var fragile := _fragile_class(1)
+	battle.register_class(fragile)
+	var first := _add_test_unit(battle, Battle.SIDE_B, fragile, 4, 2)
+	var second := _add(battle, Battle.SIDE_B, ARCHER, 3, 4)
+	var events := _events_until(battle, &"charge_ended")
+	var rider: Dictionary = battle.get_unit_state(cavalry)
+	if not _has_event(events, &"unit_died", "unit", first) or events.back()["type"] != &"charge_ended" or events.back()["hit"] != second:
+		push_error("After its target died the rider should charge the next archer: %s" % [events])
+		return false
+	if rider["col"] != 3 or absi(battle.get_unit_state(second)["col"] - rider["col"]) != 1:
+		push_error("The rider should hit the new target from its own column, stopped at %s" % rider)
+		return false
+	return true
+
+
+# The rider's target walks out of the lane (two columns off) on the way: the
+# rider picks the archer left in its lane and hits it, not the walker.
+func _check_charge_target_leaves() -> bool:
+	var battle := _new_battle(_slow_charge_rules())
+	var cavalry := _add(battle, Battle.SIDE_A, CAVALRY, 4, 4)
+	_add(battle, Battle.SIDE_A, ARCHER, 7, 1)
+	var walker := _add(battle, Battle.SIDE_B, SWORD, 4, 4)
+	var archer := _add(battle, Battle.SIDE_B, ARCHER, 5, 4)
+	var has_left := false
+	var events: Array[Dictionary] = []
+	battle.start()
+	while not battle.is_finished() and battle.get_tick() < MAX_TICKS and (events.is_empty() or events.back()["type"] != &"charge_ended"):
+		for event: Dictionary in battle.step():
+			events.append(event)
+			if event["type"] == &"charge_ended":
+				break
+		has_left = has_left or absi(battle.get_unit_state(walker)["col"] - battle.get_unit_state(cavalry)["col"]) >= 2
+	if not has_left or events.back()["type"] != &"charge_ended" or events.back()["hit"] != archer or not battle.get_unit_state(walker)["alive"]:
+		push_error("After its target left the lane the rider should charge the archer (left %s): %s" % [has_left, events])
+		return false
+	return true
+
+
+# Đột Trận right after the opening charge: the rider already stands in the
+# most crowded column in front of its frontmost enemy, so the skill does not
+# move it back and its charge hits that enemy (the skill's charge target).
+func _check_breakthrough_charge_target() -> bool:
+	var rules := _catalog.battle_rules.duplicate() as BattleRulesData
+	rules.qi_per_attack = 1000
+	rules.qi_per_hit_taken = 0
+	var battle := _new_battle(rules)
+	var cavalry := _add(battle, Battle.SIDE_A, CAVALRY, 4, 2)
+	var front := _add(battle, Battle.SIDE_B, SHIELD, 4, 1)
+	_add(battle, Battle.SIDE_B, SHIELD, 4, 2)
+	_add(battle, Battle.SIDE_B, ARCHER, 1, 4)
+	var opening := _events_until(battle, &"charge_ended")
+	if opening.is_empty() or opening.back()["hit"] != front:
+		push_error("The opening should charge the front shield: %s" % [opening])
+		return false
+	var standing: Dictionary = battle.get_unit_state(cavalry)
+	var events: Array[Dictionary] = []
+	var resolve := {}
+	while not battle.is_finished() and battle.get_tick() < MAX_TICKS and not _has_event(events, &"charge_ended", "unit", cavalry):
+		for event: Dictionary in battle.step():
+			events.append(event)
+			if resolve.is_empty() and event["type"] == &"skill_resolved" and event["unit"] == cavalry:
+				resolve = event
+		if resolve.is_empty():
+			events.clear()
+	var impacts := events.filter(func(event: Dictionary) -> bool: return event["type"] == &"damage_dealt" and event["skill"] == &"skill.breakthrough")
+	var rider: Dictionary = battle.get_unit_state(cavalry)
+	if resolve.is_empty() or _has_event(events, &"unit_moved", "unit", cavalry) or rider["col"] != standing["col"] or rider["row"] != standing["row"]:
+		push_error("Đột Trận should not move a rider already in front of the column's enemy: %s" % [events])
+		return false
+	if impacts.is_empty() or impacts[0]["target"] != front or events.back()["type"] != &"charge_ended" or events.back()["hit"] != front:
+		push_error("Đột Trận should hit the front shield it aimed at: %s" % [events])
+		return false
+	return true
+
+
+# Charges with lane targets (two riders, a line of three) stay deterministic.
+func _check_charge_determinism() -> bool:
+	var hashes: Array[String] = []
+	for attempt: int in 2:
+		var battle := _new_battle()
+		_add(battle, Battle.SIDE_A, CAVALRY, 2, 1)
+		_add(battle, Battle.SIDE_A, CAVALRY, 6, 1)
+		_add(battle, Battle.SIDE_B, SHIELD, 3, 1)
+		_add(battle, Battle.SIDE_B, SWORD, 4, 1)
+		_add(battle, Battle.SIDE_B, SHIELD, 5, 1)
+		_add(battle, Battle.SIDE_B, ARCHER, 4, 4)
+		hashes.append(str(battle.run_to_end(MAX_TICKS)))
+	if hashes[0] != hashes[1]:
+		push_error("Two riders against a line gave different hashes: %s" % [hashes])
 		return false
 	return true
 

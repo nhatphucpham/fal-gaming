@@ -35,12 +35,23 @@ signal prep_changed()
 ## A Kỳ Ngộ fired after the battle: the reward waits for choose_epiphany().
 signal epiphany_offered(family: StringName)
 signal epiphany_chosen(epiphany_id: StringName)
+## A road encounter is waiting for choose_encounter() (phase ENCOUNTER).
+signal encounter_offered(encounter_id: StringName)
+signal encounter_chosen(encounter_id: StringName, option: int)
+## A piece came for free (a road encounter), not from the shop; it may merge
+## right after (pieces_merged).
+signal piece_gifted(piece_id: int)
+## A win in a row paid `gold` more on top of win_gold (before battle_resolved).
+signal streak_paid(streak: int, gold: int)
+## A road encounter's bet ended with the battle: `gold` paid (0 on a loss).
+signal bet_settled(is_win: bool, gold: int)
 
-enum Result { OK, NOT_ENOUGH_GOLD, NOT_ENOUGH_SUPPLY, BENCH_FULL, BOARD_FULL, LEGEND_LIMIT, BAD_TARGET, NO_PIECE, EMPTY_SLOT, MAX_LEVEL, WRONG_PHASE, NOT_OFFERED, EPIPHANY_PENDING }
-enum Phase { PREP, BATTLE, REWARD, WON, LOST }
-enum Reward { REST, HUNT, BLACK_MARKET }
+enum Result { OK, NOT_ENOUGH_GOLD, NOT_ENOUGH_SUPPLY, BENCH_FULL, BOARD_FULL, LEGEND_LIMIT, BAD_TARGET, NO_PIECE, EMPTY_SLOT, MAX_LEVEL, WRONG_PHASE, NOT_OFFERED, EPIPHANY_PENDING, NOT_ENOUGH_MORALE }
+## ENCOUNTER: a road encounter waits after the reward, before the next stage.
+enum Phase { PREP, BATTLE, REWARD, WON, LOST, ENCOUNTER }
+enum Reward { REST, HUNT, BLACK_MARKET, LOOT }
 
-const REWARD_IDS: Array[StringName] = [&"reward.rest", &"reward.hunt", &"reward.black_market"]
+const REWARD_IDS: Array[StringName] = [&"reward.rest", &"reward.hunt", &"reward.black_market", &"reward.loot"]
 
 var rules: RunRules
 var catalog: Catalog
@@ -56,6 +67,11 @@ var stages_cleared: int = 0
 ## Kỳ Ngộ meters, thresholds and mutations; read it, change it only through
 ## the commands here.
 var epiphanies: EpiphanyTracker
+## Road encounters drawn, pending and the open bet; read it, change it only
+## through choose_encounter().
+var encounters: EncounterTracker
+## Battles won in a row (a loss resets it).
+var win_streak: int = 0
 
 var _rng := RandomNumberGenerator.new()
 var _roster: RunRoster
@@ -65,7 +81,10 @@ var _rewards: Array[Reward] = []
 # refresh is free.
 var _is_black_market: bool = false
 var _free_refreshes: int = 0
+# The black market was taken at a road stage and opens after the encounter.
 var _is_black_market_next: bool = false
+# Free refreshes a road encounter gave for the next preparation.
+var _encounter_refreshes: int = 0
 
 
 func _init(run_catalog: Catalog, seed_value: int) -> void:
@@ -78,6 +97,7 @@ func _init(run_catalog: Catalog, seed_value: int) -> void:
 	_roster.pieces_merged.connect(pieces_merged.emit)
 	_shop = Shop.new(run_catalog, rules)
 	epiphanies = EpiphanyTracker.new(run_catalog, seed_value)
+	encounters = EncounterTracker.new(run_catalog)
 	morale = rules.start_morale
 	gold = rules.start_gold
 	supply = rules.start_supply
@@ -173,6 +193,25 @@ func is_black_market_active() -> bool:
 ## Battle.set_synergy_overrides for side A).
 func get_synergy_overrides() -> Array:
 	return epiphanies.get_overrides()
+
+
+## True when a bench slot is free (a free unit from an encounter needs one).
+func has_free_bench_slot() -> bool:
+	for slot: int in rules.bench_slots:
+		if _roster.get_bench_piece(slot) == null:
+			return true
+	return false
+
+
+## OK when option 0 or 1 of the pending encounter can be taken now, else
+## what the run lacks (EncounterEffects.get_option_refusal).
+func get_encounter_refusal(option: int) -> Result:
+	var data := encounters.get_pending()
+	if phase != Phase.ENCOUNTER or data == null:
+		return Result.WRONG_PHASE
+	if option < 0 or option >= data.options.size():
+		return Result.NOT_OFFERED
+	return EncounterEffects.get_option_refusal(self, data.options[option])
 
 
 ## True when this stage's line-up has a boss.
@@ -309,13 +348,22 @@ func finish_battle(is_win: bool, enemies_alive: int, piece_damage: Dictionary = 
 	if phase != Phase.BATTLE:
 		return Result.WRONG_PHASE
 	var morale_delta := 0
+	win_streak = win_streak + 1 if is_win else 0
 	if is_win:
 		stages_cleared += 1
 		_add_gold(rules.win_gold)
 		_add_supply(rules.win_supply)
+		var bonus := rules.get_streak_bonus(win_streak)
+		if bonus > 0:
+			_add_gold(bonus)
+			streak_paid.emit(win_streak, bonus)
 	else:
 		morale_delta = -(rules.loss_morale_base + rules.loss_morale_per_enemy * maxi(0, enemies_alive))
 		_add_morale(morale_delta)
+	if encounters.get_bet_gold() > 0:
+		var paid := encounters.settle_bet(is_win)
+		_add_gold(paid)
+		bet_settled.emit(is_win, paid)
 	battle_resolved.emit(is_win, rules.win_gold if is_win else 0, rules.win_supply if is_win else 0, morale_delta)
 	if morale <= 0:
 		_set_phase(Phase.LOST)
@@ -344,8 +392,9 @@ func choose_epiphany(option: int) -> Result:
 	return Result.OK
 
 
-## Takes one of the offered rewards and begins the next stage's preparation
-## (stage 12 repeats after a loss, without gold or supply income).
+## Takes one of the offered rewards. Then a road encounter may wait (phase
+## ENCOUNTER, encounter_offered); otherwise the next stage's preparation
+## begins (stage 12 repeats after a loss, without gold or supply income).
 func choose_reward(reward: Reward) -> Result:
 	if phase != Phase.REWARD:
 		return Result.WRONG_PHASE
@@ -360,11 +409,32 @@ func choose_reward(reward: Reward) -> Result:
 			_add_supply(rules.hunt_supply)
 		Reward.BLACK_MARKET:
 			_is_black_market_next = true
+		Reward.LOOT:
+			_add_gold(rules.loot_gold)
 	_rewards.clear()
-	var is_repeat := stage >= rules.stage_count
-	if not is_repeat:
-		stage += 1
-	_begin_prep(not is_repeat)
+	if stage < rules.stage_count and encounters.is_due(stage):
+		var data := encounters.draw(_rng)
+		_set_phase(Phase.ENCOUNTER)
+		encounter_offered.emit(data.id)
+		return Result.OK
+	_begin_next_stage()
+	return Result.OK
+
+
+## Takes option 0 or 1 of the pending road encounter, applies its effects
+## in order, then begins the next stage's preparation. A refused option
+## (see get_encounter_refusal) changes nothing.
+func choose_encounter(option: int) -> Result:
+	var refusal := get_encounter_refusal(option)
+	if refusal != Result.OK:
+		return refusal
+	var data := encounters.get_pending()
+	encounters.take(option)
+	var handlers := _get_effect_handlers()
+	for effect: EncounterEffect in data.options[option].effects:
+		handlers[effect.kind].call(effect.amount)
+	encounter_chosen.emit(data.id, option)
+	_begin_next_stage()
 	return Result.OK
 
 
@@ -379,13 +449,14 @@ func to_save_data() -> Dictionary:
 		"stage": stage, "stages_cleared": stages_cleared, "morale": morale, "gold": gold,
 		"supply": supply, "level": level, "next_piece_id": _roster.get_next_id(),
 		"pieces": _roster.to_save_data(), "shop": _shop.get_offers().map(func(id: StringName) -> String: return String(id)),
-		"black_market": _is_black_market, "free_refreshes": _free_refreshes,
-		"rewards": _rewards.map(func(reward: Reward) -> String: return String(REWARD_IDS[reward])),
+		"black_market": _is_black_market, "black_market_next": _is_black_market_next,
+		"free_refreshes": _free_refreshes, "rewards": _rewards.map(func(reward: Reward) -> String: return String(REWARD_IDS[reward])),
 		"epiphany": epiphanies.to_save_data(),
+		"encounter": encounters.to_save_data(), "win_streak": win_streak,
 	}
 
 
-## True in the phases a save can hold (PREP and REWARD).
+## True in the phases a save can hold (PREP, REWARD and ENCOUNTER).
 func can_save() -> bool:
 	return RunSaveFields.PHASES.values().has(phase)
 
@@ -401,6 +472,9 @@ func load_save_data(data: Dictionary) -> bool:
 	epiphanies = EpiphanyTracker.new(catalog, fields["seed"])
 	if not epiphanies.load_save_data(data.get("epiphany"), fields["phase"], fields["stage"]):
 		return false
+	encounters = EncounterTracker.new(catalog)
+	if not encounters.load_save_data(data.get("encounter"), fields["phase"], fields["stage"]) or fields["win_streak"] > fields["stages_cleared"]:
+		return false
 	stage = fields["stage"]
 	stages_cleared = fields["stages_cleared"]
 	morale = fields["morale"]
@@ -412,8 +486,12 @@ func load_save_data(data: Dictionary) -> bool:
 	_rng.state = fields["rng_state"]
 	_shop.set_offers(fields["shop"])
 	_is_black_market = fields["black_market"]
-	# Only a black-market stage has free refreshes, and never more than it gives.
-	_free_refreshes = clampi(fields["free_refreshes"], 0, rules.black_market_free_refreshes if _is_black_market else 0)
+	_is_black_market_next = fields["black_market_next"]
+	win_streak = fields["win_streak"]
+	# Only a black-market stage or the stage after an encounter has free
+	# refreshes, and never more than they give.
+	var most_refreshes := (rules.black_market_free_refreshes if _is_black_market else 0) + encounters.get_free_refresh_allowance(stage)
+	_free_refreshes = clampi(fields["free_refreshes"], 0, most_refreshes)
 	_rewards.assign(fields["rewards"])
 	phase = fields["phase"]
 	return true
@@ -453,16 +531,55 @@ func _changed_if_ok(result: Result) -> Result:
 	return result
 
 
+# Drawn from all rewards: rewards_after_win cards after a win,
+# rewards_after_loss after a loss.
 func _offer_rewards(is_win: bool) -> void:
-	_rewards = [Reward.REST, Reward.HUNT, Reward.BLACK_MARKET]
-	if is_win:
-		return
-	if stage >= rules.stage_count:
+	_rewards = [Reward.REST, Reward.HUNT, Reward.BLACK_MARKET, Reward.LOOT]
+	if not is_win and stage >= rules.stage_count:
 		# The final stage repeats after a loss: resting there could outpace
 		# narrow losses and let the run go on forever.
 		_rewards.erase(Reward.REST)
-	while _rewards.size() > rules.rewards_after_loss:
+	while _rewards.size() > (rules.rewards_after_win if is_win else rules.rewards_after_loss):
 		_rewards.remove_at(_rng.randi_range(0, _rewards.size() - 1))
+
+
+# One handler per EncounterEffects kind, called with the effect's amount.
+# Built per call: kept in a member, the lambdas would hold the run alive.
+func _get_effect_handlers() -> Dictionary[StringName, Callable]:
+	return {
+		EncounterEffects.GOLD: _add_gold, EncounterEffects.SUPPLY: _add_supply,
+		EncounterEffects.MORALE: func(amount: int) -> void: _add_morale(mini(amount, rules.max_morale - morale)),
+		EncounterEffects.FREE_UNIT: _gift_unit,
+		EncounterEffects.FREE_REFRESHES: func(amount: int) -> void: _encounter_refreshes += amount,
+		EncounterEffects.BET: encounters.place_bet,
+	}
+
+
+func _begin_next_stage() -> void:
+	var is_repeat := stage >= rules.stage_count
+	if not is_repeat:
+		stage += 1
+	_begin_prep(not is_repeat)
+
+
+# A random unit of cost `cost` onto the first free bench slot (the option
+# was refused without one), merging if it completes copies.
+func _gift_unit(cost: int) -> void:
+	var pool: Array[UnitData] = []
+	for unit: UnitData in catalog.units:
+		if unit.cost == cost and not unit.is_boss:
+			pool.append(unit)
+	if pool.is_empty():
+		push_error("Run: no unit of cost %d to give" % cost)
+		return
+	var unit := pool[_rng.randi_range(0, pool.size() - 1)]
+	var target := _roster.resolve_buy_target(unit, RunPiece.NO_BENCH, RunPiece.NO_CELL, get_capacity())
+	if target[0] != Result.OK:
+		push_error("Run: no room for the free unit %s" % unit.id)
+		return
+	var piece := _roster.add(unit.id, 1, target[1], target[2])
+	piece_gifted.emit(piece.id)
+	_roster.merge_all()
 
 
 func _begin_prep(with_income: bool) -> void:
@@ -471,7 +588,8 @@ func _begin_prep(with_income: bool) -> void:
 		_add_supply(rules.get_stage_supply(stage))
 	_is_black_market = _is_black_market_next
 	_is_black_market_next = false
-	_free_refreshes = rules.black_market_free_refreshes if _is_black_market else 0
+	_free_refreshes = (rules.black_market_free_refreshes if _is_black_market else 0) + _encounter_refreshes
+	_encounter_refreshes = 0
 	_roll_shop()
 	_set_phase(Phase.PREP)
 	stage_started.emit(stage)

@@ -17,15 +17,8 @@ star = 1
 local_col = 5
 local_rank = 1
 
-[sub_resource type="Resource" id="Slot_3"]
-script = ExtResource("2_slot")
-unit_id = &"unit.wolf_archer"
-star = 1
-local_col = 4
-local_rank = 3
-
 [resource]
 script = ExtResource("1_stage")
 id = &"stage.01"
 name_key = "STAGE_01"
-slots = Array[ExtResource("2_slot")]([SubResource("Slot_1"), SubResource("Slot_2"), SubResource("Slot_3")])
+slots = Array[ExtResource("2_slot")]([SubResource("Slot_1"), SubResource("Slot_2")])

@@ -18,7 +18,8 @@
   and `passive_test.gd` (skills, Khí, passives and statuses, sharing
   `skill_test_kit.gd`), `sandbox_test.gd`
   (the sandbox screen and one full battle), `run_test.gd` (the run's rules)
-  and `run_flow_test.gd` (stage 1 through the real screens), the formation
+  and `run_flow_test.gd` (stage 1 through the real screens),
+  `encounter_test.gd` (road encounters, streak bonus, loot), the formation
   and synergy tests, `epiphany_test.gd` (Kỳ Ngộ), `boss_test.gd` (Cự Nham
   and Hóa Đá), `cutscene_test.gd` (the cutscene screen) and
   `audio_test.gd` (the Audio autoload).
@@ -45,7 +46,10 @@
   line-ups added). `Systems/Run/` has the run's rules as pure-data
   GDScript: `RunState` and its parts (`RunRoster`, `Shop`, `RunPiece`),
   the data types `RunRules` and `StageData`, Kỳ Ngộ (`EpiphanyTracker`,
-  `EpiphanyFamily`, `EpiphanyData`, `EpiphanyBattle`), and `RunSave` (with
+  `EpiphanyFamily`, `EpiphanyData`, `EpiphanyBattle`), road encounters
+  (`EncounterTracker`, `EncounterData`, `EncounterOption`,
+  `EncounterEffect`, `EncounterEffects`; see [Encounter](systems/encounter.md)),
+  and `RunSave` (with
   `RunSaveFields` and `SaveReader` to check a save) and
   `RunSettings` for `user://`. `Systems/Lineup/` has `Lineup`, the single owner of a side's
   formation (pure data with signals), and its data types `LineupSlot` and
@@ -61,10 +65,11 @@
   the sandbox screen and its setup interaction; it is the only part that
   knows about the sandbox. `Scenes/Run/` holds the run screen and its
   parts (layout, HUD, preparation controller, piece views, rewards, end
-  screen, boss HUD, Kỳ Ngộ and story interludes) and `Scenes/Title/` the
+  screen, boss HUD, Kỳ Ngộ, road encounter and story interludes) and `Scenes/Title/` the
   title screen and the "Cách chơi" screen. `Scenes/Cutscene/` holds the
   cutscene screen, its backdrop, ink wipe and choice cards, and
-  `EpiphanyCutscene`, which builds a Kỳ Ngộ scene from a run. See
+  `EpiphanyCutscene` and `EncounterCutscene`, which build a Kỳ Ngộ or
+  road-encounter scene from a run. See
   [Board](systems/board.md), [Battle playback](systems/battle_playback.md)
   and [Run](systems/run.md).
 - `UI/` holds the palette, the theme (built in code), and reusable widgets:

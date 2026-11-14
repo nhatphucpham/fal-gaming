@@ -244,6 +244,10 @@ func stamp_stars(star_level: int, delay_sec: float = 0.0) -> void:
 
 ## The merge result: shrinks, then grows past full size and bounces.
 func grow_in() -> void:
+	# It may replace a drop_in() started in the same frame (a gifted piece
+	# after a rebuild): finish what that would have restored.
+	modulate.a = 1.0
+	anim_offset = Vector2.ZERO
 	squash = Vector2(0.3, 0.3)
 	var tween := _new_figure_tween()
 	tween.tween_property(self, ^"squash", Vector2(1.45, 1.45), 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)

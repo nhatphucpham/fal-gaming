@@ -50,17 +50,47 @@ func _make(pieces: Array, shop: Array, values: Dictionary = {}) -> RunState:
 	var data := {
 		"seed": "99", "rng_state": str(_fresh_rng_state(99)), "phase": "prep", "stage": 1, "morale": 60,
 		"gold": 50, "supply": 0, "level": 3, "next_piece_id": 1, "pieces": rows, "shop": offers,
-		"black_market": false, "free_refreshes": 0, "rewards": [],
-		"epiphany": EpiphanyTracker.new(_catalog, 99).to_save_data(),
+		"black_market": false, "black_market_next": false, "free_refreshes": 0, "rewards": [],
+		"epiphany": EpiphanyTracker.new(_catalog, 99).to_save_data(), "win_streak": 0,
 	}
 	data.merge(values, true)
 	if not values.has("stages_cleared"):
 		data["stages_cleared"] = data["stage"] - 1
+	if not values.has("encounter"):
+		data["encounter"] = _encounters_before(data["stage"])
 	var run := RunState.new(_catalog, 0)
 	if not run.load_save_data(data):
 		push_error("Test state did not load: %s" % data)
 		return null
 	return run
+
+
+# The encounter save of a run in the preparation or reward of `stage` that
+# met the catalog's first encounters at the stages before it.
+func _encounters_before(stage: int) -> Dictionary:
+	var drawn: Array[String] = []
+	for encounter_stage: int in _catalog.run_rules.encounter_stages:
+		if encounter_stage < stage:
+			drawn.append(String(_catalog.encounters[drawn.size()].id))
+	return {"drawn": drawn, "pending": "", "taken": -1 if drawn.is_empty() else 0, "bet_gold": 0}
+
+
+# Takes `preferred` when offered, else the first other reward; then, when a
+# road encounter waits, its first option that costs nothing.
+func _take_reward(run: RunState, preferred: RunState.Reward) -> void:
+	var options := run.get_reward_options()
+	run.choose_reward(preferred if options.has(preferred) else options[0])
+	_pass_encounter(run)
+
+
+func _pass_encounter(run: RunState) -> void:
+	var data := run.encounters.get_pending()
+	if data == null:
+		return
+	for index: int in data.options.size():
+		if data.options[index].is_always_affordable():
+			run.choose_encounter(index)
+			return
 
 
 func _fresh_rng_state(seed_value: int) -> int:
@@ -236,19 +266,23 @@ func _check_bench_queries() -> bool:
 	return _expect(run.get_bench_piece(RunPiece.NO_BENCH) == null and run.get_bench_piece(-7) == null and run.get_bench_piece(6) == null and run.get_bench_piece(5) != null, "get_bench_piece must be null off the bench")
 
 
+# The last gold and supply change before each stage_started is its income
+# (rewards, streaks and encounters pay before it).
 func _check_income() -> bool:
 	var run := RunState.new(_catalog, 3)
 	run.start()
 	var gold_seen: Array[int] = []
 	var supply_seen: Array[int] = []
+	var last := [0, 0]
+	run.gold_changed.connect(func(_gold: int, delta: int) -> void: last[0] = delta)
+	run.supply_changed.connect(func(_supply: int, delta: int) -> void: last[1] = delta)
+	run.stage_started.connect(func(_stage: int) -> void:
+		gold_seen.append(last[0])
+		supply_seen.append(last[1]))
 	for stage: int in range(1, 12):
-		var gold_before := run.gold
-		var supply_before := run.supply
 		run.begin_battle()
 		run.finish_battle(true, 0)
-		run.choose_reward(RunState.Reward.BLACK_MARKET)
-		gold_seen.append(run.gold - gold_before - 1)
-		supply_seen.append(run.supply - supply_before - 2)
+		_take_reward(run, RunState.Reward.BLACK_MARKET)
 	return _expect(gold_seen == [4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 10] and supply_seen == [2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1], "Stage income %s, supply %s" % [gold_seen, supply_seen])
 
 
@@ -267,24 +301,22 @@ func _check_battle_results() -> bool:
 
 
 func _check_rewards() -> bool:
-	var run := _make([], [""], {"morale": 50, "supply": 0, "stage": 9})
-	run.begin_battle()
-	run.finish_battle(true, 0)
+	var after_win := {"phase": "reward", "stage": 9, "stages_cleared": 9, "rewards": ["reward.rest", "reward.hunt", "reward.loot"]}
+	var run := _make([], [""], after_win.merged({"morale": 50, "supply": 0}, true))
 	run.choose_reward(RunState.Reward.REST)
 	if not _expect(run.morale == 60 and run.stage == 10, "Rest is capped at 60 (got %d)" % run.morale):
 		return false
-	run.begin_battle()
-	run.finish_battle(true, 0)
-	var supply_before := run.supply
+	run = _make([], [""], after_win.merged({"supply": 0}, true))
 	run.choose_reward(RunState.Reward.HUNT)
-	return _expect(run.supply - supply_before == 6 + 1, "Hunt gives 6 supply (plus winter income 1)")
+	if not _expect(run.supply == 6 + 1, "Hunt gives 6 supply (plus winter income 1)"):
+		return false
+	run = _make([], [""], after_win.merged({"gold": 0}, true))
+	run.choose_reward(RunState.Reward.LOOT)
+	return _expect(run.gold == _catalog.run_rules.loot_gold + _catalog.run_rules.get_stage_income(10), "Loot gives %d gold (plus income), got %d" % [_catalog.run_rules.loot_gold, run.gold])
 
 
 func _check_black_market() -> bool:
-	var run := RunState.new(_catalog, 11)
-	run.start()
-	run.begin_battle()
-	run.finish_battle(true, 0)
+	var run := _make([], [""], {"phase": "reward", "stages_cleared": 1, "rewards": ["reward.rest", "reward.hunt", "reward.black_market"]})
 	run.choose_reward(RunState.Reward.BLACK_MARKET)
 	if not _expect(run.is_black_market_active() and run.get_refresh_cost() == 0, "Black market: the first refresh is free"):
 		return false
@@ -315,8 +347,11 @@ func _check_stage_12() -> bool:
 	if not _expect(not run.get_reward_options().has(RunState.Reward.REST), "A stage-12 loss must not offer the rest reward"):
 		return false
 	var supply_before := run.supply
-	run.choose_reward(RunState.Reward.BLACK_MARKET)
-	if not _expect(run.stage == 12 and run.phase == RunState.Phase.PREP and run.gold == 0 and run.supply == supply_before, "A stage-12 loss must repeat stage 12 without gold or supply income"):
+	# Two of hunt, black market and loot; anything but loot leaves gold alone.
+	var choice := RunState.Reward.BLACK_MARKET if run.get_reward_options().has(RunState.Reward.BLACK_MARKET) else RunState.Reward.HUNT
+	run.choose_reward(choice)
+	var hunted := _catalog.run_rules.hunt_supply if choice == RunState.Reward.HUNT else 0
+	if not _expect(run.stage == 12 and run.phase == RunState.Phase.PREP and run.gold == 0 and run.supply == supply_before + hunted, "A stage-12 loss must repeat stage 12 without gold or supply income"):
 		return false
 	run.begin_battle()
 	run.finish_battle(true, 0)
@@ -341,7 +376,7 @@ func _check_save_round_trip() -> bool:
 	run.move_to_board(first.id, Vector2i(4, 2))
 	run.begin_battle()
 	run.finish_battle(true, 0)
-	run.choose_reward(RunState.Reward.BLACK_MARKET)
+	_take_reward(run, RunState.Reward.BLACK_MARKET)
 	if not _expect(RunSave.save(run, SAVE_PATH), "Saving failed"):
 		return false
 	var loaded := RunSave.load_run(_catalog, SAVE_PATH)
@@ -453,6 +488,7 @@ func _bad_save_cases() -> Array:
 		["version 1", {"version": 1}], ["version 2", {"version": 2}],
 		["stage as object", {"stage": {}}], ["stage as text", {"stage": "abc"}], ["stage 1.5", {"stage": 1.5}],
 		["morale null", {"morale": null}], ["gold as array", {"gold": []}], ["black_market as text", {"black_market": "yes"}],
+		["black_market_next null", {"black_market_next": null}], ["black_market_next in prep", {"black_market_next": true}],
 		["seed as object", {"seed": {}}], ["seed not a number", {"seed": "abc"}], ["rng_state past 64 bits", {"rng_state": "99999999999999999999"}],
 		["free_refreshes as text", {"free_refreshes": "1"}], ["pieces as text", {"pieces": "none"}], ["shop of numbers", {"shop": [5, 6]}],
 		["too many offers", {"shop": ["", "", "", "", "", ""]}], ["an unknown offer", {"shop": ["unit.nobody"]}],
@@ -509,8 +545,9 @@ func _valid_save() -> Dictionary:
 		"version": RunSave.VERSION, "seed": "1", "rng_state": "5", "phase": "prep", "stage": 2, "stages_cleared": 1,
 		"morale": 60, "gold": 5, "supply": 1, "level": 3, "next_piece_id": 2,
 		"pieces": [_row(1, "archer", 1, 0, 0, 0)], "shop": ["unit.archer", "", "", "", ""],
-		"black_market": false, "free_refreshes": 0, "rewards": [],
+		"black_market": false, "black_market_next": false, "free_refreshes": 0, "rewards": [],
 		"epiphany": EpiphanyTracker.new(_catalog, 1).to_save_data(),
+		"encounter": _encounters_before(2), "win_streak": 0,
 	}
 
 

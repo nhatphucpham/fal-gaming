@@ -143,6 +143,8 @@ struct ChargeState {
 	int columns_left = 0;
 	int reposition_ticks = 0;
 	int cause = 0;
+	// The enemy the charge runs at (its lane target); NO_UNIT: none yet.
+	int target = NO_UNIT;
 };
 
 struct PassiveCounters {

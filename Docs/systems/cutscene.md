@@ -4,7 +4,8 @@
 
 Short dialogue scenes over the run screen, driven by data: a painted band
 with two speakers, typewriter lines, and optionally two choice cards. Used
-for every Kỳ Ngộ ([epiphany.md](epiphany.md)) and once per run for the story
+for every Kỳ Ngộ ([epiphany.md](epiphany.md)), every road encounter
+([encounter.md](encounter.md)) and once per run for the story
 scene before the boss stage. It shows and returns a choice; it changes no
 rule itself.
 
@@ -13,7 +14,7 @@ rule itself.
 - Layer: presentation.
 - Code: `Scenes/Cutscene/` (`cutscene_data.gd`, `cutscene_screen.gd`,
   `cutscene_backdrop.gd`, `ink_wipe.gd`, `cutscene_choice_card.gd`,
-  `epiphany_cutscene.gd`); `Scenes/Run/run_interludes.gd` plays them in the
+  `epiphany_cutscene.gd`, `encounter_cutscene.gd`); `Scenes/Run/run_interludes.gd` plays them in the
   run.
 - Depends on: UnitPainter figures (and `ExtraFigures` for the sage),
   `Sound` for the text blips and the choice sound.
@@ -25,11 +26,13 @@ rule itself.
 | Field | Meaning |
 | --- | --- |
 | `id` | `cutscene.<name>`. |
-| `backdrop` | `backdrop.mountain` (Kỳ Ngộ) or `backdrop.camp` (story). |
+| `backdrop` | `backdrop.mountain` (Kỳ Ngộ), `backdrop.camp` (story) or `backdrop.road` (road encounter: a winding dirt road, a milestone and a pine). |
 | `left_unit`, `right_unit` | Unit ids; `unit.sage` is the sage (not in the catalog). |
 | `line_keys` | Translation keys, in order. |
 | `line_speakers` | `0` (left) or `1` (right), one per line. |
 | `choice_titles`, `choice_texts` | Empty, or exactly two each. |
+| `choice_icons` | Empty, or one `IconPainter` kind per card drawn in place of the seal (empty string: the seal). |
+| `choice_disabled` | Empty, or one bool per card: greyed out with "Không đủ để chọn". |
 
 `Data/Cutscenes/story_before_boss.tres`: Liễu Mi and Ba Khắc at the camp,
 5 lines about Cự Nham and its rule.
@@ -47,7 +50,9 @@ rule itself.
   cards, which nothing skips; without, the scene ends.
 - Choosing a card emits `choice_made(choice)` at once, then flashes gold,
   pops the card, wipes the band out with ink and emits `finished(choice)`
-  (-1 without choices).
+  (-1 without choices). A disabled card is refused instead: it shakes, the
+  `block` sound plays and `choice_refused(choice)` fires; the scene waits
+  for the other card.
 - In the run: after the banner's "Tiếp tục" (and when a run is loaded in
   its reward phase) a pending Kỳ Ngộ plays first; the moment a card is
   taken its choice goes to `RunState.choose_epiphany`, the run is saved and
@@ -57,6 +62,11 @@ rule itself.
   preparation starts. That reward's save waits until the story ends: an
   app closed during the story reloads at stage 11's reward cards (the same
   options), and choosing again plays the story again.
+- A road encounter plays after the reward of a road stage, titled
+  "Dọc đường: <name>": the player's best piece on the left, the stranger on
+  the right. The run is saved in its encounter phase before it starts, so
+  a closed app replays it; the card taken goes to
+  `RunState.choose_encounter`, and the next preparation follows the wipe.
 
 ## Public API
 
@@ -67,8 +77,10 @@ rule itself.
 | `get_line_index()`, `get_visible_text()`, `is_line_complete()`, `is_choosing()`, `is_done()`, `get_choice_texts()` | methods | State for tests. |
 | `choice_made(choice: int)` | signal | A card was taken, before the flash and the closing wipe. |
 | `finished(choice: int)` | signal | The ink has wiped the band away. |
+| `choice_refused(choice: int)` | signal | A disabled card was touched. |
+| `EncounterCutscene.build(run) -> CutsceneData` | static | The pending road encounter's scene. |
 | `EpiphanyCutscene.build(run) -> CutsceneData` | static | The pending Kỳ Ngộ's scene (null without one). |
-| `RunInterludes.play_epiphany(chosen, then)`, `play_story_if_due(previous_stage, then)` | methods | Run integration: `chosen` runs when the card is taken, `then` when the scene is over. |
+| `RunInterludes.play_epiphany(chosen, then)`, `play_encounter(chosen, then)`, `play_story_if_due(previous_stage, then)` | methods | Run integration: `chosen` runs when the card is taken, `then` when the scene is over. |
 
 ## How to extend
 
@@ -86,7 +98,8 @@ choice reported at once and returned. `Tests/run_flow_test.gd`, on the real
 run screen: a saved run with a pending Kỳ Ngộ plays it, saves the card the
 moment it is taken, then shows the reward cards and reaches the next
 preparation; the story plays once before stage 12 (the save waiting for its
-end) and not after a stage-12 loss.
+end) and not after a stage-12 loss; a road encounter is taken with a real
+screen touch, and a touch on its greyed card is refused.
 
 ## Known limits
 

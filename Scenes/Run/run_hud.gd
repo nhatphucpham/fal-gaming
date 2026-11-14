@@ -4,17 +4,20 @@ extends RefCounted
 ## and morale in the top bar, units on the board, gold, supply and level
 ## with their buttons (dimmed when unaffordable), the shop cards and their
 ## hints. It also turns refused commands into feedback: the lacking chip
-## flashes red, the pressed button shakes.
+## flashes red, the pressed button shakes. Gold still flying as coins is
+## held back from the gold chip (hold_gold, release_gold).
 
 var _run: RunState
 var _layout: RunLayout
+# Gold that has arrived in the run but whose coins have not landed yet.
+var _held_gold: int = 0
 
 
 func _init(run: RunState, layout: RunLayout) -> void:
 	_run = run
 	_layout = layout
-	run.gold_changed.connect(func(gold: int, _delta: int) -> void:
-		layout.gold_chip.set_value(gold)
+	run.gold_changed.connect(func(_gold: int, _delta: int) -> void:
+		_show_gold(true)
 		refresh_affordability())
 	run.supply_changed.connect(func(supply: int, _delta: int) -> void:
 		layout.supply_chip.set_value(supply)
@@ -36,11 +39,24 @@ func show_all() -> void:
 	_layout.stage_label.text = tr("STAGE_FORMAT") % [_run.stage, _run.rules.stage_count]
 	_layout.stage_name_label.text = tr(stage.name_key)
 	_layout.morale_chip.set_value(_run.morale, false)
-	_layout.gold_chip.set_value(_run.gold, false)
+	_show_gold(false)
 	_layout.supply_chip.set_value(_run.supply, false)
 	_layout.level_chip.set_value(_run.level, false)
 	_refresh_pieces()
 	show_shop(true)
+
+
+## Keeps `gold` that just arrived out of the gold chip until
+## release_gold(): it counts up when its coins land, never down first.
+func hold_gold(gold: int) -> void:
+	_held_gold += gold
+	_show_gold(true)
+
+
+## The coins of `gold` held gold landed: the chip counts up to them.
+func release_gold(gold: int) -> void:
+	_held_gold = maxi(0, _held_gold - gold)
+	_show_gold(true)
 
 
 ## Shows the shop offers; `flip` turns the cards over (a reroll).
@@ -85,6 +101,10 @@ func _on_level_changed(level: int) -> void:
 	_layout.level_chip.burst()
 	_refresh_pieces()
 	_layout.capacity_chip.bounce()
+
+
+func _show_gold(animate: bool) -> void:
+	_layout.gold_chip.set_value(maxi(0, _run.gold - _held_gold), animate)
 
 
 func _refresh_pieces() -> void:

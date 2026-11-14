@@ -17,6 +17,8 @@ extends Control
 
 ## A card was taken (0 or 1), before the flash and the closing wipe.
 signal choice_made(choice: int)
+## A disabled card (the player cannot pay for it) was pressed; it shook.
+signal choice_refused(choice: int)
 signal finished(choice: int)
 
 const CHARS_PER_SEC: float = 38.0
@@ -167,9 +169,12 @@ func skip() -> void:
 
 
 ## Takes choice `index` (0 or 1), as if its card was tapped. False when no
-## choice is up.
+## choice is up or that card is disabled (it shakes instead).
 func choose(index: int) -> bool:
 	if not _is_choosing or index < 0 or index >= _cards.size():
+		return false
+	if _cards[index].is_disabled():
+		_refuse(index)
 		return false
 	_is_choosing = false
 	# Busy from here on: a tap during the flash must not bring the cards back.
@@ -275,8 +280,10 @@ func _show_choices() -> void:
 	for index: int in _data.choice_titles.size():
 		var card := CutsceneChoiceCard.new()
 		card.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		card.setup(tr(_data.choice_titles[index]), tr(_data.choice_texts[index]))
+		card.setup(tr(_data.choice_titles[index]), tr(_data.choice_texts[index]), _data.choice_icons[index] if index < _data.choice_icons.size() else &"")
+		card.set_disabled(_data.is_choice_disabled(index))
 		card.chosen.connect(func() -> void: choose(index))
+		card.refused.connect(_refuse.bind(index))
 		_cards_row.add_child(card)
 		_cards.append(card)
 		card.modulate.a = 0.0
@@ -287,6 +294,12 @@ func _show_choices() -> void:
 	_cards_row.visible = true
 	for figure: UnitFigure in _figures:
 		figure.modulate = Color.WHITE
+
+
+func _refuse(index: int) -> void:
+	_cards[index].shake()
+	Sound.play(&"block")
+	choice_refused.emit(index)
 
 
 func _close(choice: int) -> void:

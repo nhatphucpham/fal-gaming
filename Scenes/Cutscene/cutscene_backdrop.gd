@@ -3,7 +3,8 @@ extends Control
 ## The painted band behind a cutscene: a washed sky, a low sun, ink-wash
 ## mountain ridges and mist, and a strip of ground the speakers stand on.
 ## `kind` picks the scene (CutsceneData.BACKDROPS): the mountain pass of a
-## Kỳ Ngộ or the war camp of the story. Drawn once; the mist drifts.
+## Kỳ Ngộ, the war camp of the story or the dirt road of a road encounter.
+## Drawn once; the mist drifts.
 
 const GROUND_RATIO: float = 0.82
 const MIST_SPEED: float = 9.0
@@ -54,6 +55,8 @@ func _draw() -> void:
 	draw_rect(Rect2(0, ground, width, 4.0), Color(Palette.INK, 0.5))
 	if is_camp:
 		_draw_camp(ground)
+	elif kind == &"backdrop.road":
+		_draw_road(ground)
 	else:
 		_draw_pines(ground)
 	# Ink edges top and bottom, like a mounted scroll painting.
@@ -85,13 +88,39 @@ func _draw_mist(y: float, offset: float) -> void:
 
 func _draw_pines(ground: float) -> void:
 	for spot: Vector2 in [Vector2(0.06, 1.0), Vector2(0.14, 0.75), Vector2(0.9, 1.1), Vector2(0.97, 0.8)]:
-		var x := size.x * spot.x
-		var tall := 90.0 * spot.y
-		draw_line(Vector2(x, ground), Vector2(x, ground - tall), Palette.INK, 4.0)
-		for layer: int in 3:
-			var y := ground - tall * (0.45 + layer * 0.22)
-			var half := 26.0 * spot.y * (1.0 - layer * 0.25)
-			draw_colored_polygon(PackedVector2Array([Vector2(x - half, y), Vector2(x + half, y), Vector2(x, y - 28.0 * spot.y)]), Color("2f4a3a"))
+		_draw_pine(Vector2(size.x * spot.x, ground), spot.y)
+
+
+# A dirt road winding back to the ridges, a milestone and a lone pine.
+func _draw_road(ground: float) -> void:
+	var road := PackedVector2Array()
+	var steps := 16
+	for step: int in steps + 1:
+		var t := float(step) / steps
+		var y := lerpf(size.y * 0.56, size.y, t)
+		var half := lerpf(6.0, size.x * 0.22, t * t)
+		road.append(Vector2(size.x * (0.5 + 0.08 * sin(t * 4.0)) - half, y))
+	for step: int in range(steps, -1, -1):
+		var t := float(step) / steps
+		var y := lerpf(size.y * 0.56, size.y, t)
+		var half := lerpf(6.0, size.x * 0.22, t * t)
+		road.append(Vector2(size.x * (0.5 + 0.08 * sin(t * 4.0)) + half, y))
+	draw_colored_polygon(road, Color("a88a5c"))
+	draw_polyline(road, Color(Palette.INK, 0.35), 2.0)
+	var post := Vector2(size.x * 0.84, ground)
+	draw_rect(Rect2(post + Vector2(-9, -46), Vector2(18, 46)), Palette.PAPER_DARK)
+	draw_rect(Rect2(post + Vector2(-12, -52), Vector2(24, 8)), Palette.WOOD)
+	draw_line(post + Vector2(-5, -34), post + Vector2(5, -34), Palette.VERMILION, 3.0)
+	_draw_pine(Vector2(size.x * 0.08, ground), 1.05)
+
+
+func _draw_pine(base: Vector2, scale_by: float) -> void:
+	var tall := 90.0 * scale_by
+	draw_line(base, base - Vector2(0, tall), Palette.INK, 4.0)
+	for layer: int in 3:
+		var y := base.y - tall * (0.45 + layer * 0.22)
+		var half := 26.0 * scale_by * (1.0 - layer * 0.25)
+		draw_colored_polygon(PackedVector2Array([Vector2(base.x - half, y), Vector2(base.x + half, y), Vector2(base.x, y - 28.0 * scale_by)]), Color("2f4a3a"))
 
 
 func _draw_camp(ground: float) -> void:

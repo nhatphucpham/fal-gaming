@@ -33,14 +33,55 @@ int pick_next_column(const BattleSim &p_sim, const UnitState &p_unit) {
 	return best_col;
 }
 
+// Rows from the unit to p_cell along its forward direction; above 0 ahead.
+int get_rows_ahead(const UnitState &p_unit, const Cell &p_cell) {
+	return (p_cell.row - p_unit.cell.row) * get_forward_row_step(p_unit.side);
+}
+
+// The nearest living enemy ahead of the unit in column p_col, or NO_UNIT.
+int find_nearest_ahead_in_column(const BattleSim &p_sim, const UnitState &p_unit, int p_col) {
+	const int forward = get_forward_row_step(p_unit.side);
+	for (Cell cell = { p_col, p_unit.cell.row + forward }; is_on_board(cell); cell.row += forward) {
+		const int occupant = p_sim.get_board().get_occupant(cell);
+		if (occupant != NO_UNIT && p_sim.get_units()[occupant].side != p_unit.side) {
+			return occupant;
+		}
+	}
+	return NO_UNIT;
+}
+
+// No unit stands in the unit's column between it and the row before p_row.
+bool is_lane_clear(const BattleSim &p_sim, const UnitState &p_unit, int p_row) {
+	const int forward = get_forward_row_step(p_unit.side);
+	for (Cell cell = { p_unit.cell.col, p_unit.cell.row + forward }; cell.row != p_row; cell.row += forward) {
+		if (p_sim.get_board().get_occupant(cell) != NO_UNIT) {
+			return false;
+		}
+	}
+	return true;
+}
+
+// The charge still runs at p_target: alive, ahead and at most one column off.
+bool is_lane_target(const BattleSim &p_sim, const UnitState &p_unit, int p_target) {
+	if (p_target == NO_UNIT || !p_sim.get_units()[p_target].is_alive) {
+		return false;
+	}
+	const Cell &cell = p_sim.get_units()[p_target].cell;
+	return get_rows_ahead(p_unit, cell) >= 1 && std::abs(cell.col - p_unit.cell.col) <= 1;
+}
+
 void end_charge(BattleSim &p_sim, int p_unit, int p_hit, int p_cause) {
-	BattleEvent event;
-	event.type = EventType::CHARGE_ENDED;
-	event.unit = p_unit;
-	event.hit = p_hit;
-	event.cause = p_cause;
-	p_sim.emit_event(event);
 	ChargeState &charge = p_sim.edit_skill_state(p_unit).charge;
+	// An opening that never left its cell and hit nothing was no charge:
+	// no event, so the screen plays no charge effects for it.
+	if (charge.is_skill || charge.cells_run > 0 || p_hit != NO_UNIT) {
+		BattleEvent event;
+		event.type = EventType::CHARGE_ENDED;
+		event.unit = p_unit;
+		event.hit = p_hit;
+		event.cause = p_cause;
+		p_sim.emit_event(event);
+	}
 	if (!charge.is_skill) {
 		charge = ChargeState();
 		p_sim.deactivate_opening(p_unit);
@@ -54,6 +95,7 @@ void end_charge(BattleSim &p_sim, int p_unit, int p_hit, int p_cause) {
 	}
 	charge.columns_left--;
 	charge.cells_run = 0;
+	charge.target = get_frontmost_enemy_in_column(p_sim, unit.side, next_col);
 	reposition_for_column(p_sim, p_unit, next_col, charge.reposition_ticks, p_cause);
 }
 
@@ -133,7 +175,9 @@ void begin_charge(BattleSim &p_sim, int p_unit, const ChargeState &p_state) {
 void reposition_for_column(BattleSim &p_sim, int p_unit, int p_col, int p_ticks, int p_cause) {
 	const UnitState &unit = p_sim.get_units()[p_unit];
 	const int enemy = get_frontmost_enemy_in_column(p_sim, unit.side, p_col);
-	if (enemy == NO_UNIT || unit.cell.col == p_col) {
+	// Already in the column on its own side of the enemy: just run. A unit
+	// behind that enemy (deep in the enemy half) moves back in front of it.
+	if (enemy == NO_UNIT || (unit.cell.col == p_col && get_rows_ahead(unit, p_sim.get_units()[enemy].cell) >= 1)) {
 		return;
 	}
 	const int enemy_row = p_sim.get_units()[enemy].cell.row;
@@ -163,11 +207,22 @@ void advance_charge(BattleSim &p_sim, int p_unit) {
 		return;
 	}
 	ChargeState &charge = p_sim.edit_skill_state(p_unit).charge;
-	const Cell next = { unit.cell.col, unit.cell.row + get_forward_row_step(unit.side) };
-	if (!is_on_board(next)) {
-		end_charge(p_sim, p_unit, NO_UNIT, charge.cause);
+	if (!is_lane_target(p_sim, unit, charge.target)) {
+		// The target died or left the lane: pick again from here.
+		charge.target = pick_lane_target(p_sim, p_unit);
+		if (charge.target == NO_UNIT) {
+			end_charge(p_sim, p_unit, NO_UNIT, charge.cause);
+			return;
+		}
+	}
+	// In front of the target, straight or diagonal: the impact. Otherwise the
+	// target is at least two rows ahead, so the next cell is on the board and
+	// the run never passes the target's row.
+	if (get_rows_ahead(unit, p_sim.get_units()[charge.target].cell) == 1) {
+		impact(p_sim, p_unit, charge.target);
 		return;
 	}
+	const Cell next = { unit.cell.col, unit.cell.row + get_forward_row_step(unit.side) };
 	const int blocker = p_sim.get_board().get_occupant(next);
 	if (blocker == NO_UNIT) {
 		p_sim.start_move(p_unit, next, p_sim.get_rules().charge_ticks_per_cell, MoveKind::CHARGE, charge.cause);
@@ -178,7 +233,31 @@ void advance_charge(BattleSim &p_sim, int p_unit) {
 		end_charge(p_sim, p_unit, NO_UNIT, charge.cause);
 		return;
 	}
+	// An enemy stepped into the lane: it takes the charge.
 	impact(p_sim, p_unit, blocker);
+}
+
+int pick_lane_target(const BattleSim &p_sim, int p_unit) {
+	const UnitState &unit = p_sim.get_units()[p_unit];
+	int target = find_nearest_ahead_in_column(p_sim, unit, unit.cell.col);
+	if (target == NO_UNIT) {
+		const int own_left = unit.side == SIDE_A ? -1 : 1;
+		for (int offset : { own_left, -own_left }) {
+			const int col = unit.cell.col + offset;
+			if (col < 0 || col >= BOARD_COLS) {
+				continue;
+			}
+			const int candidate = find_nearest_ahead_in_column(p_sim, unit, col);
+			// Strictly nearer wins, so the own-left column keeps a tie.
+			if (candidate != NO_UNIT && (target == NO_UNIT || get_rows_ahead(unit, p_sim.get_units()[candidate].cell) < get_rows_ahead(unit, p_sim.get_units()[target].cell))) {
+				target = candidate;
+			}
+		}
+	}
+	if (target == NO_UNIT || !is_lane_clear(p_sim, unit, p_sim.get_units()[target].cell.row)) {
+		return NO_UNIT;
+	}
+	return target;
 }
 
 } // namespace battle

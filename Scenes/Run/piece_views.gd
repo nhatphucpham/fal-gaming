@@ -3,8 +3,9 @@ extends RefCounted
 ## Keeps one UnitView per RunPiece, on the board or on its bench slot, and
 ## animates what RunState reports: a bought unit flies from its shop card to
 ## its slot, moves hop between board and bench, merges pull the copies
-## together and the result grows with confetti and stamps its stars, a sold
-## unit shrinks into the gold counter. RunState stays the only owner of the
+## together and the result grows with confetti and stamps its stars (so
+## does a free unit, through celebrate()), a sold unit shrinks into the gold
+## counter. RunState stays the only owner of the
 ## pieces; this class only observes it. Positions are converted through
 ## canvas coordinates because board, bench and overlay are different nodes.
 
@@ -55,6 +56,19 @@ func rebuild() -> void:
 		var view := _make_view(piece)
 		_attach(view, _home_parent(piece), _home_position(piece))
 		view.drop_in()
+
+
+## A piece that came for free (a road encounter) grows in where it stands
+## with confetti and its stars.
+func celebrate(piece_id: int) -> void:
+	var piece := _run.get_piece(piece_id)
+	var view := get_view(piece_id)
+	if piece == null or view == null:
+		return
+	view.grow_in()
+	view.stamp_stars(piece.star, 0.2)
+	_burst_confetti(_to_global(view.get_parent() as Node2D, view.position))
+	Sound.play(&"merge")
 
 
 ## Shows or hides the hp bars of every view (shown during battles).
