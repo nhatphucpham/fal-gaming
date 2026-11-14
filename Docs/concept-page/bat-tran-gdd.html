@@ -138,7 +138,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
       <span class="eyebrow">Tài liệu thiết kế game · Falemag</span>
       <h1>Bát Trận</h1>
       <p class="lead">Auto chess kiếm, cung, giáp, phép, nơi <b>hình dạng đội hình là vũ khí</b>. Người chơi chỉ chuẩn bị; trận đánh tự diễn ra, và các tầng kết hợp tự kích hoạt lẫn nhau thành chuỗi combo.</p>
-      <div class="meta"><span>Bản 2.3 · 14/11/2026</span><span>Godot 4.7 · C++ GDExtension</span><span>PC yếu và điện thoại</span><span>Trạng thái: thiết kế, chưa cân bằng</span></div>
+      <div class="meta"><span>Bản 2.4 · 14/11/2026</span><span>Godot 4.7 · C++ GDExtension</span><span>PC yếu và điện thoại</span><span>Trạng thái: thiết kế, chưa cân bằng</span></div>
       <p class="note">Mọi con số trong tài liệu là <b>giá trị khởi điểm</b> để dựng bản thử, sẽ chỉnh khi chơi thử. Mọi tên riêng là tên tạm.</p>
     </header>
 
@@ -339,11 +339,33 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
         <li>Một địch còn ít máu; Ám tung <b>Huyết Ảnh</b>, hạ gục, hoàn 50 Khí (Chuỗi ×4, cảnh cắt).</li>
       </ol>
       <p>Người chơi không bấm gì trong cả chuỗi này. Toàn bộ nằm ở cách xếp: Phù cạnh Pháp, hai Pháp đứng gần nhau, Ám nhắm hàng sau.</p>
+      <h3>Cách tạo kỹ năng: khối ghép</h3>
+      <p>Kỹ năng không viết bằng code cho từng quân. Mỗi chiêu và nội tại được <b>lắp từ các khối</b> có sẵn trong Xưởng Quân (mục 09), giống ghép câu: <i>nhắm ai</i>, <i>trúng vùng nào</i>, <i>gây ra gì</i>. Vài chục khối đủ tạo ra hàng trăm kỹ năng khác nhau.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Khối</th><th>Bản thử có</th></tr></thead>
+        <tbody>
+          <tr><td><b>Mục tiêu</b> (nhắm ai)</td><td>Mục tiêu đang đánh, địch gần nhất, địch % máu thấp nhất, địch xa nhất, cột đông địch nhất, ô đông địch nhất, đồng đội gần nhất, bản thân</td></tr>
+          <tr><td><b>Hình vùng</b> (trúng đâu)</td><td>1 ô, chữ thập 5 ô, ô vuông 3×3, cả hàng, cả cột, đường thẳng N ô, nón 3 ô phía trước, vòng quanh mình</td></tr>
+          <tr><td><b>Hiệu ứng</b> (gây ra gì)</td><td>Sát thương (vật lý hoặc phép, % công), gắn nguyên tố, choáng, đẩy lùi, kéo lại, khiêu khích, phá giáp, chậm, tàng hình, cộng Khí, tăng chỉ số có thời hạn, lao hoặc nhảy tới, để lại ô nguy hiểm, nảy sang địch khác, triệu hồi</td></tr>
+          <tr><td><b>Bổ ngữ</b></td><td>Lặp N lần, trễ N giây, chỉ khi (điều kiện), Hậu chiêu (mạnh hơn khi 3 sao)</td></tr>
+          <tr><td><b>Sự kiện</b> (cho nội tại)</td><td>Ra trận, đánh trúng, bị đánh, chặn đòn, đẩy lùi, hạ gục, phản ứng nguyên tố, trận đồ bật, tung chiêu, đồng đội chết</td></tr>
+          <tr><td><b>Điều kiện</b></td><td>Máu dưới X%, đứng ở hàng nào, có đồng đội lớp hay tộc nào kề bên, trong N ô, lần thứ N</td></tr>
+        </tbody>
+      </table></div>
+      <ul class="dots">
+        <li><b>Chiêu</b> = giá Khí + mục tiêu + hình vùng + tối đa 3 hiệu ứng (+ bổ ngữ). Ví dụ <b>Xuyên Tâm</b> = 100 Khí, cột của mình, đường thẳng 3 ô, sát thương vật lý 200% + phá giáp 4 giây.</li>
+        <li><b>Nội tại</b> = sự kiện + điều kiện + 1 hiệu ứng + giới hạn (số lần mỗi trận). Ví dụ <b>Hút Linh</b> = phản ứng nguyên tố, trong 2 ô quanh mình, +15 Khí cho bản thân, không giới hạn.</li>
+        <li><b>Giá điểm:</b> mỗi khối có điểm. Chiêu và nội tại tính vào ngân sách sức mạnh của nhân vật; Xưởng Quân báo đỏ khi vượt, và nút thử 200 trận bắt những tổ hợp mạnh bất ngờ.</li>
+        <li><b>Mô tả tự sinh:</b> câu mô tả tiếng Việt trên thẻ quân được sinh từ chính các khối, nên chữ luôn khớp với luật thật, không bao giờ lệch.</li>
+        <li><b>Hình ảnh tự khớp:</b> mỗi hình vùng có cách tô ô riêng khi tung chiêu, mỗi hiệu ứng có một hiệu ứng hình và một biểu tượng riêng. Người chơi học một lần là đọc được mọi kỹ năng. Tướng Lĩnh được vẽ hiệu ứng riêng.</li>
+        <li><b>Trong code:</b> mỗi khối là một handler đăng ký theo id (<code>effect.damage</code>, <code>shape.cross</code>, <code>target.lowest_hp</code>) trong <code>Native/src/skill/</code>. Thêm một khối mới là thêm một handler và một trang tài liệu; mọi kỹ năng đều dùng được ngay. Kỹ năng là file <code>Data/Skills/&lt;id&gt;.tres</code>.</li>
+        <li><b>Kỹ năng quá đặc biệt</b> để lắp bằng khối (một số Tuyệt Kỹ của Thống Lĩnh) mới được viết thành handler riêng, và phải ghi lý do trong tài liệu.</li>
+      </ul>
       <h3>Luật viết kỹ năng</h3>
       <ul class="dots">
         <li>Không chiêu nào hồi máu hay tạo khiên máu, để trận luôn ngắn.</li>
         <li>Mỗi kỹ năng một câu, tối đa 15 chữ, một con số chính. Nội tại luôn viết dạng "khi X thì Y".</li>
-        <li>Nội tại chỉ nghe một bộ sự kiện chung: ra trận, đánh trúng, bị đánh, chặn đòn, đẩy lùi, hạ gục, phản ứng nguyên tố, trận đồ bật, tung chiêu.</li>
+        <li>Nội tại chỉ nghe bộ sự kiện chung trong bảng khối ở trên.</li>
         <li>Hiệu ứng chung giới hạn ở bảy: choáng, đẩy lùi, khiêu khích, phá giáp, tàng hình, chậm, chí mạng. Mỗi cái một biểu tượng.</li>
         <li>Chiêu hoặc nội tại do tầng khác châm ngòi thì cộng vào Chuỗi như mọi tầng.</li>
       </ul>
@@ -406,7 +428,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
           <tr><td><b>Khuôn</b></td><td>Lớp, tộc, giá</td><td>Chỉ số gốc tự tính theo công thức mục 06; chiêu lớp (mục 07)</td></tr>
           <tr><td><b>Xuất thân</b></td><td>Một trong thư viện xuất thân</td><td>Chỉ số nghiêng nhẹ hoặc tác động kinh tế, sự kiện, Kỳ Ngộ</td></tr>
           <tr><td><b>Tính cách</b></td><td>0–1 tính cách</td><td>Một luật nhỏ "khi X thì Y" trong trận</td></tr>
-          <tr><td><b>Chiêu biến thể</b></td><td>Quân giá 3–4: một hiệu ứng thêm vào chiêu lớp</td><td>Lấy từ thư viện hiệu ứng (mục 07, Luật viết kỹ năng)</td></tr>
+          <tr><td><b>Chiêu biến thể</b></td><td>Quân giá 3–4: một khối hiệu ứng thêm vào chiêu lớp</td><td>Lắp bằng khối kỹ năng (mục 07, Cách tạo kỹ năng)</td></tr>
           <tr><td><b>Duyên</b></td><td>Nối với 1–2 nhân vật khác</td><td>Mốc liên kết, thoại và cảnh cắt riêng</td></tr>
           <tr><td><b>Ngoại hình</b></td><td>Ghép bộ phận sprite</td><td>Thân theo tộc; đầu, tóc, giáp, vũ khí, bảng màu</td></tr>
           <tr><td><b>Tên, giọng, thoại</b></td><td>Tên, 3–5 câu thoại, một giọng TTS</td><td>Giọng sinh trước lúc build bằng tts.falevon.com</td></tr>
