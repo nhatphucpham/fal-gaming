@@ -145,6 +145,8 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Fixed
 
+- Sound on iPhone: the web build is no longer silenced by the ring/silent
+  switch (Safari 16.4 and later).
 - A hit a shield's "Chặn" blocks is no longer damage taken: the shield
   gains no Khí and no on-hit passive fires (the attacker still gains its
   Khí).
