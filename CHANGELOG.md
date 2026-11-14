@@ -15,7 +15,9 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
   "Đổi địch" (three enemy line-ups) and "Xóa bàn". Place up to 8 units by
   tapping a card and then cells, or by dragging; tap or drag a placed unit to
   move or swap it, drag it off the board to remove it. A long press or right
-  click shows a unit's stats.
+  click shows a unit's stats. A second finger, or the app losing focus or
+  pausing, cancels a drag and puts the unit back. Every button is at least
+  88 px tall in the base size.
 - The battle plays on the board: units walk, charge, swing, shoot arrows and
   cast bolts, hit units flash with damage numbers (gold for counters), the
   fallen fall over, and the winners cheer before a "Thắng trận" or

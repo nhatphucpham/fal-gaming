@@ -48,7 +48,7 @@ func _run() -> bool:
 			return false
 	# Leave one cell free so the gesture and battle checks have room.
 	_lineup.remove(_lineup.get_entry_ids()[0])
-	var async_checks: Array[Callable] = [_check_gesture_cancel, _check_battle]
+	var async_checks: Array[Callable] = [_check_touch_indexes, _check_gesture_cancel, _check_battle]
 	for check: Callable in async_checks:
 		if not await check.call():
 			push_error("Sandbox test failed in %s" % check.get_method())
@@ -140,9 +140,77 @@ func _check_enemy_presets() -> bool:
 	return true
 
 
+# Real touches through Godot's Input (with its touch-to-mouse emulation), as
+# the web export sends them: the first finger's index is whatever the browser
+# chose (iOS Safari's are large and growing), never assumed to be 0.
+func _check_touch_indexes() -> bool:
+	var board := _sandbox.board
+	var roster := _sandbox.get_node("%Roster") as RosterStrip
+	var card := _visible_card(roster)
+	for finger: int in [1, 7, 123456]:
+		# Tap a card, then a free cell: a unit is placed.
+		var size_before := _lineup.size()
+		var cell := _free_player_cell()
+		_touch(finger, true, card.get_global_rect().get_center())
+		_touch(finger, false, card.get_global_rect().get_center())
+		_touch(finger, true, board.cell_to_global(cell))
+		_touch(finger, false, board.cell_to_global(cell))
+		_setup.deselect()
+		var local := Battle.global_to_local(Battle.SIDE_A, cell.x, cell.y)
+		var entry := _lineup.get_entry_at(local)
+		if _lineup.size() != size_before + 1 or entry == Lineup.NO_ENTRY:
+			push_error("A tap with finger %d did not place a unit" % finger)
+			return false
+		# Drag it to another free cell, with a stray release of another index
+		# on the way (ignored): it moves.
+		var target := _free_player_cell()
+		var target_point := board.cell_to_global(target) - DragGhost.LIFT + UnitView.FEET
+		_touch(finger, true, board.cell_to_global(cell))
+		_touch_drag(finger, target_point)
+		_touch(finger + 1, false, Vector2(10, 10))
+		if not _setup.is_dragging():
+			push_error("Finger %d: the drag did not start or a stray release ended it" % finger)
+			return false
+		_touch(finger, false, target_point)
+		if _board_cell(entry) != target or _setup.is_dragging():
+			push_error("A drag with finger %d did not move the unit" % finger)
+			return false
+		# A real second finger with another arbitrary index cancels the drag.
+		var second := finger * 3 + 5
+		_touch(finger, true, board.cell_to_global(target))
+		_touch_drag(finger, board.cell_to_global(target) + Vector2(180, 0))
+		_touch(second, true, Vector2(30, 30))
+		if _setup.is_dragging():
+			push_error("Second finger %d did not cancel the drag of finger %d" % [second, finger])
+			return false
+		_touch(second, false, Vector2(30, 30))
+		_touch(finger, false, board.cell_to_global(_free_player_cell()))
+		if _board_cell(entry) != target:
+			push_error("Finger %d still dropped after a second finger cancelled" % finger)
+			return false
+		_lineup.remove(entry)
+		await process_frame
+	# Pausing the app or losing window focus mid-drag cancels the drag.
+	for what: int in [Node.NOTIFICATION_APPLICATION_PAUSED, Node.NOTIFICATION_WM_WINDOW_FOCUS_OUT]:
+		var entry := _lineup.get_entry_ids()[0]
+		var cell := _board_cell(entry)
+		_touch(42, true, board.cell_to_global(cell))
+		_touch_drag(42, board.cell_to_global(cell) + Vector2(180, 0))
+		root.propagate_notification(what)
+		if _setup.is_dragging():
+			push_error("Notification %d did not cancel the drag" % what)
+			return false
+		_touch(42, false, board.cell_to_global(_free_player_cell()))
+		if _board_cell(entry) != cell:
+			push_error("A release after notification %d still moved the unit" % what)
+			return false
+	await create_timer(0.3).timeout
+	return true
+
+
 # Pushes real pointer events through the viewport: a right click during a
-# drag is ignored, and a second finger or the mouse leaving the window
-# cancels the drag and puts everything back.
+# drag is ignored, and the mouse leaving the window cancels the drag and puts
+# everything back.
 func _check_gesture_cancel() -> bool:
 	var board := _sandbox.board
 	var entry := _lineup.get_entry_ids()[0]
@@ -161,29 +229,21 @@ func _check_gesture_cancel() -> bool:
 	if _board_cell(entry) != free_cell or _setup.is_dragging():
 		push_error("The drop after a right click did not move the unit")
 		return false
-	# A second finger cancels; so does the mouse leaving the window.
-	for cancel_kind: int in 2:
-		var cell := _board_cell(entry)
-		_press(board.cell_to_global(cell), true)
-		_move(board.cell_to_global(cell) + Vector2(180, 0))
-		if cancel_kind == 0:
-			var touch := InputEventScreenTouch.new()
-			touch.index = 1
-			touch.pressed = true
-			touch.position = Vector2(10, 10)
-			root.push_input(touch, true)
-		else:
-			root.propagate_notification(Node.NOTIFICATION_WM_MOUSE_EXIT)
-		await create_timer(0.3).timeout
-		var view: UnitView = _sandbox.board.get_piece_layer().get_children().filter(
-			func(node: Node) -> bool: return node is UnitView and node.position == board.cell_to_local(cell)).front()
-		if _setup.is_dragging() or _sandbox.get_node("%Ghost").visible or view.modulate.a < 0.99:
-			push_error("Drag cancel %d left the drag, ghost or faded unit behind" % cancel_kind)
-			return false
-		_press(board.cell_to_global(_free_player_cell()), false)
-		if _board_cell(entry) != cell:
-			push_error("A release after a cancelled drag still moved the unit")
-			return false
+	# The mouse leaving the window cancels (second fingers: _check_touch_indexes).
+	var cell := _board_cell(entry)
+	_press(board.cell_to_global(cell), true)
+	_move(board.cell_to_global(cell) + Vector2(180, 0))
+	root.propagate_notification(Node.NOTIFICATION_WM_MOUSE_EXIT)
+	await create_timer(0.3).timeout
+	var view: UnitView = _sandbox.board.get_piece_layer().get_children().filter(
+		func(node: Node) -> bool: return node is UnitView and node.position == board.cell_to_local(cell)).front()
+	if _setup.is_dragging() or _sandbox.get_node("%Ghost").visible or view.modulate.a < 0.99:
+		push_error("Leaving the window left the drag, ghost or faded unit behind")
+		return false
+	_press(board.cell_to_global(_free_player_cell()), false)
+	if _board_cell(entry) != cell:
+		push_error("A release after a cancelled drag still moved the unit")
+		return false
 	return true
 
 
@@ -272,6 +332,35 @@ func _move(to: Vector2) -> void:
 		event.global_position = to
 		event.button_mask = MOUSE_BUTTON_MASK_LEFT
 		root.push_input(event, true)
+
+
+func _visible_card(roster: RosterStrip) -> UnitCard:
+	for unit_id: StringName in FIRST_UNITS:
+		var card := roster.get_card(unit_id)
+		if roster.get_global_rect().encloses(card.get_global_rect()):
+			return card
+	return null
+
+
+# Sends a touch through Input, as a platform would: canvas position to
+# window position, then Godot emulates the mouse for the first finger.
+func _touch(index: int, pressed: bool, at: Vector2) -> void:
+	var event := InputEventScreenTouch.new()
+	event.index = index
+	event.pressed = pressed
+	event.position = root.get_final_transform() * at
+	Input.parse_input_event(event)
+	Input.flush_buffered_events()
+
+
+# Moves a held finger in a few steps, past the drag threshold.
+func _touch_drag(index: int, to: Vector2) -> void:
+	for step: int in 3:
+		var event := InputEventScreenDrag.new()
+		event.index = index
+		event.position = root.get_final_transform() * to
+		Input.parse_input_event(event)
+		Input.flush_buffered_events()
 
 
 func _describe(lineup: Lineup) -> Array[String]:

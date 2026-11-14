@@ -55,7 +55,7 @@ mouse_filter = 2
 theme_override_constants/separation = 0
 
 [node name="TopBar" type="MarginContainer" parent="Column/Layout"]
-custom_minimum_size = Vector2(0, 104)
+custom_minimum_size = Vector2(0, 108)
 layout_mode = 2
 mouse_filter = 2
 theme_override_constants/margin_left = 52
@@ -107,7 +107,7 @@ vertical_alignment = 1
 
 [node name="SpeedButton" type="Button" parent="Column/Layout/TopBar/TopRow"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(120, 84)
+custom_minimum_size = Vector2(120, 88)
 layout_mode = 2
 size_flags_vertical = 4
 focus_mode = 0

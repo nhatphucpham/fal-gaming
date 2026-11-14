@@ -58,7 +58,7 @@ func _init() -> void:
 	rows.add_child(_reason)
 	_button = PressButton.new()
 	_button.text = "BUTTON_REARRANGE"
-	_button.custom_minimum_size = Vector2(300, 84)
+	_button.custom_minimum_size = Vector2(300, 88)
 	_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_button.theme_type_variation = &"PrimaryButton"
 	_button.pressed.connect(func() -> void: rearrange_pressed.emit())

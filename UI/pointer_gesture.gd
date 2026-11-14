@@ -3,8 +3,9 @@ extends RefCounted
 ## Turns raw pointer events into tap, long press and drag, the same way for
 ## mouse and touch (touch arrives as emulated mouse events; see
 ## Docs/systems/board.md). A right click counts as a long press; other
-## buttons are ignored while a press is held. A second finger, a cancelled
-## touch or lost focus cancels the press (drag_cancelled for a drag).
+## buttons are ignored while a press is held. A second finger (a touch whose
+## index differs from the one that owns the press), a cancelled touch, or
+## lost focus or app pause cancels the press (drag_cancelled for a drag).
 ## Positions are global canvas positions. The owner forwards _gui_input
 ## events, _input events (handle_global_input), notifications and update().
 ## [codeblock]
@@ -20,9 +21,12 @@ signal long_pressed(position: Vector2)
 signal drag_started(start: Vector2, position: Vector2)
 signal drag_moved(position: Vector2)
 signal drag_ended(position: Vector2)
+## A drag in progress was abandoned without a drop; undo its effects.
+signal drag_cancelled()
 
 const LONG_PRESS_SEC: float = 0.4
 const DRAG_THRESHOLD_PX: float = 14.0
+const NO_TOUCH: int = -1
 
 var _is_down: bool = false
 var _is_dragging: bool = false
@@ -30,10 +34,11 @@ var _long_press_fired: bool = false
 var _held_sec: float = 0.0
 var _start: Vector2 = Vector2.ZERO
 var _last: Vector2 = Vector2.ZERO
+## Index of the finger that owns the press, or NO_TOUCH. Browsers (iOS Safari
+## in particular) hand out arbitrary, ever-growing indexes, so the first finger
+## is not index 0.
+var _touch_index: int = NO_TOUCH
 
-
-## A drag in progress was abandoned without a drop; undo its effects.
-signal drag_cancelled()
 
 ## Feeds one input event; true when the gesture used it.
 func handle_input(event: InputEvent) -> bool:
@@ -61,20 +66,32 @@ func update(delta: float) -> void:
 		long_pressed.emit(_last)
 
 
-## Watches events outside the owner (call from its _input): a second finger
-## or a cancelled touch cancels the press in progress.
+## Watches touches everywhere (call from the owner's _input). The first
+## finger down owns the press; another finger going down while it is held, or
+## a cancelled touch, cancels the press in progress.
 func handle_global_input(event: InputEvent) -> void:
 	var touch := event as InputEventScreenTouch
-	if touch == null or not _is_down:
+	if touch == null:
 		return
-	if touch.canceled or (touch.pressed and touch.index > 0):
+	if touch.pressed:
+		if _touch_index == NO_TOUCH:
+			_touch_index = touch.index
+		elif touch.index != _touch_index and _is_down:
+			cancel()
+		return
+	if touch.index != _touch_index:
+		return
+	_touch_index = NO_TOUCH
+	if touch.canceled and _is_down:
 		cancel()
 
 
-## Forwards a notification; losing the window or app focus, or the mouse
-## leaving the window, cancels the press in progress.
+## Forwards a notification; losing the window or app focus, the app pausing
+## or the mouse leaving the window cancels the press in progress.
 func handle_notification(what: int) -> void:
-	if what in [Node.NOTIFICATION_WM_MOUSE_EXIT, Node.NOTIFICATION_WM_WINDOW_FOCUS_OUT, Node.NOTIFICATION_APPLICATION_FOCUS_OUT]:
+	if what in [Node.NOTIFICATION_WM_MOUSE_EXIT, Node.NOTIFICATION_WM_WINDOW_FOCUS_OUT, Node.NOTIFICATION_APPLICATION_FOCUS_OUT, Node.NOTIFICATION_APPLICATION_PAUSED]:
+		# The finger's release may never arrive after this.
+		_touch_index = NO_TOUCH
 		cancel()
 
 
@@ -100,6 +117,9 @@ func _handle_button(button: InputEventMouseButton) -> bool:
 	if button.button_index != MOUSE_BUTTON_LEFT:
 		return false
 	if button.pressed:
+		# Godot sends the emulated press before its touch, and only for the
+		# first finger, so a new press always starts a fresh touch owner.
+		_touch_index = NO_TOUCH
 		_is_down = true
 		_is_dragging = false
 		_long_press_fired = false

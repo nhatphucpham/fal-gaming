@@ -38,18 +38,33 @@ cell signals, and keeps the player's formation. It does not run battles
 Board cells are global `Vector2i(col, row)`, col 0..6 from the left, row 0
 at the bottom; rows 0..3 are side 0 (the player), rows 4..7 side 1. A cell is
 `BoardView.CELL_PX` (88) pixels square in the 720 x 1280 base size, so never
-below 44 screen pixels on a phone. `Lineup` stores local (col, rank);
-`LineupViews.to_board_cell()` and `to_local_cell()` convert.
+below 44 screen pixels on a phone. Every other touch target (buttons, roster
+cards) is at least 88 px tall in the base size for the same reason. `Lineup`
+stores local (col, rank); `LineupViews.to_board_cell()` and
+`to_local_cell()` convert.
 
 Touch arrives as emulated mouse events, so `PointerGesture` handles mouse
 and touch the same way: a press that moves less than 14 px and is released
 is a tap; held 0.4 s it is a long press (a right click is one too); moved
 further it is a drag. Other mouse buttons are ignored while a press is held
-(a right click mid-drag does nothing; the left release still drops). A second
-finger, a cancelled touch, the mouse leaving the window or the window or app
-losing focus cancels the press; a drag then emits `drag_cancelled`, and the
-setup controller puts the piece back, hides the ghost and clears the cell
-marks. In the roster strip a sideways drag scrolls and an upward drag picks a
+(a right click mid-drag does nothing; the left release still drops).
+
+The first finger down owns the press. Touch indexes are not 0-based: on the
+web Godot passes on the browser's touch identifier, and iOS Safari hands out
+ever-growing numbers, so the gesture remembers the owner's index instead of
+assuming one. Another finger going down while the press is held cancels it;
+releases of other fingers are ignored. A cancelled touch, the mouse leaving
+the window, the window or app losing focus, or the app pausing also cancel
+the press; a drag then emits `drag_cancelled`, and the setup controller puts
+the piece back, hides the ghost and clears the cell marks.
+
+On the web export a browser `touchcancel` reaches Godot as an ordinary
+release (`canceled` is never true), so a touch the browser interrupts while
+the page stays in front ends as a normal drop where the finger last was: the
+same result as lifting the finger there, never a half-finished drag. When the
+interruption hides the page or takes its focus (a call, the app switcher, a
+system sheet), the focus-out or pause notification arrives first and the drag
+is cancelled instead. In the roster strip a sideways drag scrolls and an upward drag picks a
 card up; a soft fade on an edge shows that more cards lie that way. A dragged piece is shown by the `DragGhost`
 above the finger; the drop cell is the cell the ghost appears to stand in.
 
@@ -137,8 +152,12 @@ None. Data problems are reported with `push_error` (`Sandbox: ...`,
 places units through `SetupController`, checks the 8-unit cap, move, swap,
 deselect, remove by dragging off the board, drops on the enemy half and the
 third enemy preset. It then pushes real pointer events through the viewport:
-a right click during a drag is ignored, and a second finger or the mouse
-leaving the window cancels the drag and restores the piece. It checks that a
+a right click during a drag is ignored, and a second finger, the mouse
+leaving the window, focus loss or an app pause cancels the drag and restores
+the piece. Touches go through Godot's own `Input` path (touch to mouse
+emulation included) with first-finger indexes 1, 7 and 123456: a tap selects
+and places, a drag moves, and a second finger with another arbitrary index
+cancels while releases of other fingers are ignored. It checks that a
 selected card, a tap on a free cell and drops are refused during a battle,
 plays the battle to its end at x4, checks that "Xếp lại" restores the
 line-up and its views, and that the speed button afterwards does not touch
