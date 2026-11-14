@@ -1,0 +1,17 @@
+[gd_resource type="FormationData" format=3]
+
+[sub_resource type="ModifierData" id="mod_1"]
+handler = &"mod.damage_dealt_pct"
+scope = &"scope.slots"
+slots = PackedInt32Array(1)
+value = 25
+
+[resource]
+id = &"formation.spell_guard"
+name_key = "FORMATION_SPELL_GUARD"
+description_key = "FORMATION_SPELL_GUARD_DESC"
+pattern = &"pattern.shape"
+cells = Array[Vector2i]([Vector2i(0, 0), Vector2i(0, 1)])
+slot_classes = PackedStringArray("class.shield", "class.mage")
+color = Color(0.8, 0.6, 1, 1)
+modifiers = Array[ModifierData]([SubResource("mod_1")])

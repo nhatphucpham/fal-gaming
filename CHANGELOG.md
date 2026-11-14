@@ -9,6 +9,31 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Added
 
+- Synergies: the shape of the line-up is a weapon. Nghề (class milestones:
+  2-4 different units of a class, e.g. 2 shields +20 armor, 4 shields block
+  each one's first hit, 4 archers or spears pierce the enemy behind), Tộc
+  (race milestones: humans raise formation levels and add damage per
+  formation, wolf folk complete formations one unit short and gain Khí on
+  kills; cost 4-5 count double), and twelve Trận đồ (formations) such as
+  Tường Khiên, Mưa Tên (a volley every 4 s), Hộ Pháp, Mũi Giáo, Song Kiếm,
+  Thương Che Cung, Phương Trận and Ngư Lân. Every milestone and formation
+  is a Hợp Lực point; 3, 6, 9, 12 and 15 points give the team Khí, damage,
+  max hp and attack speed. Enemies have them too.
+- The info row under the board shows the Hợp Lực ring, the active
+  formations and a "+N" that opens the full list (milestones like "Khiên
+  2/4", formations with level and effect, formations one unit short,
+  Hợp Lực tiers). Formations are outlined on the board in their colours, a
+  new one runs a light around its outline and shows its name, a formation
+  one unit short shows a dashed outline and a ghost marker, and the
+  enemy's are outlined in red.
+- Dragging a unit shows what the drop would make: outlines, chips and
+  "9 → 10" on the ring. Shop cards that would reach a milestone or complete
+  a formation carry a jade badge. The unit info panel lists the unit's
+  milestones.
+- "Ra trận" opens with a roll call (outlines flash, names stamp in); in
+  battle "Chặn", "Phản", "Mất đà", "Gấp đôi" and split-hit lines show the
+  procs, volleys rain arrows, and a formation that loses a member shatters.
+
 - Skills. Every unit fills a thin blue Khí bar under its health bar by
   attacking (+10) and being hit (+5); when it is full and glowing, the unit
   winds up, lights the cells it aims at in its class colour, shows the
@@ -76,6 +101,8 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Changed
 
+- Stages 4-12 field formations and milestones you can read in the
+  preparation; stages 9-12 were retuned for synergies.
 - Stages 7 to 12 each have one 2-star enemy fewer (now 1-star), to keep
   the run winnable with skills.
 - The game is now portrait (720 x 1280 base size); in a landscape window the

@@ -85,6 +85,12 @@ func update_hints(gold: int, merges: Array[bool]) -> void:
 		card.set_merge_hint(index < merges.size() and merges[index])
 
 
+## Marks cards whose purchase raises a milestone or completes a formation.
+func update_synergy_hints(hints: Array[bool]) -> void:
+	for index: int in _cards.size():
+		_cards[index].set_synergy_hint(index < hints.size() and hints[index])
+
+
 func cancel_gesture() -> void:
 	_gesture.cancel()
 

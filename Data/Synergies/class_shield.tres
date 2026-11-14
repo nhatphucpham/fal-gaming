@@ -1,0 +1,30 @@
+[gd_resource type="MilestoneData" format=3]
+
+[sub_resource type="ModifierData" id="mod_1"]
+handler = &"mod.stat_add"
+scope = &"scope.counted"
+value = 20
+param = &"armor"
+
+[sub_resource type="SynergyTierData" id="tier_1"]
+at = 2
+description_key = "MILESTONE_SHIELD_2"
+modifiers = Array[ModifierData]([SubResource("mod_1")])
+
+[sub_resource type="ModifierData" id="mod_2"]
+handler = &"mod.block_first_hit"
+scope = &"scope.counted"
+count = 1
+
+[sub_resource type="SynergyTierData" id="tier_2"]
+at = 4
+description_key = "MILESTONE_SHIELD_4"
+modifiers = Array[ModifierData]([SubResource("mod_2")])
+
+[resource]
+id = &"milestone.class_shield"
+name_key = "CLASS_SHIELD"
+counted_kind = &"class"
+counted_id = &"class.shield"
+counts_distinct_units = true
+tiers = Array[SynergyTierData]([SubResource("tier_1"), SubResource("tier_2")])

@@ -1,5 +1,6 @@
 #include "battle_shapes.h"
 
+#include "battle_board.h"
 #include "battle_sim.h"
 
 namespace battle {
@@ -47,9 +48,24 @@ void collect_row3(const BattleSim &p_sim, const UnitState &p_attacker, int p_tar
 	}
 }
 
+// shape.row3 plus the cell behind the target (seen from the attacker).
+void collect_row3_behind(const BattleSim &p_sim, const UnitState &p_attacker, int p_target, std::vector<Hit> *r_hits) {
+	collect_row3(p_sim, p_attacker, p_target, r_hits);
+	const Cell center = p_sim.get_units()[p_target].cell;
+	const Cell behind = { center.col, center.row + get_forward_row_step(p_attacker.side) };
+	if (!is_on_board(behind)) {
+		return;
+	}
+	const int occupant = p_sim.get_board().get_occupant(behind);
+	if (occupant != NO_UNIT && p_sim.get_units()[occupant].side != p_attacker.side) {
+		r_hits->push_back({ occupant, NO_UNIT });
+	}
+}
+
 const ShapeHandler SHAPE_HANDLERS[] = {
 	{ "shape.single", collect_single },
 	{ "shape.row3", collect_row3 },
+	{ "shape.row3_behind", collect_row3_behind },
 };
 
 } // namespace

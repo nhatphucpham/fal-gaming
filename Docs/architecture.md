@@ -60,7 +60,8 @@
   registered in `project.godot`. The fallback locale is `vi`, and `Main`
   sets `vi` at start since Vietnamese is the only player language for now.
   Keys follow the data (`UNIT_*`, `CLASS_*`, `RACE_*`) or the screen
-  (`BUTTON_*`, `RESULT_*`, `INFO_*`, `STAGE_*`, `REWARD_*`, `END_*`).
+  (`BUTTON_*`, `RESULT_*`, `INFO_*`, `STAGE_*`, `REWARD_*`, `END_*`,
+  `FORMATION_*`, `MILESTONE_*`, `HOP_LUC*`, `SYNERGY_*`).
 - `export_presets.cfg` holds export presets. Each preset excludes `Tests/`
   and `Tools/`.
 
@@ -120,6 +121,17 @@ the ids used in `Data/Skills/` and `Data/Passives/`. `BattleSim` owns the
 state and calls into it; its resources (`SkillData`, `SkillEffectData`,
 `PassiveData`) live with the other bridge classes in `Native/src/battle/`.
 See [Skill](systems/skill.md).
+
+`Native/src/formation/` matches formations (shapes of units on one side's
+half, in local coordinates) and `Native/src/rules/` counts class and race
+milestones and Hợp Lực and turns everything active into battle modifiers,
+both plain C++ with registries of patterns, modifiers and rules keyed by the
+ids in `Data/Formations/`, `Data/Synergies/` and `Data/Rules/hop_luc.tres`.
+The `Synergy` bridge class (`Native/src/synergy/`) evaluates a line-up
+without a battle, for the preparation screen's info row, outlines and drag
+preview; `Battle.set_synergy()` applies the same evaluation to both sides at
+`start()`. See [Synergy](systems/synergy.md) and
+[Formation](systems/formation.md).
 
 ## Layers and documentation
 

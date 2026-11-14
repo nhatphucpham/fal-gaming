@@ -1,0 +1,40 @@
+[gd_resource type="MilestoneData" format=3]
+
+[sub_resource type="ModifierData" id="mod_1"]
+handler = &"rule.formation_missing_middle"
+scope = &"scope.counted"
+count = 3
+
+[sub_resource type="SynergyTierData" id="tier_1"]
+at = 1
+description_key = "MILESTONE_WOLF_1"
+modifiers = Array[ModifierData]([SubResource("mod_1")])
+
+[sub_resource type="ModifierData" id="mod_2"]
+handler = &"mod.qi_on_ally_kill"
+scope = &"scope.counted"
+value = 10
+
+[sub_resource type="SynergyTierData" id="tier_2"]
+at = 3
+description_key = "MILESTONE_WOLF_3"
+modifiers = Array[ModifierData]([SubResource("mod_2")])
+
+[sub_resource type="ModifierData" id="mod_3"]
+handler = &"rule.formation_missing_any"
+scope = &"scope.counted"
+count = 4
+
+[sub_resource type="SynergyTierData" id="tier_3"]
+at = 5
+description_key = "MILESTONE_WOLF_5"
+modifiers = Array[ModifierData]([SubResource("mod_3")])
+
+[resource]
+id = &"milestone.race_wolf"
+name_key = "RACE_WOLF"
+counted_kind = &"race"
+counted_id = &"race.wolf"
+counts_distinct_units = false
+double_from_cost = 4
+tiers = Array[SynergyTierData]([SubResource("tier_1"), SubResource("tier_2"), SubResource("tier_3")])

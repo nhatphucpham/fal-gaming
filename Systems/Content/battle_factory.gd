@@ -9,11 +9,13 @@ extends RefCounted
 ## [/codeblock]
 
 
-## A new Battle with the catalog's rules and classes; the caller owns it.
+## A new Battle with the catalog's rules, classes and synergies (class and
+## race milestones, formations, Hợp Lực); the caller owns it.
 static func create(catalog: Catalog) -> Battle:
 	var battle := Battle.new()
 	battle.name = &"Battle"
 	battle.set_rules(catalog.battle_rules)
+	battle.set_synergy(catalog.get_synergy())
 	for class_data: ClassData in catalog.classes:
 		battle.register_class(class_data)
 	return battle

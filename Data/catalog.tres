@@ -59,6 +59,27 @@
 [ext_resource type="Resource" path="res://Data/Stages/stage_10.tres" id="stage_10"]
 [ext_resource type="Resource" path="res://Data/Stages/stage_11.tres" id="stage_11"]
 [ext_resource type="Resource" path="res://Data/Stages/stage_12.tres" id="stage_12"]
+[ext_resource type="FormationData" path="res://Data/Formations/shield_wall.tres" id="formation_shield_wall"]
+[ext_resource type="FormationData" path="res://Data/Formations/arrow_rain.tres" id="formation_arrow_rain"]
+[ext_resource type="FormationData" path="res://Data/Formations/spell_guard.tres" id="formation_spell_guard"]
+[ext_resource type="FormationData" path="res://Data/Formations/spearhead.tres" id="formation_spearhead"]
+[ext_resource type="FormationData" path="res://Data/Formations/twin_blades.tres" id="formation_twin_blades"]
+[ext_resource type="FormationData" path="res://Data/Formations/spear_cover.tres" id="formation_spear_cover"]
+[ext_resource type="FormationData" path="res://Data/Formations/wild_geese.tres" id="formation_wild_geese"]
+[ext_resource type="FormationData" path="res://Data/Formations/long_serpent.tres" id="formation_long_serpent"]
+[ext_resource type="FormationData" path="res://Data/Formations/square.tres" id="formation_square"]
+[ext_resource type="FormationData" path="res://Data/Formations/crane_wings.tres" id="formation_crane_wings"]
+[ext_resource type="FormationData" path="res://Data/Formations/fish_scales.tres" id="formation_fish_scales"]
+[ext_resource type="FormationData" path="res://Data/Formations/three_powers.tres" id="formation_three_powers"]
+[ext_resource type="MilestoneData" path="res://Data/Synergies/class_shield.tres" id="milestone_class_shield"]
+[ext_resource type="MilestoneData" path="res://Data/Synergies/class_sword.tres" id="milestone_class_sword"]
+[ext_resource type="MilestoneData" path="res://Data/Synergies/class_spear.tres" id="milestone_class_spear"]
+[ext_resource type="MilestoneData" path="res://Data/Synergies/class_cavalry.tres" id="milestone_class_cavalry"]
+[ext_resource type="MilestoneData" path="res://Data/Synergies/class_archer.tres" id="milestone_class_archer"]
+[ext_resource type="MilestoneData" path="res://Data/Synergies/class_mage.tres" id="milestone_class_mage"]
+[ext_resource type="MilestoneData" path="res://Data/Synergies/race_human.tres" id="milestone_race_human"]
+[ext_resource type="MilestoneData" path="res://Data/Synergies/race_wolf.tres" id="milestone_race_wolf"]
+[ext_resource type="HopLucData" path="res://Data/Rules/hop_luc.tres" id="rules_hop_luc"]
 
 [resource]
 script = ExtResource("1_catalog")
@@ -69,3 +90,6 @@ units = Array[UnitData]([ExtResource("unit_shield_guard"), ExtResource("unit_bla
 battle_rules = ExtResource("rules_battle")
 run_rules = ExtResource("rules_run")
 stages = Array[ExtResource("2_stage_data")]([ExtResource("stage_01"), ExtResource("stage_02"), ExtResource("stage_03"), ExtResource("stage_04"), ExtResource("stage_05"), ExtResource("stage_06"), ExtResource("stage_07"), ExtResource("stage_08"), ExtResource("stage_09"), ExtResource("stage_10"), ExtResource("stage_11"), ExtResource("stage_12")])
+formations = Array[FormationData]([ExtResource("formation_shield_wall"), ExtResource("formation_arrow_rain"), ExtResource("formation_spell_guard"), ExtResource("formation_spearhead"), ExtResource("formation_twin_blades"), ExtResource("formation_spear_cover"), ExtResource("formation_wild_geese"), ExtResource("formation_long_serpent"), ExtResource("formation_square"), ExtResource("formation_crane_wings"), ExtResource("formation_fish_scales"), ExtResource("formation_three_powers")])
+milestones = Array[MilestoneData]([ExtResource("milestone_class_shield"), ExtResource("milestone_class_sword"), ExtResource("milestone_class_spear"), ExtResource("milestone_class_cavalry"), ExtResource("milestone_class_archer"), ExtResource("milestone_class_mage"), ExtResource("milestone_race_human"), ExtResource("milestone_race_wolf")])
+hop_luc = ExtResource("rules_hop_luc")

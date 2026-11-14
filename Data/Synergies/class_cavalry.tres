@@ -1,0 +1,29 @@
+[gd_resource type="MilestoneData" format=3]
+
+[sub_resource type="ModifierData" id="mod_1"]
+handler = &"mod.charge_impact_pct"
+scope = &"scope.counted"
+value = 30
+
+[sub_resource type="SynergyTierData" id="tier_1"]
+at = 2
+description_key = "MILESTONE_CAVALRY_2"
+modifiers = Array[ModifierData]([SubResource("mod_1")])
+
+[sub_resource type="ModifierData" id="mod_2"]
+handler = &"mod.knockback_cells"
+scope = &"scope.counted"
+value = 1
+
+[sub_resource type="SynergyTierData" id="tier_2"]
+at = 3
+description_key = "MILESTONE_CAVALRY_3"
+modifiers = Array[ModifierData]([SubResource("mod_2")])
+
+[resource]
+id = &"milestone.class_cavalry"
+name_key = "CLASS_CAVALRY"
+counted_kind = &"class"
+counted_id = &"class.cavalry"
+counts_distinct_units = true
+tiers = Array[SynergyTierData]([SubResource("tier_1"), SubResource("tier_2")])

@@ -82,6 +82,12 @@ void impact(BattleSim &p_sim, int p_unit, int p_victim) {
 	if (!resolve_incoming(p_sim, p_unit, p_victim, charge.cause)) {
 		return;
 	}
+	// mod.charge_immunity: no impact damage and no push, the charge just stops.
+	const ActiveModifier *guard = p_sim.find_modifier(p_victim, rules::ModifierKind::CHARGE_IMMUNITY);
+	if (guard != nullptr) {
+		end_charge(p_sim, p_unit, p_victim, p_sim.emit_modifier_triggered(p_victim, *guard, charge.cause));
+		return;
+	}
 	PassiveContext own;
 	own.source = p_victim;
 	own.victim = p_victim;
@@ -101,13 +107,15 @@ void impact(BattleSim &p_sim, int p_unit, int p_victim) {
 		spec.cause = charge.cause;
 		hit_event = p_sim.deal_damage(spec);
 	} else {
-		hit_event = p_sim.perform_attack(p_unit, p_victim, charge.cause, own.increase_pct);
+		// Opening impacts only: the charge_impact_pct milestones and formations.
+		const int impact_pct = p_sim.sum_modifiers(p_unit, rules::ModifierKind::CHARGE_IMPACT_PCT);
+		hit_event = p_sim.perform_attack(p_unit, p_victim, charge.cause, own.increase_pct + impact_pct);
 	}
 	if (!p_sim.get_units()[p_unit].is_alive) {
 		return;
 	}
-	const Cell at = p_sim.get_units()[p_victim].cell;
-	p_sim.knock_back(p_victim, { at.col, at.row + get_forward_row_step(p_sim.get_units()[p_unit].side) }, hit_event);
+	const int push_cells = 1 + p_sim.sum_modifiers(p_unit, rules::ModifierKind::KNOCKBACK_CELLS);
+	p_sim.knock_back_cells(p_victim, get_forward_row_step(p_sim.get_units()[p_unit].side), push_cells, hit_event);
 	end_charge(p_sim, p_unit, p_victim, hit_event);
 }
 

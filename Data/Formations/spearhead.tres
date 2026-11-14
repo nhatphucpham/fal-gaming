@@ -1,0 +1,30 @@
+[gd_resource type="FormationData" format=3]
+
+[sub_resource type="ModifierData" id="mod_1"]
+handler = &"mod.charge_impact_pct"
+scope = &"scope.slots"
+slots = PackedInt32Array(0)
+value = 50
+
+[sub_resource type="ModifierData" id="mod_2"]
+handler = &"mod.knockback_cells"
+scope = &"scope.slots"
+slots = PackedInt32Array(0)
+value = 1
+
+[sub_resource type="ModifierData" id="mod_3"]
+handler = &"mod.charge_speed_until_attack"
+scope = &"scope.slots"
+slots = PackedInt32Array(1, 2)
+
+[resource]
+id = &"formation.spearhead"
+name_key = "FORMATION_SPEARHEAD"
+description_key = "FORMATION_SPEARHEAD_DESC"
+pattern = &"pattern.shape"
+cells = Array[Vector2i]([Vector2i(0, 0), Vector2i(-1, 1), Vector2i(1, 1)])
+slot_classes = PackedStringArray("class.cavalry", "class.spear", "class.spear")
+anchor_rank = 1
+middle_slot = 0
+color = Color(1, 0.55, 0.3, 1)
+modifiers = Array[ModifierData]([SubResource("mod_1"), SubResource("mod_2"), SubResource("mod_3")])

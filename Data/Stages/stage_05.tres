@@ -7,14 +7,14 @@
 script = ExtResource("2_slot")
 unit_id = &"unit.light_rider"
 star = 2
-local_col = 2
+local_col = 1
 local_rank = 1
 
 [sub_resource type="Resource" id="Slot_2"]
 script = ExtResource("2_slot")
 unit_id = &"unit.light_rider"
 star = 1
-local_col = 6
+local_col = 7
 local_rank = 1
 
 [sub_resource type="Resource" id="Slot_3"]
@@ -35,8 +35,8 @@ local_rank = 1
 script = ExtResource("2_slot")
 unit_id = &"unit.wolf_marksman"
 star = 2
-local_col = 4
-local_rank = 3
+local_col = 3
+local_rank = 2
 
 [resource]
 script = ExtResource("1_stage")

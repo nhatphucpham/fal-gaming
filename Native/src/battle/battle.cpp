@@ -35,6 +35,20 @@ void Battle::set_rules(const Ref<BattleRulesData> &p_rules) {
 	rules = p_rules;
 }
 
+void Battle::set_synergy(const Ref<Synergy> &p_synergy) {
+	ERR_FAIL_COND_MSG(is_emitting, "Battle: set_synergy() cannot be called from an event handler");
+	ERR_FAIL_COND_MSG(get_unit_count() > 0, "Battle: set_synergy() needs a battle without units; call clear() first");
+	if (p_synergy.is_null()) {
+		sim.clear_synergy();
+		synergy = p_synergy;
+		return;
+	}
+	ERR_FAIL_COND_MSG(!p_synergy->is_ready(), "Battle: set_synergy() got a Synergy whose setup() failed");
+	std::string error;
+	ERR_FAIL_COND_MSG(!sim.set_synergy(p_synergy->get_config(), &error), "Battle: " + to_godot_string(error));
+	synergy = p_synergy;
+}
+
 bool Battle::register_class(const Ref<ClassData> &p_class) {
 	ERR_FAIL_COND_V_MSG(is_emitting, false, "Battle: register_class() cannot be called from an event handler");
 	ERR_FAIL_COND_V_MSG(p_class.is_null(), false, "Battle: register_class() got a null ClassData");
@@ -56,6 +70,7 @@ int Battle::add_unit(int64_t p_side, const Ref<UnitData> &p_unit, int64_t p_star
 	battle::UnitSpec spec;
 	spec.unit_id = to_std_string(p_unit->get_id());
 	spec.class_id = to_std_string(p_unit->get_class_id());
+	spec.race_id = to_std_string(p_unit->get_race_id());
 	spec.cost = p_unit->get_cost();
 	spec.star = static_cast<int>(p_star);
 	std::string error;
@@ -174,6 +189,7 @@ Dictionary Battle::get_unit_state(int64_t p_index) const {
 	state["hp"] = unit.hp;
 	state["max_hp"] = unit.max_hp;
 	state["attack"] = unit.attack;
+	state["range_cells"] = sim.get_range_cells(unit);
 	state["col"] = unit.cell.col;
 	state["row"] = unit.cell.row;
 	state["target"] = unit.target;
@@ -220,6 +236,8 @@ void Battle::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_rules", "rules"), &Battle::set_rules);
 	ClassDB::bind_method(D_METHOD("get_rules"), &Battle::get_rules);
+	ClassDB::bind_method(D_METHOD("set_synergy", "synergy"), &Battle::set_synergy);
+	ClassDB::bind_method(D_METHOD("get_synergy"), &Battle::get_synergy);
 	ClassDB::bind_method(D_METHOD("register_class", "class_data"), &Battle::register_class);
 	ClassDB::bind_method(D_METHOD("add_unit", "side", "unit", "star", "local_col", "local_rank"), &Battle::add_unit);
 	ClassDB::bind_method(D_METHOD("clear"), &Battle::clear);

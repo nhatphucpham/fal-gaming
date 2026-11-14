@@ -5,31 +5,31 @@
 
 [sub_resource type="Resource" id="Slot_1"]
 script = ExtResource("2_slot")
-unit_id = &"unit.wolf_shield"
+unit_id = &"unit.spearman"
 star = 1
 local_col = 4
 local_rank = 1
 
 [sub_resource type="Resource" id="Slot_2"]
 script = ExtResource("2_slot")
-unit_id = &"unit.spearman"
+unit_id = &"unit.wolf_archer"
 star = 1
-local_col = 3
-local_rank = 1
+local_col = 4
+local_rank = 2
 
 [sub_resource type="Resource" id="Slot_3"]
 script = ExtResource("2_slot")
-unit_id = &"unit.wolf_archer"
+unit_id = &"unit.wolf_shield"
 star = 1
 local_col = 3
-local_rank = 3
+local_rank = 1
 
 [sub_resource type="Resource" id="Slot_4"]
 script = ExtResource("2_slot")
 unit_id = &"unit.ice_mage"
 star = 1
-local_col = 5
-local_rank = 3
+local_col = 3
+local_rank = 2
 
 [resource]
 script = ExtResource("1_stage")

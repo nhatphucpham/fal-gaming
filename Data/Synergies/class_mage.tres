@@ -1,0 +1,29 @@
+[gd_resource type="MilestoneData" format=3]
+
+[sub_resource type="ModifierData" id="mod_1"]
+handler = &"mod.attack_shape"
+scope = &"scope.counted"
+param = &"shape.row3_behind"
+
+[sub_resource type="SynergyTierData" id="tier_1"]
+at = 2
+description_key = "MILESTONE_MAGE_2"
+modifiers = Array[ModifierData]([SubResource("mod_1")])
+
+[sub_resource type="ModifierData" id="mod_2"]
+handler = &"mod.skill_damage_pct"
+scope = &"scope.counted"
+value = 30
+
+[sub_resource type="SynergyTierData" id="tier_2"]
+at = 4
+description_key = "MILESTONE_MAGE_4"
+modifiers = Array[ModifierData]([SubResource("mod_2")])
+
+[resource]
+id = &"milestone.class_mage"
+name_key = "CLASS_MAGE"
+counted_kind = &"class"
+counted_id = &"class.mage"
+counts_distinct_units = true
+tiers = Array[SynergyTierData]([SubResource("tier_1"), SubResource("tier_2")])

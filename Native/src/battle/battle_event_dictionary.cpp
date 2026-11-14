@@ -24,6 +24,9 @@ const char *const EVENT_TYPE_NAMES[] = {
 	"passive_triggered",
 	"status_applied",
 	"status_ended",
+	"synergy_activated",
+	"formation_broken",
+	"modifier_triggered",
 };
 const char *const MOVE_KIND_NAMES[] = { "walk", "charge", "knockback" };
 const char *const ATTACK_KIND_NAMES[] = { "melee", "ranged", "magic" };
@@ -48,6 +51,35 @@ void add_damage_payload(const battle::BattleEvent &p_event, Dictionary &r_dict) 
 	r_dict["is_crit"] = p_event.is_crit;
 	r_dict["blocked_by"] = p_event.blocked_by;
 	r_dict["skill"] = StringName(to_godot_string(p_event.skill_id));
+	r_dict["is_blocked_by_modifier"] = p_event.is_blocked_by_modifier;
+}
+
+Array units_to_array(const std::vector<int> &p_units) {
+	Array units;
+	for (int unit : p_units) {
+		units.push_back(unit);
+	}
+	return units;
+}
+
+void add_synergy_payload(const battle::BattleEvent &p_event, Dictionary &r_dict) {
+	if (p_event.type == battle::EventType::MODIFIER_TRIGGERED) {
+		r_dict["unit"] = p_event.unit;
+		r_dict["modifier"] = StringName(to_godot_string(p_event.modifier_id));
+		r_dict["source_id"] = StringName(to_godot_string(p_event.synergy_id));
+		r_dict["cells"] = cells_to_array(p_event.cells);
+		return;
+	}
+	r_dict["side"] = p_event.side;
+	r_dict["kind"] = StringName(to_godot_string(p_event.synergy_kind));
+	// "id" is the event id, so the milestone or formation id is source_id.
+	r_dict["source_id"] = StringName(to_godot_string(p_event.synergy_id));
+	r_dict["cells"] = cells_to_array(p_event.cells);
+	r_dict["units"] = units_to_array(p_event.units);
+	if (p_event.type == battle::EventType::SYNERGY_ACTIVATED) {
+		r_dict["level"] = p_event.level;
+		r_dict["threshold"] = p_event.threshold;
+	}
 }
 
 void add_skill_payload(const battle::BattleEvent &p_event, Dictionary &r_dict) {
@@ -112,6 +144,11 @@ void add_payload(const battle::BattleEvent &p_event, Dictionary &r_dict) {
 		case battle::EventType::BATTLE_ENDED:
 			r_dict["winner"] = p_event.winner;
 			r_dict["reason"] = get_end_reason_name(p_event.reason);
+			break;
+		case battle::EventType::SYNERGY_ACTIVATED:
+		case battle::EventType::FORMATION_BROKEN:
+		case battle::EventType::MODIFIER_TRIGGERED:
+			add_synergy_payload(p_event, r_dict);
 			break;
 		default:
 			add_skill_payload(p_event, r_dict);

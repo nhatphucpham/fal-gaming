@@ -1,0 +1,18 @@
+[gd_resource type="FormationData" format=3]
+
+[sub_resource type="ModifierData" id="mod_1"]
+handler = &"mod.start_qi"
+scope = &"scope.members"
+value = 10
+
+[resource]
+id = &"formation.three_powers"
+name_key = "FORMATION_THREE_POWERS"
+description_key = "FORMATION_THREE_POWERS_DESC"
+pattern = &"pattern.shape"
+cells = Array[Vector2i]([Vector2i(0, 0), Vector2i(0, 1), Vector2i(0, 2)])
+slot_classes = PackedStringArray("", "", "")
+needs_distinct_classes = true
+middle_slot = 1
+color = Color(1, 0.8, 0.95, 1)
+modifiers = Array[ModifierData]([SubResource("mod_1")])

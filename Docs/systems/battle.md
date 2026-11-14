@@ -19,15 +19,22 @@ rounds or economy; presentation listens to its events.
   - `battle_targeting.h/.cpp`, `battle_shapes.h/.cpp`,
     `battle_openings.h/.cpp`: the handler registries.
   - `battle_damage.h/.cpp`: the damage pipeline.
-  - `battle_sim.h`, `battle_sim.cpp` (setup, tick loop, end, hash) and
-    `battle_sim_actions.cpp` (targeting, attacks, moves, skill damage): `BattleSim`.
+  - `battle_sim.h`, `battle_sim.cpp` (setup, tick loop, end),
+    `battle_hash.cpp` (state hash), `battle_sim_actions.cpp` (targeting,
+    attacks, moves, skill damage), `battle_attack_modifiers.cpp` and
+    `battle_synergy.cpp` (synergy modifiers, volleys, broken formations):
+    `BattleSim`.
+  - `battle_modifiers.h`: `ActiveModifier`, `SynergySource`.
+- Synergies (milestones, formations, Hợp Lực): `Native/src/rules/` and
+  `Native/src/formation/`, see [Synergy](synergy.md) and
+  [Formation](formation.md).
 - Skills, Khí, passives and statuses: `Native/src/skill/`, see [Skill](skill.md).
 - Bridge: `class_data`, `unit_data`, `battle_rules_data`, `skill_data`,
   `skill_effect_data`, `passive_data` (resources),
   `battle` (the `Battle` node), `battle_event_dictionary` (events to
   dictionaries), `bridge_strings.h` (string helpers).
 - Content: `Systems/Content/catalog.gd` (`Catalog`) and `Data/`.
-- Depends on: nothing. The caller drives `step()`, usually from `SimClock`;
+- Depends on: the synergy rules when `set_synergy()` was called. The caller drives `step()`, usually from `SimClock`;
   on screen that is `BattlePlayback` (see [Battle playback](battle_playback.md)).
 
 ## Data
@@ -134,13 +141,29 @@ allowed.
 - **Shapes.** `shape.single` hits the target; when a ranged attacker shoots
   along its column, the first enemy with `blocks_arrows` strictly between
   takes the hit (`blocked_by`). `shape.row3` hits every enemy in the target's
-  cell and the cells left and right of it.
+  cell and the cells left and right of it; `shape.row3_behind` (mage 2) adds
+  the cell behind the target. `mod.pierce_behind` (spear 4, archer 4) adds
+  the enemy right behind the first unit hit.
 - **Damage.** `attack * coefficient / 100`, counter `* 130 / 100`, crit
   `* crit_multiplier_pct / 100` (steady aim), bonus groups `* (100 +
   increase) / 100 * (100 - decrease) / 100` (increase: momentum; decrease:
   guard), mitigation `* 100 / (100 + armor or magic_resist)`, where armor
   is first lowered by armor break for physical damage; all multiplications
-  first, one truncation, at least 1.
+  first, one truncation, at least 1. Synergy modifiers join the same
+  groups: the attacker's `mod.damage_dealt_pct` (and `mod.skill_damage_pct`
+  for skills) add to the increase, the victim's `mod.damage_taken_pct` and,
+  against ranged physical attacks, `mod.ranged_physical_taken_pct` add to
+  the decrease (capped at 100). Then a synergy block makes it 0
+  (`is_blocked_by_modifier`), a fish-scales split shares it, and a sword's
+  reflection deals fixed damage back if the victim lives (see
+  [Synergy](synergy.md)).
+- **Synergies.** With `set_synergy()`, `start()` evaluates both line-ups
+  (formations are frozen then) and installs their modifiers; tick 1 emits
+  one `synergy_activated` per milestone tier, formation and Hợp Lực, side A
+  first, right after `battle_started`. Volleys (Mưa Tên) fire every `ticks`
+  after the scheduled skill steps, skipped while the archer is stunned. A
+  member's death emits `formation_broken` once and turns its formation's
+  modifiers off.
 - **Openings.** `opening.hold_line`: no moving, attacks in range; ends at
   `hold_line_max_ticks`, or after `hold_line_grace_ticks` once no enemy
   targets the unit. `opening.charge`: runs forward at
@@ -163,6 +186,7 @@ function that calls `step()`, or call `step()` in a loop.
 | --- | --- | --- |
 | `SIDE_A`, `SIDE_B` | constants | 0 and 1 |
 | `set_rules(rules: BattleRulesData)` | method | Required before `add_unit`; refused once units exist |
+| `set_synergy(synergy: Synergy)`, `get_synergy()` | methods | Turns milestones, formations and Hợp Lực on for both sides (null turns them off); refused once units exist |
 | `register_class(class_data: ClassData) -> bool` | method | Adds or replaces a class by id. Validates stats and handler ids; false and an error on bad data or when an added unit uses that id (call `clear()` first) |
 | `add_unit(side, unit: UnitData, star, local_col, local_rank) -> int` | method | Unit index, or -1 with an error (no rules, bad side, unknown class, bad cell, cell taken, star not 1..3, derived max_hp below 1, side full, started) |
 | `clear()` | method | Removes units, resets the tick; keeps classes and rules |
@@ -170,8 +194,8 @@ function that calls `step()`, or call `step()` in a loop.
 | `step() -> Array[Dictionary]` | method | Advances one tick, returns and emits its events; nothing after the end. While its signals run, `step`, `run_to_end`, `start`, `clear`, `add_unit`, `register_class` and `set_rules` are refused with an error |
 | `run_to_end(max_ticks: int) -> String` | method | Starts if needed, steps until the end or `max_ticks` (>= 0), returns the hash; empty if a handler freed the node |
 | `is_started()`, `is_finished()`, `get_winner()`, `get_tick()` | methods | Winner is -1 while running |
-| `get_state_hash() -> String` | method | FNV-1a 64, 16 hex digits, over the tick, `finished`, `winner` and, per unit in index order: alive, hp, col, row, attack charge, move ticks left, target, has seen target in range, target out-of-range ticks, no-path ticks, opening active, Khí, cast (ticks left and cells), charge, passive counters and statuses; then the scheduled Hậu chiêu |
-| `get_unit_count()`, `get_unit_state(index)`, `get_units()` | methods | `{index, side, unit_id, class_id, star, alive, hp, max_hp, attack, col, row, target, move_ticks_left, qi, qi_max, casting, statuses}` |
+| `get_state_hash() -> String` | method | FNV-1a 64, 16 hex digits, over the tick, `finished`, `winner` and, per unit in index order: alive, hp, col, row, attack charge, move ticks left, target, has seen target in range, target out-of-range ticks, no-path ticks, opening active, Khí, cast (ticks left and cells), charge, passive counters, statuses, max hp, basic attacks made and range bonus; then the synergy sources (active, split used, level) and modifiers (unit, kind, value, uses); then the scheduled Hậu chiêu |
+| `get_unit_count()`, `get_unit_state(index)`, `get_units()` | methods | `{index, side, unit_id, class_id, star, alive, hp, max_hp, attack, range_cells, col, row, target, move_ticks_left, qi, qi_max, casting, statuses}`; `range_cells` includes a synergy range bonus |
 | `local_to_global(side, local_col, local_rank) -> Vector2i` | static | Global (col, row); (-1, -1) with an error for a bad side or cell |
 | `global_to_local(side, col, row) -> Vector2i` | static | (local col, rank); rank leaves 1..4 in the enemy half; (-1, -1) with an error off the board |
 | `log_enabled` | property | Prints the info log events below; default false |
@@ -188,7 +212,8 @@ Events are read-only dictionaries (`step()`'s array too); copy one to
 change it. A handler that removes the battle should use `queue_free()`:
 `Battle` stops touching itself when freed mid-step, but Godot's own
 `emit_signal` still reads the freed object and warns about it. Every event has `id` (from 1, increasing), `tick`, `type` (StringName) and
-`cause` (the id of the event that caused it, 0 if none). Units are battle
+`cause` (the id of the event that caused it, 0 if none); that is why the
+synergy events name their milestone or formation `source_id`. Units are battle
 indexes; cells are global.
 
 | Type | Payload | Cause |
@@ -196,10 +221,13 @@ indexes; cells are global.
 | `battle_started` | | 0 |
 | `unit_moved` | `unit`, `from_col`, `from_row`, `to_col`, `to_row`, `duration_ticks`, `kind`: `walk`/`charge`/`knockback` | knockback: the attack |
 | `unit_attacked` | `unit`, `target`, `kind`: `melee`/`ranged`/`magic`, `to_col`, `to_row` | 0 |
-| `damage_dealt` | `source`, `target`, `amount`, `hp_after`, `is_counter`, `is_crit`, `blocked_by` (-1 if none), `skill` (skill or passive id, empty for a basic attack) | the attack, or the skill's resolve |
+| `damage_dealt` | `source`, `target`, `amount`, `hp_after`, `is_counter`, `is_crit`, `blocked_by` (-1 if none), `skill` (skill or passive id, a formation id for a volley or split share, empty for a basic attack), `is_blocked_by_modifier` | the attack, or the skill's resolve, volley or split |
 | `unit_died` | `unit`, `killer` | the damage |
 | `charge_ended` | `unit`, `hit` (-1 if none) | the impact attack, or 0 |
 | `battle_ended` | `winner` (0 A, 1 B), `reason`: `elimination`/`time_limit` | 0 |
+| `synergy_activated` | `side`, `kind`: `class`/`race`/`formation`/`hop_luc`, `source_id` (milestone or formation id, or `hop_luc`), `cells`, `units`, `level` (tier number, formation level or Hợp Lực points), `threshold` (the tier's count, 0 otherwise) | 0 |
+| `formation_broken` | `side`, `kind`, `source_id`, `cells`, `units` | the death |
+| `modifier_triggered` | `unit`, `modifier` (handler id), `source_id`, `cells` (a split's formation cells) | the attack, hit or tick that set it off |
 | `qi_changed`, `skill_cast_started`, `skill_resolved`, `passive_triggered`, `status_applied`, `status_ended` | see [Skill](skill.md) | |
 
 ## Log events
@@ -236,7 +264,9 @@ fewer units, then both tie rules: more living units, then B), a full 8v8
 that ends by elimination (it prints its length), and coordinate round trips.
 
 Skills, Khí, passives and statuses have their own tests
-(`Tests/skill_test.gd`, `Tests/passive_test.gd`; see [Skill](skill.md)).
+(`Tests/skill_test.gd`, `Tests/passive_test.gd`; see [Skill](skill.md)), and
+so do synergies (`Tests/synergy_test.gd`, `Tests/formation_battle_test.gd`;
+see [Synergy](synergy.md)).
 
 `Tests/battle_api_test.gd` checks the node's API: signals and event ids,
 read-only events, a handler that frees the node mid-step, refused commands
@@ -247,8 +277,7 @@ coordinates). It prints the errors it provokes and announces each group.
 
 ## Known limits
 
-- No formations, synergies or elements yet; the damage request has the
-  fields for them.
+- No elements yet; the damage request has the fields for them.
 - No random numbers yet, so there is no seed.
 - Data is validated when a class or unit is registered or added, not when
   `Data/` changes; run the battle test after editing data.

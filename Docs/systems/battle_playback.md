@@ -14,7 +14,8 @@ only through `Battle` getters (`get_unit_state` for max hp at the start).
   `Scenes/Battle/impact_order.gd` (`ImpactOrder`), and for skills
   `Scenes/Battle/skill_playback.gd` (`SkillPlayback`, the skill event
   handlers), `Scenes/Battle/skill_fx.gd` (`SkillFx`, skill effects) and
-  `Scenes/Battle/skill_overlay.gd` (`SkillOverlay`, the marks on a unit).
+  `Scenes/Battle/skill_overlay.gd` (`SkillOverlay`, the marks on a unit),
+  and for synergies `Scenes/Battle/synergy_playback.gd` (`SynergyPlayback`).
 - Depends on: `Battle` and `SimClock` (native), `BoardView` and `UnitView`
   ([Board](board.md)), `Catalog` (skill names), [Skill](skill.md) events.
 
@@ -60,6 +61,10 @@ a unit already playing its death shows nothing.
 | `skill_resolved` | a 2.5 px shake of the pieces and effects for 0.15 s and the skill's effect (table below) |
 | `passive_triggered` | the passive icon (a diamond left of the hp bar) blinks once; no text |
 | `status_applied`, `status_ended` | a small icon right of the hp bar while it lasts: red "!" taunted, indigo shield guard, cracked ochre shield armor break, gold star stun; a taunt also bounces a "!" over the taunted unit |
+| `synergy_activated` | none here: the screen's roll call (outlines flash, names stamp, the Hợp Lực ring bounces) plays when the battle starts, see [Synergy](synergy.md) |
+| `formation_broken` | the `formation_broken(side, id)` signal; the screen shatters that outline |
+| `modifier_triggered` | by handler, with the hit it belongs to: block "Chặn", reflection "Phản", charge immunity "Mất đà", double hit a gold cell flash and "Gấp đôi", split thin lines from the unit hit to the other members and "Chia đòn", volley the archer recoils and the formation name shows (its arrows fall like Tiễn Vũ's) |
+| `damage_dealt` with `is_blocked_by_modifier` | no number (the "Chặn" says it) |
 
 Skill effects, from `SkillPlayback`'s registry by skill id:
 
@@ -69,7 +74,7 @@ Skill effects, from `SkillPlayback`'s registry by skill id:
 | `skill.sweep` | a wide arc over the three cells in front |
 | `skill.heart_pierce` | a long thrust line down the column |
 | `skill.breakthrough` | dust at the start, a star burst on each impact |
-| `skill.arrow_rain` | one arrow falls per hit, 0.07 s apart; each hit lands with its arrow |
+| `skill.arrow_rain`, `formation.arrow_rain` (volley) | one arrow falls per hit, 0.07 s apart; each hit lands with its arrow |
 | `skill.arcane_circle` and any skill not in the registry | a spinning glyph on each cell |
 
 Big effects are capped at 3 at a time (a resolve over the cap shows only the
@@ -90,6 +95,8 @@ battle speed.
 | `speed` | property | 1, 2 or 4 |
 | `tick_advanced(tick)` | signal | After each stepped tick (the screen updates the timer and side bars) |
 | `battle_finished(winner, reason)` | signal | After the closing animation |
+| `formation_broken(side, formation_id)` | signal | A formation lost a member |
+| `get_impact_delay(event_id)`, `show_source_name(view, source_id, color)` | methods | Helpers `SynergyPlayback` uses |
 
 `BattleFx` factories: `arrow`, `bolt`, `cell_flash`, `slash`, `number`,
 `shield_flash`, `dust`; `SkillFx` (a `BattleFx`) adds `area_glow`,
@@ -107,7 +114,10 @@ None. Use `Battle.log_enabled` for the simulation's own log.
 ## How to extend
 
 - **New event type:** add a handler to `_handlers` in `_ready()` (skill
-  events: `SkillPlayback.get_handlers()`).
+  events: `SkillPlayback.get_handlers()`, synergy events:
+  `SynergyPlayback.get_handlers()`).
+- **A modifier proc's look:** add its handler id to `_looks` in
+  `SynergyPlayback._init()`.
 - **A skill's look:** add its id to `_resolvers` (on resolve) or
   `_damage_looks` (per damage event, may delay the hit) in
   `SkillPlayback._init()`, with a `SkillFx` factory if needed. A status icon

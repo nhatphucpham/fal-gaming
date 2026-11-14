@@ -23,6 +23,7 @@ var prep_seconds: int = RunSettings.DEFAULT_PREP_SECONDS
 ## Whether the screen writes the save (tests turn it off).
 var is_saving: bool = true
 var layout: RunLayout
+var synergy_hud: SynergyHud
 var controller: PrepController
 var playback: BattlePlayback
 var timer: PrepTimer
@@ -62,6 +63,8 @@ func _ready() -> void:
 	add_child(controller)
 	controller.setup(run, layout.board, layout.bench, layout.shop, layout.sell_zone, layout.ghost, _pieces, _enemy_views, _enemy_lineup)
 	_hud = RunHud.new(run, layout)
+	synergy_hud = SynergyHud.new(run, layout, _enemy_lineup)
+	layout.info_panel.catalog = _catalog
 	_connect_signals()
 	_update_speed_label()
 	if run.phase == RunState.Phase.REWARD:
@@ -94,6 +97,7 @@ func start_battle() -> bool:
 	_enemy_views.set_dim(0.0)
 	layout.board.set_top_half_dim(0.0)
 	layout.show_battle_layout()
+	synergy_hud.roll_call()
 	_on_tick_advanced(0)
 	playback.begin(_battle, layout.board, views, sim_clock, _catalog)
 	return true
@@ -142,6 +146,9 @@ func _connect_signals() -> void:
 	reward_screen.reward_chosen.connect(_on_reward_chosen)
 	controller.action_refused.connect(func(result: RunState.Result) -> void: _hud.show_refusal(result))
 	controller.info_requested.connect(_show_info)
+	controller.preview_requested.connect(synergy_hud.preview)
+	controller.preview_ended.connect(synergy_hud.end_preview)
+	playback.formation_broken.connect(synergy_hud.on_formation_broken)
 	timer.seconds_changed.connect(func(seconds: int) -> void: layout.timer_badge.show_seconds(seconds, prep_seconds))
 	timer.expired.connect(start_battle)
 	playback.tick_advanced.connect(_on_tick_advanced)
@@ -178,6 +185,9 @@ func _show_stage() -> void:
 	layout.board.set_top_half_dim(1.0)
 	_pieces.rebuild()
 	_hud.show_all()
+	synergy_hud.end_battle()
+	synergy_hud.refresh(false)
+	synergy_hud.refresh_enemy()
 	layout.show_prep_layout()
 
 
@@ -246,8 +256,9 @@ func _press(result: RunState.Result, button: CostButton) -> void:
 		_hud.show_refusal(result, button)
 
 
-func _show_info(unit: UnitData, star: int) -> void:
+func _show_info(unit: UnitData, star: int, side: int) -> void:
 	if unit != null:
+		layout.info_panel.milestone_counts = synergy_hud.get_counts(side)
 		layout.info_panel.open(unit, UnitStats.derive(_catalog, unit, star), star)
 
 
@@ -257,6 +268,7 @@ func _on_battle_long_press(cell: Vector2i) -> void:
 		return
 	for state: Dictionary in _battle.get_units():
 		if state["alive"] and state["col"] == cell.x and state["row"] == cell.y:
+			layout.info_panel.milestone_counts = synergy_hud.get_counts(state["side"])
 			layout.info_panel.open(_catalog.get_unit(state["unit_id"]), UnitStats.from_state(_catalog, state), state["star"])
 			return
 

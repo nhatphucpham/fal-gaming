@@ -1,0 +1,18 @@
+[gd_resource type="FormationData" format=3]
+
+[sub_resource type="ModifierData" id="mod_1"]
+handler = &"mod.attack_speed_pct"
+scope = &"scope.slots"
+slots = PackedInt32Array(3, 4)
+value = 30
+
+[resource]
+id = &"formation.wild_geese"
+name_key = "FORMATION_WILD_GEESE"
+description_key = "FORMATION_WILD_GEESE_DESC"
+pattern = &"pattern.shape"
+cells = Array[Vector2i]([Vector2i(0, 0), Vector2i(-1, 1), Vector2i(1, 1), Vector2i(-2, 2), Vector2i(2, 2)])
+slot_classes = PackedStringArray("", "", "", "", "")
+middle_slot = 0
+color = Color(0.5, 0.95, 0.95, 1)
+modifiers = Array[ModifierData]([SubResource("mod_1")])

@@ -2,8 +2,8 @@ class_name RunLayout
 extends Control
 ## Builds the run screen's widgets in a 720-wide portrait column and slides
 ## between the preparation and battle layouts. Top to bottom: stage and
-## morale with the countdown, the board (cells of 80 px), the units-on-board
-## counter, the bench, the shop (which becomes the sell zone), gold, supply
+## morale with the countdown, the board (cells of 80 px), the info row
+## (Hợp Lực ring, formation chips, "+N", units on the board), the bench, the shop (which becomes the sell zone), gold, supply
 ## and level with their buttons, and "Ra trận". RunScreen wires them up.
 
 const COLUMN_WIDTH_PX: float = 720.0
@@ -21,6 +21,9 @@ var stage_name_label: Label
 var morale_chip: ResourceChip
 var timer_badge: TimerBadge
 var capacity_chip: ResourceChip
+var synergy_bar: SynergyBar
+## Formation outlines, on the board under the pieces.
+var outlines: FormationOutlines
 var gold_chip: ResourceChip
 var supply_chip: ResourceChip
 var level_chip: ResourceChip
@@ -35,6 +38,7 @@ var piece_overlay: Node2D
 var ghost: DragGhost
 var banner: ResultBanner
 var info_panel: UnitInfoPanel
+var synergy_panel: SynergyPanel
 
 var _prep_panel: Control
 var _battle_panel: Control
@@ -130,19 +134,28 @@ func _build_board() -> Control:
 	board.scale = Vector2(BOARD_SCALE, BOARD_SCALE)
 	board.position = Vector2(frame_px, frame_px)
 	slot.add_child(board)
+	outlines = FormationOutlines.new()
+	board.get_outline_layer().add_child(outlines)
 	return slot
 
 
 func _build_info_row() -> Control:
-	var row := _margins(SIDE_GUTTER_PX + 8, 0, SIDE_GUTTER_PX, 0)
-	row.custom_minimum_size = Vector2(0, 50)
+	var margins := _margins(SIDE_GUTTER_PX + 8, 0, SIDE_GUTTER_PX, 0)
+	margins.custom_minimum_size = Vector2(0, 50)
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override(&"separation", 8)
+	margins.add_child(row)
+	synergy_bar = SynergyBar.new()
+	synergy_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	synergy_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(synergy_bar)
 	capacity_chip = ResourceChip.new()
 	capacity_chip.setup(&"troops")
 	capacity_chip.custom_minimum_size = Vector2(120, 46)
-	capacity_chip.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	capacity_chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	row.add_child(capacity_chip)
-	return row
+	return margins
 
 
 func _build_lower() -> Control:
@@ -224,6 +237,8 @@ func _build_overlay() -> void:
 	add_child(banner)
 	info_panel = UnitInfoPanel.new()
 	add_child(info_panel)
+	synergy_panel = SynergyPanel.new()
+	add_child(synergy_panel)
 
 
 func _chip(row: HBoxContainer, kind: StringName) -> ResourceChip:

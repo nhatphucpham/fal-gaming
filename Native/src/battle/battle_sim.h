@@ -12,8 +12,12 @@
 // use; presentation code goes through the Battle node instead.
 
 #include "battle_board.h"
+#include "battle_damage.h"
+#include "battle_modifiers.h"
 #include "battle_rules.h"
 #include "battle_types.h"
+
+#include "rules/synergy_types.h"
 
 #include <cstdint>
 #include <string>
@@ -24,6 +28,8 @@ namespace battle {
 struct TargetingHandler;
 struct ShapeHandler;
 struct OpeningHandler;
+struct PassiveContext;
+struct Hit;
 
 // One damage event through the pipeline (basic attacks, skills, passives).
 struct DamageSpec {
@@ -39,6 +45,9 @@ struct DamageSpec {
 	int cause = 0;
 	// A melee basic attack: counts for passives that react to melee hits.
 	bool is_melee_attack = false;
+	// When 0 or more: the damage, skipping the pipeline and the block, split
+	// and reflect modifiers (a reflected hit or a split share).
+	int fixed_amount = -1;
 };
 
 class BattleSim {
@@ -65,6 +74,11 @@ class BattleSim {
 	std::vector<BattleEvent> events;
 	int tick = 0;
 	int next_event_id = 1;
+	// Milestones, formations and Hợp Lực (battle_synergy.cpp).
+	bool has_synergy = false;
+	rules::SynergyConfig synergy;
+	std::vector<SynergySource> sources;
+	std::vector<ActiveModifier> modifiers;
 	bool started = false;
 	bool finished = false;
 	int winner = NO_WINNER;
@@ -80,6 +94,8 @@ class BattleSim {
 	void move_toward_target(int p_unit);
 	int pick_nearest_reachable_enemy(int p_unit) const;
 	bool find_step_toward(int p_unit, int p_target, Cell *r_step) const;
+	void apply_attack_modifiers(int p_unit, int p_attack_event, PassiveContext *r_landed);
+	void add_pierce_hit(int p_unit, std::vector<Hit> *r_hits) const;
 	void apply_hit(int p_attacker, int p_victim, int p_blocked_by, int p_attack_event, bool p_is_crit, int p_increase_pct);
 	void react_to_damage(const DamageSpec &p_spec, int p_damage_event);
 	void kill(int p_victim, int p_killer, int p_damage_event);
@@ -87,6 +103,20 @@ class BattleSim {
 	void check_end();
 	void end_battle(int p_winner, EndReason p_reason);
 	int get_time_limit_winner() const;
+	// battle_synergy.cpp
+	void install_synergy();
+	void install_side(int p_side);
+	void apply_start_stats();
+	void emit_synergy_events();
+	void run_volleys();
+	void fire_volley(const ActiveModifier &p_modifier);
+	void break_formations(int p_victim, int p_cause);
+	void reward_ally_kill(int p_killer, int p_cause);
+	int adjust_hit_amount(const DamageSpec &p_spec, int p_amount, bool *r_is_blocked, int *r_split_modifier, int *r_share);
+	void share_split(const DamageSpec &p_spec, int p_split_modifier, int p_share, int p_cause);
+	void reflect_melee(const DamageSpec &p_spec, int p_amount, int p_cause);
+	void fill_damage_request(const DamageSpec &p_spec, DamageRequest *r_request) const;
+	void hash_synergy_state(uint64_t *r_hash) const;
 
 public:
 	// Rules can change only while no unit has been added.
@@ -96,7 +126,13 @@ public:
 	bool register_class(const ClassDef &p_def, std::string *r_error);
 	// Returns the new unit's index, or NO_UNIT and sets r_error.
 	int add_unit(int p_side, const UnitSpec &p_spec, int p_local_col, int p_local_rank, std::string *r_error);
-	// Removes all units and resets the clock; classes and rules stay.
+	// Milestones, formations and Hợp Lực for both sides, evaluated at
+	// start(). Refused once units exist; fails on a bad configuration.
+	bool set_synergy(const rules::SynergyConfig &p_config, std::string *r_error);
+	void clear_synergy();
+	bool has_synergy_config() const { return has_synergy; }
+	// Removes all units and resets the clock; classes, rules and the synergy
+	// configuration stay.
 	void clear();
 	bool start(std::string *r_error);
 	// Advances one tick and returns that tick's events (valid until the next
@@ -136,6 +172,21 @@ public:
 	// Starts a move into a free neighbour cell; returns the move event id.
 	int start_move(int p_unit, const Cell &p_to, int p_duration_ticks, MoveKind p_kind, int p_cause);
 	int emit_event(BattleEvent p_event);
+
+	// Modifier API (battle_modifiers.h). Only modifiers whose unit lives and
+	// whose source is active count.
+	int sum_modifiers(int p_unit, rules::ModifierKind p_kind) const;
+	// The unit's first working modifier of a kind, or nullptr.
+	ActiveModifier *find_modifier(int p_unit, rules::ModifierKind p_kind);
+	const ActiveModifier *find_modifier(int p_unit, rules::ModifierKind p_kind) const;
+	// Emits modifier_triggered for a visible proc; returns the event id.
+	int emit_modifier_triggered(int p_unit, const ActiveModifier &p_modifier, int p_cause, const std::vector<Cell> &p_cells = {});
+	const std::vector<SynergySource> &get_synergy_sources() const { return sources; }
+	// The class range plus the unit's range bonus.
+	int get_range_cells(const UnitState &p_unit) const;
+	// Pushes the unit up to p_cells cells along p_row_step, stopping before
+	// the first taken cell; returns whether it moved.
+	bool knock_back_cells(int p_unit, int p_row_step, int p_cells, int p_cause);
 
 	// Skill API, used by Native/src/skill/.
 	// The unit's skill state (Khí, cast, statuses, passive counters, charge).

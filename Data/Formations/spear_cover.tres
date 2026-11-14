@@ -1,0 +1,15 @@
+[gd_resource type="FormationData" format=3]
+
+[sub_resource type="ModifierData" id="mod_1"]
+handler = &"mod.charge_immunity"
+scope = &"scope.members"
+
+[resource]
+id = &"formation.spear_cover"
+name_key = "FORMATION_SPEAR_COVER"
+description_key = "FORMATION_SPEAR_COVER_DESC"
+pattern = &"pattern.shape"
+cells = Array[Vector2i]([Vector2i(0, 0), Vector2i(0, 1)])
+slot_classes = PackedStringArray("class.spear", "class.archer")
+color = Color(0.95, 0.85, 0.35, 1)
+modifiers = Array[ModifierData]([SubResource("mod_1")])

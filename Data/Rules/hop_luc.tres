@@ -1,0 +1,56 @@
+[gd_resource type="HopLucData" format=3]
+
+[sub_resource type="ModifierData" id="mod_1"]
+handler = &"mod.start_qi"
+scope = &"scope.side"
+value = 10
+
+[sub_resource type="SynergyTierData" id="tier_1"]
+at = 3
+description_key = "HOP_LUC_3"
+modifiers = Array[ModifierData]([SubResource("mod_1")])
+
+[sub_resource type="ModifierData" id="mod_2"]
+handler = &"mod.damage_dealt_pct"
+scope = &"scope.side"
+value = 8
+
+[sub_resource type="SynergyTierData" id="tier_2"]
+at = 6
+description_key = "HOP_LUC_6"
+modifiers = Array[ModifierData]([SubResource("mod_2")])
+
+[sub_resource type="ModifierData" id="mod_3"]
+handler = &"mod.max_hp_pct"
+scope = &"scope.side"
+value = 12
+
+[sub_resource type="SynergyTierData" id="tier_3"]
+at = 9
+description_key = "HOP_LUC_9"
+modifiers = Array[ModifierData]([SubResource("mod_3")])
+
+[sub_resource type="ModifierData" id="mod_4"]
+handler = &"mod.attack_speed_pct"
+scope = &"scope.side"
+value = 10
+
+[sub_resource type="SynergyTierData" id="tier_4"]
+at = 12
+description_key = "HOP_LUC_12"
+modifiers = Array[ModifierData]([SubResource("mod_4")])
+
+[sub_resource type="ModifierData" id="mod_5"]
+handler = &"mod.start_qi"
+scope = &"scope.side"
+value = 30
+
+[sub_resource type="SynergyTierData" id="tier_5"]
+at = 15
+description_key = "HOP_LUC_15"
+modifiers = Array[ModifierData]([SubResource("mod_5")])
+
+[resource]
+formation_level_step_pct = 40
+max_formation_level = 4
+tiers = Array[SynergyTierData]([SubResource("tier_1"), SubResource("tier_2"), SubResource("tier_3"), SubResource("tier_4"), SubResource("tier_5")])

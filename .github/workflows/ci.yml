@@ -133,6 +133,10 @@ jobs:
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/sandbox_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/run_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/run_flow_test.gd
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/formation_test.gd
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/synergy_test.gd
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/formation_battle_test.gd
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/synergy_ui_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --quit-after 2
 
   android:
