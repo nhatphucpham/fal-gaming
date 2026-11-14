@@ -21,13 +21,16 @@
   and `run_flow_test.gd` (stage 1 through the real screens), the formation
   and synergy tests, `epiphany_test.gd` (Kỳ Ngộ), `boss_test.gd` (Cự Nham
   and Hóa Đá), `cutscene_test.gd` (the cutscene screen) and
-  `audio_test.gd` (the Audio autoload).
+  `audio_test.gd` (the Audio autoload). `voice_test.gd` tests the Voice
+  autoload against a fake server on localhost.
 - `Tools/` holds developer scripts that are not tests and not exported:
   `run_bot.gd`, the balance bot that plays whole runs (see
   [Run](systems/run.md)), and `make_sfx.gd`, which writes the sound files
   under `Assets/Sfx/` (see [Audio](systems/audio.md)).
 - `Assets/Sfx/` holds the 24 sound effects and 2 music loops as 16-bit
-  mono WAV files, stored with Git LFS.
+  mono WAV files, stored with Git LFS. `Assets/Voice/` is for voice lines
+  baked into the build, named by `Voice.cache_key()` (none yet; see
+  [Voice](systems/voice.md)).
 - `Data/` holds game content as typed `.tres` resources: `Data/Classes/`,
   `Data/Units/`, `Data/Skills/` and `Data/Passives/` (each class's skill and
   passive), `Data/Rules/` (battle rules and `run_rules.tres`),
@@ -51,7 +54,11 @@
   formation (pure data with signals), and its data types `LineupSlot` and
   `LineupPreset`. `Systems/Audio/` has the `Audio` autoload
   (`AudioService`), the static facade `Sound` that presentation code calls,
-  and the data types `SoundBank` and `SoundData`.
+  and the data types `SoundBank` and `SoundData`. `Systems/Voice/` has the
+  `Voice` autoload (`VoiceService`) and `VoiceLine`, the optional spoken
+  dialogue from the TTS service (see [Voice](systems/voice.md));
+  `Scenes/Dev/voice_demo.tscn` tries it by hand. `Scenes/Dev/` holds
+  developer pages only and is not exported.
 - `Scenes/Board/` holds the reusable battlefield: `BoardView`, `UnitView`,
   `UnitPainter` and `LineupViews`. `Scenes/Battle/` holds `BattlePlayback`
   and `BattleFx`, which play a `Battle` on a board, and `SkillPlayback`,
@@ -79,8 +86,8 @@
   (`BUTTON_*`, `RESULT_*`, `INFO_*`, `STAGE_*`, `REWARD_*`, `END_*`,
   `FORMATION_*`, `MILESTONE_*`, `HOP_LUC*`, `SYNERGY_*`, `EPIPHANY_*`,
   `CUTSCENE_*`, `STORY_*`, `BOSS_*`, `HOWTO_*`, `SOUND_*`).
-- `export_presets.cfg` holds export presets. Each preset excludes `Tests/`
-  and `Tools/`.
+- `export_presets.cfg` holds export presets. Each preset excludes `Tests/`,
+  `Tools/` and `Scenes/Dev/`.
 
 ## Screen flow
 
@@ -99,15 +106,21 @@ cards, and the choice is made there. After the reward of stage 11, the
 story scene with Liễu Mi and Ba Khắc plays before stage 12, the boss
 stage. "Cách chơi" on the title screen opens four tips.
 
-## Autoload
+## Autoloads
 
-`Audio` (`Systems/Audio/audio.gd`, class `AudioService`) is the only
-autoload. It owns the sound players, the mute setting and the web audio
-unlock. Scripts reach it through the static class `Sound`, because an
-autoload's name is not known when a script runs with `--script` (the
-tests), while its node exists at runtime. Only presentation code plays
-sounds; the run's rules and the battle never do. See
-[Audio](systems/audio.md).
+There are two autoloads. An autoload's name is not known when a script
+runs with `--script` (the tests), while its node exists at runtime.
+
+- `Audio` (`Systems/Audio/audio.gd`, class `AudioService`) owns the sound
+  players, the mute setting and the web audio unlock. Scripts reach it
+  through the static class `Sound` because of the `--script` limit. Only
+  presentation code plays sounds; the run's rules and the battle never do.
+  See [Audio](systems/audio.md).
+- `Voice` (`Systems/Voice/voice_service.gd`, class `VoiceService`) is a
+  global service because one request queue, one line cache and one
+  online/offline state must serve every scene that speaks. Scenes call
+  `Voice` directly; `--script` runs cannot use the `Voice` name, so the
+  test creates its own `VoiceService`. See [Voice](systems/voice.md).
 
 The run's rules are GDScript, not C++: they decide only what to buy, place
 and pay between battles, never how a battle goes, so they need no fixed

@@ -9,6 +9,11 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Added
 
+- Voice: an optional `Voice` module can speak dialogue lines with the
+  Falevon TTS service and keeps every line in a cache, so it is generated
+  once. Nothing in the game speaks yet; `Scenes/Dev/voice_demo.tscn` tries
+  it. Without a key or a connection the game shows the text only.
+
 - Kỳ Ngộ: every class and race family fills a Ngộ meter after each
   battle (+1 while active, +1 more after a loss, +2 for the family that
   dealt the most damage). When one is full, a cutscene plays before the
