@@ -2,17 +2,21 @@ class_name ResultBanner
 extends Control
 ## The end-of-battle banner: slides in with "Thắng trận" or "Thua trận", an
 ## optional reason line, optional resource changes that count up (gold and
-## supply won, morale lost) and one button ("Xếp lại" unless set).
+## supply won, morale lost), optional extra gold chips that pop in after
+## them with a coin sound ("+1 chuỗi thắng") and one button ("Xếp lại"
+## unless set).
 ## [codeblock]
 ## banner.button_pressed.connect(_return_to_setup)
 ## banner.present(true, "")
 ## banner.present(false, "", [[&"morale", -12]], "BUTTON_CONTINUE")
+## banner.present(true, "", [[&"coin", 1]], "BUTTON_CONTINUE", [["chuỗi thắng", 1]])
 ## [/codeblock]
 
 signal button_pressed()
 
 const PANEL_WIDTH_PX: float = 560.0
 const SLIDE_PX: float = 260.0
+const EXTRA_SIZE := Vector2(300, 56)
 
 var _shade: ColorRect
 var _panel: PanelContainer
@@ -20,6 +24,7 @@ var _title: Label
 var _reason: Label
 var _button: PressButton
 var _deltas_row: HBoxContainer
+var _extras_row: HBoxContainer
 var _win_box: StyleBoxFlat
 var _loss_box: StyleBoxFlat
 var _tween: Tween
@@ -63,6 +68,10 @@ func _init() -> void:
 	_deltas_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_deltas_row.add_theme_constant_override(&"separation", 16)
 	rows.add_child(_deltas_row)
+	_extras_row = HBoxContainer.new()
+	_extras_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	_extras_row.add_theme_constant_override(&"separation", 12)
+	rows.add_child(_extras_row)
 	_button = PressButton.new()
 	_button.text = "BUTTON_REARRANGE"
 	_button.custom_minimum_size = Vector2(300, 88)
@@ -73,10 +82,12 @@ func _init() -> void:
 
 
 ## Slides the banner in. `reason_text` is shown under the title when not
-## empty; each of `deltas` ([icon kind, amount]) counts up from 0 in a chip.
-func present(is_win: bool, reason_text: String, deltas: Array = [], button_key: String = "BUTTON_REARRANGE") -> void:
+## empty; each of `deltas` ([icon kind, amount]) counts up from 0 in a chip;
+## each of `extras` ([caption, gold]) pops in after them as its own chip.
+func present(is_win: bool, reason_text: String, deltas: Array = [], button_key: String = "BUTTON_REARRANGE", extras: Array = []) -> void:
 	_button.text = button_key
 	_show_deltas(deltas)
+	_show_extras(extras, 0.35 + deltas.size() * 0.2)
 	_title.text = "RESULT_WIN" if is_win else "RESULT_LOSS"
 	_title.add_theme_color_override(&"font_color", Palette.GOLD if is_win else Palette.CREAM)
 	_panel.add_theme_stylebox_override(&"panel", _win_box if is_win else _loss_box)
@@ -125,6 +136,30 @@ func _show_deltas(deltas: Array) -> void:
 		tween.tween_interval(0.35 + index * 0.2)
 		tween.tween_callback(func() -> void: chip.set_value(amount))
 		chip.modulate = Palette.CREAM if amount >= 0 else Color("ffb4a6")
+
+
+# Gold chips with a caption, after the deltas: each pops from small with
+# the coin sound.
+func _show_extras(extras: Array, start_sec: float) -> void:
+	for child: Node in _extras_row.get_children():
+		child.queue_free()
+	_extras_row.visible = not extras.is_empty()
+	for index: int in extras.size():
+		var extra: Array = extras[index]
+		var chip := ResourceChip.new()
+		chip.setup(&"coin", " " + String(extra[0]))
+		chip.is_signed = true
+		chip.custom_minimum_size = EXTRA_SIZE
+		_extras_row.add_child(chip)
+		chip.set_value(extra[1], false)
+		chip.pivot_offset = EXTRA_SIZE / 2.0
+		chip.scale = Vector2(0.2, 0.2)
+		chip.modulate.a = 0.0
+		var tween := chip.create_tween()
+		tween.tween_interval(start_sec + index * 0.25)
+		tween.tween_callback(func() -> void: Sound.play(&"coin"))
+		tween.tween_property(chip, ^"modulate:a", 1.0, 0.1)
+		tween.parallel().tween_property(chip, ^"scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _restart_tween() -> void:

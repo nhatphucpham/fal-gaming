@@ -11,7 +11,9 @@ title screen, a run is 12 stages: in each preparation buy units from a shop
 of five, keep them on a bench, place them on your half of the 7 x 8 board
 and merge three copies into a stronger star, then press **Ra trận** and
 watch the battle at x1, x2 or x4. Wins give gold and supply, losses cost
-morale; after each stage pick a reward. The run is saved as you play (every
+morale, and wins in a row pay a streak bonus; after each stage pick a
+reward, and after stages 2, 4, 6, 8 and 10 a road encounter offers two
+choices (gold, supply, morale, a free unit, free refreshes or a bet). The run is saved as you play (every
 change in the preparation, each battle result and reward) and can be
 continued. Class and race milestones, formations and Hợp Lực make the
 line-up's shape matter; Kỳ Ngộ, shown in a cutscene, lets a milestone

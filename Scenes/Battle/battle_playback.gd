@@ -63,6 +63,7 @@ func _ready() -> void:
 	_handlers = {
 		&"unit_moved": _on_unit_moved,
 		&"unit_attacked": _on_unit_attacked,
+		&"charge_ended": _on_charge_ended,
 		&"damage_dealt": _on_damage_dealt,
 		&"unit_died": _on_unit_died,
 		&"battle_ended": _on_battle_ended,
@@ -211,6 +212,20 @@ func _on_unit_moved(event: Dictionary) -> void:
 			Sound.play(&"charge")
 		elif kind == &"knockback":
 			spawn_fx(BattleFx.dust(view.position + UnitView.FEET)))
+
+
+# A charge that hit kicks up dust where rider and target meet (the hit
+# itself sounds through damage_dealt). A charge that hit nothing shows none.
+func _on_charge_ended(event: Dictionary) -> void:
+	var rider := get_view(event["unit"])
+	var target := get_view(event["hit"]) if event["hit"] >= 0 else null
+	if rider == null or target == null:
+		return
+	var meet := rider.position.lerp(target.position, 0.6) + UnitView.FEET
+	run_after(MELEE_IMPACT_SEC, func() -> void:
+		spawn_fx(BattleFx.dust(meet))
+		spawn_fx(BattleFx.dust(meet + Vector2(-14, 4)))
+		spawn_fx(BattleFx.dust(meet + Vector2(14, 4))))
 
 
 func _on_unit_attacked(event: Dictionary) -> void:

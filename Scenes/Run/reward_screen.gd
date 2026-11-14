@@ -1,9 +1,9 @@
 class_name RewardScreen
 extends Control
-## After a battle: two or three large reward cards slide in; tapping one
-## pops it while the others fall away, then `reward_chosen` fires. The
-## cards come from a registry by reward, so a new reward is one entry here
-## plus its rule in RunState.
+## After a battle: two or three large reward cards (drawn from the four
+## rewards) slide in; tapping one pops it while the others fall away, then
+## `reward_chosen` fires. The cards come from a registry by reward, so a new
+## reward is one entry here plus its rule in RunState.
 ## [codeblock]
 ## reward_screen.reward_chosen.connect(run.choose_reward)
 ## reward_screen.present(run.get_reward_options(), run.rules)
@@ -86,6 +86,7 @@ func _looks(rules: RunRules) -> Dictionary:
 		RunState.Reward.REST: [&"tent", "REWARD_REST", tr("REWARD_REST_EFFECT") % rules.rest_morale],
 		RunState.Reward.HUNT: [&"bow", "REWARD_HUNT", tr("REWARD_HUNT_EFFECT") % rules.hunt_supply],
 		RunState.Reward.BLACK_MARKET: [&"lantern", "REWARD_BLACK_MARKET", tr("REWARD_BLACK_MARKET_EFFECT")],
+		RunState.Reward.LOOT: [&"coin", "REWARD_LOOT", tr("REWARD_LOOT_EFFECT") % rules.loot_gold],
 	}
 
 

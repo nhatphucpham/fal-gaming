@@ -1,0 +1,39 @@
+[gd_resource type="Resource" script_class="EncounterData" format=3]
+
+[ext_resource type="Script" path="res://Systems/Run/encounter_effect.gd" id="1_effect"]
+[ext_resource type="Script" path="res://Systems/Run/encounter_option.gd" id="2_option"]
+[ext_resource type="Script" path="res://Systems/Run/encounter_data.gd" id="3_data"]
+
+[sub_resource type="Resource" id="effect_1"]
+script = ExtResource("1_effect")
+kind = &"gain.gold"
+amount = 8
+
+[sub_resource type="Resource" id="effect_2"]
+script = ExtResource("1_effect")
+kind = &"gain.morale"
+amount = -6
+
+[sub_resource type="Resource" id="option_0"]
+script = ExtResource("2_option")
+title_key = "ENCOUNTER_STOREHOUSE_A"
+effects = Array[ExtResource("1_effect")]([SubResource("effect_1"), SubResource("effect_2")])
+
+[sub_resource type="Resource" id="effect_3"]
+script = ExtResource("1_effect")
+kind = &"gain.gold"
+amount = 3
+
+[sub_resource type="Resource" id="option_1"]
+script = ExtResource("2_option")
+title_key = "ENCOUNTER_STOREHOUSE_B"
+effects = Array[ExtResource("1_effect")]([SubResource("effect_3")])
+
+[resource]
+script = ExtResource("3_data")
+id = &"encounter.storehouse"
+name_key = "ENCOUNTER_STOREHOUSE"
+speaker = &"unit.shield_guard"
+line_keys = Array[String](["ENCOUNTER_STOREHOUSE_LINE_1", "ENCOUNTER_STOREHOUSE_LINE_2"])
+line_speakers = Array[int]([1, 0])
+options = Array[ExtResource("2_option")]([SubResource("option_0"), SubResource("option_1")])

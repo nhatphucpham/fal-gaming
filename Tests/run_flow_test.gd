@@ -19,6 +19,8 @@ const TEST_SAVE_PATH: String = "user://run_save_test.json"
 const MAX_FRAMES: int = 3000
 const STEP_SEC: float = 0.25
 const SLIDE_WAIT_SEC: float = 0.5
+## A run past stage 10 has met all five road encounters.
+const FIVE_ENCOUNTERS: Array[String] = ["encounter.merchants", "encounter.wager", "encounter.deserters", "encounter.villagers", "encounter.stranger"]
 
 var _main: Node
 var _screen: RunScreen
@@ -58,7 +60,7 @@ func _run() -> bool:
 	var checks: Array[Callable] = [
 		_check_place, _check_bench_gap_drag, _check_sell_zone_release, _check_battle, _check_reward,
 		_check_reward_after_reload, _check_second_fight_press, _check_prep_saves, _check_sell_zone_hold_and_slide,
-		_check_loss_deletes_save, _check_bad_save_cleared, _check_epiphany_flow, _check_story_and_boss_loss,
+		_check_loss_deletes_save, _check_bad_save_cleared, _check_epiphany_flow, _check_encounter_resume, _check_story_and_boss_loss,
 		_check_boss_win,
 	]
 	for check: Callable in checks:
@@ -338,6 +340,17 @@ func _push_mouse(at: Vector2, is_pressed: bool, is_canceled: bool = false) -> vo
 	root.push_input(event, true)
 
 
+# A finger on the screen, sent through Input like a phone's touch (mouse
+# emulation from touch is on, as on the phone). `at` is in the game's
+# coordinates; Input takes window pixels.
+func _push_touch(at: Vector2, is_pressed: bool) -> void:
+	var event := InputEventScreenTouch.new()
+	event.index = 0
+	event.pressed = is_pressed
+	event.position = root.get_screen_transform() * at
+	Input.parse_input_event(event)
+
+
 func _push_motion(at: Vector2) -> void:
 	var event := InputEventMouseMotion.new()
 	event.position = at
@@ -398,8 +411,90 @@ func _check_epiphany_flow() -> bool:
 		push_error("The reward cards should follow the Kỳ Ngộ cutscene")
 		return false
 	await _hold_reward_card(0)
-	if run.phase != RunState.Phase.PREP or run.stage != 3 or not _screen.controller.is_enabled:
-		push_error("A reward after the Kỳ Ngộ should begin stage 3, got stage %d in %s" % [run.stage, RunState.Phase.keys()[run.phase]])
+	# Stage 2 is a road stage: the encounter cutscene comes before stage 3.
+	saved = RunSave.load_run(_main._catalog)
+	var road := _screen.interludes.cutscene
+	if run.phase != RunState.Phase.ENCOUNTER or road == null or saved == null or saved.phase != RunState.Phase.ENCOUNTER:
+		push_error("A reward at stage 2 should open a saved road encounter, got %s" % RunState.Phase.keys()[run.phase])
+		return false
+	await _skip_when_typing(road)
+	await process_frame
+	if not await _touch_encounter_card(run, road):
+		return false
+	await create_timer(1.5).timeout
+	if run.phase != RunState.Phase.PREP or run.stage != 3 or not _screen.controller.is_enabled or _screen.interludes.is_playing():
+		push_error("The road encounter should begin stage 3, got stage %d in %s" % [run.stage, RunState.Phase.keys()[run.phase]])
+		return false
+	return await _check_second_fight_press()
+
+
+# Touches (a real screen touch through Input) the first card the run can
+# pay for; the choice lands in the run at once.
+func _touch_encounter_card(run: RunState, cutscene: CutsceneScreen) -> bool:
+	var cards := cutscene.find_children("*", "CutsceneChoiceCard", true, false)
+	var pending := run.encounters.get_pending()
+	if not cutscene.is_choosing() or pending == null or cards.size() != pending.options.size():
+		push_error("The road encounter should show one card per option")
+		return false
+	for index: int in cards.size():
+		var card := cards[index] as CutsceneChoiceCard
+		if card.is_disabled() != (run.get_encounter_refusal(index) != RunState.Result.OK):
+			push_error("Encounter card %d disabled should match whether the run can pay" % index)
+			return false
+		if card.is_disabled():
+			continue
+		var center := card.get_global_rect().get_center()
+		_push_touch(center, true)
+		await create_timer(0.2).timeout
+		_push_touch(center, false)
+		await create_timer(0.3).timeout
+		if run.phase == RunState.Phase.ENCOUNTER:
+			push_error("A touch on encounter card %d did not choose it" % index)
+			return false
+		return true
+	push_error("Every road encounter should offer one card the run can pay")
+	return false
+
+
+# A run closed at a road encounter (here: no gold, so the deserters' paid
+# card is out) resumes on the same encounter. Touching the greyed card
+# shakes it and changes nothing; the other card goes on to stage 3.
+func _check_encounter_resume() -> bool:
+	var run := _saved_run({"phase": "encounter", "stage": 2, "stages_cleared": 2, "gold": 0, "rewards": [],
+		"encounter": {"drawn": ["encounter.deserters"], "pending": "encounter.deserters", "bet_gold": 0}}, {})
+	if run == null:
+		return false
+	_screen = _main.continue_run()
+	if _screen == null:
+		push_error("Continuing a run saved at a road encounter failed")
+		return false
+	await create_timer(SLIDE_WAIT_SEC).timeout
+	run = _screen.run
+	var cutscene := _screen.interludes.cutscene
+	if run.phase != RunState.Phase.ENCOUNTER or cutscene == null or run.encounters.get_pending().id != &"encounter.deserters":
+		push_error("Continuing should replay the same road encounter")
+		return false
+	await _skip_when_typing(cutscene)
+	await process_frame
+	var cards := cutscene.find_children("*", "CutsceneChoiceCard", true, false)
+	if cards.size() != 2 or not (cards[0] as CutsceneChoiceCard).is_disabled() or (cards[1] as CutsceneChoiceCard).is_disabled():
+		push_error("With no gold the deserters' paid card should be greyed out and the other open")
+		return false
+	var refused: Array[int] = []
+	cutscene.choice_refused.connect(func(choice: int) -> void: refused.append(choice))
+	var center := (cards[0] as Control).get_global_rect().get_center()
+	_push_touch(center, true)
+	await create_timer(0.2).timeout
+	_push_touch(center, false)
+	await create_timer(0.5).timeout
+	if refused != [0] or run.phase != RunState.Phase.ENCOUNTER or run.gold != 0:
+		push_error("A touch on the greyed card should be refused and change nothing (refused %s)" % [refused])
+		return false
+	if not await _touch_encounter_card(run, cutscene):
+		return false
+	await create_timer(1.5).timeout
+	if run.phase != RunState.Phase.PREP or run.stage != 3 or run.gold < 3:
+		push_error("The deserters' free card should pay 3 gold and begin stage 3")
 		return false
 	return await _check_second_fight_press()
 
@@ -410,7 +505,8 @@ func _check_epiphany_flow() -> bool:
 # loss the boss bar is gone at the reward cards, the battle speed no longer
 # pitches sounds, and the next reward goes straight to stage 12 again.
 func _check_story_and_boss_loss() -> bool:
-	var run := _saved_run({"phase": "reward", "stage": 11, "stages_cleared": 11, "rewards": ["reward.rest", "reward.hunt", "reward.black_market"]}, {})
+	var run := _saved_run({"phase": "reward", "stage": 11, "stages_cleared": 11, "rewards": ["reward.rest", "reward.hunt", "reward.black_market"],
+		"encounter": {"drawn": FIVE_ENCOUNTERS, "pending": "", "bet_gold": 0}}, {})
 	if run == null:
 		return false
 	_screen = _main._open_run(run)
@@ -472,7 +568,8 @@ func _check_boss_win() -> bool:
 	for index: int in units.size():
 		var unit: Array = units[index]
 		pieces.append({"id": index + 1, "unit_id": unit[0], "star": unit[1], "bench": -1, "col": unit[2], "rank": unit[3], "has_fought": true})
-	var run := _saved_run({"stage": 12, "stages_cleared": 11, "level": 9, "pieces": pieces, "next_piece_id": units.size() + 1}, {})
+	var run := _saved_run({"stage": 12, "stages_cleared": 11, "level": 9, "pieces": pieces, "next_piece_id": units.size() + 1,
+		"encounter": {"drawn": FIVE_ENCOUNTERS, "pending": "", "bet_gold": 0}}, {})
 	if run == null:
 		return false
 	_screen = _main._open_run(run)

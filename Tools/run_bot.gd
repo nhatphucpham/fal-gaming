@@ -2,9 +2,12 @@ extends SceneTree
 
 # Balance bot: plays whole runs headless with a simple greedy policy through
 # the public RunState API and a Battle node, then prints per-stage win rates,
-# average morale left and the run win rate. Not shipped (Tools/ is excluded
-# from every export preset). Usage:
-#   godot --headless --path . --script res://Tools/run_bot.gd -- <runs> [first_seed] [verbose]
+# average morale left and the run win rate. --weak stands in for a new
+# player: it buys the first affordable unit, never refreshes, sells or buys
+# supply, and places units left to right. Both take the road encounter
+# option that gives the most gold. Not shipped (Tools/ is excluded from
+# every export preset). Usage:
+#   godot --headless --path . --script res://Tools/run_bot.gd -- <runs> [first_seed] [verbose] [--weak]
 # See Docs/systems/run.md for the policy and the latest numbers.
 
 const MAX_BATTLE_TICKS: int = 4000
@@ -27,6 +30,11 @@ var _boss_casts: int = 0
 var _boss_petrified: int = 0
 var _boss_fights: int = 0
 var _verbose: bool = false
+var _is_weak: bool = false
+var _encounters: int = 0
+var _bets_won: int = 0
+var _bets: int = 0
+var _streak_gold: int = 0
 
 
 func _initialize() -> void:
@@ -37,14 +45,20 @@ func _initialize() -> void:
 			push_error(problem)
 		quit(1)
 		return
-	var args := OS.get_cmdline_user_args()
+	var args := Array(OS.get_cmdline_user_args())
+	_is_weak = args.has("--weak")
+	_verbose = args.has("verbose")
+	args = args.filter(func(arg: String) -> bool: return arg.is_valid_int())
 	var runs := int(args[0]) if args.size() > 0 else 200
 	var first_seed := int(args[1]) if args.size() > 1 else 1000
-	_verbose = args.size() > 2 and args[2] == "verbose"
 	var won := 0
 	var cleared_total := 0
 	for index: int in runs:
 		var run := RunState.new(_catalog, first_seed + index)
+		run.streak_paid.connect(func(_streak: int, gold: int) -> void: _streak_gold += gold)
+		run.bet_settled.connect(func(is_win: bool, _gold: int) -> void:
+			_bets += 1
+			_bets_won += 1 if is_win else 0)
 		run.start()
 		if _play(run):
 			won += 1
@@ -61,10 +75,13 @@ func _play(run: RunState) -> bool:
 		if battles > MAX_BATTLES_PER_RUN:
 			_given_up += 1
 			return false
-		_prepare(run)
+		if _is_weak:
+			_prepare_weak(run)
+		else:
+			_prepare(run)
 		var stage := run.stage
 		if _verbose:
-			print("stage %d level %d gold %d supply %d board %s" % [stage, run.level, run.gold, run.supply, run.get_board_slots().map(func(s: LineupSlot) -> String: return "%s*%d" % [String(s.unit_id).trim_prefix("unit."), s.star])])
+			print("stage %d level %d gold %d supply %d board %s" % [stage, run.level, run.gold, run.supply, _describe_board(run)])
 		run.begin_battle()
 		var result := _fight(run)
 		run.finish_battle(result[0], result[1], result[2])
@@ -81,7 +98,64 @@ func _play(run: RunState) -> bool:
 				run.choose_epiphany(0)
 				_epiphanies += 1
 			run.choose_reward(_pick_reward(run))
+		if run.phase == RunState.Phase.ENCOUNTER:
+			run.choose_encounter(_pick_encounter_option(run))
+			_encounters += 1
 	return run.phase == RunState.Phase.WON
+
+
+# "unit*star" per board piece, for the verbose log.
+func _describe_board(run: RunState) -> Array[String]:
+	var names: Array[String] = []
+	for slot: LineupSlot in run.get_board_slots():
+		names.append("%s*%d" % [String(slot.unit_id).trim_prefix("unit."), slot.star])
+	return names
+
+
+# The affordable option that gives the most gold now (a bet counts at half
+# its payout); ties go to the first.
+func _pick_encounter_option(run: RunState) -> int:
+	var options := run.encounters.get_pending().options
+	var best := -1
+	var best_gold := -INF
+	for index: int in options.size():
+		if run.get_encounter_refusal(index) != RunState.Result.OK:
+			continue
+		var gold := 0.0
+		for effect: EncounterEffect in options[index].effects:
+			if effect.kind == EncounterEffects.GOLD:
+				gold += effect.amount
+			elif effect.kind == EncounterEffects.BET:
+				gold += effect.amount * 0.5
+		if gold > best_gold:
+			best = index
+			best_gold = gold
+	return best
+
+
+# A new player: levels up whenever supply allows, buys the first offer it
+# can pay until nothing fits, fills the board from the left.
+func _prepare_weak(run: RunState) -> void:
+	_level_up(run)
+	var bought := true
+	while bought:
+		bought = false
+		var offers := run.get_shop_offers()
+		for slot: int in offers.size():
+			if offers[slot] != &"" and run.gold >= _catalog.get_unit(offers[slot]).cost and run.buy(slot) == RunState.Result.OK:
+				bought = true
+				break
+	var pieces := run.get_pieces()
+	pieces.sort_custom(func(a: RunPiece, b: RunPiece) -> bool: return a.star > b.star if a.star != b.star else a.id < b.id)
+	var cells: Array[Vector2i] = []
+	for rank: int in [1, 2, 3, 4]:
+		for col: int in range(1, 8):
+			cells.append(Vector2i(col, rank))
+	for piece: RunPiece in pieces:
+		if piece.is_on_bench() and run.get_board_count() < run.get_capacity():
+			for cell: Vector2i in cells:
+				if run.get_board_piece(cell) == null and run.move_to_board(piece.id, cell) == RunState.Result.OK:
+					break
 
 
 # [is_win, enemies alive, damage dealt by piece id], with the player's Kỳ
@@ -324,14 +398,15 @@ func _free_bench_slot(run: RunState) -> int:
 	return -1
 
 
-# Rest when hurt, supply while levels remain, else the black market.
+# Rest when hurt, supply while levels remain (loot next), else loot and the
+# black market.
 func _pick_reward(run: RunState) -> RunState.Reward:
 	var options := run.get_reward_options()
-	var preferred: Array[RunState.Reward] = [RunState.Reward.HUNT, RunState.Reward.BLACK_MARKET, RunState.Reward.REST]
+	var preferred: Array[RunState.Reward] = [RunState.Reward.HUNT, RunState.Reward.LOOT, RunState.Reward.BLACK_MARKET, RunState.Reward.REST]
 	if run.morale <= 40:
-		preferred = [RunState.Reward.REST, RunState.Reward.HUNT, RunState.Reward.BLACK_MARKET]
+		preferred = [RunState.Reward.REST, RunState.Reward.HUNT, RunState.Reward.LOOT, RunState.Reward.BLACK_MARKET]
 	elif run.get_level_up_cost() < 0:
-		preferred = [RunState.Reward.BLACK_MARKET, RunState.Reward.REST, RunState.Reward.HUNT]
+		preferred = [RunState.Reward.LOOT, RunState.Reward.BLACK_MARKET, RunState.Reward.REST, RunState.Reward.HUNT]
 	for reward: RunState.Reward in preferred:
 		if options.has(reward):
 			return reward
@@ -349,4 +424,5 @@ func _report(runs: int, won: int, cleared_total: int) -> void:
 			continue
 		print("%5d  %7d  %14.0f  %8d  %16.0f  %5.1f" % [stage, firsts, 100.0 * _first_wins.get(stage, 0) / firsts, attempts, 100.0 * _wins.get(stage, 0) / attempts, float(_morale_after.get(stage, 0)) / attempts])
 	print("run win rate: %.1f%% (%d/%d), average stages cleared %.1f, given up after %d battles: %d" % [100.0 * won / runs, won, runs, float(cleared_total) / runs, MAX_BATTLES_PER_RUN, _given_up])
+	print("mode %s; road encounters %d (%.2f per run), bets won %d of %d, streak gold %.2f per run" % ["weak" if _is_weak else "normal", _encounters, float(_encounters) / runs, _bets_won, _bets, float(_streak_gold) / runs])
 	print("ky ngo taken: %d (%.2f per run); boss fights %d, player casts %d, Hoa Da %d (%.2f per fight)" % [_epiphanies, float(_epiphanies) / runs, _boss_fights, _boss_casts, _boss_petrified, float(_boss_petrified) / maxi(1, _boss_fights)])

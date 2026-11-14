@@ -56,6 +56,10 @@ extends Resource
 @export_group("Battle results")
 @export var win_gold: int = 1
 @export var win_supply: int = 2
+## Win streak bonus: from the streak_gold_wins[i]-th win in a row, a win
+## pays streak_gold_bonus[i] more gold (the highest step reached counts).
+@export var streak_gold_wins: PackedInt32Array = PackedInt32Array([2, 4])
+@export var streak_gold_bonus: PackedInt32Array = PackedInt32Array([1, 2])
 @export var loss_morale_base: int = 6
 @export var loss_morale_per_enemy: int = 2
 
@@ -64,8 +68,16 @@ extends Resource
 @export var hunt_supply: int = 6
 @export var black_market_levels: int = 1
 @export var black_market_free_refreshes: int = 1
-## Rewards offered after a lost battle (all are offered after a win).
+## "Chiến lợi phẩm": gold paid by the loot reward.
+@export var loot_gold: int = 5
+## Reward cards offered after a won battle and after a lost one, drawn
+## from all the rewards.
+@export var rewards_after_win: int = 3
 @export var rewards_after_loss: int = 2
+
+@export_group("Road encounters")
+## After the reward of these stages one road encounter plays.
+@export var encounter_stages: PackedInt32Array = PackedInt32Array([2, 4, 6, 8, 10])
 
 @export_group("Boss")
 ## The stage whose line-up holds the boss (exactly one is_boss unit there,
@@ -117,6 +129,16 @@ func get_enemy_count(stage: int) -> int:
 	return enemy_counts[clampi(stage, 1, enemy_counts.size()) - 1]
 
 
+## Extra gold a win pays as the `streak`-th win in a row (0 below the
+## first step).
+func get_streak_bonus(streak: int) -> int:
+	var bonus := 0
+	for index: int in mini(streak_gold_wins.size(), streak_gold_bonus.size()):
+		if streak >= streak_gold_wins[index]:
+			bonus = streak_gold_bonus[index]
+	return bonus
+
+
 ## Most units on the board at `level`.
 func get_capacity(level: int) -> int:
 	return mini(level, max_board_units)
@@ -150,6 +172,13 @@ func validate() -> PackedStringArray:
 		problems.append("Run: %s has boss_stage %d and boss_reveal_stage %d, expected 1 <= reveal <= boss <= %d" % [resource_path, boss_stage, boss_reveal_stage, stage_count])
 	if ngo_threshold_min < 1 or ngo_threshold_max < ngo_threshold_min or ngo_meter_max < ngo_threshold_max or epiphanies_per_run < 0:
 		problems.append("Run: %s has bad Kỳ Ngộ numbers (thresholds %d..%d, meter max %d, per run %d)" % [resource_path, ngo_threshold_min, ngo_threshold_max, ngo_meter_max, epiphanies_per_run])
-	if rewards_after_loss < 1 or rewards_after_loss > RunState.REWARD_IDS.size():
-		problems.append("Run: %s has rewards_after_loss %d, expected 1..%d" % [resource_path, rewards_after_loss, RunState.REWARD_IDS.size()])
+	for count: int in [rewards_after_win, rewards_after_loss]:
+		if count < 1 or count > RunState.REWARD_IDS.size():
+			problems.append("Run: %s has rewards_after_win %d and rewards_after_loss %d, expected 1..%d" % [resource_path, rewards_after_win, rewards_after_loss, RunState.REWARD_IDS.size()])
+			break
+	if streak_gold_wins.size() != streak_gold_bonus.size() or loot_gold < 1:
+		problems.append("Run: %s needs one streak_gold_bonus per streak_gold_wins and loot_gold above 0" % resource_path)
+	for stage: int in encounter_stages:
+		if stage < 1 or stage >= stage_count:
+			problems.append("Run: %s has encounter stage %d, expected 1..%d" % [resource_path, stage, stage_count - 1])
 	return problems

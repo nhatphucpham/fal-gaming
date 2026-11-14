@@ -9,7 +9,7 @@ extends RefCounted
 ## [/codeblock]
 
 ## The phases a save can hold, by their name in the file.
-const PHASES: Dictionary[String, int] = {"prep": RunState.Phase.PREP, "reward": RunState.Phase.REWARD}
+const PHASES: Dictionary[String, int] = {"prep": RunState.Phase.PREP, "reward": RunState.Phase.REWARD, "encounter": RunState.Phase.ENCOUNTER}
 
 
 ## The saved values, typed, under the same keys as the file ("phase" as a
@@ -26,6 +26,7 @@ static func read(data: Dictionary, catalog: Catalog) -> Dictionary:
 		"seed": reader.get_int_string("seed"), "rng_state": reader.get_int_string("rng_state"),
 		"next_piece_id": reader.get_int("next_piece_id"), "pieces": reader.get_array("pieces"),
 		"black_market": reader.get_bool("black_market"), "free_refreshes": reader.get_int("free_refreshes"),
+		"win_streak": reader.get_int("win_streak"),
 	}
 	var phase_name := reader.get_string("phase")
 	var shop := reader.get_array("shop")
@@ -58,7 +59,7 @@ static func _read_offers(saved: Array, catalog: Catalog) -> Variant:
 
 
 # The offered rewards, or null when they could not have been offered: none
-# outside the reward phase; in it all of them (after a win) or
+# outside the reward phase; in it `rewards_after_win` (after a win) or
 # `rewards_after_loss` (after a loss; at most what is left without the rest
 # at the final stage), each known and once, and no rest at the final stage,
 # which is only repeated after a loss.
@@ -73,22 +74,27 @@ static func _read_rewards(saved: Array, fields: Dictionary, rules: RunRules) -> 
 		return rewards if rewards.is_empty() else null
 	var is_final: bool = fields["stage"] >= rules.stage_count
 	var after_loss := mini(rules.rewards_after_loss, RunState.REWARD_IDS.size() - (1 if is_final else 0))
-	if rewards.size() != RunState.REWARD_IDS.size() and rewards.size() != after_loss:
+	var after_win := -1 if is_final else rules.rewards_after_win
+	if rewards.size() != after_win and rewards.size() != after_loss:
 		return null
 	if is_final and rewards.has(RunState.Reward.REST):
 		return null
 	return rewards
 
 
-# In the reward phase the stage just won counts as cleared already (the
-# final stage only reaches it after a loss).
+# In the reward and encounter phases the stage just won counts as cleared
+# already (the final stage only reaches the reward after a loss, and never
+# has an encounter).
 static func _is_in_range(fields: Dictionary, rules: RunRules) -> bool:
 	var stage: int = fields["stage"]
 	var cleared: int = fields["stages_cleared"]
-	var is_after_win_possible: bool = fields["phase"] == RunState.Phase.REWARD and stage < rules.stage_count
+	if fields["phase"] == RunState.Phase.ENCOUNTER and stage >= rules.stage_count:
+		return false
+	var is_after_battle: bool = fields["phase"] == RunState.Phase.REWARD or fields["phase"] == RunState.Phase.ENCOUNTER
+	var is_after_win_possible: bool = is_after_battle and stage < rules.stage_count
 	var cleared_max := stage if is_after_win_possible else stage - 1
 	return stage >= 1 and stage <= rules.stage_count \
 		and fields["morale"] >= 1 and fields["morale"] <= rules.max_morale \
 		and fields["gold"] >= 0 and fields["supply"] >= 0 \
 		and fields["level"] >= rules.start_level and fields["level"] <= rules.max_level \
-		and cleared >= 0 and cleared <= cleared_max
+		and cleared >= 0 and cleared <= cleared_max and fields["win_streak"] >= 0
