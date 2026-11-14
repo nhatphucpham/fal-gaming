@@ -32,8 +32,11 @@ signal stage_started(stage: int)
 signal battle_resolved(is_win: bool, gold_delta: int, supply_delta: int, morale_delta: int)
 ## A preparation command succeeded and changed the run (the screen saves it).
 signal prep_changed()
+## A Kỳ Ngộ fired after the battle: the reward waits for choose_epiphany().
+signal epiphany_offered(family: StringName)
+signal epiphany_chosen(epiphany_id: StringName)
 
-enum Result { OK, NOT_ENOUGH_GOLD, NOT_ENOUGH_SUPPLY, BENCH_FULL, BOARD_FULL, LEGEND_LIMIT, BAD_TARGET, NO_PIECE, EMPTY_SLOT, MAX_LEVEL, WRONG_PHASE, NOT_OFFERED }
+enum Result { OK, NOT_ENOUGH_GOLD, NOT_ENOUGH_SUPPLY, BENCH_FULL, BOARD_FULL, LEGEND_LIMIT, BAD_TARGET, NO_PIECE, EMPTY_SLOT, MAX_LEVEL, WRONG_PHASE, NOT_OFFERED, EPIPHANY_PENDING }
 enum Phase { PREP, BATTLE, REWARD, WON, LOST }
 enum Reward { REST, HUNT, BLACK_MARKET }
 
@@ -50,6 +53,9 @@ var supply: int = 0
 var level: int = 0
 ## Stages won so far (the end screen shows it).
 var stages_cleared: int = 0
+## Kỳ Ngộ meters, thresholds and mutations; read it, change it only through
+## the commands here.
+var epiphanies: EpiphanyTracker
 
 var _rng := RandomNumberGenerator.new()
 var _roster: RunRoster
@@ -71,6 +77,7 @@ func _init(run_catalog: Catalog, seed_value: int) -> void:
 	_roster.piece_moved.connect(piece_moved.emit)
 	_roster.pieces_merged.connect(pieces_merged.emit)
 	_shop = Shop.new(run_catalog, rules)
+	epiphanies = EpiphanyTracker.new(run_catalog, seed_value)
 	morale = rules.start_morale
 	gold = rules.start_gold
 	supply = rules.start_supply
@@ -160,6 +167,17 @@ func get_reward_options() -> Array[Reward]:
 
 func is_black_market_active() -> bool:
 	return _is_black_market
+
+
+## The player's Kỳ Ngộ mutations as Synergy overrides (Synergy.evaluate,
+## Battle.set_synergy_overrides for side A).
+func get_synergy_overrides() -> Array:
+	return epiphanies.get_overrides()
+
+
+## True when this stage's line-up has a boss.
+func is_boss_stage() -> bool:
+	return stage == rules.boss_stage
 
 
 # --- Preparation commands ------------------------------------------------
@@ -283,9 +301,11 @@ func begin_battle() -> Result:
 	return Result.OK
 
 
-## Applies a battle result: `enemies_alive` living enemy units at the end.
-## Moves to REWARD, or ends the run (WON or LOST).
-func finish_battle(is_win: bool, enemies_alive: int) -> Result:
+## Applies a battle result: `enemies_alive` living enemy units at the end,
+## `piece_damage` the damage each board piece dealt (piece id to amount)
+## for the Kỳ Ngộ meters. Moves to REWARD (maybe with a pending Kỳ Ngộ), or
+## ends the run (WON or LOST).
+func finish_battle(is_win: bool, enemies_alive: int, piece_damage: Dictionary = {}) -> Result:
 	if phase != Phase.BATTLE:
 		return Result.WRONG_PHASE
 	var morale_delta := 0
@@ -303,7 +323,24 @@ func finish_battle(is_win: bool, enemies_alive: int) -> Result:
 		_set_phase(Phase.WON)
 	else:
 		_offer_rewards(is_win)
+		var families := EpiphanyBattle.read_families(self, piece_damage)
+		var fired := epiphanies.record_battle(stage, families["active"], families["damage"], is_win, _rng)
 		_set_phase(Phase.REWARD)
+		if fired:
+			epiphany_offered.emit(epiphanies.get_pending_family())
+	return Result.OK
+
+
+## Takes option 0 or 1 of the pending Kỳ Ngộ; it lasts the rest of the run.
+func choose_epiphany(option: int) -> Result:
+	if phase != Phase.REWARD:
+		return Result.WRONG_PHASE
+	if not epiphanies.has_pending():
+		return Result.NOT_OFFERED
+	var id: StringName = epiphanies.get_pending_options()[option].id if option >= 0 and option < 2 else &""
+	if not epiphanies.choose(option):
+		return Result.NOT_OFFERED
+	epiphany_chosen.emit(id)
 	return Result.OK
 
 
@@ -312,6 +349,8 @@ func finish_battle(is_win: bool, enemies_alive: int) -> Result:
 func choose_reward(reward: Reward) -> Result:
 	if phase != Phase.REWARD:
 		return Result.WRONG_PHASE
+	if epiphanies.has_pending():
+		return Result.EPIPHANY_PENDING
 	if not _rewards.has(reward):
 		return Result.NOT_OFFERED
 	match reward:
@@ -342,6 +381,7 @@ func to_save_data() -> Dictionary:
 		"pieces": _roster.to_save_data(), "shop": _shop.get_offers().map(func(id: StringName) -> String: return String(id)),
 		"black_market": _is_black_market, "free_refreshes": _free_refreshes,
 		"rewards": _rewards.map(func(reward: Reward) -> String: return String(REWARD_IDS[reward])),
+		"epiphany": epiphanies.to_save_data(),
 	}
 
 
@@ -357,6 +397,9 @@ func can_save() -> bool:
 func load_save_data(data: Dictionary) -> bool:
 	var fields := RunSaveFields.read(data, catalog)
 	if fields.is_empty() or not _roster.load_save_data(fields["pieces"], fields["next_piece_id"], rules.get_capacity(fields["level"])):
+		return false
+	epiphanies = EpiphanyTracker.new(catalog, fields["seed"])
+	if not epiphanies.load_save_data(data.get("epiphany"), fields["phase"], fields["stage"]):
 		return false
 	stage = fields["stage"]
 	stages_cleared = fields["stages_cleared"]

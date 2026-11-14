@@ -21,6 +21,7 @@ var _screen: RunScreen
 
 func _initialize() -> void:
 	RunSave.path = TEST_SAVE_PATH
+	RunSettings.path = "user://settings_run_flow_test.json"
 	var had_player_save := RunSave.has_save(RunSave.PATH)
 	var ok := await _run()
 	if _main != null:
@@ -114,12 +115,34 @@ func _check_reward() -> bool:
 	var run := _screen.run
 	_screen.continue_after_battle()
 	await process_frame
+	# A Kỳ Ngộ that fired plays its cutscene first; take its first card.
+	if not await _pass_cutscene():
+		return false
 	if not _screen.reward_screen.visible or run.get_reward_options().is_empty():
 		push_error("The reward cards did not open")
 		return false
 	var saved := RunSave.load_run(_main._catalog)
 	if saved == null or saved.phase != RunState.Phase.REWARD or saved.morale != run.morale or saved.get_reward_options() != run.get_reward_options():
 		push_error("The save should hold the reward choice at morale %d" % run.morale)
+		return false
+	return true
+
+
+# Skips a playing cutscene's lines, takes its first choice and waits until
+# the ink has wiped it away. True when none was playing.
+func _pass_cutscene() -> bool:
+	var cutscene := _screen.interludes.cutscene
+	if cutscene == null:
+		return true
+	await create_timer(1.0).timeout
+	cutscene.skip()
+	await process_frame
+	if cutscene.is_choosing() and not cutscene.choose(0):
+		push_error("The Kỳ Ngộ card could not be chosen")
+		return false
+	await create_timer(1.5).timeout
+	if _screen.interludes.is_playing() or _screen.run.epiphanies.has_pending():
+		push_error("The Kỳ Ngộ cutscene did not end with a choice")
 		return false
 	return true
 

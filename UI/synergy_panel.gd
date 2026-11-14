@@ -5,8 +5,10 @@ extends Control
 ## class and race milestones with their count and next threshold ("Khiên
 ## 2/4") and every tier's effect, and the Hợp Lực tiers. It covers the
 ## screen while open; a tap anywhere closes it.
+## With the run's Kỳ Ngộ tracker, a mutated milestone carries a gold seal
+## and its new text, and one near its hidden threshold shakes gently.
 ## [codeblock]
-## panel.open(result, catalog)
+## panel.open(result, catalog, "", run.epiphanies)
 ## [/codeblock]
 
 signal closed()
@@ -15,12 +17,18 @@ const PANEL_WIDTH_PX: float = 620.0
 const MAX_HEIGHT_PX: float = 1040.0
 const TEXT_WIDTH_PX: float = PANEL_WIDTH_PX - 64.0
 const DIM := Color(1, 1, 1, 0.55)
+const SEAL_PX: float = 22.0
+# Keeps the seal clear of the scroll bar.
+const SEAL_MARGIN_PX: int = 36
+const SHAKE_DEGREES: float = 1.6
+const SHAKE_SEC: float = 0.12
 
 var _shade: ColorRect
 var _panel: PanelContainer
 var _scroll: ScrollContainer
 var _rows: VBoxContainer
 var _tween: Tween
+var _epiphanies: EpiphanyTracker
 
 
 func _init() -> void:
@@ -47,8 +55,10 @@ func _init() -> void:
 
 
 ## Opens the panel on an evaluate() result. `title` replaces the heading
-## (the enemy's line-up).
-func open(result: Dictionary, catalog: Catalog, title: String = "") -> void:
+## (the enemy's line-up); `epiphanies` (the player's side only) marks
+## mutated and nearly mutated milestones.
+func open(result: Dictionary, catalog: Catalog, title: String = "", epiphanies: EpiphanyTracker = null) -> void:
+	_epiphanies = epiphanies
 	for child: Node in _rows.get_children():
 		_rows.remove_child(child)
 		child.queue_free()
@@ -90,7 +100,7 @@ func get_lines() -> PackedStringArray:
 	for child: Node in _rows.get_children():
 		var label := child as Label
 		if label != null:
-			lines.append(label.text)
+			lines.append(label.text + (" [seal]" if label.get_child_count() > 0 else ""))
 	return lines
 
 
@@ -142,10 +152,23 @@ func _fill_milestones(heading: String, entries: Array, catalog: Catalog) -> void
 		var thresholds: Array = entry["thresholds"]
 		var reached: int = entry["reached"]
 		var tint := Palette.JADE if reached > 0 else Palette.INK
-		_add_text(SynergyPanel.count_text(tr(milestone.name_key), entry["count"], thresholds, reached), 22, Color.WHITE, tint)
+		var mutation := _epiphanies.get_mutation(milestone.id) if _epiphanies != null else null
+		var header := _add_text(SynergyPanel.count_text(tr(milestone.name_key), entry["count"], thresholds, reached), 22, Color.WHITE, tint)
+		if mutation != null:
+			_add_seal(header)
+		elif _epiphanies != null and _epiphanies.is_near(milestone.id):
+			_shake(header)
+		# Thresholds come from the result: a Hạ Mốc changes them.
 		for index: int in milestone.tiers.size():
 			var tier: SynergyTierData = milestone.tiers[index]
-			_add_text("%d: %s" % [tier.at, tr(tier.description_key)], 19, Color.WHITE if index < reached else DIM)
+			var is_mutated := mutation != null and mutation.tier == index
+			var text := tr(mutation.description_key) if is_mutated else tr(tier.description_key)
+			var color := Palette.GOLD.darkened(0.35) if is_mutated else Palette.INK
+			# A mutation's text names its tier itself ("Khiên 2: ...").
+			var line_text := text if is_mutated else "%d: %s" % [thresholds[index], text]
+			var line := _add_text(line_text, 19, Color.WHITE if index < reached else DIM, color)
+			if is_mutated:
+				_add_seal(line)
 
 
 func _fill_hop_luc(result: Dictionary, catalog: Catalog) -> void:
@@ -164,7 +187,7 @@ func _add_heading(text: String) -> void:
 	_add_text(text, 24, Color.WHITE, Palette.VERMILION_DARK)
 
 
-func _add_text(text: String, font_size: int, tint: Color = Color.WHITE, color: Color = Palette.INK) -> void:
+func _add_text(text: String, font_size: int, tint: Color = Color.WHITE, color: Color = Palette.INK) -> Label:
 	var label := Label.new()
 	label.text = text
 	label.add_theme_font_size_override(&"font_size", font_size)
@@ -174,6 +197,25 @@ func _add_text(text: String, font_size: int, tint: Color = Color.WHITE, color: C
 	label.modulate = tint
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_rows.add_child(label)
+	return label
+
+
+# A small gold seal (Kỳ Ngộ) at the right end of a line.
+func _add_seal(label: Label) -> void:
+	var seal := EpiphanySeal.new()
+	seal.custom_minimum_size = Vector2(SEAL_PX, SEAL_PX)
+	label.add_child(seal)
+	seal.set_anchors_and_offsets_preset(Control.PRESET_CENTER_RIGHT, Control.PRESET_MODE_MINSIZE, SEAL_MARGIN_PX)
+
+
+# A gentle endless wobble: the family is one battle from its Kỳ Ngộ.
+func _shake(label: Label) -> void:
+	label.resized.connect(func() -> void: label.pivot_offset = label.size / 2.0)
+	var tween := label.create_tween().set_loops()
+	tween.tween_property(label, ^"rotation_degrees", SHAKE_DEGREES, SHAKE_SEC)
+	tween.tween_property(label, ^"rotation_degrees", -SHAKE_DEGREES, SHAKE_SEC * 2.0)
+	tween.tween_property(label, ^"rotation_degrees", 0.0, SHAKE_SEC)
+	tween.tween_interval(0.5)
 
 
 func _place_panel() -> void:

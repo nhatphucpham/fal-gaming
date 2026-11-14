@@ -53,6 +53,10 @@ public:
 	// start(); null turns them off. Refused once units exist.
 	void set_synergy(const Ref<Synergy> &p_synergy);
 	Ref<Synergy> get_synergy() const { return synergy; }
+	// Kỳ Ngộ overrides for one side (synergy_overrides.h), applied on top of
+	// set_synergy()'s data until set_synergy() is called again. Refused once
+	// units exist; an empty array removes them.
+	void set_synergy_overrides(int64_t p_side, const Array &p_overrides);
 	// Validates the class's handler ids and stats; false with an error on bad data.
 	bool register_class(const Ref<ClassData> &p_class);
 	// Returns the unit's index, or -1 with an error.

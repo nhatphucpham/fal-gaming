@@ -28,6 +28,7 @@ class PassiveData : public Resource {
 	int every_nth = 1;
 	int limit_per_battle = 0;
 	bool once_per_source = false;
+	int window_ticks = 0;
 	Ref<SkillEffectData> effect;
 
 protected:
@@ -55,6 +56,8 @@ public:
 	int get_limit_per_battle() const { return limit_per_battle; }
 	void set_once_per_source(bool p_value) { once_per_source = p_value; }
 	bool get_once_per_source() const { return once_per_source; }
+	void set_window_ticks(int64_t p_value) { window_ticks = clamp_to_int(p_value); }
+	int get_window_ticks() const { return window_ticks; }
 	void set_effect(const Ref<SkillEffectData> &p_value) { effect = p_value; }
 	Ref<SkillEffectData> get_effect() const { return effect; }
 };

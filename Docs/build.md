@@ -46,8 +46,11 @@ After building, run the editor import, `Tests/smoke_test.gd`,
 `Tests/battle_test.gd`, `Tests/battle_api_test.gd`, `Tests/skill_test.gd`,
 `Tests/passive_test.gd`, `Tests/sandbox_test.gd`, `Tests/run_test.gd`,
 `Tests/run_flow_test.gd`, `Tests/formation_test.gd`, `Tests/synergy_test.gd`,
-`Tests/formation_battle_test.gd` and `Tests/synergy_ui_test.gd` as shown in
-the README.
+`Tests/formation_battle_test.gd`, `Tests/synergy_ui_test.gd`,
+`Tests/epiphany_test.gd`, `Tests/boss_test.gd`, `Tests/cutscene_test.gd` and
+`Tests/audio_test.gd` as shown in the README. Tests that touch the
+settings file point `RunSettings.path` at `user://settings_test.json`, so
+the player's mute and preparation time are left alone.
 The run test checks the rules of a run (`RunState`, the shop, merges, the
 save) without any screen; the run flow test plays stage 1 through the real
 screens, from Main's new run to stage 2's preparation (see
@@ -104,6 +107,21 @@ that every job still passes.
 
 On pull requests a separate `Docs` workflow checks that code changes also
 update the documentation; see [Coding conventions](conventions.md), section 8.
+
+## Sound files
+
+`Tools/make_sfx.gd` writes every sound under `Assets/Sfx/` from code (a
+seeded synthesizer, so the same script gives the same bytes). Run it after
+changing a sound, then import so Godot picks up the files:
+
+```
+godot --headless --path . --script res://Tools/make_sfx.gd
+godot --headless --editor --path . --import
+```
+
+It prints each file's size and peak and fails if the effects pass 600 KB
+or the music 400 KB in total. The files are WAV because Godot cannot write
+OGG Vorbis; see [Audio](systems/audio.md).
 
 ## Adding C++ classes
 

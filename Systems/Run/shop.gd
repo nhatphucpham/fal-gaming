@@ -21,7 +21,8 @@ func _init(catalog: Catalog, rules: RunRules) -> void:
 	for cost: int in range(Catalog.MIN_COST, Catalog.MAX_COST + 1):
 		_pools[cost] = []
 	for unit: UnitData in catalog.units:
-		if unit != null and _pools.has(unit.cost):
+		# Bosses never appear in the shop.
+		if unit != null and not unit.is_boss and _pools.has(unit.cost):
 			_pools[unit.cost].append(unit.id)
 	_offers.resize(rules.shop_slots)
 	_offers.fill(&"")

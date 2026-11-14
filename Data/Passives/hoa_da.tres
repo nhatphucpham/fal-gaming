@@ -1,0 +1,19 @@
+[gd_resource type="PassiveData" format=3]
+
+[sub_resource type="SkillEffectData" id="effect"]
+id = &"effect.petrify"
+target = 1
+duration_ticks = 40
+
+[resource]
+id = &"passive.hoa_da"
+name_key = "PASSIVE_HOA_DA"
+description_key = "PASSIVE_HOA_DA_DESC"
+trigger = &"trigger.enemy_skill_resolved"
+condition = &""
+condition_radius = 0
+every_nth = 3
+limit_per_battle = 0
+once_per_source = false
+window_ticks = 60
+effect = SubResource("effect")

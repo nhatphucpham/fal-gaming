@@ -52,6 +52,7 @@ void add_damage_payload(const battle::BattleEvent &p_event, Dictionary &r_dict) 
 	r_dict["blocked_by"] = p_event.blocked_by;
 	r_dict["skill"] = StringName(to_godot_string(p_event.skill_id));
 	r_dict["is_blocked_by_modifier"] = p_event.is_blocked_by_modifier;
+	r_dict["is_immune"] = p_event.is_immune;
 }
 
 Array units_to_array(const std::vector<int> &p_units) {

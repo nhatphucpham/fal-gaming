@@ -14,7 +14,11 @@ cell signals, and keeps the player's formation. It does not run battles
   `unit_painter.gd` (`UnitPainter`), `lineup_views.gd` (`LineupViews`),
   `piece_drag.gd` (`PieceDrag`), `formation_outlines.gd`
   (`FormationOutlines`) and `outline_geometry.gd` (`OutlineGeometry`), see
-  [Formation](formation.md).
+  [Formation](formation.md), `stone_layer.gd` (`StoneLayer`, the stone
+  look of a petrified or crumbling unit) and `extra_figures.gd`
+  (`ExtraFigures`, figures outside the six classes: the boss Cự Nham's
+  stone giant and the hermit of the Kỳ Ngộ cutscenes, registered in
+  `UnitPainter`'s class registry).
 - `Systems/Lineup/`: `lineup.gd` (`Lineup`), `lineup_slot.gd`
   (`LineupSlot`), `lineup_preset.gd` (`LineupPreset`).
 - `UI/pointer_gesture.gd` (`PointerGesture`): tap, long press and drag from
@@ -143,6 +147,10 @@ says nothing).
 `stamp_stars(star, delay)` (a merge's new star lands), `grow_in()`,
 `hop_to(position, seconds)` (a short arc between bench and board) and
 `shrink_to(position, seconds)` (a sold piece flies into the coin pile).
+A boss (`UnitData.is_boss`) is drawn `BOSS_SCALE` (1.6) times larger on its
+one cell. `set_petrified(bool)` turns the figure to grey stone with cracks
+and `crumble()` cracks it apart and fades it out, for a boss's death (see
+[Boss](boss.md)).
 
 `PieceDrag` (RefCounted) is the one drag of a unit over the board, shared
 by `SetupController` and the run's `PrepController`:

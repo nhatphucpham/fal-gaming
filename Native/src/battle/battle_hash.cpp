@@ -74,6 +74,10 @@ void BattleSim::hash_skill_state(uint64_t *r_hash, const UnitState &p_unit) cons
 	hash_value(r_hash, skills.passive.trigger_count);
 	hash_value(r_hash, skills.passive.fire_count);
 	hash_value(r_hash, static_cast<int64_t>(skills.passive.used_sources));
+	hash_value(r_hash, static_cast<int64_t>(skills.passive.window_hits.size()));
+	for (int hit : skills.passive.window_hits) {
+		hash_value(r_hash, tick - hit);
+	}
 	for (const StatusSlot &slot : skills.statuses) {
 		hash_value(r_hash, slot.is_active ? slot.end_tick - tick : -1);
 		hash_value(r_hash, slot.is_active ? slot.amount : 0);

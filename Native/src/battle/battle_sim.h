@@ -76,7 +76,9 @@ class BattleSim {
 	int next_event_id = 1;
 	// Milestones, formations and Hợp Lực (battle_synergy.cpp).
 	bool has_synergy = false;
-	rules::SynergyConfig synergy;
+	// One configuration per side: the same data, plus side A's Kỳ Ngộ
+	// overrides when the run has any.
+	rules::SynergyConfig side_synergy[SIDE_COUNT];
 	std::vector<SynergySource> sources;
 	std::vector<ActiveModifier> modifiers;
 	bool started = false;
@@ -98,6 +100,7 @@ class BattleSim {
 	void add_pierce_hit(int p_unit, std::vector<Hit> *r_hits) const;
 	void apply_hit(int p_attacker, int p_victim, int p_blocked_by, int p_attack_event, bool p_is_crit, int p_increase_pct);
 	void react_to_damage(const DamageSpec &p_spec, int p_damage_event);
+	int emit_immune_hit(const DamageSpec &p_spec);
 	void kill(int p_victim, int p_killer, int p_damage_event);
 	void hash_skill_state(uint64_t *r_hash, const UnitState &p_unit) const;
 	void check_end();
@@ -129,6 +132,9 @@ public:
 	// Milestones, formations and Hợp Lực for both sides, evaluated at
 	// start(). Refused once units exist; fails on a bad configuration.
 	bool set_synergy(const rules::SynergyConfig &p_config, std::string *r_error);
+	// Replaces one side's configuration (Kỳ Ngộ overrides applied by the
+	// caller); needs set_synergy() first and no units.
+	bool set_side_synergy(int p_side, const rules::SynergyConfig &p_config, std::string *r_error);
 	void clear_synergy();
 	bool has_synergy_config() const { return has_synergy; }
 	// Removes all units and resets the clock; classes, rules and the synergy

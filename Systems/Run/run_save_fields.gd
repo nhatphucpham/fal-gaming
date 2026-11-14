@@ -50,7 +50,8 @@ static func get_phase_name(phase: RunState.Phase) -> String:
 static func _read_offers(saved: Array, catalog: Catalog) -> Variant:
 	var offers: Array[StringName] = []
 	for offer: Variant in saved:
-		if not offer is String or (offer != "" and catalog.get_unit(StringName(offer)) == null):
+		var unit: UnitData = catalog.get_unit(StringName(offer)) if offer is String and offer != "" else null
+		if not offer is String or (offer != "" and (unit == null or unit.is_boss)):
 			return null
 		offers.append(StringName(offer))
 	return offers if offers.size() <= catalog.run_rules.shop_slots else null

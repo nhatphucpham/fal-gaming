@@ -20,6 +20,8 @@ signal battle_finished(winner: int, reason: StringName)
 ## `cells` are the instance's members' global cells (two instances of one
 ## formation are told apart by them).
 signal formation_broken(side: int, formation_id: StringName, cells: Array)
+## A unit turned to stone (Hóa Đá) or came back from it.
+signal unit_petrified(index: int, is_petrified: bool)
 
 const MELEE_IMPACT_SEC: float = 0.08
 const PROJECTILE_PX_PER_SEC: float = 900.0
@@ -28,6 +30,8 @@ const MAX_FLIGHT_SEC: float = 0.35
 const END_PAUSE_SEC: float = 0.6
 const CHEER_SEC: float = 0.7
 const MAGIC_COLOR := Color("ff9b4a")
+## A hit at least this big sounds heavy.
+const HEAVY_HIT: int = 120
 
 ## Multiplies both the tick rate and every animation: 1, 2 or 4.
 var speed: float = 1.0:
@@ -204,6 +208,7 @@ func _on_unit_moved(event: Dictionary) -> void:
 		view.glide_to(target, seconds, kind)
 		if kind == &"charge":
 			_trail_dust(view.position, target, seconds)
+			Sound.play(&"charge")
 		elif kind == &"knockback":
 			spawn_fx(BattleFx.dust(view.position + UnitView.FEET)))
 
@@ -219,6 +224,7 @@ func _on_unit_attacked(event: Dictionary) -> void:
 			var flight := _flight_sec(attacker.position, target)
 			attacker.recoil(direction)
 			spawn_fx(BattleFx.arrow(attacker.position + Vector2(0, -22), target + Vector2(0, -14), flight))
+			Sound.play(&"arrow")
 			_impact_delay_sec[event["id"]] = flight
 		&"magic":
 			var flight := _flight_sec(attacker.position, target)
@@ -247,11 +253,17 @@ func _on_damage_dealt(event: Dictionary) -> void:
 	var is_crit: bool = event["is_crit"]
 	var blocker := get_view(event["blocked_by"])
 	var event_id: int = event["id"]
-	# A hit a synergy blocked shows its "Chặn" instead of a 0.
-	var shows_number: bool = not event.get("is_blocked_by_modifier", false)
+	# A hit a synergy blocked shows its "Chặn" instead of a 0; a hit on
+	# stone (Hóa Đá) shows nothing and only clinks.
+	var is_immune: bool = event.get("is_immune", false)
+	var shows_number: bool = not event.get("is_blocked_by_modifier", false) and not is_immune
+	var sound: StringName = &"block" if is_immune or blocker != null else (&"hit_heavy" if is_crit or amount >= HEAVY_HIT else &"hit_light")
 	run_after(delay, func() -> void:
 		# A late arrow must not flash a unit that is already falling.
 		if view.is_dead:
+			return
+		Sound.play(sound)
+		if is_immune:
 			return
 		view.hit_flash()
 		if _hp_order.accept(target_index, event_id):
@@ -264,8 +276,13 @@ func _on_damage_dealt(event: Dictionary) -> void:
 
 func _on_unit_died(event: Dictionary) -> void:
 	var view := get_view(event["unit"])
-	if view != null:
-		run_after(_delay_of(event["cause"]) + 0.05, view.die)
+	if view == null:
+		return
+	# A boss cracks and crumbles instead of falling over.
+	var ending := view.crumble if view.unit != null and view.unit.is_boss else view.die
+	run_after(_delay_of(event["cause"]) + 0.05, func() -> void:
+		Sound.play(&"death")
+		ending.call())
 
 
 func _on_battle_ended(event: Dictionary) -> void:

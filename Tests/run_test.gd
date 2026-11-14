@@ -51,6 +51,7 @@ func _make(pieces: Array, shop: Array, values: Dictionary = {}) -> RunState:
 		"seed": "99", "rng_state": str(_fresh_rng_state(99)), "phase": "prep", "stage": 1, "morale": 60,
 		"gold": 50, "supply": 0, "level": 3, "next_piece_id": 1, "pieces": rows, "shop": offers,
 		"black_market": false, "free_refreshes": 0, "rewards": [],
+		"epiphany": EpiphanyTracker.new(_catalog, 99).to_save_data(),
 	}
 	data.merge(values, true)
 	if not values.has("stages_cleared"):
@@ -449,7 +450,7 @@ func _bad_save_cases() -> Array:
 	var on_board := func(id: int, unit: String, col: int) -> Dictionary: return _row(id, unit, 1, -1, col, 1)
 	return [
 		["version 99", {"version": 99}], ["version as text", {"version": "2"}], ["version as object", {"version": {}}],
-		["version 1", {"version": 1}],
+		["version 1", {"version": 1}], ["version 2", {"version": 2}],
 		["stage as object", {"stage": {}}], ["stage as text", {"stage": "abc"}], ["stage 1.5", {"stage": 1.5}],
 		["morale null", {"morale": null}], ["gold as array", {"gold": []}], ["black_market as text", {"black_market": "yes"}],
 		["seed as object", {"seed": {}}], ["seed not a number", {"seed": "abc"}], ["rng_state past 64 bits", {"rng_state": "99999999999999999999"}],
@@ -509,6 +510,7 @@ func _valid_save() -> Dictionary:
 		"morale": 60, "gold": 5, "supply": 1, "level": 3, "next_piece_id": 2,
 		"pieces": [_row(1, "archer", 1, 0, 0, 0)], "shop": ["unit.archer", "", "", "", ""],
 		"black_market": false, "free_refreshes": 0, "rewards": [],
+		"epiphany": EpiphanyTracker.new(_catalog, 1).to_save_data(),
 	}
 
 

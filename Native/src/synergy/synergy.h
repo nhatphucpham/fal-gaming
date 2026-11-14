@@ -37,8 +37,12 @@ public:
 	bool is_ready() const { return is_configured; }
 	// p_pieces: Dictionaries {unit: UnitData, col, rank} (local, rank 1 at
 	// the front), or {unit_id, class_id, race_id, cost, col, rank}.
-	Dictionary evaluate(const Array &p_pieces) const;
+	// p_overrides: Kỳ Ngộ overrides of this side (synergy_overrides.h).
+	Dictionary evaluate(const Array &p_pieces, const Array &p_overrides = Array()) const;
 	const rules::SynergyConfig &get_config() const { return config; }
+	// The configuration with p_overrides applied and checked; false and
+	// r_error when an override is bad.
+	bool build_config(const Array &p_overrides, rules::SynergyConfig *r_config, std::string *r_error) const;
 };
 
 } // namespace godot

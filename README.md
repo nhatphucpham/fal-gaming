@@ -13,10 +13,15 @@ and merge three copies into a stronger star, then press **Ra trận** and
 watch the battle at x1, x2 or x4. Wins give gold and supply, losses cost
 morale; after each stage pick a reward. The run is saved as you play (every
 change in the preparation, each battle result and reward) and can be
-continued. The sandbox, with the full roster and no economy, is
-still on the title screen. Text is in Vietnamese. There are smoke, battle,
-sandbox and run tests, a balance bot, Windows, Android and Web export
-presets, and CI. The story is not yet implemented.
+continued. Class and race milestones, formations and Hợp Lực make the
+line-up's shape matter; Kỳ Ngộ, shown in a cutscene, lets a milestone
+family be lowered or mutated during the run, and stage 12 is the boss Cự
+Nham, which turns to stone when skills come too fast. There are sound
+effects, two music loops and a mute button, and "Cách chơi" gives four
+tips. The sandbox, with the full roster and no economy, is still on the
+title screen. Text is in Vietnamese. There are headless tests, a balance
+bot, Windows, Android and Web export presets, and CI. The story is a short
+scene before the boss; the rest is not yet written.
 
 ## Requirements
 
@@ -54,6 +59,10 @@ echo res://falemag.gdextension> .godot\extension_list.cfg
 "%GODOT%" --headless --path "%CD%" --script res://Tests/synergy_test.gd
 "%GODOT%" --headless --path "%CD%" --script res://Tests/formation_battle_test.gd
 "%GODOT%" --headless --path "%CD%" --script res://Tests/synergy_ui_test.gd
+"%GODOT%" --headless --path "%CD%" --script res://Tests/epiphany_test.gd
+"%GODOT%" --headless --path "%CD%" --script res://Tests/boss_test.gd
+"%GODOT%" --headless --path "%CD%" --script res://Tests/cutscene_test.gd
+"%GODOT%" --headless --path "%CD%" --script res://Tests/audio_test.gd
 ```
 
 In the editor, press **F5** to run the project or **F6** to run the current
@@ -84,7 +93,10 @@ Git.
 - [System doc template](Docs/systems/_template.md)
 - Systems: [SimClock](Docs/systems/sim_clock.md), [Battle](Docs/systems/battle.md),
   [Board](Docs/systems/board.md), [Battle playback](Docs/systems/battle_playback.md),
-  [Run](Docs/systems/run.md)
+  [Run](Docs/systems/run.md), [Skill](Docs/systems/skill.md),
+  [Synergy](Docs/systems/synergy.md), [Formation](Docs/systems/formation.md),
+  [Kỳ Ngộ](Docs/systems/epiphany.md), [Cutscene](Docs/systems/cutscene.md),
+  [Boss](Docs/systems/boss.md), [Audio](Docs/systems/audio.md)
 - [Changelog](CHANGELOG.md)
 - [Agent instructions](AGENTS.md)
 

@@ -13,6 +13,7 @@ const char *const STATUS_IDS[STATUS_COUNT] = {
 	"status.guard",
 	"status.armor_break",
 	"status.stun",
+	"status.petrified",
 };
 
 void emit_status_ended(BattleSim &p_sim, int p_unit, StatusKind p_kind, int p_cause) {

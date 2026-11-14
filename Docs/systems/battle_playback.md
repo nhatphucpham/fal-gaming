@@ -53,7 +53,7 @@ a unit already playing its death shows nothing.
 | `unit_attacked` `ranged` | recoil and an arrow flying in an arc to the target cell |
 | `unit_attacked` `magic` | recoil and a bolt, then the three cells of the row flash |
 | `damage_dealt` | target flashes white and flinches, a damage number pops and floats (bigger and gold when `is_counter`; gold with "!" when `is_crit`), the hp bar slides down with a pale trail; with `blocked_by`, a shield flash at the blocker. Skill damage may add its own look (below) |
-| `unit_died` | the unit falls over and fades out |
+| `unit_died` | the unit falls over and fades out; a boss instead cracks all over and crumbles (`UnitView.crumble()`, see [Boss](boss.md)) |
 | `charge_ended` | none (the charge's moves and hit already show it) |
 | `battle_ended` | after 0.6 s the winners hop twice, then `battle_finished` fires and the screen shows the result banner |
 | `qi_changed` | the thin blue Khí bar under the hp bar fills; when full its frame glows and pulses |
@@ -65,6 +65,8 @@ a unit already playing its death shows nothing.
 | `formation_broken` | the `formation_broken(side, id, cells)` signal; the screen shatters the outline of that instance (matched by its cells) |
 | `modifier_triggered` | by handler, with the hit it belongs to: block "Chặn", reflection "Phản", charge immunity "Mất đà", double hit a gold cell flash and "Gấp đôi", split thin lines from the unit hit to the other members and "Chia đòn", volley the archer recoils and the formation name shows (its arrows fall like Tiễn Vũ's) |
 | `damage_dealt` with `is_blocked_by_modifier` | no number (the "Chặn" says it) |
+| `damage_dealt` with `is_immune` | no number and no flash: the hit bounces off a petrified unit |
+| `status_applied` / `status_ended` of `status.petrified` | the unit stops its cast glow, turns grey with a steel sheen and cracks (`UnitView.set_petrified()`, drawn by `StoneLayer`), "Hóa Đá" pops above it, a steel icon shows by its hp bar, and `unit_petrified(index, true)` fires; the end reverses it and fires `unit_petrified(index, false)` |
 
 Skill effects, from `SkillPlayback`'s registry by skill id:
 
@@ -82,6 +84,14 @@ shake and the damage) and name popups at 3; popups of casters side by side
 stack instead of overlapping and stay on the board. Everything uses the
 battle speed.
 
+Sounds go through `Sound.play()` (see [Audio](audio.md)): `skill_cast` on
+a cast start, `spell` on a resolve, `arrow` and `charge` on those moves,
+`hit_light` per hit, `hit_heavy` for a crit or a hit of 120 or more,
+`block` for a blocked or immune hit, `death`, and `petrify`. The audio
+service drops repeats inside 40 ms and keeps at most four voices of one
+sound, so a volley stays readable. The run screen sets the pitch from the
+battle speed with `Sound.set_battle_speed()`.
+
 ## Public API
 
 | Member | Kind | Description |
@@ -96,6 +106,7 @@ battle speed.
 | `tick_advanced(tick)` | signal | After each stepped tick (the screen updates the timer and side bars) |
 | `battle_finished(winner, reason)` | signal | After the closing animation |
 | `formation_broken(side, formation_id, cells)` | signal | A formation instance lost a member; `cells` are its members' global cells |
+| `unit_petrified(index, is_petrified)` | signal | A unit turned to stone or back (the run screen's boss bar shows it) |
 | `get_impact_delay(event_id)`, `show_source_name(view, source_id, color)` | methods | Helpers `SynergyPlayback` uses |
 
 `BattleFx` factories: `arrow`, `bolt`, `cell_flash`, `slash`, `number`,
@@ -136,4 +147,5 @@ battle, so their handlers run headless. Animations are checked by eye.
 
 - Effects are freed and recreated rather than pooled; a battle makes a few
   hundred small nodes in total.
-- No sound yet.
+- Sounds are generated (see [Audio](audio.md)); nobody has listened to
+  them on a device yet.

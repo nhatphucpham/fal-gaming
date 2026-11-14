@@ -11,6 +11,8 @@ const SIDE_GUTTER_PX: int = 16
 ## The board is drawn at 88 px cells and scaled to about 80 px here.
 const BOARD_SCALE: float = 80.0 / 88.0
 const SLIDE_PX: float = 360.0
+## Least distance from an interactive control to the top or bottom edge.
+const SAFE_EDGE_PX: int = 24
 
 var board: BoardView
 var bench: BenchBar
@@ -39,9 +41,16 @@ var ghost: DragGhost
 var banner: ResultBanner
 var info_panel: UnitInfoPanel
 var synergy_panel: SynergyPanel
+## From the boss reveal stage on; opens boss_card.
+var boss_badge: BossBadge
+var boss_card: BossCard
+## Takes the stage title's place while the boss fights.
+var boss_bar: BossBar
+var mute_button: MuteButton
 
 var _prep_panel: Control
 var _battle_panel: Control
+var _titles: VBoxContainer
 var _phase_tween: Tween
 
 
@@ -63,12 +72,12 @@ func _init() -> void:
 	rows.set_anchors_preset(Control.PRESET_FULL_RECT)
 	column.add_child(rows)
 	rows.add_child(_build_top_bar())
-	rows.add_child(_spacer(4))
 	rows.add_child(_build_board())
 	rows.add_child(_build_info_row())
-	rows.add_child(_spacer(2))
 	rows.add_child(_build_lower())
-	rows.add_child(_spacer(8))
+	# Every control keeps SAFE_EDGE_PX clear of the bottom edge (and the top
+	# bar's buttons of the top), out of reach of system gestures.
+	rows.add_child(_spacer(SAFE_EDGE_PX))
 	_build_overlay()
 
 
@@ -100,24 +109,36 @@ func show_prep_layout() -> void:
 
 
 func _build_top_bar() -> Control:
-	var bar := _margins(SIDE_GUTTER_PX, 6, SIDE_GUTTER_PX, 0)
-	bar.custom_minimum_size = Vector2(0, 84)
+	var bar := _margins(SIDE_GUTTER_PX, 18, SIDE_GUTTER_PX, 0)
+	bar.custom_minimum_size = Vector2(0, 94)
 	var row := HBoxContainer.new()
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	row.add_theme_constant_override(&"separation", 12)
+	row.add_theme_constant_override(&"separation", 10)
 	bar.add_child(row)
-	var titles := _vbox(-6)
-	titles.alignment = BoxContainer.ALIGNMENT_CENTER
-	titles.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(titles)
+	_titles = _vbox(-6)
+	_titles.alignment = BoxContainer.ALIGNMENT_CENTER
+	_titles.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(_titles)
 	stage_label = Label.new()
 	stage_label.theme_type_variation = &"TitleLabel"
 	stage_label.add_theme_font_size_override(&"font_size", 32)
-	titles.add_child(stage_label)
+	_titles.add_child(stage_label)
 	stage_name_label = Label.new()
 	stage_name_label.theme_type_variation = &"DimLabel"
 	stage_name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	titles.add_child(stage_name_label)
+	_titles.add_child(stage_name_label)
+	boss_bar = BossBar.new()
+	boss_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	boss_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	boss_bar.visible = false
+	row.add_child(boss_bar)
+	boss_badge = BossBadge.new()
+	boss_badge.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	boss_badge.visible = false
+	row.add_child(boss_badge)
+	mute_button = MuteButton.new()
+	mute_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(mute_button)
 	morale_chip = ResourceChip.new()
 	morale_chip.setup(&"morale")
 	morale_chip.custom_minimum_size = Vector2(112, 60)
@@ -126,6 +147,12 @@ func _build_top_bar() -> Control:
 	timer_badge = TimerBadge.new()
 	row.add_child(timer_badge)
 	return bar
+
+
+## The boss's bar in place of the stage title (the boss battle), or back.
+func show_boss_bar(is_shown: bool) -> void:
+	boss_bar.visible = is_shown
+	_titles.visible = not is_shown
 
 
 func _build_board() -> Control:
@@ -245,6 +272,8 @@ func _build_overlay() -> void:
 	add_child(info_panel)
 	synergy_panel = SynergyPanel.new()
 	add_child(synergy_panel)
+	boss_card = BossCard.new()
+	add_child(boss_card)
 
 
 func _chip(row: HBoxContainer, kind: StringName) -> ResourceChip:

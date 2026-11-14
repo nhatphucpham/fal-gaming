@@ -19,6 +19,8 @@ var _lineup: Lineup
 
 
 func _initialize() -> void:
+	# The title is shown first; nothing here may touch the player's settings.
+	RunSettings.path = "user://settings_sandbox_test.json"
 	var ok := await _run()
 	if _main != null:
 		_main.queue_free()

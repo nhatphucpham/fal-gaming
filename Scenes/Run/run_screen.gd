@@ -4,8 +4,10 @@ extends Control
 ## battle on the same board, the result banner and the reward choice, stage
 ## after stage, until the run is won or lost. RunState holds every rule;
 ## this screen sends it commands, plays the battle with BattlePlayback and
-## saves after every preparation command, battle result and reward. A run
-## loaded in its reward choice opens on the reward cards. Main sets
+## saves after every preparation command, battle result and reward. A
+## pending Kỳ Ngộ plays its cutscene before the reward cards (also for a run
+## loaded in its reward choice); the story scene plays on reaching the boss
+## stage. Sounds and music follow the run's signals. Main sets
 ## [member run], [member sim_clock] and [member prep_seconds] before adding
 ## it. See Docs/systems/run.md.
 
@@ -28,6 +30,8 @@ var controller: PrepController
 var playback: BattlePlayback
 var timer: PrepTimer
 var reward_screen: RewardScreen
+var boss_hud: BossHud
+var interludes: RunInterludes
 ## The last stage's result as the banner showed it, for tests.
 var last_battle_won: bool = false
 
@@ -40,6 +44,8 @@ var _enemy_views: LineupViews
 var _speed_index: int = 0
 var _deltas: Array = []
 var _is_battling: bool = false
+# Battle unit index of each board piece in the battle now, by piece id.
+var _piece_indices: Dictionary[int, int] = {}
 
 
 func _ready() -> void:
@@ -64,6 +70,8 @@ func _ready() -> void:
 	controller.setup(run, layout.board, layout.bench, layout.shop, layout.sell_zone, layout.ghost, _pieces, _enemy_views, _enemy_lineup)
 	_hud = RunHud.new(run, layout)
 	synergy_hud = SynergyHud.new(run, layout, _enemy_lineup)
+	boss_hud = BossHud.new(run, layout)
+	interludes = RunInterludes.new(run, self)
 	layout.info_panel.catalog = _catalog
 	_connect_signals()
 	_update_speed_label()
@@ -98,6 +106,9 @@ func start_battle() -> bool:
 	layout.board.set_top_half_dim(0.0)
 	layout.show_battle_layout()
 	synergy_hud.roll_call()
+	boss_hud.begin_battle(_battle)
+	Sound.play(&"battle_drum")
+	Sound.play_music(&"music_battle")
 	_on_tick_advanced(0)
 	playback.begin(_battle, layout.board, views, sim_clock, _catalog)
 	return true
@@ -111,7 +122,7 @@ func continue_after_battle() -> void:
 	playback.abort()
 	_clear_fx()
 	if run.phase == RunState.Phase.REWARD:
-		reward_screen.present(run.get_reward_options(), run.rules)
+		_offer_reward()
 		return
 	run_finished.emit(run)
 
@@ -119,6 +130,7 @@ func continue_after_battle() -> void:
 func cycle_speed() -> void:
 	_speed_index = (_speed_index + 1) % SPEEDS.size()
 	playback.speed = SPEEDS[_speed_index]
+	Sound.set_battle_speed(SPEEDS[_speed_index])
 	_update_speed_label()
 
 
@@ -156,6 +168,26 @@ func _connect_signals() -> void:
 		_finish_battle(winner == Battle.SIDE_A, BattleFactory.count_alive(_battle, Battle.SIDE_B), reason))
 	run.battle_resolved.connect(_on_battle_resolved)
 	run.prep_changed.connect(_save)
+	playback.unit_petrified.connect(boss_hud.on_petrified)
+	_connect_sounds()
+
+
+# Each run event's sound; the screen only listens, RunState never plays.
+func _connect_sounds() -> void:
+	run.piece_bought.connect(func(_piece: int, _slot: int) -> void: Sound.play(&"buy"))
+	run.piece_sold.connect(func(_piece: int, _gold: int, _supply: int) -> void: Sound.play(&"sell"))
+	run.pieces_merged.connect(func(_result: int, _consumed: Array[int]) -> void: Sound.play(&"merge"))
+	run.level_changed.connect(func(_level: int) -> void: Sound.play(&"level_up"))
+	run.shop_rolled.connect(func() -> void: Sound.play(&"card_flip"))
+	run.gold_changed.connect(func(_gold: int, delta: int) -> void:
+		if delta > 0:
+			Sound.play(&"coin"))
+	timer.seconds_changed.connect(func(seconds: int) -> void:
+		if seconds > 0 and seconds <= layout.timer_badge.warn_from_sec:
+			Sound.play(&"timer_tick"))
+	for button: Button in [layout.fight_button, layout.speed_button]:
+		button.pressed.connect(func() -> void: Sound.play(&"ui_tap"))
+	layout.banner.button_pressed.connect(func() -> void: Sound.play(&"ui_tap"))
 
 
 func _enter_prep() -> void:
@@ -163,6 +195,8 @@ func _enter_prep() -> void:
 	layout.timer_badge.visible = prep_seconds > 0
 	timer.start(prep_seconds)
 	controller.is_enabled = true
+	boss_hud.show_prep()
+	Sound.play_music(&"music_prep")
 
 
 # A run loaded in its reward choice: the stage's board behind the cards, no
@@ -171,6 +205,21 @@ func _enter_reward() -> void:
 	_show_stage()
 	layout.timer_badge.visible = false
 	controller.is_enabled = false
+	boss_hud.show_prep()
+	Sound.play_music(&"music_prep")
+	_offer_reward()
+
+
+# The reward cards, after the pending Kỳ Ngộ's cutscene when there is one.
+func _offer_reward() -> void:
+	if interludes.play_epiphany(_after_epiphany):
+		return
+	reward_screen.present(run.get_reward_options(), run.rules)
+
+
+func _after_epiphany() -> void:
+	_save()
+	synergy_hud.refresh(false)
 	reward_screen.present(run.get_reward_options(), run.rules)
 
 
@@ -194,11 +243,15 @@ func _show_stage() -> void:
 # Side A from the board pieces, side B from the stage; views by unit index.
 func _build_battle() -> Dictionary[int, UnitView]:
 	_battle.clear()
+	# Only the player's side carries the run's Kỳ Ngộ mutations.
+	_battle.set_synergy_overrides(Battle.SIDE_A, run.get_synergy_overrides())
+	_piece_indices.clear()
 	var views: Dictionary[int, UnitView] = {}
 	for piece: RunPiece in run.get_board_pieces():
 		var index := _battle.add_unit(Battle.SIDE_A, _catalog.get_unit(piece.unit_id), piece.star, piece.cell.x, piece.cell.y)
 		if index >= 0:
 			views[index] = _pieces.get_view(piece.id)
+			_piece_indices[piece.id] = index
 	for entry_id: int in _enemy_lineup.get_entry_ids():
 		var slot := _enemy_lineup.get_slot(entry_id)
 		var index := _battle.add_unit(Battle.SIDE_B, _catalog.get_unit(slot.unit_id), slot.star, slot.local_col, slot.local_rank)
@@ -211,7 +264,12 @@ func _build_battle() -> Dictionary[int, UnitView]:
 func _finish_battle(is_win: bool, enemies_alive: int, reason: StringName) -> void:
 	last_battle_won = is_win
 	_deltas.clear()
-	run.finish_battle(is_win, enemies_alive)
+	var piece_damage := {}
+	for piece_id: int in _piece_indices:
+		piece_damage[piece_id] = _battle.get_unit_state(_piece_indices[piece_id])["damage_dealt"]
+	_piece_indices.clear()
+	var is_boss_win := is_win and boss_hud.is_boss_defeated(_battle)
+	run.finish_battle(is_win, enemies_alive, piece_damage)
 	# Saved or deleted now, not when the banner is dismissed: an older save
 	# left behind would let "Chơi tiếp" replay this battle.
 	if is_saving and run.phase == RunState.Phase.REWARD:
@@ -221,7 +279,14 @@ func _finish_battle(is_win: bool, enemies_alive: int, reason: StringName) -> voi
 	var reason_text := tr("RESULT_TIME_LIMIT") if reason == &"time_limit" else ""
 	if reason == &"" and not is_win:
 		reason_text = tr("RESULT_EMPTY_BOARD")
-	layout.banner.present(is_win, reason_text, _deltas, "BUTTON_CONTINUE")
+	var deltas := _deltas.duplicate()
+	var show_banner := func() -> void:
+		Sound.play(&"win" if is_win else &"lose")
+		layout.banner.present(is_win, reason_text, deltas, "BUTTON_CONTINUE")
+	if is_boss_win:
+		create_tween().tween_callback(show_banner).set_delay(boss_hud.play_victory())
+	else:
+		show_banner.call()
 
 
 func _on_battle_resolved(_is_win: bool, gold_delta: int, supply_delta: int, morale_delta: int) -> void:
@@ -231,10 +296,12 @@ func _on_battle_resolved(_is_win: bool, gold_delta: int, supply_delta: int, mora
 
 
 func _on_reward_chosen(reward: RunState.Reward) -> void:
+	var previous_stage := run.stage
 	if run.choose_reward(reward) != RunState.Result.OK:
 		return
 	_save()
-	_enter_prep()
+	if not interludes.play_story_if_due(previous_stage, _enter_prep):
+		_enter_prep()
 
 
 func _save() -> void:
@@ -249,6 +316,7 @@ func _on_tick_advanced(tick: int) -> void:
 	layout.timer_badge.show_battle_seconds(seconds_left, rules.time_limit_ticks / rules.ticks_per_second)
 	if tick % STATUS_EVERY_TICKS == 0 or _battle.is_finished():
 		layout.battle_status.show_battle(_battle)
+		boss_hud.on_tick(_battle)
 
 
 func _press(result: RunState.Result, button: CostButton) -> void:

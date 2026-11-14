@@ -1,0 +1,216 @@
+[gd_resource type="Resource" script_class="SoundBank" format=3]
+
+[ext_resource type="Script" path="res://Systems/Audio/sound_bank.gd" id="1_bank"]
+[ext_resource type="Script" path="res://Systems/Audio/sound_data.gd" id="2_sound"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/ui_tap.wav" id="wav_ui_tap"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/coin.wav" id="wav_coin"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/card_flip.wav" id="wav_card_flip"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/buy.wav" id="wav_buy"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/sell.wav" id="wav_sell"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/merge.wav" id="wav_merge"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/level_up.wav" id="wav_level_up"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/timer_tick.wav" id="wav_timer_tick"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/battle_drum.wav" id="wav_battle_drum"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/hit_light.wav" id="wav_hit_light"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/hit_heavy.wav" id="wav_hit_heavy"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/arrow.wav" id="wav_arrow"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/spell.wav" id="wav_spell"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/skill_cast.wav" id="wav_skill_cast"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/block.wav" id="wav_block"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/charge.wav" id="wav_charge"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/death.wav" id="wav_death"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/formation_on.wav" id="wav_formation_on"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/formation_break.wav" id="wav_formation_break"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/petrify.wav" id="wav_petrify"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/win.wav" id="wav_win"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/lose.wav" id="wav_lose"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/epiphany.wav" id="wav_epiphany"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/text_blip.wav" id="wav_text_blip"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/music_prep.wav" id="wav_music_prep"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/music_battle.wav" id="wav_music_battle"]
+
+[sub_resource type="Resource" id="sound_ui_tap"]
+script = ExtResource("2_sound")
+id = &"ui_tap"
+stream = ExtResource("wav_ui_tap")
+volume_db = -6.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_coin"]
+script = ExtResource("2_sound")
+id = &"coin"
+stream = ExtResource("wav_coin")
+volume_db = -4.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_card_flip"]
+script = ExtResource("2_sound")
+id = &"card_flip"
+stream = ExtResource("wav_card_flip")
+volume_db = -8.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_buy"]
+script = ExtResource("2_sound")
+id = &"buy"
+stream = ExtResource("wav_buy")
+volume_db = -4.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_sell"]
+script = ExtResource("2_sound")
+id = &"sell"
+stream = ExtResource("wav_sell")
+volume_db = -4.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_merge"]
+script = ExtResource("2_sound")
+id = &"merge"
+stream = ExtResource("wav_merge")
+volume_db = -2.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_level_up"]
+script = ExtResource("2_sound")
+id = &"level_up"
+stream = ExtResource("wav_level_up")
+volume_db = -2.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_timer_tick"]
+script = ExtResource("2_sound")
+id = &"timer_tick"
+stream = ExtResource("wav_timer_tick")
+volume_db = -6.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_battle_drum"]
+script = ExtResource("2_sound")
+id = &"battle_drum"
+stream = ExtResource("wav_battle_drum")
+volume_db = 0.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_hit_light"]
+script = ExtResource("2_sound")
+id = &"hit_light"
+stream = ExtResource("wav_hit_light")
+volume_db = -9.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_hit_heavy"]
+script = ExtResource("2_sound")
+id = &"hit_heavy"
+stream = ExtResource("wav_hit_heavy")
+volume_db = -6.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_arrow"]
+script = ExtResource("2_sound")
+id = &"arrow"
+stream = ExtResource("wav_arrow")
+volume_db = -10.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_spell"]
+script = ExtResource("2_sound")
+id = &"spell"
+stream = ExtResource("wav_spell")
+volume_db = -7.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_skill_cast"]
+script = ExtResource("2_sound")
+id = &"skill_cast"
+stream = ExtResource("wav_skill_cast")
+volume_db = -5.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_block"]
+script = ExtResource("2_sound")
+id = &"block"
+stream = ExtResource("wav_block")
+volume_db = -6.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_charge"]
+script = ExtResource("2_sound")
+id = &"charge"
+stream = ExtResource("wav_charge")
+volume_db = -5.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_death"]
+script = ExtResource("2_sound")
+id = &"death"
+stream = ExtResource("wav_death")
+volume_db = -6.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_formation_on"]
+script = ExtResource("2_sound")
+id = &"formation_on"
+stream = ExtResource("wav_formation_on")
+volume_db = -5.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_formation_break"]
+script = ExtResource("2_sound")
+id = &"formation_break"
+stream = ExtResource("wav_formation_break")
+volume_db = -5.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_petrify"]
+script = ExtResource("2_sound")
+id = &"petrify"
+stream = ExtResource("wav_petrify")
+volume_db = -2.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_win"]
+script = ExtResource("2_sound")
+id = &"win"
+stream = ExtResource("wav_win")
+volume_db = -2.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_lose"]
+script = ExtResource("2_sound")
+id = &"lose"
+stream = ExtResource("wav_lose")
+volume_db = -2.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_epiphany"]
+script = ExtResource("2_sound")
+id = &"epiphany"
+stream = ExtResource("wav_epiphany")
+volume_db = -2.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_text_blip"]
+script = ExtResource("2_sound")
+id = &"text_blip"
+stream = ExtResource("wav_text_blip")
+volume_db = -12.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_music_prep"]
+script = ExtResource("2_sound")
+id = &"music_prep"
+stream = ExtResource("wav_music_prep")
+volume_db = -8.0
+is_music = true
+
+[sub_resource type="Resource" id="sound_music_battle"]
+script = ExtResource("2_sound")
+id = &"music_battle"
+stream = ExtResource("wav_music_battle")
+volume_db = -8.0
+is_music = true
+
+[resource]
+script = ExtResource("1_bank")
+sounds = Array[ExtResource("2_sound")]([SubResource("sound_ui_tap"), SubResource("sound_coin"), SubResource("sound_card_flip"), SubResource("sound_buy"), SubResource("sound_sell"), SubResource("sound_merge"), SubResource("sound_level_up"), SubResource("sound_timer_tick"), SubResource("sound_battle_drum"), SubResource("sound_hit_light"), SubResource("sound_hit_heavy"), SubResource("sound_arrow"), SubResource("sound_spell"), SubResource("sound_skill_cast"), SubResource("sound_block"), SubResource("sound_charge"), SubResource("sound_death"), SubResource("sound_formation_on"), SubResource("sound_formation_break"), SubResource("sound_petrify"), SubResource("sound_win"), SubResource("sound_lose"), SubResource("sound_epiphany"), SubResource("sound_text_blip"), SubResource("sound_music_prep"), SubResource("sound_music_battle")])

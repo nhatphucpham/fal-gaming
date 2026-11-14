@@ -1,5 +1,7 @@
 #include "synergy.h"
 
+#include "synergy_overrides.h"
+
 #include "battle/battle_shapes.h"
 #include "battle/unit_data.h"
 
@@ -80,14 +82,26 @@ Array milestones_to_array(const rules::SynergyConfig &p_config, const rules::Syn
 			continue;
 		}
 		PackedInt32Array thresholds;
+		// Each tier's modifiers as {handler, value}, so a Kỳ Ngộ variant
+		// (other modifiers, same thresholds) shows in the result too.
+		Array tier_modifiers;
 		for (const rules::TierDef &tier : milestone.tiers) {
 			thresholds.push_back(tier.at);
+			Array modifiers;
+			for (const rules::ModifierDef &modifier : tier.modifiers) {
+				Dictionary modifier_entry;
+				modifier_entry["handler"] = StringName(to_godot_string(modifier.handler_id));
+				modifier_entry["value"] = modifier.value;
+				modifiers.push_back(modifier_entry);
+			}
+			tier_modifiers.push_back(modifiers);
 		}
 		Dictionary entry;
 		entry["id"] = StringName(to_godot_string(milestone.id));
 		entry["counted_id"] = StringName(to_godot_string(milestone.counted_id));
 		entry["count"] = state.count;
 		entry["thresholds"] = thresholds;
+		entry["tier_modifiers"] = tier_modifiers;
 		entry["reached"] = state.reached;
 		list.push_back(entry);
 	}
@@ -174,32 +188,43 @@ PackedStringArray Synergy::setup(const Array &p_formations, const Array &p_miles
 	return problems;
 }
 
-Dictionary Synergy::evaluate(const Array &p_pieces) const {
+bool Synergy::build_config(const Array &p_overrides, rules::SynergyConfig *r_config, std::string *r_error) const {
+	if (p_overrides.is_empty()) {
+		*r_config = config;
+		return true;
+	}
+	return apply_synergy_overrides(config, p_overrides, r_config, r_error) && check_shape_params(*r_config, r_error);
+}
+
+Dictionary Synergy::evaluate(const Array &p_pieces, const Array &p_overrides) const {
 	Dictionary result;
 	ERR_FAIL_COND_V_MSG(!is_configured, result, "Synergy: evaluate() called before a successful setup()");
+	rules::SynergyConfig side_config;
+	std::string error;
+	ERR_FAIL_COND_V_MSG(!build_config(p_overrides, &side_config, &error), result, "Synergy: " + to_godot_string(error));
 	std::vector<formation::Piece> pieces;
 	for (int64_t index = 0; index < p_pieces.size(); index++) {
 		formation::Piece piece;
-		if (!read_piece(config, p_pieces[index], &piece)) {
+		if (!read_piece(side_config, p_pieces[index], &piece)) {
 			return result;
 		}
 		pieces.push_back(piece);
 	}
-	const rules::SynergyResult evaluation = rules::evaluate(config, pieces);
-	result["class_milestones"] = milestones_to_array(config, evaluation, rules::CountedKind::CLASS);
-	result["race_milestones"] = milestones_to_array(config, evaluation, rules::CountedKind::RACE);
+	const rules::SynergyResult evaluation = rules::evaluate(side_config, pieces);
+	result["class_milestones"] = milestones_to_array(side_config, evaluation, rules::CountedKind::CLASS);
+	result["race_milestones"] = milestones_to_array(side_config, evaluation, rules::CountedKind::RACE);
 	Array formations;
 	for (const rules::FormationState &state : evaluation.formations) {
-		formations.push_back(match_to_dictionary(config, state));
+		formations.push_back(match_to_dictionary(side_config, state));
 	}
 	Array near;
 	for (const formation::NearMiss &miss : evaluation.near_misses) {
-		near.push_back(near_to_dictionary(config, miss));
+		near.push_back(near_to_dictionary(side_config, miss));
 	}
 	result["formations"] = formations;
 	result["near_formations"] = near;
 	result["hop_luc"] = evaluation.points;
-	result["hop_luc_tier"] = evaluation.tier == rules::NO_INDEX ? 0 : config.hop_luc.tiers[evaluation.tier].at;
+	result["hop_luc_tier"] = evaluation.tier == rules::NO_INDEX ? 0 : side_config.hop_luc.tiers[evaluation.tier].at;
 	result["next_tier"] = evaluation.next_tier_at;
 	return result;
 }
@@ -207,5 +232,5 @@ Dictionary Synergy::evaluate(const Array &p_pieces) const {
 void Synergy::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("setup", "formations", "milestones", "hop_luc"), &Synergy::setup);
 	ClassDB::bind_method(D_METHOD("is_ready"), &Synergy::is_ready);
-	ClassDB::bind_method(D_METHOD("evaluate", "pieces"), &Synergy::evaluate);
+	ClassDB::bind_method(D_METHOD("evaluate", "pieces", "overrides"), &Synergy::evaluate, DEFVAL(Array()));
 }

@@ -28,6 +28,7 @@ func _init(view: UnitView) -> void:
 		&"status.guard": _paint_guard,
 		&"status.armor_break": _paint_armor_break,
 		&"status.stun": _paint_stun,
+		&"status.petrified": _paint_petrified,
 	}
 
 
@@ -137,6 +138,12 @@ func _paint_stun(center: Vector2) -> void:
 	for corner: int in 5:
 		var angle := TAU * corner / 5.0 - PI / 2.0
 		draw_line(center, center + Vector2.from_angle(angle) * 4.5, Palette.INK, 1.6)
+
+
+func _paint_petrified(center: Vector2) -> void:
+	_icon_base(center, Palette.STEEL)
+	draw_polyline(PackedVector2Array([center + Vector2(-3.5, -3.0), center + Vector2(-0.5, 0.0), center + Vector2(-2.0, 1.5), center + Vector2(2.5, 4.0)]), Palette.INK, 1.6)
+	draw_line(center + Vector2(-0.5, 0.0), center + Vector2(3.5, -2.5), Palette.INK, 1.4)
 
 
 func _shield_shape(center: Vector2) -> PackedVector2Array:

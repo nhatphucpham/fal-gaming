@@ -67,6 +67,27 @@ extends Resource
 ## Rewards offered after a lost battle (all are offered after a win).
 @export var rewards_after_loss: int = 2
 
+@export_group("Boss")
+## The stage whose line-up holds the boss (exactly one is_boss unit there,
+## none elsewhere).
+@export var boss_stage: int = 12
+## From this stage on, the prep top bar shows the boss badge.
+@export var boss_reveal_stage: int = 6
+
+@export_group("Kỳ Ngộ")
+## Each family's hidden threshold is rolled in this range at run start.
+@export var ngo_threshold_min: int = 4
+@export var ngo_threshold_max: int = 7
+## Ngộ per battle for each family with a tier reached.
+@export var ngo_per_active: int = 1
+## More Ngộ for every active family after a lost battle.
+@export var ngo_loss_bonus: int = 1
+## More Ngộ for the active, unmutated family that dealt the most damage.
+@export var ngo_top_damage_bonus: int = 2
+## A meter never goes above this (it also bounds saved values).
+@export var ngo_meter_max: int = 99
+@export var epiphanies_per_run: int = 4
+
 
 ## Supply to reach the next level, or -1 at max_level.
 func get_supply_to_next(level: int) -> int:
@@ -125,6 +146,10 @@ func validate() -> PackedStringArray:
 			problems.append("Run: %s has %d %s values, expected %d" % [resource_path, values.size(), pair[0], stage_count])
 	if start_morale < 1 or start_morale > max_morale or bench_slots < 1 or shop_slots < 1:
 		problems.append("Run: %s has a bad start_morale, bench_slots or shop_slots" % resource_path)
+	if boss_stage < 1 or boss_stage > stage_count or boss_reveal_stage < 1 or boss_reveal_stage > boss_stage:
+		problems.append("Run: %s has boss_stage %d and boss_reveal_stage %d, expected 1 <= reveal <= boss <= %d" % [resource_path, boss_stage, boss_reveal_stage, stage_count])
+	if ngo_threshold_min < 1 or ngo_threshold_max < ngo_threshold_min or ngo_meter_max < ngo_threshold_max or epiphanies_per_run < 0:
+		problems.append("Run: %s has bad Kỳ Ngộ numbers (thresholds %d..%d, meter max %d, per run %d)" % [resource_path, ngo_threshold_min, ngo_threshold_max, ngo_meter_max, epiphanies_per_run])
 	if rewards_after_loss < 1 or rewards_after_loss > RunState.REWARD_IDS.size():
 		problems.append("Run: %s has rewards_after_loss %d, expected 1..%d" % [resource_path, rewards_after_loss, RunState.REWARD_IDS.size()])
 	return problems

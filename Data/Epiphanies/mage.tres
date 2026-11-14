@@ -1,0 +1,58 @@
+[gd_resource type="Resource" script_class="EpiphanyFamily" format=3]
+
+[ext_resource type="Script" path="res://Systems/Run/epiphany_family.gd" id="1_family"]
+[ext_resource type="Script" path="res://Systems/Run/epiphany_data.gd" id="2_epiphany"]
+
+[sub_resource type="Resource" id="ep_0"]
+script = ExtResource("2_epiphany")
+id = &"epiphany.mage_lower_4"
+family = &"milestone.class_mage"
+kind = &"lower"
+name_key = "EPIPHANY_KIND_LOWER"
+description_key = "EPIPHANY_MAGE_LOWER_4"
+tier = 1
+
+[sub_resource type="Resource" id="ep_1"]
+script = ExtResource("2_epiphany")
+id = &"epiphany.mage_lower_2"
+family = &"milestone.class_mage"
+kind = &"lower"
+name_key = "EPIPHANY_KIND_LOWER"
+description_key = "EPIPHANY_MAGE_LOWER_2"
+tier = 0
+
+[sub_resource type="ModifierData" id="mod_2_0"]
+handler = &"mod.skill_damage_pct"
+scope = &"scope.counted"
+value = 20
+
+[sub_resource type="Resource" id="ep_2"]
+script = ExtResource("2_epiphany")
+id = &"epiphany.mage_focused_spell"
+family = &"milestone.class_mage"
+kind = &"variant"
+name_key = "EPIPHANY_KIND_VARIANT"
+description_key = "EPIPHANY_MAGE_FOCUSED_SPELL"
+tier = 0
+modifiers = Array[ModifierData]([SubResource("mod_2_0")])
+
+[sub_resource type="ModifierData" id="mod_3_0"]
+handler = &"mod.start_qi"
+scope = &"scope.counted"
+value = 40
+
+[sub_resource type="Resource" id="ep_3"]
+script = ExtResource("2_epiphany")
+id = &"epiphany.mage_early_chant"
+family = &"milestone.class_mage"
+kind = &"variant"
+name_key = "EPIPHANY_KIND_VARIANT"
+description_key = "EPIPHANY_MAGE_EARLY_CHANT"
+tier = 1
+modifiers = Array[ModifierData]([SubResource("mod_3_0")])
+
+[resource]
+script = ExtResource("1_family")
+family = &"milestone.class_mage"
+line_keys = Array[String](["EPIPHANY_MAGE_LINE_1", "EPIPHANY_MAGE_LINE_2", "EPIPHANY_MAGE_LINE_3"])
+epiphanies = Array[ExtResource("2_epiphany")]([SubResource("ep_0"), SubResource("ep_1"), SubResource("ep_2"), SubResource("ep_3")])

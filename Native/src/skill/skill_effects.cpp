@@ -58,6 +58,14 @@ void apply_stun(EffectContext &p_context, const EffectDef &p_effect) {
 	apply_status_effect(p_context, p_effect, StatusKind::STUN);
 }
 
+// Hóa Đá: the targets turn to stone, dropping a cast in progress.
+void apply_petrify(EffectContext &p_context, const EffectDef &p_effect) {
+	for (int target : get_effect_targets(p_context, p_effect)) {
+		cancel_cast(*p_context.sim, target);
+	}
+	apply_status_effect(p_context, p_effect, StatusKind::PETRIFIED);
+}
+
 // Pushes each target one cell straight away from the caster.
 void apply_knockback(EffectContext &p_context, const EffectDef &p_effect) {
 	const Cell from = p_context.sim->get_units()[p_context.caster].cell;
@@ -96,6 +104,7 @@ const EffectHandler EFFECT_HANDLERS[] = {
 	{ "effect.guard", apply_guard },
 	{ "effect.armor_break", apply_armor_break },
 	{ "effect.stun", apply_stun },
+	{ "effect.petrify", apply_petrify },
 	{ "effect.knockback", apply_knockback },
 	{ "effect.add_qi", apply_add_qi },
 	{ "effect.crit", apply_crit },

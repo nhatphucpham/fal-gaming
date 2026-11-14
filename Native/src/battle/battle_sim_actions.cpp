@@ -38,8 +38,8 @@ void BattleSim::act(int p_unit) {
 	const int charge_full = get_attack_charge_full(rules);
 	const int speed_pct = PERCENT + sum_modifiers(p_unit, rules::ModifierKind::ATTACK_SPEED_PCT);
 	unit.attack_charge = std::min(unit.attack_charge + get_class_def(unit).attacks_per_100s * speed_pct / PERCENT, charge_full);
-	// A stunned unit keeps its Khí and does nothing else.
-	if (has_status(unit, StatusKind::STUN) || run_cast_action(*this, p_unit)) {
+	// A stunned or petrified unit keeps its Khí and does nothing else.
+	if (has_status(unit, StatusKind::STUN) || has_status(unit, StatusKind::PETRIFIED) || run_cast_action(*this, p_unit)) {
 		return;
 	}
 	if (unit.skills.charge.is_active && unit.skills.charge.is_skill) {
@@ -237,6 +237,9 @@ int BattleSim::deal_damage(const DamageSpec &p_spec) {
 	if (!victim.is_alive) {
 		return 0;
 	}
+	if (has_status(victim, StatusKind::PETRIFIED)) {
+		return emit_immune_hit(p_spec);
+	}
 	int amount = p_spec.fixed_amount;
 	bool is_counter = false;
 	bool is_crit = false;
@@ -252,6 +255,7 @@ int BattleSim::deal_damage(const DamageSpec &p_spec) {
 		amount = adjust_hit_amount(p_spec, result.amount, &is_blocked, &split_modifier, &share);
 	}
 	victim.hp = std::max(victim.hp - amount, 0);
+	units[p_spec.source].damage_dealt += amount;
 
 	BattleEvent event;
 	event.type = EventType::DAMAGE_DEALT;
@@ -278,6 +282,20 @@ int BattleSim::deal_damage(const DamageSpec &p_spec) {
 	}
 	reflect_melee(p_spec, amount, damage_event);
 	return damage_event;
+}
+
+// A hit on a petrified unit: no damage, no Khí, no passive, no reflection.
+int BattleSim::emit_immune_hit(const DamageSpec &p_spec) {
+	BattleEvent event;
+	event.type = EventType::DAMAGE_DEALT;
+	event.cause = p_spec.cause;
+	event.source = p_spec.source;
+	event.target = p_spec.victim;
+	event.hp_after = units[p_spec.victim].hp;
+	event.blocked_by = p_spec.blocked_by;
+	event.skill_id = p_spec.skill_id;
+	event.is_immune = true;
+	return emit_event(event);
 }
 
 // Khí and passives of a victim that survived a hit.

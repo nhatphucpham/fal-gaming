@@ -49,6 +49,17 @@ void Battle::set_synergy(const Ref<Synergy> &p_synergy) {
 	synergy = p_synergy;
 }
 
+void Battle::set_synergy_overrides(int64_t p_side, const Array &p_overrides) {
+	ERR_FAIL_COND_MSG(is_emitting, "Battle: set_synergy_overrides() cannot be called from an event handler");
+	ERR_FAIL_COND_MSG(!is_valid_side(p_side), vformat("Battle: set_synergy_overrides() got side %d, expected 0 or 1", p_side));
+	ERR_FAIL_COND_MSG(synergy.is_null(), "Battle: set_synergy_overrides() needs set_synergy() first");
+	ERR_FAIL_COND_MSG(get_unit_count() > 0, "Battle: set_synergy_overrides() needs a battle without units; call clear() first");
+	rules::SynergyConfig config;
+	std::string error;
+	ERR_FAIL_COND_MSG(!synergy->build_config(p_overrides, &config, &error), "Battle: " + to_godot_string(error));
+	ERR_FAIL_COND_MSG(!sim.set_side_synergy(static_cast<int>(p_side), config, &error), "Battle: " + to_godot_string(error));
+}
+
 bool Battle::register_class(const Ref<ClassData> &p_class) {
 	ERR_FAIL_COND_V_MSG(is_emitting, false, "Battle: register_class() cannot be called from an event handler");
 	ERR_FAIL_COND_V_MSG(p_class.is_null(), false, "Battle: register_class() got a null ClassData");
@@ -198,6 +209,7 @@ Dictionary Battle::get_unit_state(int64_t p_index) const {
 	state["qi_max"] = unit.skills.qi_max;
 	state["casting"] = unit.skills.cast.is_casting;
 	state["statuses"] = get_status_array(unit, sim.get_tick());
+	state["damage_dealt"] = unit.damage_dealt;
 	return state;
 }
 
@@ -238,6 +250,7 @@ void Battle::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_rules"), &Battle::get_rules);
 	ClassDB::bind_method(D_METHOD("set_synergy", "synergy"), &Battle::set_synergy);
 	ClassDB::bind_method(D_METHOD("get_synergy"), &Battle::get_synergy);
+	ClassDB::bind_method(D_METHOD("set_synergy_overrides", "side", "overrides"), &Battle::set_synergy_overrides);
 	ClassDB::bind_method(D_METHOD("register_class", "class_data"), &Battle::register_class);
 	ClassDB::bind_method(D_METHOD("add_unit", "side", "unit", "star", "local_col", "local_rank"), &Battle::add_unit);
 	ClassDB::bind_method(D_METHOD("clear"), &Battle::clear);

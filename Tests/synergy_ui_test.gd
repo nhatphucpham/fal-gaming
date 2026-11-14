@@ -21,6 +21,7 @@ var _catalog: Catalog
 
 func _initialize() -> void:
 	RunSave.path = TEST_SAVE_PATH
+	RunSettings.path = "user://settings_synergy_ui_test.json"
 	var had_player_save := RunSave.has_save(RunSave.PATH)
 	var ok := await _run()
 	if _main != null:

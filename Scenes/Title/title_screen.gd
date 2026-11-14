@@ -1,8 +1,10 @@
 class_name TitleScreen
 extends Control
 ## The title screen: the game name over a few idle unit figures, "Ván mới",
-## "Chơi tiếp" (only when a save exists), "Bàn thử" (the sandbox) and the
-## preparation-time setting, stored in user://settings.json.
+## "Chơi tiếp" (only when a save exists), "Bàn thử" (the sandbox), "Cách
+## chơi", the preparation-time setting and the sound switch (both stored in
+## user://settings.json). Its first tap unlocks audio (the web needs a
+## gesture first).
 
 signal new_run_requested()
 signal continue_requested()
@@ -19,6 +21,8 @@ var has_save: bool = false
 var catalog: Catalog
 var prep_seconds: int = RunSettings.DEFAULT_PREP_SECONDS
 var _time_button: PressButton
+## "Cách chơi" while it is open, else null.
+var how_to: HowToScreen
 var _figures: Array[UnitView] = []
 var _time: float = 0.0
 
@@ -55,11 +59,34 @@ func _ready() -> void:
 	if has_save:
 		rows.add_child(_button("BUTTON_CONTINUE_RUN", continue_requested.emit, true))
 	rows.add_child(_button("BUTTON_NEW_RUN", new_run_requested.emit, not has_save))
-	rows.add_child(_button("BUTTON_SANDBOX", sandbox_requested.emit, false))
-	_time_button = _button("", cycle_prep_time, false)
-	rows.add_child(_time_button)
+	var pair := _pair_row(rows)
+	pair.add_child(_button("BUTTON_SANDBOX", sandbox_requested.emit, false, true))
+	pair.add_child(_button("BUTTON_HOWTO", open_how_to, false, true))
+	pair = _pair_row(rows)
+	_time_button = _button("", cycle_prep_time, false, true)
+	pair.add_child(_time_button)
+	var mute := MuteButton.new()
+	mute.shows_text = true
+	mute.custom_minimum_size = Vector2(232, 96)
+	mute.add_theme_font_size_override(&"font_size", 24)
+	pair.add_child(mute)
 	rows.add_child(_spacer(0.08))
 	_update_time_label()
+	Sound.play_music(&"music_prep")
+
+
+func _input(event: InputEvent) -> void:
+	# The browser allows sound only after a gesture: the first one is it.
+	if not Sound.is_unlocked() and (event is InputEventMouseButton or event is InputEventScreenTouch):
+		Sound.unlock()
+
+
+func open_how_to() -> HowToScreen:
+	if how_to == null:
+		how_to = HowToScreen.new()
+		how_to.closed.connect(func() -> void: how_to = null)
+		add_child(how_to)
+	return how_to
 
 
 ## The next preparation time (60 s, 90 s, unlimited), saved at once.
@@ -111,16 +138,30 @@ func _update_time_label() -> void:
 	_time_button.text = tr("PREP_TIME_FORMAT") % value
 
 
-func _button(text_key: String, action: Callable, is_primary: bool) -> PressButton:
+func _button(text_key: String, action: Callable, is_primary: bool, is_half: bool = false) -> PressButton:
 	var button := PressButton.new()
 	button.text = text_key
 	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(480, 96)
+	button.custom_minimum_size = Vector2(232 if is_half else 480, 96)
+	if is_half:
+		button.add_theme_font_size_override(&"font_size", 24)
 	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	if is_primary:
 		button.theme_type_variation = &"PrimaryButton"
-	button.pressed.connect(func() -> void: action.call())
+	button.pressed.connect(func() -> void:
+		Sound.play(&"ui_tap")
+		action.call())
 	return button
+
+
+# Two half-width buttons side by side.
+func _pair_row(rows: VBoxContainer) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override(&"separation", 16)
+	rows.add_child(row)
+	return row
 
 
 func _spacer(ratio: float) -> Control:

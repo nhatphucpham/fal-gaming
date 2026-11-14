@@ -24,6 +24,9 @@ class UnitData : public Resource {
 	// variants); empty uses the class's.
 	Ref<SkillData> skill_override;
 	Ref<PassiveData> passive_override;
+	// A boss (Cự Nham): never sold in the shop, drawn bigger, with a wide
+	// hp bar. The simulation treats it like any unit.
+	bool is_boss = false;
 
 protected:
 	static void _bind_methods();
@@ -45,6 +48,8 @@ public:
 	Ref<SkillData> get_skill_override() const { return skill_override; }
 	void set_passive_override(const Ref<PassiveData> &p_value) { passive_override = p_value; }
 	Ref<PassiveData> get_passive_override() const { return passive_override; }
+	void set_is_boss(bool p_value) { is_boss = p_value; }
+	bool get_is_boss() const { return is_boss; }
 };
 
 } // namespace godot
