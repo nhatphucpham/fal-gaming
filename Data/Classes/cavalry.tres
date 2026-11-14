@@ -1,0 +1,20 @@
+[gd_resource type="ClassData" format=3]
+
+[resource]
+id = &"class.cavalry"
+name_key = "CLASS_CAVALRY"
+max_hp = 850
+attack = 60
+attacks_per_100s = 70
+range_cells = 1
+armor = 30
+magic_resist = 20
+damage_kind = 0
+targeting = &"target.nearest"
+opening = &"opening.charge"
+attack_shape = &"shape.single"
+counters = Array[StringName]([&"class.mage"])
+is_ranged = false
+blocks_arrows = false
+immune_to_knockback = false
+stops_charge = false

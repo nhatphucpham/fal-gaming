@@ -1,0 +1,9 @@
+[gd_resource type="UnitData" format=3]
+
+[resource]
+id = &"unit.moon_spear"
+name_key = "UNIT_MOON_SPEAR"
+class_id = &"class.spear"
+race_id = &"race.wolf"
+cost = 4
+element_id = &""

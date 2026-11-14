@@ -1,0 +1,9 @@
+[gd_resource type="UnitData" format=3]
+
+[resource]
+id = &"unit.light_rider"
+name_key = "UNIT_LIGHT_RIDER"
+class_id = &"class.cavalry"
+race_id = &"race.human"
+cost = 2
+element_id = &""

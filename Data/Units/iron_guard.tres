@@ -1,0 +1,9 @@
+[gd_resource type="UnitData" format=3]
+
+[resource]
+id = &"unit.iron_guard"
+name_key = "UNIT_IRON_GUARD"
+class_id = &"class.shield"
+race_id = &"race.human"
+cost = 3
+element_id = &""

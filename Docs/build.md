@@ -42,9 +42,13 @@ godot-cpp is pinned to `10.0.0-stable` and built against the Godot 4.7 API
 
 ## Validate
 
-After building, run the editor import and `Tests/smoke_test.gd` as shown in
-the README. The smoke test checks that the extension is loaded, that the main
-scene contains a `SimClock`, and that it ticks as expected.
+After building, run the editor import, `Tests/smoke_test.gd`,
+`Tests/battle_test.gd` and `Tests/battle_api_test.gd` as shown in the
+README. The smoke test checks that the extension is loaded, that the main
+scene contains a `SimClock`, and that it ticks as expected. The battle tests
+load `Data/catalog.tres` and run short battles headless (see
+[Battle](systems/battle.md)); the first prints the length of a sample 8v8
+battle, the second prints the errors it provokes on purpose.
 
 The first import of a fresh checkout loads the extension mid-scan, and Godot
 4.7.2 then crashes on exit (exit code 134). Running the import again
@@ -53,8 +57,9 @@ succeeds. CI avoids it by writing
 
 CI builds debug and release libraries for Linux x86_64, Windows x86_64,
 Android arm64 and arm32, and the web (wasm32 without threads), and uploads
-them as workflow artifacts. It then runs the import and smoke test with the
-Linux library, and checks that the Android and Web exports contain theirs.
+them as workflow artifacts. It then runs the import, the smoke test and the
+battle tests with the Linux library, and checks that the Android and Web
+exports contain theirs.
 These checks do not replace testing an exported build on the target device.
 
 CI runs once per commit: on pull requests, and on pushes to `master`. A
@@ -76,8 +81,11 @@ update the documentation; see [Coding conventions](conventions.md), section 8.
 
 ## Adding C++ classes
 
-Put sources in `Native/src/`, register each class in
-`Native/src/register_types.cpp`, and rebuild. Use
+Put shared engine glue in `Native/src/` and each system in its own folder,
+`Native/src/<system>/` (SConstruct compiles `Native/src/*.cpp` and
+`Native/src/*/*.cpp`). Register each class in
+`Native/src/register_types.cpp`, and rebuild. Keep simulation files free of
+Godot headers so they build and replay without the engine. Use
 `GDREGISTER_RUNTIME_CLASS` for nodes that should not run inside the editor.
 `Native/` holds a `.gdignore` so Godot does not import it.
 

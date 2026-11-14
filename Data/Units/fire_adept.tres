@@ -1,0 +1,9 @@
+[gd_resource type="UnitData" format=3]
+
+[resource]
+id = &"unit.fire_adept"
+name_key = "UNIT_FIRE_ADEPT"
+class_id = &"class.mage"
+race_id = &"race.human"
+cost = 1
+element_id = &"element.fire"

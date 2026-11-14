@@ -1,0 +1,20 @@
+[gd_resource type="ClassData" format=3]
+
+[resource]
+id = &"class.spear"
+name_key = "CLASS_SPEAR"
+max_hp = 800
+attack = 55
+attacks_per_100s = 70
+range_cells = 2
+armor = 25
+magic_resist = 20
+damage_kind = 0
+targeting = &"target.column_first"
+opening = &""
+attack_shape = &"shape.single"
+counters = Array[StringName]([&"class.cavalry", &"class.sword"])
+is_ranged = false
+blocks_arrows = false
+immune_to_knockback = false
+stops_charge = true

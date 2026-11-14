@@ -1,0 +1,20 @@
+[gd_resource type="ClassData" format=3]
+
+[resource]
+id = &"class.shield"
+name_key = "CLASS_SHIELD"
+max_hp = 1100
+attack = 40
+attacks_per_100s = 60
+range_cells = 1
+armor = 40
+magic_resist = 30
+damage_kind = 0
+targeting = &"target.nearest"
+opening = &"opening.hold_line"
+attack_shape = &"shape.single"
+counters = Array[StringName]([&"class.archer"])
+is_ranged = false
+blocks_arrows = true
+immune_to_knockback = true
+stops_charge = false
