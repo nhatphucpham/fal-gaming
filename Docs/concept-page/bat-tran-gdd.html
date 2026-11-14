@@ -136,7 +136,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
       <span class="eyebrow">Tài liệu thiết kế game · Falemag</span>
       <h1>Bát Trận</h1>
       <p class="lead">Auto chess kiếm, cung, giáp, phép, nơi <b>hình dạng đội hình là vũ khí</b>. Người chơi chỉ chuẩn bị; trận đánh tự diễn ra, và các tầng kết hợp tự kích hoạt lẫn nhau thành chuỗi combo.</p>
-      <div class="meta"><span>Bản 1.5 · 14/11/2026</span><span>Godot 4.7 · C++ GDExtension</span><span>PC yếu và điện thoại</span><span>Trạng thái: thiết kế, chưa cân bằng</span></div>
+      <div class="meta"><span>Bản 1.6 · 14/11/2026</span><span>Godot 4.7 · C++ GDExtension</span><span>PC yếu và điện thoại</span><span>Trạng thái: thiết kế, chưa cân bằng</span></div>
       <p class="note">Mọi con số trong tài liệu là <b>giá trị khởi điểm</b> để dựng bản thử, sẽ chỉnh khi chơi thử. Mọi tên riêng là tên tạm.</p>
     </header>
 
@@ -344,7 +344,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
 
     <section id="danh-sach-quan">
       <h2><span class="n">08</span>Danh sách quân (bản thử)</h2>
-      <p>23 quân cho 6 lớp và 2 tộc của bản thử. Mỗi Pháp mang sẵn một nguyên tố. Quân giá 3–4 có chiêu biến thể: Nhân thiên về trận đồ, Lang Tộc thiên về lao tới và cấp Khí cho bầy.</p>
+      <p>25 quân cho 6 lớp và 2 tộc của bản thử, mỗi lớp ít nhất 4 quân khác nhau để đạt được mốc nghề 4. Mỗi Pháp mang sẵn một nguyên tố. Quân giá 3–4 có chiêu biến thể: Nhân thiên về trận đồ, Lang Tộc thiên về lao tới và cấp Khí cho bầy.</p>
       <div class="tbl"><table>
         <thead><tr><th class="num">Giá</th><th>Quân</th><th>Lớp · Tộc</th><th>Chiêu biến thể / ghi chú</th></tr></thead>
         <tbody>
@@ -364,6 +364,8 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
           <tr><td class="num">3</td><td><b>Huyết Lang</b></td><td>Kiếm · Lang Tộc</td><td>Hoành Tảo: lao tới 1 ô trước khi chém</td></tr>
           <tr><td class="num">3</td><td><b>Lang Xạ</b></td><td>Cung · Lang Tộc</td><td>Tiễn Vũ: mỗi mũi trúng cho Lang Tộc gần nhất +5 Khí</td></tr>
           <tr><td class="num">3</td><td><b>Phong Pháp Sư</b></td><td>Pháp · Nhân</td><td>Phong. Pháp Trận đẩy lùi địch ở rìa vùng 1 ô</td></tr>
+          <tr><td class="num">3</td><td><b>Trường Thương Vệ</b></td><td>Thương · Nhân</td><td>Xuyên Tâm: trận đồ có quân này +1 cấp trong 4 giây</td></tr>
+          <tr><td class="num">4</td><td><b>Lang Vương Thuẫn</b></td><td>Khiên · Lang Tộc</td><td>Trấn Thủ: hết khiêu khích thì mọi Lang Tộc +20 Khí</td></tr>
           <tr><td class="num">4</td><td><b>Trọng Kỵ</b></td><td>Kỵ · Nhân</td><td>Đột Trận: quân đầu tiên bị va phải choáng 1 giây</td></tr>
           <tr><td class="num">4</td><td><b>Nguyệt Thương</b></td><td>Thương · Lang Tộc</td><td>Xuyên Tâm: kéo mục tiêu xa nhất về ô trước mặt</td></tr>
           <tr><td class="num">4</td><td><b>Lôi Pháp Sư</b></td><td>Pháp · Nhân</td><td>Lôi. Pháp Trận để lại ô sét 3 giây, ai bước vào dính Lôi</td></tr>
@@ -374,7 +376,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
         </tbody>
       </table></div>
       <ul class="dots">
-        <li><b>Số bản trong kho chung</b> (cho Loạn Chiến): giá 1 có 18 bản mỗi quân, giá 2 có 15, giá 3 có 12, giá 4 có 9, giá 5 có 6.</li>
+        <li><b>Số bản trong kho chung</b> (cho Loạn Chiến): giá 1 có 29 bản mỗi quân, giá 2 có 22, giá 3 có 18, giá 4 có 12, giá 5 có 10. Lên 3 sao cần 9 bản, nên kho nào cũng phải lớn hơn 9 thì 3 sao mới còn khả thi.</li>
         <li><b>Cặp quan hệ cho cảnh cắt bản thử:</b> Liễu Mi và Ba Khắc, kẻ thù cũ (Ba Khắc từng đốt làng của Liễu Mi).</li>
         <li>Trấn Sơn và Vân Khê, cùng lớp Ám, Phù và các tộc còn lại, để sau bản thử.</li>
       </ul>
@@ -386,7 +388,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
       <div class="tbl"><table>
         <thead><tr><th>Tầng</th><th>Việc của tầng</th><th>Hiển thị</th></tr></thead>
         <tbody>
-          <tr><td><b>Nghề</b></td><td>Đếm số quân cùng lớp, mốc 2/4/6</td><td>Thanh đồng bộ cạnh bàn</td></tr>
+          <tr><td><b>Nghề</b></td><td>Đếm số quân khác nhau cùng lớp, mốc 2/4</td><td>Thanh đồng bộ cạnh bàn</td></tr>
           <tr><td><b>Tộc</b></td><td>Bẻ một luật xếp hình, không đếm số</td><td>Biểu tượng nhỏ trên quân</td></tr>
           <tr><td><b>Trận đồ</b></td><td>Xếp đúng hình thì mở hiệu lực (mục 10)</td><td>Đường sáng nối các ô</td></tr>
           <tr><td><b>Nguyên tố</b></td><td>Hai hệ chạm nhau trên một địch thì phản ứng (mục 11)</td><td>Màu viền kèm hình dạng</td></tr>
@@ -396,6 +398,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
         </tbody>
       </table></div>
       <h3>Nghề (mốc 2 / 4)</h3>
+      <p>Chỉ đếm quân khác nhau: hai Thuẫn Binh 1 sao vẫn tính là 1. Không có mốc 6, để bàn 8 quân không bị dồn về một lớp và còn chỗ cho trận đồ.</p>
       <div class="tbl"><table>
         <thead><tr><th>Lớp</th><th>2 quân</th><th>4 quân</th></tr></thead>
         <tbody>
@@ -561,16 +564,22 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
         <thead><tr><th>Mục</th><th class="num">Giá trị</th><th>Ghi chú</th></tr></thead>
         <tbody>
           <tr><td>Vàng khởi đầu</td><td class="num">10</td><td></td></tr>
-          <tr><td>Vàng sau mỗi trận</td><td class="num">5 (+1 nếu thắng)</td><td>Lãi +1 mỗi 10 vàng đang giữ, tối đa +3</td></tr>
+          <tr><td>Vàng mỗi chặng</td><td class="num">5 (+1 nếu thắng trận)</td><td>Lãi +1 mỗi 10 vàng đang giữ, tối đa +3</td></tr>
           <tr><td>Giá quân</td><td class="num">1–5</td><td>Theo độ hiếm. Bán lại được bằng giá mua × số sao</td></tr>
           <tr><td>Làm mới cửa hàng</td><td class="num">2</td><td>Cửa hàng 5 ô</td></tr>
           <tr><td>Chiêu Binh</td><td class="num">4</td><td>+1 chỗ quân trên bàn, từ 3 lên tối đa 8</td></tr>
           <tr><td>Lương khởi đầu</td><td class="num">12</td><td></td></tr>
-          <tr><td>Lương ăn mỗi chặng</td><td class="num">sao của quân</td><td>Tính cả ghế dự bị. Từ chặng 9 (mùa đông) +1 mỗi quân</td></tr>
+          <tr><td>Lương ăn mỗi chặng</td><td class="num">1 mỗi quân</td><td>Tính cả ghế dự bị. Quân 3 sao và tướng ăn 2</td></tr>
           <tr><td>Thiếu lương</td><td class="num">−15% máu tối đa</td><td>Áp cho cả đội tới khi đủ lương</td></tr>
-          <tr><td>Nguồn lương</td><td class="num">+3 / +6 / +1</td><td>Thắng trận / săn ở hạ trại / mỗi sao của quân bán đi</td></tr>
+          <tr><td>Nguồn lương</td><td class="num">+6 / +2 / +8 / +1</td><td>Tiếp tế mỗi chặng / thắng trận / săn ở hạ trại / mỗi sao của quân bán đi. Từ chặng 9 (mùa đông) tiếp tế chỉ còn +4</td></tr>
         </tbody>
       </table></div>
+      <h3>Kiểm tra một ván</h3>
+      <ul class="dots">
+        <li><b>Vàng:</b> 10 + 12 chặng × 5 + khoảng 8 trận thắng + lãi ≈ 90–95. Chi: 20 để mở đủ 8 chỗ, khoảng 60 cho 8 quân 2 sao, còn 10–15 để làm mới. Vừa đủ, không dư.</li>
+        <li><b>Lương:</b> 8 quân trên bàn, không dự bị, thắng đều: ăn 8, nhận 8, hòa. Thêm 2 quân dự bị và 1 tướng: ăn 11, hụt 3 mỗi chặng, 12 lương dự trữ cầm được khoảng 4 chặng. Muốn đội đông thì phải đi săn, bán quân, hoặc chịu đói.</li>
+        <li><b>Quân số:</b> bàn 15 ô, tối đa 8 quân, nên luôn còn ô trống để đổi hình trận đồ. Ghế dự bị 6 chỗ đủ để gom 3 bản ghép sao, nhưng mỗi chỗ ăn lương nên không ai giữ đầy.</li>
+      </ul>
       <div class="tbl"><table>
         <thead><tr><th>Tỉ lệ cửa hàng</th><th class="num">Hiếm 1</th><th class="num">2</th><th class="num">3</th><th class="num">4</th><th class="num">5</th></tr></thead>
         <tbody>
@@ -592,7 +601,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
           <tr><td><b>Trận tinh anh</b></td><td>Địch mạnh có luật riêng. Thắng: trang Binh Thư</td></tr>
           <tr><td><b>Chợ quân</b></td><td>Làm mới miễn phí 2 lần, có quân hiếm 4–5</td></tr>
           <tr><td><b>Lò rèn</b></td><td>Ghép trang bị, nhận Ấn, khắc hoặc dời Trận Nhãn</td></tr>
-          <tr><td><b>Hạ trại</b></td><td>Chọn 1: hồi 15 Sĩ khí, hoặc đi săn +6 lương (20% gặp phục kích)</td></tr>
+          <tr><td><b>Hạ trại</b></td><td>Chọn 1: hồi 15 Sĩ khí, hoặc đi săn +8 lương (20% gặp phục kích)</td></tr>
           <tr><td><b>Sự kiện</b></td><td>Lựa chọn có rủi ro: đổi vàng lấy quân lạ, cược lương lấy Binh Thư…</td></tr>
           <tr><td><b>Chúa tể</b></td><td>Đội mạnh nhất, có luật phá combo, lộ diện từ chặng 6</td></tr>
         </tbody>
@@ -816,7 +825,7 @@ Data/
         <thead><tr><th>Hạng mục</th><th>Phạm vi</th></tr></thead>
         <tbody>
           <tr><td>Bàn và trận</td><td>Bàn 5×3, mô phỏng tất định, cảnh cắt cho 1 cặp nhân vật (Liễu Mi và Ba Khắc)</td></tr>
-          <tr><td>Quân</td><td>6 lớp (Khiên, Kiếm, Thương, Kỵ, Cung, Pháp), 2 tộc (Nhân, Lang Tộc), 23 quân gồm 4 tướng (mục 08)</td></tr>
+          <tr><td>Quân</td><td>6 lớp (Khiên, Kiếm, Thương, Kỵ, Cung, Pháp), 2 tộc (Nhân, Lang Tộc), 25 quân gồm 4 tướng (mục 08)</td></tr>
           <tr><td>Kỹ năng</td><td>Chiêu, nội tại, Hậu chiêu cho 6 lớp; chiêu riêng 4 tướng</td></tr>
           <tr><td>Kết hợp</td><td>12 trận đồ, 3 nguyên tố (Hỏa, Băng, Phong) với 3 phản ứng</td></tr>
           <tr><td>Nâng cấp</td><td>Nâng sao, 6 món trang bị, 2 loại Trận Nhãn</td></tr>
