@@ -327,4 +327,3 @@ static func _dome(center: Vector2, radius_x: float, radius_y: float) -> PackedVe
 		var angle := PI + PI * index / 8.0
 		dome.append(center + Vector2(cos(angle) * radius_x, -2.0 + sin(angle) * radius_y))
 	return dome
-

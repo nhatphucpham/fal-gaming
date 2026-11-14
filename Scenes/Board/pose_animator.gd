@@ -68,6 +68,10 @@ var is_winding: bool = false
 ## False holds the idle sway still: only blinks redraw (bench, the dimmed
 ## waiting line-up).
 var is_swaying: bool = true
+## False for figures that ignore poses (bosses, the sage): they never redraw
+## while idle. A flag, because Godot re-enables processing on ready, so
+## set_process(false) before the node enters the tree does not stick.
+var is_posed: bool = true
 
 var _figure: CanvasItem
 var _motion: Dictionary = DEFAULT_MOTION
@@ -119,6 +123,8 @@ func _process(delta: float) -> void:
 	if is_active or _was_active:
 		_update_idle()
 		_redraw_while(is_active)
+		return
+	if not is_posed:
 		return
 	var slot := floori(_time * IDLE_REDRAWS_PER_SEC + _slot_offset)
 	if slot != _idle_slot:

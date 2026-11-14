@@ -123,7 +123,7 @@ func setup(unit_data: UnitData, unit_side: int, star_level: int) -> void:
 	_flip = 1.0 if unit_side == 0 else -1.0
 	_animator.set_class(unit_data.class_id)
 	# Bosses and the sage stand still: no pose, no idle redraws.
-	_animator.set_process(UnitPainter.is_posable(unit_data.class_id))
+	_animator.is_posed = UnitPainter.is_posable(unit_data.class_id)
 	_size_scale = BOSS_SCALE if unit_data.is_boss else 1.0
 	_stone.size_scale = _size_scale
 	_breath_phase = float(hash(unit_data.id) % 628) / 100.0 + randf() * 0.5
@@ -259,6 +259,7 @@ func grow_in() -> void:
 ## Jumps in an arc to `target` (local position) over `seconds`.
 func hop_to(target: Vector2, seconds: float) -> void:
 	_reset_tween(_motion_tween)
+	lean = 0.0
 	_motion_tween = _new_tween()
 	_motion_tween.tween_method(_hop_step.bind(position, target), 0.0, 1.0, seconds).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 
@@ -297,6 +298,8 @@ func shake() -> void:
 ## `kind` is the unit_moved kind: walk bobs, charge leans in, knockback skids.
 func glide_to(target: Vector2, duration_sec: float, kind: StringName) -> void:
 	_reset_tween(_motion_tween)
+	# A knockback cut short never reaches its lean-back step.
+	lean = 0.0
 	_motion_tween = _new_tween()
 	var from := position
 	var cells := maxf(1.0, from.distance_to(target) / 80.0)

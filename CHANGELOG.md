@@ -187,6 +187,8 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Fixed
 
+- Bosses and the sage no longer redraw 10 times a second while idle, and a
+  unit that glides or hops right after a knockback is no longer left tilted.
 - The web build had no sound at all: the Music and Sfx buses were added
   at run time, which is silent in the browser. They now come from
   `default_bus_layout.tres`.

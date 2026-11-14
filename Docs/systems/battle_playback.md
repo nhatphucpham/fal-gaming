@@ -55,7 +55,7 @@ a unit already playing its death shows nothing.
 | `unit_attacked` `magic` | the mage turns to the target and thrusts the staff (the orb flashes), with a recoil; a bolt, then the three cells of the row flash |
 | `damage_dealt` | target flashes white and flinches with hurt eyes (a shield raises its shield), a damage number pops and floats (bigger and gold when `is_counter`; gold with "!" when `is_crit`), the hp bar slides down with a pale trail; with `blocked_by`, a shield flash at the blocker. Skill damage may add its own look (below) |
 | `unit_died` | the unit collapses limp with dead eyes, falls over backwards and fades out; a boss instead cracks all over and crumbles (`UnitView.crumble()`, see [Boss](boss.md)) |
-| `charge_ended` | none (the charge's moves and hit already show it) |
+| `charge_ended` | when the charge hit someone, three dust puffs where rider and target meet, just after the impact (the charge's moves and hit already show the rest) |
 | `battle_ended` | after 0.6 s the winners raise their weapons with happy eyes and hop twice, then `battle_finished` fires and the screen shows the result banner |
 | `qi_changed` | the thin blue Khí bar under the hp bar fills; when full its frame glows and pulses |
 | `skill_cast_started` | a wind-up over the whole cast (`UnitView.wind_up(seconds)`): the caster crouches with its weapon raised and glowing in its class colour (a horse rears), a glow at the caster's feet in its class colour until it resolves, the skill's cells lit in that colour with one outline around the area for the cast, and the skill name rising over the caster for 0.6 s |

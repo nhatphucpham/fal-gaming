@@ -40,6 +40,7 @@ func _run() -> bool:
 		_check_die, _check_petrify, _check_idle_redraws, _check_calm_idle, _check_speed,
 		_check_speed_change_mid_cast, _check_breakthrough, _check_move_after_resolve,
 		_check_attack_after_resolve, _check_cheer_after_cast, _check_fallback_release,
+		_check_boss_idle, _check_glide_clears_lean,
 	]
 	for check: Callable in checks:
 		if not await check.call():
@@ -377,6 +378,40 @@ func _count_draws(view: UnitView) -> Array[int]:
 		if child is UnitFigure:
 			(child as UnitFigure).draw.connect(func() -> void: draws[0] += 1)
 	return draws
+
+
+# A figure that ignores poses (a boss) does not redraw while idle, even
+# though Godot re-enables processing when it enters the tree.
+func _check_boss_idle() -> bool:
+	var view := _make_view(&"class.colossus", 1)
+	await create_timer(0.3).timeout
+	var draws := _count_draws(view)
+	await create_timer(1.0).timeout
+	var ok := true
+	if draws[0] > 0:
+		push_error("An idle figure that ignores poses redrew %d times in 1 s" % draws[0])
+		ok = false
+	view.queue_free()
+	return ok
+
+
+# A knockback glide cut off by a new glide or hop must not leave the unit tilted.
+func _check_glide_clears_lean() -> bool:
+	var view := _make_view(&"class.sword", 0)
+	view.glide_to(view.position + Vector2(40, 0), 0.4, &"knockback")
+	await create_timer(0.2).timeout
+	if absf(view.lean) < 0.05:
+		push_error("A knockback should tilt the unit, lean is %.3f" % view.lean)
+		view.queue_free()
+		return false
+	view.glide_to(view.position + Vector2(0, 80), 0.3, &"walk")
+	var ok := _expect_near("Lean after a glide cut a knockback short", view.lean, 0.0)
+	view.glide_to(view.position + Vector2(40, 0), 0.4, &"knockback")
+	await create_timer(0.2).timeout
+	view.hop_to(view.position + Vector2(0, 80), 0.3)
+	ok = _expect_near("Lean after a hop cut a knockback short", view.lean, 0.0) and ok
+	view.queue_free()
+	return ok
 
 
 # Every skill and hit field back at rest, the strike at `strike`, the
