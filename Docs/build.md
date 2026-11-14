@@ -60,15 +60,16 @@ These checks do not replace testing an exported build on the target device.
 CI runs once per commit: on pull requests, and on pushes to `master`. A
 branch without a pull request is not built. A newer commit on a pull request
 cancels the run for the older one. Builds on `master` are never cancelled;
-when two pushes to `master` overlap, only one `pages` deploy runs and the
-other is cancelled. A pull request with merge conflicts is not built until
-they are resolved.
+if a `pages` deploy is still running or waiting when another one starts, the
+earlier one is cancelled. A pull request with merge conflicts is not built
+until they are resolved.
 
 The Linux jobs run on the pinned `ubuntu-24.04` image, not `ubuntu-latest`,
 so a runner image update cannot change the compiler, glibc or Android SDK
-under the build without a commit. To move to a newer image, change
-`runs-on` in `.github/workflows/` in its own pull request and check that
-every job still passes.
+under the build without a commit. To move to a newer image, replace
+`ubuntu-24.04` everywhere in `.github/workflows/` (the `runs-on` keys and
+the `os:` entries of the native matrix) in its own pull request, and check
+that every job still passes.
 
 On pull requests a separate `Docs` workflow checks that code changes also
 update the documentation; see [Coding conventions](conventions.md), section 8.
