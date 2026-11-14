@@ -58,8 +58,9 @@ static func _read_offers(saved: Array, catalog: Catalog) -> Variant:
 
 # The offered rewards, or null when they could not have been offered: none
 # outside the reward phase; in it all of them (after a win) or
-# `rewards_after_loss` (after a loss), each known and once, and no rest at the
-# final stage, which is only repeated after a loss.
+# `rewards_after_loss` (after a loss; at most what is left without the rest
+# at the final stage), each known and once, and no rest at the final stage,
+# which is only repeated after a loss.
 static func _read_rewards(saved: Array, fields: Dictionary, rules: RunRules) -> Variant:
 	var rewards: Array[RunState.Reward] = []
 	for id: Variant in saved:
@@ -69,9 +70,11 @@ static func _read_rewards(saved: Array, fields: Dictionary, rules: RunRules) -> 
 		rewards.append(index as RunState.Reward)
 	if fields["phase"] != RunState.Phase.REWARD:
 		return rewards if rewards.is_empty() else null
-	if rewards.size() != RunState.REWARD_IDS.size() and rewards.size() != rules.rewards_after_loss:
+	var is_final: bool = fields["stage"] >= rules.stage_count
+	var after_loss := mini(rules.rewards_after_loss, RunState.REWARD_IDS.size() - (1 if is_final else 0))
+	if rewards.size() != RunState.REWARD_IDS.size() and rewards.size() != after_loss:
 		return null
-	if fields["stage"] >= rules.stage_count and rewards.has(RunState.Reward.REST):
+	if is_final and rewards.has(RunState.Reward.REST):
 		return null
 	return rewards
 

@@ -192,7 +192,8 @@ repaired, when:
   `prep` and at the final stage; at most `stage` in `reward`, where the
   stage just won already counts);
 - `rewards` is not empty in `prep`; in `reward` it does not hold all
-  rewards (after a win) or `rewards_after_loss` of them (after a loss),
+  rewards (after a win) or `rewards_after_loss` of them (after a loss; at
+  the final stage at most the two left without the rest),
   holds an unknown or doubled id, or offers the rest at the final stage;
 - the shop has more offers than slots, or an unknown unit;
 - a piece misses a key, has an unknown unit, an id below 1 or used twice,

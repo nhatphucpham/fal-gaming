@@ -125,4 +125,6 @@ func validate() -> PackedStringArray:
 			problems.append("Run: %s has %d %s values, expected %d" % [resource_path, values.size(), pair[0], stage_count])
 	if start_morale < 1 or start_morale > max_morale or bench_slots < 1 or shop_slots < 1:
 		problems.append("Run: %s has a bad start_morale, bench_slots or shop_slots" % resource_path)
+	if rewards_after_loss < 1 or rewards_after_loss > RunState.REWARD_IDS.size():
+		problems.append("Run: %s has rewards_after_loss %d, expected 1..%d" % [resource_path, rewards_after_loss, RunState.REWARD_IDS.size()])
 	return problems

@@ -145,7 +145,8 @@ func _check_reward_after_reload() -> bool:
 	var center := (cards[0] as Control).get_global_rect().get_center()
 	_push_mouse(center, true)
 	_push_mouse(center, false, true)
-	await process_frame
+	# Longer than the card's choose animation, so a wrong choice would land.
+	await create_timer(0.9).timeout
 	if run.phase != RunState.Phase.REWARD:
 		push_error("A cancelled release on a reward card chose it")
 		return false

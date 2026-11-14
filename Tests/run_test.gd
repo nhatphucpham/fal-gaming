@@ -376,7 +376,22 @@ func _check_reward_round_trip() -> bool:
 		loaded.choose_reward(choice)
 		if not _expect(loaded.phase == RunState.Phase.PREP and loaded.to_save_data() == run.to_save_data(), "Choosing a loaded reward must give the same next shop (win %s)" % is_win):
 			return false
-	return true
+	# A final-stage loss offers what is left without the rest, even when the
+	# rules ask for more rewards after a loss.
+	var rules := _catalog.run_rules
+	var saved_count := rules.rewards_after_loss
+	rules.rewards_after_loss = RunState.REWARD_IDS.size()
+	var last := _make([["archer", 1, -1, 4, 1]], [""], {"stage": rules.stage_count})
+	last.begin_battle()
+	last.finish_battle(false, 1)
+	var reloaded := RunState.new(_catalog, 0)
+	var is_loaded := reloaded.load_save_data(last.to_save_data())
+	var problems := rules.validate()
+	rules.rewards_after_loss = 0
+	var bad_problems := rules.validate()
+	rules.rewards_after_loss = saved_count
+	return _expect(is_loaded and last.get_reward_options().size() == RunState.REWARD_IDS.size() - 1 and reloaded.get_reward_options() == last.get_reward_options(), "A final-stage loss must reload with any rewards_after_loss") \
+		and _expect(problems.is_empty() and bad_problems.size() == 1, "rewards_after_loss must be validated: %s / %s" % [problems, bad_problems])
 
 
 # Every successful preparation command reports a change (the screen saves
