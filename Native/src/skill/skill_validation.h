@@ -10,7 +10,9 @@
 namespace battle {
 
 constexpr int MAX_QI_COST = 1000;
-constexpr int MAX_EFFECT_VALUE = 1000;
+// Times the highest star multiplier (400%) this stays within the damage
+// pipeline's 1000% coefficient cap, so no skill is silently clamped.
+constexpr int MAX_EFFECT_VALUE = 250;
 constexpr int MAX_EFFECT_TICKS = 10000;
 constexpr int MAX_EFFECT_COUNT = 20;
 constexpr int MAX_AREA_SIZE = 8;

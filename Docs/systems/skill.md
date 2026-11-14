@@ -60,7 +60,8 @@ skill: skill.sweep has unknown selector 'select.nope'`).
 
 `SkillEffectData` (sub-resource): `id` (`effect.*`), `target` (`AREA` 0:
 living enemies in the cells; `SELF` 1; `SOURCE` 2: the other unit of a
-passive's trigger), `value` 0..1000, `duration_ticks` 0..10000, `count`
+passive's trigger), `value` 0..250 (so that with the highest star multiplier it stays
+within the damage pipeline's 1000% cap), `duration_ticks` 0..10000, `count`
 0..20, `star3_count` (-1 keeps `count`), `damage_kind` (physical 0, magic 1).
 
 `PassiveData` (`Data/Passives/<name>.tres`): `id`, `name_key`,
@@ -72,7 +73,7 @@ matching trigger), `limit_per_battle` 0..100 (0 unlimited),
 
 `BattleRulesData` adds: `qi_per_attack` 10, `qi_per_hit_taken` 5,
 `cast_ticks` 10 (1..1000), `star_skill_pct` [100, 150, 250] (skill
-coefficient by star, each 1..1000) and `crit_multiplier_pct` 150 (100..300).
+coefficient by star, each 1..400) and `crit_multiplier_pct` 150 (100..300).
 
 ### Registries
 
@@ -191,8 +192,8 @@ CI runs them. `Tests/skill_test_kit.gd` holds their shared set-up.
 - `passive.spirit_draw` can never fire yet: element reactions do not exist,
   so nothing raises `trigger.element_reaction`. It is kept as data so the
   mage has its passive when elements arrive.
-- `trigger.melee_hit_taken` counts basic melee attacks only, not skills or
-  charge impacts.
+- `trigger.melee_hit_taken` counts basic melee attacks and the opening
+  charge impact (which is a basic attack), not skills or skill charges.
 - No skill uses `effect.stun` yet.
 - `PassiveCounters.used_sources` is a 64-bit mask, so `once_per_source`
   tracks at most 64 units per battle (sides hold at most 28 each).

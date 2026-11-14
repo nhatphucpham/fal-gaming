@@ -144,6 +144,8 @@ Array godot::cells_to_array(const std::vector<battle::Cell> &p_cells) {
 	for (const battle::Cell &cell : p_cells) {
 		cells.push_back(Vector2i(cell.col, cell.row));
 	}
+	// Events are shared by every listener, so nested arrays are read-only too.
+	cells.make_read_only();
 	return cells;
 }
 

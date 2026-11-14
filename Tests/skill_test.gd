@@ -59,6 +59,7 @@ func _check_cast_timing() -> bool:
 	return (Kit.expect("cast start tick", started[0]["tick"], first_attack["tick"] + 1)
 		and Kit.expect("cast length", resolved["tick"] - started[0]["tick"], _kit.catalog.battle_rules.cast_ticks - 1)
 		and Kit.expect("attacks while casting", attacks_during.size(), 0)
+		and Kit.expect("event cells are read-only", (started[0]["cells"] as Array).is_read_only() and (resolved["cells"] as Array).is_read_only(), true)
 		and Kit.expect("Khí after the cast", emptied.size() == 1 and emptied[0]["qi"] == 0 and emptied[0]["tick"] == resolved["tick"], true)
 		and Kit.expect("cast cells", started[0]["cells"], [Vector2i(2, 4), Vector2i(3, 4), Vector2i(4, 4)]))
 

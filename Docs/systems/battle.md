@@ -78,7 +78,7 @@ checked by `Battle.register_class()`.
 | `max_units_per_side` | 10 | 1..28 |
 | `qi_per_attack`, `qi_per_hit_taken` | 10, 5 | Khí gains; 0..1000 |
 | `cast_ticks` | 10 | skill cast length; 1..1000 |
-| `star_skill_pct` | 100, 150, 250 | skill coefficient by star 1..3; each 1..1000 |
+| `star_skill_pct` | 100, 150, 250 | skill coefficient by star 1..3; each 1..400 |
 | `crit_multiplier_pct` | 150 | critical hit damage; 100..300 |
 
 `get_attack_charge_full()` is derived, not stored: `100 * ticks_per_second`.
