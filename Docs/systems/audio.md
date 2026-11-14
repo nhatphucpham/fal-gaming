@@ -89,10 +89,29 @@ generator's output was checked by header, length, peak and silence only.
 
 - Synthesised placeholders, not recorded or composed audio.
 
-## iPhone silent switch
+## iPhone
 
-Safari mutes Web Audio while the iPhone's ring/silent switch is on silent.
-The Web export preset's `html/head_include` sets
-`navigator.audioSession.type = 'playback'` (Safari 16.4 and later), so the
-game is heard like a video is; the in-game speaker button is the mute.
-Older Safari versions stay silent with the switch on.
+Safari mutes Web Audio while the iPhone's ring/silent switch is on silent,
+and only lets an audio context start from a `touchend` or `click`. The Web
+export preset's `html/head_include` holds a small script that:
+
+- sets `navigator.audioSession.type = 'playback'` (Safari 16.4 and later),
+  so the game is heard like a video is;
+- on older iPhones without that API, loops a silent `<audio>` element from
+  the first tap, which moves the page to the playback category too;
+- resumes every audio context that is not running on each `touchend`,
+  `click` and `keydown` (also after an interruption such as a phone call).
+
+The in-game speaker button is the mute. None of this has been checked on a
+real iPhone from the build machine; it was checked that Chromium still
+plays.
+
+## Buses come from the layout file
+
+`default_bus_layout.tres` defines Music and Sfx. Do not add buses at run
+time for anything that must be heard on the web: with Sample playback a bus
+added by `AudioServer.add_bus()` is silent in the browser (the first web
+build had no sound at all for this reason). `_ensure_bus()` remains only as
+a fallback for runs without the layout. To check a web build, measure the
+signal at the audio destination in a browser; counting started sounds is
+not enough.

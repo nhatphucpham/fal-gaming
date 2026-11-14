@@ -145,8 +145,11 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Fixed
 
+- The web build had no sound at all: the Music and Sfx buses were added
+  at run time, which is silent in the browser. They now come from
+  `default_bus_layout.tres`.
 - Sound on iPhone: the web build is no longer silenced by the ring/silent
-  switch (Safari 16.4 and later).
+  switch, and the audio is resumed on every tap.
 - A hit a shield's "Chặn" blocks is no longer damage taken: the shield
   gains no Khí and no on-hit passive fires (the attacker still gains its
   Khí).
