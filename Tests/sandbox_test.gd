@@ -190,6 +190,21 @@ func _check_touch_indexes() -> bool:
 			return false
 		_lineup.remove(entry)
 		await process_frame
+	# A cancelled release (as native builds send it) neither drops nor taps.
+	var held := _lineup.get_entry_ids()[0]
+	var held_cell := _board_cell(held)
+	var drop_point := board.cell_to_global(_free_player_cell()) - DragGhost.LIFT + UnitView.FEET
+	_touch(5000, true, board.cell_to_global(held_cell))
+	_touch_drag(5000, drop_point)
+	_touch(5000, false, drop_point, true)
+	if _board_cell(held) != held_cell or _setup.is_dragging():
+		push_error("A cancelled touch dropped the dragged unit")
+		return false
+	_touch(5000, true, card.get_global_rect().get_center())
+	_touch(5000, false, card.get_global_rect().get_center(), true)
+	if card.is_selected:
+		push_error("A cancelled touch selected a roster card")
+		return false
 	# Pausing the app or losing window focus mid-drag cancels the drag.
 	for what: int in [Node.NOTIFICATION_APPLICATION_PAUSED, Node.NOTIFICATION_WM_WINDOW_FOCUS_OUT]:
 		var entry := _lineup.get_entry_ids()[0]
@@ -344,10 +359,11 @@ func _visible_card(roster: RosterStrip) -> UnitCard:
 
 # Sends a touch through Input, as a platform would: canvas position to
 # window position, then Godot emulates the mouse for the first finger.
-func _touch(index: int, pressed: bool, at: Vector2) -> void:
+func _touch(index: int, pressed: bool, at: Vector2, canceled := false) -> void:
 	var event := InputEventScreenTouch.new()
 	event.index = index
 	event.pressed = pressed
+	event.canceled = canceled
 	event.position = root.get_final_transform() * at
 	Input.parse_input_event(event)
 	Input.flush_buffered_events()

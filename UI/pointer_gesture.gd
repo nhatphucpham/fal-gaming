@@ -4,8 +4,9 @@ extends RefCounted
 ## mouse and touch (touch arrives as emulated mouse events; see
 ## Docs/systems/board.md). A right click counts as a long press; other
 ## buttons are ignored while a press is held. A second finger (a touch whose
-## index differs from the one that owns the press), a cancelled touch, or
-## lost focus or app pause cancels the press (drag_cancelled for a drag).
+## index differs from the one that owns the press), a cancelled touch or
+## release, or lost focus or app pause cancels the press (drag_cancelled for
+## a drag; no tap).
 ## Positions are global canvas positions. The owner forwards _gui_input
 ## events, _input events (handle_global_input), notifications and update().
 ## [codeblock]
@@ -129,6 +130,11 @@ func _handle_button(button: InputEventMouseButton) -> bool:
 		return true
 	if not _is_down:
 		return false
+	# Godot sends a cancelled touch's emulated release (canceled set) before
+	# the touch itself: no drop and no tap.
+	if button.canceled:
+		cancel()
+		return true
 	_is_down = false
 	if _is_dragging:
 		_is_dragging = false

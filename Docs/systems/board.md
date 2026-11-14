@@ -56,7 +56,10 @@ assuming one. Another finger going down while the press is held cancels it;
 releases of other fingers are ignored. A cancelled touch, the mouse leaving
 the window, the window or app losing focus, or the app pausing also cancel
 the press; a drag then emits `drag_cancelled`, and the setup controller puts
-the piece back, hides the ghost and clears the cell marks.
+the piece back, hides the ghost and clears the cell marks. A cancelled press
+never taps or drops. On native builds Godot marks a cancelled touch's
+emulated mouse release `canceled` and sends it before the touch itself, so
+the gesture checks the flag on the release.
 
 On the web export a browser `touchcancel` reaches Godot as an ordinary
 release (`canceled` is never true), so a touch the browser interrupts while
@@ -64,8 +67,11 @@ the page stays in front ends as a normal drop where the finger last was: the
 same result as lifting the finger there, never a half-finished drag. When the
 interruption hides the page or takes its focus (a call, the app switcher, a
 system sheet), the focus-out or pause notification arrives first and the drag
-is cancelled instead. In the roster strip a sideways drag scrolls and an upward drag picks a
-card up; a soft fade on an edge shows that more cards lie that way. A dragged piece is shown by the `DragGhost`
+is cancelled instead.
+
+In the roster strip a sideways drag scrolls and an upward drag picks a card
+up; a soft fade on an edge shows that more cards lie that way. A dragged
+piece is shown by the `DragGhost`
 above the finger; the drop cell is the cell the ghost appears to stand in.
 
 ## Public API
@@ -157,7 +163,8 @@ leaving the window, focus loss or an app pause cancels the drag and restores
 the piece. Touches go through Godot's own `Input` path (touch to mouse
 emulation included) with first-finger indexes 1, 7 and 123456: a tap selects
 and places, a drag moves, and a second finger with another arbitrary index
-cancels while releases of other fingers are ignored. It checks that a
+cancels while releases of other fingers are ignored. A cancelled release
+(index 5000) neither drops a dragged unit nor selects a roster card. It checks that a
 selected card, a tap on a free cell and drops are refused during a battle,
 plays the battle to its end at x4, checks that "Xếp lại" restores the
 line-up and its views, and that the speed button afterwards does not touch
