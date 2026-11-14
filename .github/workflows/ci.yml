@@ -8,7 +8,8 @@ on:
   pull_request:
 
 # A newer commit on a pull request cancels the run for the older one. Runs on
-# master get a group of their own, so none is cancelled or left waiting.
+# master get a group of their own, so no build is cancelled or left waiting
+# (the pages job below has its own group for deploys).
 concurrency:
   group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
