@@ -10,7 +10,7 @@ chuẩn bị; trận tự đánh, các tầng kết hợp tự kích hoạt nhau
 
 - **Một ván:** 12 chặng, chặng nào cũng là trận, chúa tể ở chặng 12, 25–35 phút.
 - **Một chặng:** chuẩn bị cố định 60 giây, trận 30–45 giây, rồi chọn 1 trong 3 phần thưởng.
-- **Bàn 5×3:** số quân trên bàn bằng Cấp người chơi (3 lên 8). Cấp lên bằng lương.
+- **Bàn 7×4 (28 ô mỗi bên):** hàng 1 là hàng tiền, hàng 2–3 là hàng giữa, hàng 4 là hàng hậu. Số quân trên bàn bằng Cấp người chơi (3 lên 8), nên bàn không bao giờ kín. Cấp lên bằng lương.
 - **Hai đồng tiền:** vàng mua quân; lương lên Cấp (thêm quân, chợ ra quân giá cao).
 - **Quân:** 8 lớp, giá 1–5, sao ×1,8. Giá 5 là Tướng Lĩnh; 3 sao thành Thống Lĩnh.
 - **Kỹ năng:** Chiêu tự tung khi đầy Khí, Nội tại "khi X thì Y", lắp từ khối ghép.
@@ -19,13 +19,13 @@ chuẩn bị; trận tự đánh, các tầng kết hợp tự kích hoạt nhau
 - **Luật trận:** tất định 20 nhịp/giây trên SimClock, không may rủi trong trận, không hồi máu.
 - **Cảnh cắt** hai nhân vật đối mặt ở khoảnh khắc lớn.
 
-## Đã chốt (GDD bản 2.6)
+## Đã chốt (GDD bản 2.8)
 
 - **Tên:** Bát Trận. Tên trên cửa hàng quốc tế: "Bat Tran: Eight Formations".
 - **Phát hành:** trọng tâm là Hành Quân chơi đơn. Bản web chơi thử, rồi PC (Steam), rồi Android và iOS.
   Bóng Quân (đánh bản chụp đội người khác) sau phát hành; Loạn Chiến 8 người khi đủ người chơi.
 - **Mô hình:** mua một lần. Điện thoại chơi thử miễn phí đến hết bậc ải 1. Không gacha, không bán sức mạnh.
-- **Hình ảnh:** cắt giấy có khớp, tô phẳng, viền đậm, bảng màu tranh dân gian.
+- **Hình ảnh:** bàn và giao diện cắt giấy, tô phẳng, màu tranh dân gian; cảnh cắt là hoạt hình 2D vẽ tay độ phân giải cao, nhìn ngang kiểu cảnh giao đấu của game chiến thuật, rig xương 2D.
 
 ## Mong muốn của Phúc và giới hạn kỹ thuật
 
