@@ -37,7 +37,6 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
   rest, hunt, black market and loot.
 - `Tools/run_bot.gd --weak`: a new-player stand-in for balance runs.
 
-
 - `Tools/build_and_test.bat` builds, imports and tests the project on
   Windows in one go, checking each step (Godot path and version, Python,
   SCons, the godot-cpp submodule, the compiler) and saying how to fix the
