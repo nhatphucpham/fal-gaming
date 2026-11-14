@@ -136,7 +136,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
       <span class="eyebrow">Tài liệu thiết kế game · Falemag</span>
       <h1>Bát Trận</h1>
       <p class="lead">Auto chess kiếm, cung, giáp, phép, nơi <b>hình dạng đội hình là vũ khí</b>. Người chơi chỉ chuẩn bị; trận đánh tự diễn ra, và các tầng kết hợp tự kích hoạt lẫn nhau thành chuỗi combo.</p>
-      <div class="meta"><span>Bản 1.8 · 14/11/2026</span><span>Godot 4.7 · C++ GDExtension</span><span>PC yếu và điện thoại</span><span>Trạng thái: thiết kế, chưa cân bằng</span></div>
+      <div class="meta"><span>Bản 1.9 · 14/11/2026</span><span>Godot 4.7 · C++ GDExtension</span><span>PC yếu và điện thoại</span><span>Trạng thái: thiết kế, chưa cân bằng</span></div>
       <p class="note">Mọi con số trong tài liệu là <b>giá trị khởi điểm</b> để dựng bản thử, sẽ chỉnh khi chơi thử. Mọi tên riêng là tên tạm.</p>
     </header>
 
@@ -184,7 +184,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
       <ul class="dots">
         <li><b>Bàn:</b> mỗi bên 5 cột × 3 hàng (tiền, trung, hậu). Hai bàn đối mặt nhau, hàng tiền của hai bên giáp nhau.</li>
         <li><b>Lượt chuẩn bị:</b> cố định 60 giây trước mỗi trận, ở mọi chế độ. Đồng hồ đếm ngược ở đầu màn hình; 10 giây cuối chuyển đỏ. Hết giờ, quân đang cầm trên tay về chỗ cũ và trận bắt đầu.</li>
-        <li><b>Quân số:</b> chỗ trên bàn tăng dần từ 3 ở chặng đầu lên 8 ở cuối ván, địch theo cùng đường cong (mục 13). Ghế dự bị chứa thêm 6 quân, không ra trận.</li>
+        <li><b>Quân số:</b> số quân trên bàn bằng Cấp của người chơi, từ 3 đến tối đa 8 (mục 13). Địch có số quân theo chặng. Ghế dự bị chứa thêm 6 quân, không ra trận.</li>
         <li><b>Mô phỏng:</b> chạy 20 nhịp mỗi giây trên SimClock, tất định (cùng đầu vào cho cùng kết quả). Quân tự chọn mục tiêu theo luật của lớp (mục 06).</li>
         <li><b>Không hồi máu trong trận.</b> Máu chỉ giảm. Chữa thương chỉ có giữa các chặng.</li>
         <li><b>Kết thúc:</b> một bên hết quân. Sau 45 giây, bên có tổng phần trăm máu còn lại cao hơn thắng.</li>
@@ -327,7 +327,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
         <li><b>Lên sao riêng:</b> Tướng Lĩnh lên 2 sao với 2 bản. Lên 3 sao cần thêm 1 bản và một <b>Ấn Thống Lĩnh</b>.</li>
         <li><b>Ấn Thống Lĩnh</b> chỉ có từ: thắng trận tinh anh mà đạt cả hai Quân Lệnh, hoặc sự kiện hiếm Đền Tướng. Mục tiêu: khoảng 1 trong 8 ván có Thống Lĩnh.</li>
         <li><b>Giới hạn:</b> mỗi đội tối đa 2 Tướng Lĩnh và 1 Thống Lĩnh. Thống Lĩnh ăn 4 lương mỗi chặng.</li>
-        <li><b>Tỉ lệ ra:</b> chợ không có Tướng Lĩnh trước chặng 6; chặng 6–7 mỗi ô 2%, chặng 8–12 mỗi ô 4%.</li>
+        <li><b>Tỉ lệ ra:</b> theo Cấp người chơi (mục 13). Chợ không có Tướng Lĩnh dưới cấp 7; cấp 7 mỗi ô 1%, cấp 8 là 4%, cấp 9 là 10%.</li>
       </ul>
       <h3>Một chuỗi mẫu</h3>
       <ol class="dots">
@@ -614,7 +614,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
           <tr><td>Vàng mỗi chặng</td><td class="num">5 (+1 nếu thắng trận)</td><td>Lãi +1 mỗi 10 vàng đang giữ, tối đa +3</td></tr>
           <tr><td>Giá quân</td><td class="num">1–5</td><td>Theo độ hiếm. Bán lại được bằng giá mua × số sao</td></tr>
           <tr><td>Làm mới cửa hàng</td><td class="num">2</td><td>Cửa hàng 5 ô</td></tr>
-          <tr><td>Chiêu Binh</td><td class="num">6 / 10</td><td>Sớm hơn đường cong quân số 1 chỗ, tối đa 2 lần mỗi ván (xem bên dưới)</td></tr>
+          <tr><td>Luyện Binh</td><td class="num">4</td><td>Mua 4 KN để lên Cấp (xem bên dưới)</td></tr>
           <tr><td>Lương khởi đầu</td><td class="num">12</td><td></td></tr>
           <tr><td>Lương ăn mỗi chặng</td><td class="num">1 mỗi quân</td><td>Tính cả ghế dự bị. Quân 3 sao và tướng ăn 2</td></tr>
           <tr><td>Thiếu lương</td><td class="num">−15% máu tối đa</td><td>Áp cho cả đội tới khi đủ lương</td></tr>
@@ -623,33 +623,43 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
       </table></div>
       <h3>Kiểm tra một ván</h3>
       <ul class="dots">
-        <li><b>Vàng:</b> 10 + 12 chặng × 5 + khoảng 8 trận thắng + lãi ≈ 90–95. Chỗ trên bàn tự tăng nên không phải mua. Chi: khoảng 60 cho 8 quân 2 sao trải đều theo chặng (đầu ván chỉ cần 6–10 vàng cho 3 quân), 10–15 để làm mới, phần còn lại cho Chiêu Binh nếu muốn đi trước. Vừa đủ, không dư.</li>
+        <li><b>Vàng:</b> 10 + 12 chặng × 5 + khoảng 8 trận thắng + lãi ≈ 90–95. Chi chia ba hướng: Luyện Binh để lên cấp (khoảng 42 vàng để lên cấp 8, thêm 32 nếu muốn cấp 9), mua và ghép sao, làm mới chợ. Không đủ cho cả ba, nên mỗi ván phải chọn: lên cấp nhanh, hay giữ cấp thấp mà ghép 3 sao quân rẻ.</li>
         <li><b>Lương:</b> đầu ván 3–4 quân ăn ít mà tiếp tế vẫn 6, nên dư dần; cuối ván 8 quân trên bàn, không dự bị, thắng đều: ăn 8, nhận 8, hòa. Lương dư từ đầu ván là vốn để nuôi đội lớn về sau. Thêm 2 quân dự bị và 1 tướng: ăn 11, hụt 3 mỗi chặng, 12 lương dự trữ cầm được khoảng 4 chặng. Muốn đội đông thì phải đi săn, bán quân, hoặc chịu đói.</li>
         <li><b>Quân số:</b> bàn 15 ô, nhiều nhất 8 quân, nên luôn còn ô trống để đổi hình trận đồ. Ghế dự bị 6 chỗ đủ để gom 3 bản ghép sao, nhưng mỗi chỗ ăn lương nên không ai giữ đầy.</li>
       </ul>
+      <h3>Cấp chỉ huy</h3>
+      <p>Người chơi có <b>Cấp</b>, từ 3 đến 9. Cấp quyết định hai thứ: <b>số quân được đặt lên bàn</b> và <b>tỉ lệ chợ ra quân giá cao</b>. Không có gì tự tăng: muốn lên cấp phải thắng trận hoặc bỏ vàng ra luyện binh.</p>
+      <ul class="dots">
+        <li><b>Kinh nghiệm (KN):</b> thắng trận +2 KN. <b>Luyện Binh:</b> 4 vàng mua 4 KN, bấm bao nhiêu lần cũng được trong lượt chuẩn bị.</li>
+        <li>Câu hỏi mỗi lượt: tiêu vàng để lên cấp (thêm quân, quân xịn hơn), hay để mua và ghép sao ngay (đội mạnh lúc này)?</li>
+        <li>Địch không có cấp; số quân địch theo chặng. Lên cấp nhanh hơn đường của địch là cách có lợi thế quân số.</li>
+      </ul>
       <div class="tbl"><table>
-        <thead><tr><th>Tỉ lệ cửa hàng</th><th class="num">Hiếm 1</th><th class="num">2</th><th class="num">3</th><th class="num">4</th><th class="num">5</th></tr></thead>
+        <thead><tr><th class="num">Cấp</th><th class="num">KN lên cấp sau</th><th class="num">Quân trên bàn</th><th class="num">Giá 1</th><th class="num">2</th><th class="num">3</th><th class="num">4</th><th class="num">5</th></tr></thead>
         <tbody>
-          <tr><td>Chặng 1–3</td><td class="num">70%</td><td class="num">25%</td><td class="num">5%</td><td class="num">0%</td><td class="num">0%</td></tr>
-          <tr><td>Chặng 4–5</td><td class="num">40%</td><td class="num">35%</td><td class="num">20%</td><td class="num">5%</td><td class="num">0%</td></tr>
-          <tr><td>Chặng 6–7</td><td class="num">35%</td><td class="num">33%</td><td class="num">22%</td><td class="num">8%</td><td class="num">2%</td></tr>
-          <tr><td>Chặng 8–12</td><td class="num">20%</td><td class="num">30%</td><td class="num">31%</td><td class="num">15%</td><td class="num">4%</td></tr>
-        </tbody>
-      </table></div>
-      <h3>Quân số tăng dần</h3>
-      <p>Số chỗ trên bàn tự tăng theo chặng, địch cũng theo cùng đường cong. Đầu ván chỉ cần 3 quân, nên vàng ít vẫn đủ; trận đồ lớn và mốc cao chỉ mở ra khi quân số đã đủ.</p>
-      <div class="tbl"><table>
-        <thead><tr><th>Chặng</th><th class="num">1–2</th><th class="num">3–4</th><th class="num">5–6</th><th class="num">7–8</th><th class="num">9–10</th><th class="num">11–12</th></tr></thead>
-        <tbody>
-          <tr><td>Chỗ trên bàn</td><td class="num">3</td><td class="num">4</td><td class="num">5</td><td class="num">6</td><td class="num">7</td><td class="num">8</td></tr>
-          <tr><td>Quân địch</td><td class="num">3</td><td class="num">4</td><td class="num">5</td><td class="num">6</td><td class="num">7</td><td class="num">8</td></tr>
-          <tr><td>Mở ra</td><td>Trận đồ 3 quân, mốc 1–2</td><td>Mốc tộc 3</td><td>Trận đồ 4–5 quân, mốc 4</td><td>Trận đồ chồng</td><td>Tộc 5, Hợp Lực 12</td><td>Hợp Lực 15</td></tr>
+          <tr><td class="num">3</td><td class="num">2</td><td class="num">3</td><td class="num">75%</td><td class="num">25%</td><td class="num">0%</td><td class="num">0%</td><td class="num">0%</td></tr>
+          <tr><td class="num">4</td><td class="num">6</td><td class="num">4</td><td class="num">55%</td><td class="num">30%</td><td class="num">15%</td><td class="num">0%</td><td class="num">0%</td></tr>
+          <tr><td class="num">5</td><td class="num">10</td><td class="num">5</td><td class="num">45%</td><td class="num">33%</td><td class="num">20%</td><td class="num">2%</td><td class="num">0%</td></tr>
+          <tr><td class="num">6</td><td class="num">16</td><td class="num">6</td><td class="num">30%</td><td class="num">40%</td><td class="num">25%</td><td class="num">5%</td><td class="num">0%</td></tr>
+          <tr><td class="num">7</td><td class="num">24</td><td class="num">7</td><td class="num">19%</td><td class="num">30%</td><td class="num">35%</td><td class="num">15%</td><td class="num">1%</td></tr>
+          <tr><td class="num">8</td><td class="num">32</td><td class="num">8</td><td class="num">16%</td><td class="num">22%</td><td class="num">35%</td><td class="num">23%</td><td class="num">4%</td></tr>
+          <tr><td class="num">9</td><td class="num">—</td><td class="num">8</td><td class="num">10%</td><td class="num">18%</td><td class="num">30%</td><td class="num">32%</td><td class="num">10%</td></tr>
         </tbody>
       </table></div>
       <ul class="dots">
-        <li><b>Chiêu Binh:</b> trả vàng để có sớm hơn đường cong 1 chỗ, giữ đến hết ván. Lần đầu 6 vàng, lần hai 10 vàng, tối đa 2 lần. Đi trước một chỗ là lợi thế lớn ở đầu ván, nhưng ăn vào tiền mua quân.</li>
-        <li>Trận tinh anh có thêm 1 quân địch. Chúa tể chiếm 2 ô, đi cùng số hộ vệ bằng số chỗ của người chơi trừ 2.</li>
-        <li>Thắng sớm nhờ đội nhỏ mà khéo là có chủ đích: chặng đầu là lúc học xếp hình với 3–4 quân, không phải lúc cày tiền.</li>
+        <li>Cấp 9 không thêm chỗ (bàn 15 ô giữ tối đa 8 quân cho còn chỗ đổi hình), chỉ tăng mạnh tỉ lệ quân giá 4–5. Đây là đường đi tìm Tướng Lĩnh.</li>
+        <li>Từ cấp 3 lên 8 cần 58 KN. Thắng khoảng 8 trận được 16, còn lại khoảng 42 KN, tức 42 vàng nếu muốn đủ 8 quân. Lên cấp 9 cần thêm 32 KN. Không ai vừa lên cấp 8 sớm vừa có đội 2 sao đầy đủ: phải chọn.</li>
+      </ul>
+      <h3>Quân địch theo chặng</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Chặng</th><th class="num">1–2</th><th class="num">3–4</th><th class="num">5–6</th><th class="num">7–8</th><th class="num">9–10</th><th class="num">11–12</th></tr></thead>
+        <tbody>
+          <tr><td>Quân địch</td><td class="num">3</td><td class="num">4</td><td class="num">5</td><td class="num">6</td><td class="num">7</td><td class="num">8</td></tr>
+        </tbody>
+      </table></div>
+      <ul class="dots">
+        <li>Trận tinh anh có thêm 1 quân địch. Chúa tể chiếm 2 ô, đi cùng 6 hộ vệ.</li>
+        <li>Các tầng mở theo quân số: trận đồ 4–5 quân và mốc 4 chỉ khả thi từ cấp 5, Hợp Lực 15 cần đủ 8 quân.</li>
       </ul>
     </section>
 
@@ -912,6 +922,7 @@ Data/
           <tr><td><b>Lương</b></td><td>Đồng tiền thứ hai, để giữ quân qua chặng</td></tr>
           <tr><td><b>Binh Thư</b></td><td>Nâng cấp theo lớp quân, mỗi lớp một nhánh mỗi ván</td></tr>
           <tr><td><b>Trận Nhãn</b></td><td>Ô trên bàn đã khắc Ấn</td></tr>
+          <tr><td><b>Cấp</b></td><td>Cấp chỉ huy 3–9: số quân trên bàn và tỉ lệ ra quân giá cao</td></tr>
           <tr><td><b>Bậc ải</b></td><td>Mức khó 1–20, luật cộng dồn</td></tr>
           <tr><td><b>Chúa tể</b></td><td>Trận cuối ván, có luật phá combo</td></tr>
         </tbody>
