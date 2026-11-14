@@ -20,6 +20,8 @@ or run battles: the run screen plays each battle with `Battle` and
   `run_piece.gd` (`RunPiece`), `shop.gd` (`Shop`), `run_rules.gd`
   (`RunRules`), `stage_data.gd` (`StageData`), `run_save.gd` (`RunSave`),
   `save_reader.gd` (`SaveReader`, typed reads of save fields),
+  `run_save_fields.gd` (`RunSaveFields`, reads and checks a save's
+  top-level fields for `load_save_data()`),
   `run_settings.gd` (`RunSettings`).
 - `Systems/Content/battle_factory.gd` (`BattleFactory`): makes a `Battle`
   from the catalog's rules and adds line-ups; shared with the sandbox.
@@ -106,12 +108,14 @@ cells are local (col, rank) of side A.
 | `get_piece`, `get_pieces`, `get_bench_piece`, `get_board_piece`, `get_board_pieces`, `get_board_count`, `get_capacity` | queries | Pieces and places |
 | `get_shop_offers`, `get_refresh_cost`, `get_level_up_cost`, `get_sell_value`, `would_merge` | queries | Shop and prices |
 | `get_stage_data`, `get_board_slots`, `get_reward_options`, `is_black_market_active` | queries | Stage, battle slots, rewards |
-| `to_save_data()`, `load_save_data(data) -> bool` | methods | See the save format below |
+| `to_save_data()`, `load_save_data(data) -> bool`, `can_save()` | methods | See the save format below; `can_save()` is true in `PREP` and `REWARD` |
 | `gold_changed(gold, delta)`, `supply_changed(supply, delta)`, `morale_changed(morale, delta)`, `level_changed(level)` | signals | Each change, with its size for the chips' animation |
 | `shop_rolled()`, `piece_bought(piece_id, shop_slot)`, `piece_moved(piece_id)`, `piece_sold(piece_id, gold, supply)`, `pieces_merged(result_id, consumed_ids)` | signals | One per change; a purchase that merges sends `piece_bought` then `pieces_merged` |
 | `phase_changed(phase)`, `stage_started(stage)`, `battle_resolved(is_win, gold_delta, supply_delta, morale_delta)` | signals | Stage flow |
+| `prep_changed()` | signal | After every successful preparation command (buy, sell, move, refresh, supply, level up); the run screen saves on it |
 
-`RunSave` (static): `save(run)`, `load_run(catalog) -> RunState` (null
+`RunSave` (static): `save(run)` (refused with `push_error` outside `PREP`
+and `REWARD`), `load_run(catalog) -> RunState` (null
 without a usable save), `has_save()`, `delete()`; each takes an optional
 file path and otherwise uses the static `RunSave.path`
 (`user://run_save.json`), which only tests change. `RunSettings` (static):
@@ -119,10 +123,11 @@ file path and otherwise uses the static `RunSave.path`
 `next_prep_seconds(seconds)` over 60, 90 and 0 (unlimited).
 
 `Main`: `show_title()`, `start_new_run(seed = -1) -> RunScreen`,
-`continue_run() -> RunScreen`, `open_sandbox() -> SandboxScreen`.
+`continue_run() -> RunScreen` (null, the save deleted and the title shown
+again when the save cannot be used), `open_sandbox() -> SandboxScreen`.
 
 `RunScreen` (Main sets `run`, `sim_clock` and `prep_seconds` before adding
-it): `start_battle() -> bool` ("Ra trận", or the timer ran out),
+it; a run in `REWARD` opens straight on the reward cards): `start_battle() -> bool` ("Ra trận", or the timer ran out),
 `continue_after_battle()` (the banner's "Tiếp tục"), `cycle_speed()`,
 `press_refresh()`, `press_buy_supply()`, `press_level_up()`, the fields
 `controller`, `playback`, `reward_screen`, `layout`, `is_saving` and
@@ -143,9 +148,11 @@ cells here are global.
 - Tap or drag a piece to move it between bench and board, or swap. While a
   piece is selected or dragged, the shop turns into the sell zone with its
   value. A drag that starts in the gap between bench slots picks up
-  nothing. The sell zone and the reward cards use `PointerGesture` like the
-  other widgets: a tap must end on them, and a cancelled touch does nothing
-  (a reward card also takes a short drag released on it, not a long press).
+  nothing. The sell zone and the reward cards use `PointerGesture` with
+  long press turned off (`is_long_press_enabled = false`): any release
+  that ends on them acts, whether a quick tap, a press held any time, or a
+  finger that slid before lifting; a release off them or a cancelled touch
+  does nothing.
 - A refused command shakes the button or flashes the lacking resource; a
   full bench flashes red.
 - Long press (or right click) shows a unit's stats, also during a battle.
@@ -163,51 +170,70 @@ cells here are global.
 ## Save format
 
 `user://run_save.json` (the browser's IndexedDB on the web), written with
-`FileAccess` at the start of a run and after every reward, and deleted as
-soon as the run is won or lost (when the result banner appears, so closing
-the game there cannot replay the deciding battle). A save that cannot be
-used is warned about once (`Run: ... ignored`); "Chơi tiếp" then stays on
-the title, and "Ván mới" overwrites the file. The whole save is refused,
-never repaired, when:
+`FileAccess` at the start of a run, after every successful preparation
+command (`prep_changed`), when a battle ends in the reward choice, and
+after every reward. It is deleted as soon as the run is won or lost (when
+the result banner appears). So closing the game at any point after a
+battle cannot replay it: a non-final battle resumes on its reward cards,
+with its result (morale, gold, supply) already applied; and a refresh or
+purchase cannot be undone by reloading. A save that cannot be used is
+warned about once (`Run: ... ignored`) and deleted when "Chơi tiếp" fails,
+so the title then offers only "Ván mới". The whole save is refused, never
+repaired, when:
 
-- it is not JSON, a key is missing, or a field has the wrong JSON type
-  (numbers must be whole, `seed` and `rng_state` decimal strings that fit
-  64 bits, `black_market` and `has_fought` booleans, ids strings);
-- `version` is not 1; `stage` is outside 1..`stage_count`, `level`
-  outside `start_level`..`max_level`, `morale` outside 1..`max_morale`,
-  `gold` or `supply` negative, `stages_cleared` not below `stage`;
+- it is not JSON, any key the game writes is missing (all are required),
+  or a field has the wrong JSON type (numbers must be whole, `seed` and
+  `rng_state` decimal strings that fit 64 bits, `black_market` and
+  `has_fought` booleans, `phase`, ids and reward ids strings);
+- `version` is not 2; `phase` is not `"prep"` or `"reward"`; `stage` is
+  outside 1..`stage_count`, `level` outside `start_level`..`max_level`,
+  `morale` outside 1..`max_morale`, `gold` or `supply` negative,
+  `stages_cleared` negative or past the stages fought (below `stage` in
+  `prep` and at the final stage; at most `stage` in `reward`, where the
+  stage just won already counts);
+- `rewards` is not empty in `prep`; in `reward` it does not hold all
+  rewards (after a win) or `rewards_after_loss` of them (after a loss),
+  holds an unknown or doubled id, or offers the rest at the final stage;
 - the shop has more offers than slots, or an unknown unit;
-- a piece has an unknown unit, an id below 1 or used twice, a star outside
-  1..`max_star` (`legend_max_star` for cost 5), a `bench` other than -1 or
-  a slot, or (with `bench` -1) a cell off the half; two pieces share a cell
-  or a slot; the board holds more than the level's capacity or more than
-  `legend_board_limit` legends; or a group of copies could still merge.
-  The game merges right after every purchase, so such a group means the
-  file was not written by it; refusing is simpler and safer than merging
-  on load.
+- a piece misses a key, has an unknown unit, an id below 1 or used twice,
+  a star outside 1..`max_star` (`legend_max_star` for cost 5), a `bench`
+  other than -1 or a slot, or (with `bench` -1) a cell off the half; two
+  pieces share a cell or a slot; the board holds more than the level's
+  capacity or more than `legend_board_limit` legends; or a group of copies
+  could still merge. The game merges right after every purchase, so such a
+  group means the file was not written by it; refusing is simpler and safer
+  than merging on load.
 
-A bench piece's `col` and `rank` are ignored (it has no cell), and
-`free_refreshes` is clamped to what the rules give (`black_market_free_refreshes`
-on a black-market stage, else 0). Fields are read through `SaveReader`, so a
-hostile file never raises a script error.
+A bench piece's `col` and `rank` must be present as whole numbers, but
+their values are ignored (it has no cell), and `free_refreshes` is clamped
+to what the rules give (`black_market_free_refreshes` on a black-market
+stage, else 0). Fields are read through `SaveReader`, so a hostile file
+never raises a script error.
 
 ```json
 {
-  "version": 1,
-  "seed": "4242", "rng_state": "1234567890123",
-  "stage": 2, "stages_cleared": 1, "morale": 60,
+  "version": 2,
+  "seed": "4242", "rng_state": "1234567890123", "phase": "reward",
+  "stage": 2, "stages_cleared": 1, "morale": 48,
   "gold": 9, "supply": 4, "level": 3, "next_piece_id": 6,
   "pieces": [{"id": 1, "unit_id": "unit.archer", "star": 1, "has_fought": true,
               "bench": -1, "col": 3, "rank": 1}],
   "shop": ["unit.archer", "", "unit.spearman", "unit.shield_guard", "unit.wolf_blade"],
-  "black_market": false, "free_refreshes": 0
+  "black_market": false, "free_refreshes": 0,
+  "rewards": ["reward.hunt", "reward.black_market"]
 }
 ```
 
 `seed` and `rng_state` are strings because JSON numbers are doubles. A
-piece has a `bench` slot, or `bench` -1 and a board `col` and `rank`. A run is always saved in its preparation, so loading resumes there
-with the same shop. Raising `version` makes older saves unusable: add a
-migration in `RunSave.load_run()` when the format changes.
+piece has a `bench` slot, or `bench` -1 and a board `col` and `rank`.
+`phase` `"prep"` resumes the preparation with the same shop; `"reward"`
+opens on the same reward cards (`rewards`, `REWARD_IDS` ids), and the
+choice then rolls the same next shop as without the reload, since
+`rng_state` is saved after the rewards were drawn. Version 1 (before the
+phase and rewards) is refused like any unknown version, without a
+migration: such a save only existed during development. Raising `version`
+makes older saves unusable: add a migration in `RunSave.load_run()` when
+the format changes and players have saves.
 
 ## Balance bot
 
@@ -271,16 +297,23 @@ and settings problems with one `push_warning` each (`Run: could not write
   purchases, merges on the bench and board and chained, legends, levels,
   moves and swaps, income, battle results, rewards, the black market,
   stage 12 repeats, a lost run, bench queries off the bench, the save
-  round trip and broken saves (wrong types, out-of-range values, doubled
-  cells and slots, unknown units, over capacity, unmerged copies), which
-  must be refused without script errors.
+  round trip in the preparation and in the reward choice (after a win and a
+  loss: same options, same next shop), `prep_changed` after every
+  successful preparation command, and broken saves (every key left out,
+  wrong types, out-of-range values, bad phases and rewards, doubled cells
+  and slots, unknown units, over capacity, unmerged copies), which must be
+  refused without script errors.
 - `Tests/run_flow_test.gd`: stage 1 through the real screens: Main starts a
   run, units are bought and placed with the controller's taps, the battle
-  plays at x4, input is refused meanwhile, "Tiếp tục" opens the rewards and
-  one starts stage 2, which is in the save. With real input events it
-  checks that a drag from a bench gap picks nothing up and that the sell
-  zone ignores a cancelled or slid-off release; then a lost run deletes its
-  save at the banner. Both tests set `RunSave.path` to a test file
+  plays at x4, input is refused meanwhile, "Tiếp tục" opens the rewards
+  (already in the save at the reduced morale); "Chơi tiếp" then lands on
+  the same cards, a cancelled release on a card does nothing and a 0.5 s
+  press chooses it, starting stage 2, which is in the save; a refresh is
+  saved at once. With real input events it checks that a drag from a bench
+  gap picks nothing up, that the sell zone ignores a cancelled or slid-off
+  release and sells on a 0.5 s hold and on a slide that ends on it; then a
+  lost run deletes its save at the banner, and a version-1 save is deleted
+  when "Chơi tiếp" fails, leaving a title without it. Both tests set `RunSave.path` to a test file
   (`user://run_save_test.json`, `user://run_test_save.json`) and delete it,
   so the player's save is never touched.
 
@@ -291,6 +324,9 @@ godot --headless --path . --script res://Tests/run_flow_test.gd
 
 ## Known limits
 
+- A game closed during a battle resumes in that stage's preparation with
+  the board as it was (the last save before "Ra trận"), so that battle is
+  fought again; the run is never saved mid-battle.
 - Every shop roll is independent: there is no shared pool of copies.
 - Board cells are about 80 px wide at the 720 base, below the 88 px target
   for touch, so that the 7 x 8 board, bench and shop fit a portrait phone.

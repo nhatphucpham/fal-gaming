@@ -2,8 +2,9 @@ class_name SellZone
 extends Control
 ## Covers the shop while a piece is selected or dragged: "Bán +N vàng" with
 ## a coin, to tap or drop the piece on. Hidden (and click-through) otherwise.
-## Taps go through PointerGesture: a cancelled touch, or a release off the
-## zone, sells nothing.
+## Presses go through PointerGesture: any release on the zone sells (a tap,
+## however long held, or the end of a slide), a cancelled touch or a release
+## off the zone sells nothing.
 ## [codeblock]
 ## sell_zone.appear(4)
 ## sell_zone.tapped.connect(_sell_selected)
@@ -20,9 +21,9 @@ var _gesture := PointerGesture.new()
 
 
 func _init() -> void:
-	_gesture.tapped.connect(func(pointer: Vector2) -> void:
-		if contains_global(pointer):
-			tapped.emit())
+	_gesture.is_long_press_enabled = false
+	_gesture.tapped.connect(_tap_if_inside)
+	_gesture.drag_ended.connect(_tap_if_inside)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	modulate.a = 0.0
 	visible = false
@@ -112,6 +113,11 @@ func _draw() -> void:
 		x += 40.0
 	IconPainter.draw(self, &"coin", Vector2(rect.position.x + 64.0, rect.get_center().y), 56.0)
 	draw_rect(rect.grow(-10.0), Color(Palette.GOLD, 0.6 if _is_hover else 0.25), false, 3.0)
+
+
+func _tap_if_inside(pointer: Vector2) -> void:
+	if contains_global(pointer):
+		tapped.emit()
 
 
 func _fade_to(alpha: float) -> void:

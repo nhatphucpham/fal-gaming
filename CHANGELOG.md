@@ -22,7 +22,8 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
   board; the banner shows the gold, supply or morale won or lost, then pick
   one of three rewards (two after a loss): rest, hunt or the black market.
   Morale at 0 ends the run; winning stage 12, "Đại Trận Lạc Hồng", wins it.
-  The run is saved after every reward. The end screen shows the result,
+  The run is saved after every change in the preparation, at the end of
+  each battle and after every reward. The end screen shows the result,
   the stages cleared and your army.
 - The preparation timer pauses when the game window or browser tab is not
   in front.
@@ -67,10 +68,21 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 - In the run, a drag that starts between two bench slots no longer picks up
   (and can no longer sell) a unit on the board.
 - The sell zone and the reward cards ignore a cancelled touch, and the sell
-  zone sells only when the tap ends on it.
+  zone sells only when the press ends on it.
 - The run save is deleted as soon as the run is won or lost, so closing the
   game at the result banner no longer lets "Chơi tiếp" replay that battle.
 - A damaged or edited run save (wrong types, impossible values, two units
   on one place, too many units on the board) is ignored with one warning
   instead of loading a broken run or raising script errors.
 - The run flow test no longer overwrites a run saved on the same machine.
+- Closing the game after a battle that does not end the run no longer
+  replays it: "Chơi tiếp" opens that battle's reward cards with its morale,
+  gold and supply already counted. Refreshes, purchases, sales, moves and
+  level-ups are saved at once, so reloading cannot undo a refresh. A game
+  closed during a battle still resumes in that stage's preparation. Saves
+  from earlier builds are no longer used.
+- A press held 0.4 s or longer on a reward card or the sell zone now chooses
+  or sells, and so does a finger that slides within the sell zone before
+  lifting.
+- A save that cannot be used is deleted when "Chơi tiếp" fails, so the title
+  no longer keeps offering "Chơi tiếp" for it.

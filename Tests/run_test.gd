@@ -5,6 +5,8 @@ extends SceneTree
 # path a saved run takes, so no test touches private fields.
 
 const SAVE_PATH: String = "user://run_test_save.json"
+# Marks a save key that _write_save() leaves out.
+const MISSING_KEY: String = "<missing>"
 
 var _catalog: Catalog
 var _failures: int = 0
@@ -18,7 +20,8 @@ func _initialize() -> void:
 		_check_refresh, _check_buy_refusals, _check_merge_bench, _check_merge_board,
 		_check_merge_chain, _check_legends, _check_levels, _check_moves, _check_bench_queries,
 		_check_income, _check_battle_results, _check_rewards, _check_black_market,
-		_check_stage_12, _check_run_lost, _check_save_round_trip, _check_bad_saves,
+		_check_stage_12, _check_run_lost, _check_save_round_trip, _check_reward_round_trip,
+		_check_prep_changed, _check_bad_saves,
 	]
 	for check: Callable in checks:
 		if not check.call():
@@ -45,10 +48,13 @@ func _make(pieces: Array, shop: Array, values: Dictionary = {}) -> RunState:
 	for offer: String in shop:
 		offers.append("unit." + offer if offer != "" else "")
 	var data := {
-		"seed": "99", "rng_state": str(_fresh_rng_state(99)), "stage": 1, "morale": 60,
-		"gold": 50, "supply": 0, "level": 3, "pieces": rows, "shop": offers,
+		"seed": "99", "rng_state": str(_fresh_rng_state(99)), "phase": "prep", "stage": 1, "morale": 60,
+		"gold": 50, "supply": 0, "level": 3, "next_piece_id": 1, "pieces": rows, "shop": offers,
+		"black_market": false, "free_refreshes": 0, "rewards": [],
 	}
 	data.merge(values, true)
+	if not values.has("stages_cleared"):
+		data["stages_cleared"] = data["stage"] - 1
 	var run := RunState.new(_catalog, 0)
 	if not run.load_save_data(data):
 		push_error("Test state did not load: %s" % data)
@@ -349,6 +355,51 @@ func _check_save_round_trip() -> bool:
 	return _expect(loaded.get_shop_offers() == run.get_shop_offers() and piece != null and piece.has_fought and loaded.get_refresh_cost() == run.get_refresh_cost(), "A loaded run must continue with the same shops")
 
 
+# A run saved in its reward choice offers the same rewards after loading,
+# and choosing one gives the same next stage as without the round trip.
+func _check_reward_round_trip() -> bool:
+	for is_win: bool in [true, false]:
+		var run := RunState.new(_catalog, 5150)
+		run.start()
+		run.buy(0)
+		run.move_to_board(run.get_pieces()[0].id, Vector2i(3, 1))
+		run.begin_battle()
+		run.finish_battle(is_win, 2)
+		if not _expect(RunSave.save(run, SAVE_PATH), "Saving in the reward phase failed"):
+			return false
+		var loaded := RunSave.load_run(_catalog, SAVE_PATH)
+		DirAccess.remove_absolute(SAVE_PATH)
+		if not _expect(loaded != null and loaded.phase == RunState.Phase.REWARD and loaded.get_reward_options() == run.get_reward_options() and loaded.to_save_data() == run.to_save_data(), "A reward-phase save must load with the same options (win %s)" % is_win):
+			return false
+		var choice: RunState.Reward = run.get_reward_options().back()
+		run.choose_reward(choice)
+		loaded.choose_reward(choice)
+		if not _expect(loaded.phase == RunState.Phase.PREP and loaded.to_save_data() == run.to_save_data(), "Choosing a loaded reward must give the same next shop (win %s)" % is_win):
+			return false
+	return true
+
+
+# Every successful preparation command reports a change (the screen saves
+# on it); refused ones and battle commands do not.
+func _check_prep_changed() -> bool:
+	var run := _make([["archer", 1, 0, 0, 0], ["spearman", 1, -1, 4, 1, true]], ["archer", "spearman", "", "", ""], {"supply": 20})
+	var changes := [0]
+	run.prep_changed.connect(func() -> void: changes[0] += 1)
+	var commands: Array[Callable] = [
+		run.buy.bind(0), run.buy_to.bind(1, 3, RunPiece.NO_CELL), run.refresh_shop, run.buy_supply, run.level_up,
+		run.move_to_board.bind(1, Vector2i(2, 1)), run.move_to_bench.bind(1, 5), run.sell.bind(2),
+	]
+	for command: Callable in commands:
+		if not _expect(command.call() == RunState.Result.OK, "%s should succeed" % command.get_method()):
+			return false
+	var expected := commands.size()
+	run.move_to_bench(99, 0)
+	run.sell(99)
+	run.begin_battle()
+	run.finish_battle(true, 0)
+	return _expect(changes[0] == expected, "Expected %d preparation changes, got %d" % [expected, changes[0]])
+
+
 func _check_bad_saves() -> bool:
 	print("Run test: the next warning (a broken save) is expected")
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -363,22 +414,27 @@ func _check_bad_saves() -> bool:
 			bad_count += 1
 	if bad_count > 0:
 		return false
-	# A bench row's col and rank are ignored, and free refreshes are capped.
+	# A bench row's col and rank must be there but are ignored, free
+	# refreshes are capped, and a reward-phase save keeps its options.
 	_write_save({"free_refreshes": 5}, [_row(1, "archer", 1, 0, 9, 9)])
 	var loaded := RunSave.load_run(_catalog)
 	var bench_ok := loaded != null and loaded.get_bench_piece(0) != null and loaded.get_board_count() == 0 and loaded.get_refresh_cost() == 2
 	_write_save({"free_refreshes": 5, "black_market": true})
 	var market := RunSave.load_run(_catalog)
 	var market_ok := market != null and market.get_refresh_cost() == 0 and market.refresh_shop() == RunState.Result.OK and market.get_refresh_cost() == 2
+	_write_save({"phase": "reward", "stages_cleared": 2, "rewards": ["reward.hunt", "reward.black_market"]})
+	var reward := RunSave.load_run(_catalog)
+	var reward_ok := reward != null and reward.phase == RunState.Phase.REWARD and reward.get_reward_options() == [RunState.Reward.HUNT, RunState.Reward.BLACK_MARKET]
 	RunSave.delete()
-	return _expect(bench_ok and market_ok and not RunSave.has_save(), "Valid saves must load with normalised pieces and capped refreshes")
+	return _expect(bench_ok and market_ok and reward_ok and not RunSave.has_save(), "Valid saves must load with normalised pieces, capped refreshes and their rewards")
 
 
 # [label, top-level fields to change, pieces (empty: one archer on bench 0)].
 func _bad_save_cases() -> Array:
 	var on_board := func(id: int, unit: String, col: int) -> Dictionary: return _row(id, unit, 1, -1, col, 1)
 	return [
-		["version 99", {"version": 99}], ["version as text", {"version": "1"}], ["version as object", {"version": {}}],
+		["version 99", {"version": 99}], ["version as text", {"version": "2"}], ["version as object", {"version": {}}],
+		["version 1", {"version": 1}],
 		["stage as object", {"stage": {}}], ["stage as text", {"stage": "abc"}], ["stage 1.5", {"stage": 1.5}],
 		["morale null", {"morale": null}], ["gold as array", {"gold": []}], ["black_market as text", {"black_market": "yes"}],
 		["seed as object", {"seed": {}}], ["seed not a number", {"seed": "abc"}], ["rng_state past 64 bits", {"rng_state": "99999999999999999999"}],
@@ -386,7 +442,20 @@ func _bad_save_cases() -> Array:
 		["too many offers", {"shop": ["", "", "", "", "", ""]}], ["an unknown offer", {"shop": ["unit.nobody"]}],
 		["morale 0", {"morale": 0}], ["morale 9999", {"morale": 9999}], ["gold -1", {"gold": -1}], ["supply -1", {"supply": -1}],
 		["level 2", {"level": 2}], ["level 10", {"level": 10}], ["stage 0", {"stage": 0}], ["stage 13", {"stage": 13}],
-		["stages_cleared past the stage", {"stages_cleared": 5}],
+		["stages_cleared past the stage", {"stages_cleared": 5}], ["stages_cleared -1", {"stages_cleared": -1}],
+		["phase battle", {"phase": "battle"}], ["phase as number", {"phase": 2}], ["phase empty", {"phase": ""}],
+		["rewards as text", {"rewards": "reward.rest"}], ["rewards in prep", {"rewards": ["reward.rest"]}],
+		["no rewards in the reward phase", {"phase": "reward"}],
+		["an unknown reward", {"phase": "reward", "rewards": ["reward.rest", "reward.gold"]}],
+		["a reward as number", {"phase": "reward", "rewards": [0, 1]}],
+		["a reward twice", {"phase": "reward", "rewards": ["reward.rest", "reward.rest"]}],
+		["one reward", {"phase": "reward", "rewards": ["reward.hunt"]}],
+		["four rewards", {"phase": "reward", "rewards": ["reward.rest", "reward.hunt", "reward.black_market", "reward.hunt"]}],
+		["rest at the final stage", {"phase": "reward", "stage": 12, "rewards": ["reward.rest", "reward.hunt"]}],
+		["the final stage cleared in the reward phase", {"phase": "reward", "stage": 12, "stages_cleared": 12, "rewards": ["reward.hunt", "reward.black_market"]}],
+		["a reward-phase stage cleared twice", {"phase": "reward", "stages_cleared": 3, "rewards": ["reward.hunt", "reward.black_market"]}],
+		["bench col missing", {}, [_without(_row(1, "archer", 1, 0, 0, 0), "col")]],
+		["bench rank as text", {}, [_row(1, "archer", 1, 0, 0, 0).merged({"rank": "x"}, true)]],
 		["a piece id as text", {}, [_row("abc", "archer", 1, 0, 0, 0)]],
 		["a unit id as number", {}, [_row(1, 5, 1, 0, 0, 0)]],
 		["a bench slot as object", {}, [_row(1, "archer", 1, {}, 0, 0)]],
@@ -403,22 +472,45 @@ func _bad_save_cases() -> Array:
 		["more on the board than the level", {}, [on_board.call(1, "archer", 1), on_board.call(2, "spearman", 2), on_board.call(3, "shield_guard", 3), on_board.call(4, "fire_adept", 4)]],
 		["three legends on the board", {"level": 5}, [on_board.call(1, "lac_hong", 1), on_board.call(2, "lieu_mi", 2), on_board.call(3, "ba_khac", 3)]],
 		["three unmerged copies", {}, [_row(1, "archer", 1, 0, 0, 0), _row(2, "archer", 1, 1, 0, 0), _row(3, "archer", 1, 2, 0, 0)]],
-	]
+	] + _missing_key_cases()
+
+
+# Every key the game writes is required: one case per key left out.
+func _missing_key_cases() -> Array:
+	var cases: Array = []
+	for key: String in _valid_save().keys():
+		cases.append(["no %s" % key, {key: MISSING_KEY}])
+	return cases
+
+
+func _without(row: Dictionary, key: String) -> Dictionary:
+	row.erase(key)
+	return row
+
+
+func _valid_save() -> Dictionary:
+	return {
+		"version": RunSave.VERSION, "seed": "1", "rng_state": "5", "phase": "prep", "stage": 2, "stages_cleared": 1,
+		"morale": 60, "gold": 5, "supply": 1, "level": 3, "next_piece_id": 2,
+		"pieces": [_row(1, "archer", 1, 0, 0, 0)], "shop": ["unit.archer", "", "", "", ""],
+		"black_market": false, "free_refreshes": 0, "rewards": [],
+	}
 
 
 func _row(id: Variant, unit: Variant, star: int, bench: Variant, col: int, rank: int, has_fought: Variant = false) -> Dictionary:
 	return {"id": id, "unit_id": "unit." + unit if unit is String else unit, "star": star, "has_fought": has_fought, "bench": bench, "col": col, "rank": rank}
 
 
-# A valid stage-2 save with `fields` changed and these piece rows.
+# A valid stage-2 save with `fields` changed (MISSING_KEY removes a key) and
+# these piece rows.
 func _write_save(fields: Dictionary, pieces: Array = []) -> void:
-	var data := {
-		"version": RunSave.VERSION, "seed": "1", "rng_state": "5", "stage": 2, "stages_cleared": 1,
-		"morale": 60, "gold": 5, "supply": 1, "level": 3, "next_piece_id": 2,
-		"pieces": pieces if not pieces.is_empty() else [_row(1, "archer", 1, 0, 0, 0)],
-		"shop": ["unit.archer", "", "", "", ""], "black_market": false, "free_refreshes": 0,
-	}
+	var data := _valid_save()
+	if not pieces.is_empty():
+		data["pieces"] = pieces
 	data.merge(fields, true)
+	for key: String in data.keys():
+		if data[key] is String and data[key] == MISSING_KEY:
+			data.erase(key)
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	file.store_string(JSON.stringify(data))
 	file.close()

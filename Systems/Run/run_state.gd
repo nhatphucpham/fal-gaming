@@ -30,6 +30,8 @@ signal phase_changed(phase: Phase)
 ## Preparation of `stage` began (income paid, shop rolled).
 signal stage_started(stage: int)
 signal battle_resolved(is_win: bool, gold_delta: int, supply_delta: int, morale_delta: int)
+## A preparation command succeeded and changed the run (the screen saves it).
+signal prep_changed()
 
 enum Result { OK, NOT_ENOUGH_GOLD, NOT_ENOUGH_SUPPLY, BENCH_FULL, BOARD_FULL, LEGEND_LIMIT, BAD_TARGET, NO_PIECE, EMPTY_SLOT, MAX_LEVEL, WRONG_PHASE, NOT_OFFERED }
 enum Phase { PREP, BATTLE, REWARD, WON, LOST }
@@ -165,13 +167,13 @@ func is_black_market_active() -> bool:
 ## Buys the unit in `shop_slot` onto the first free bench slot. A full
 ## bench is fine when the purchase completes a merge at once.
 func buy(shop_slot: int) -> Result:
-	return _buy(shop_slot, RunPiece.NO_BENCH, RunPiece.NO_CELL)
+	return _changed_if_ok(_buy(shop_slot, RunPiece.NO_BENCH, RunPiece.NO_CELL))
 
 
 ## Buys the unit in `shop_slot` straight onto a free bench slot or a free
 ## board cell (one of them set). A purchase that merges ignores the target.
 func buy_to(shop_slot: int, bench_slot: int, cell: Vector2i) -> Result:
-	return _buy(shop_slot, bench_slot, cell)
+	return _changed_if_ok(_buy(shop_slot, bench_slot, cell))
 
 
 func refresh_shop() -> Result:
@@ -184,7 +186,7 @@ func refresh_shop() -> Result:
 		_free_refreshes -= 1
 	_add_gold(-cost)
 	_roll_shop()
-	return Result.OK
+	return _changed_if_ok(Result.OK)
 
 
 func buy_supply() -> Result:
@@ -194,7 +196,7 @@ func buy_supply() -> Result:
 		return Result.NOT_ENOUGH_GOLD
 	_add_gold(-rules.supply_pack_gold)
 	_add_supply(rules.supply_pack_amount)
-	return Result.OK
+	return _changed_if_ok(Result.OK)
 
 
 func level_up() -> Result:
@@ -208,7 +210,7 @@ func level_up() -> Result:
 	_add_supply(-cost)
 	level += 1
 	level_changed.emit(level)
-	return Result.OK
+	return _changed_if_ok(Result.OK)
 
 
 func sell(piece_id: int) -> Result:
@@ -221,7 +223,7 @@ func sell(piece_id: int) -> Result:
 	piece_sold.emit(piece_id, value.x, value.y)
 	_add_gold(value.x)
 	_add_supply(value.y)
-	return Result.OK
+	return _changed_if_ok(Result.OK)
 
 
 ## Moves a piece onto a board cell (local col, rank), swapping with a piece
@@ -229,14 +231,14 @@ func sell(piece_id: int) -> Result:
 func move_to_board(piece_id: int, cell: Vector2i) -> Result:
 	var piece := _roster.get_piece(piece_id)
 	var check := _check_move(piece)
-	return check if check != Result.OK else _roster.move_to_board(piece, cell, get_capacity())
+	return check if check != Result.OK else _changed_if_ok(_roster.move_to_board(piece, cell, get_capacity()))
 
 
 ## Moves a piece onto a bench slot, swapping with a piece already there.
 func move_to_bench(piece_id: int, slot: int) -> Result:
 	var piece := _roster.get_piece(piece_id)
 	var check := _check_move(piece)
-	return check if check != Result.OK else _roster.move_to_bench(piece, slot)
+	return check if check != Result.OK else _changed_if_ok(_roster.move_to_bench(piece, slot))
 
 
 # --- Battle and reward ---------------------------------------------------
@@ -299,54 +301,48 @@ func choose_reward(reward: Reward) -> Result:
 
 # --- Save ----------------------------------------------------------------
 
-## Everything needed to continue this run, as JSON-safe data. 64-bit
-## numbers are strings: JSON numbers are doubles.
+## Everything needed to continue this run from its preparation or its
+## reward choice, as JSON-safe data. 64-bit numbers are strings: JSON
+## numbers are doubles.
 func to_save_data() -> Dictionary:
 	return {
-		"seed": str(run_seed), "rng_state": str(_rng.state), "stage": stage,
-		"stages_cleared": stages_cleared, "morale": morale, "gold": gold,
+		"seed": str(run_seed), "rng_state": str(_rng.state), "phase": RunSaveFields.get_phase_name(phase),
+		"stage": stage, "stages_cleared": stages_cleared, "morale": morale, "gold": gold,
 		"supply": supply, "level": level, "next_piece_id": _roster.get_next_id(),
 		"pieces": _roster.to_save_data(), "shop": _shop.get_offers().map(func(id: StringName) -> String: return String(id)),
 		"black_market": _is_black_market, "free_refreshes": _free_refreshes,
+		"rewards": _rewards.map(func(reward: Reward) -> String: return String(REWARD_IDS[reward])),
 	}
 
 
-## Restores a run saved by to_save_data() into its preparation. False (and
-## nothing usable) when a field is missing, of the wrong type or out of
-## range, or the pieces or offers break a rule (see Docs/systems/run.md).
+## True in the phases a save can hold (PREP and REWARD).
+func can_save() -> bool:
+	return RunSaveFields.PHASES.values().has(phase)
+
+
+## Restores a run saved by to_save_data() into its preparation or reward
+## choice. False (and nothing usable) when a field is missing, of the wrong
+## type or out of range, or the pieces or offers break a rule (see
+## Docs/systems/run.md).
 func load_save_data(data: Dictionary) -> bool:
-	var reader := SaveReader.new(data)
-	# stages_cleared -1: not in the file, so counted from the stage.
-	var values := {
-		"stage": reader.get_int("stage"), "morale": reader.get_int("morale"),
-		"gold": reader.get_int("gold"), "supply": reader.get_int("supply"),
-		"level": reader.get_int("level"), "stages_cleared": reader.get_int("stages_cleared", -1),
-	}
-	var seed_value := reader.get_int_string("seed")
-	var rng_state := reader.get_int_string("rng_state")
-	var next_id := reader.get_int("next_piece_id", 1)
-	var is_black_market := reader.get_bool("black_market", false)
-	var free_refreshes := reader.get_int("free_refreshes", 0)
-	var rows := reader.get_array("pieces")
-	var offers := _offers_from_save(reader)
-	if not reader.is_valid or not _are_values_in_range(values):
+	var fields := RunSaveFields.read(data, catalog)
+	if fields.is_empty() or not _roster.load_save_data(fields["pieces"], fields["next_piece_id"], rules.get_capacity(fields["level"])):
 		return false
-	if not _roster.load_save_data(rows, next_id, rules.get_capacity(values["level"])):
-		return false
-	stage = values["stage"]
-	stages_cleared = values["stages_cleared"] if values["stages_cleared"] >= 0 else stage - 1
-	morale = values["morale"]
-	gold = values["gold"]
-	supply = values["supply"]
-	level = values["level"]
-	run_seed = seed_value
+	stage = fields["stage"]
+	stages_cleared = fields["stages_cleared"]
+	morale = fields["morale"]
+	gold = fields["gold"]
+	supply = fields["supply"]
+	level = fields["level"]
+	run_seed = fields["seed"]
 	_rng.seed = run_seed
-	_rng.state = rng_state
-	_shop.set_offers(offers)
-	_is_black_market = is_black_market
+	_rng.state = fields["rng_state"]
+	_shop.set_offers(fields["shop"])
+	_is_black_market = fields["black_market"]
 	# Only a black-market stage has free refreshes, and never more than it gives.
-	_free_refreshes = clampi(free_refreshes, 0, rules.black_market_free_refreshes if is_black_market else 0)
-	phase = Phase.PREP
+	_free_refreshes = clampi(fields["free_refreshes"], 0, rules.black_market_free_refreshes if _is_black_market else 0)
+	_rewards.assign(fields["rewards"])
+	phase = fields["phase"]
 	return true
 
 
@@ -379,35 +375,16 @@ func _buy(shop_slot: int, bench_slot: int, cell: Vector2i) -> Result:
 	return Result.OK
 
 
-# The saved shop offers as ids (missing slots stay empty). More offers than
-# slots, a wrong type or an unknown unit marks `reader` invalid.
-func _offers_from_save(reader: SaveReader) -> Array[StringName]:
-	var saved := reader.get_array("shop")
-	var offers: Array[StringName] = []
-	for offer: Variant in saved:
-		if not offer is String or (offer != "" and catalog.get_unit(StringName(offer)) == null):
-			reader.is_valid = false
-			return []
-		offers.append(StringName(offer))
-	if offers.size() > rules.shop_slots:
-		reader.is_valid = false
-	return offers
-
-
-func _are_values_in_range(values: Dictionary) -> bool:
-	var stage_value: int = values["stage"]
-	var cleared: int = values["stages_cleared"]
-	return stage_value >= 1 and stage_value <= rules.stage_count \
-		and values["morale"] >= 1 and values["morale"] <= rules.max_morale \
-		and values["gold"] >= 0 and values["supply"] >= 0 \
-		and values["level"] >= rules.start_level and values["level"] <= rules.max_level \
-		and cleared >= -1 and cleared < stage_value
-
-
 func _check_move(piece: RunPiece) -> Result:
 	if phase != Phase.PREP:
 		return Result.WRONG_PHASE
 	return Result.NO_PIECE if piece == null else Result.OK
+
+
+func _changed_if_ok(result: Result) -> Result:
+	if result == Result.OK:
+		prep_changed.emit()
+	return result
 
 
 func _offer_rewards(is_win: bool) -> void:

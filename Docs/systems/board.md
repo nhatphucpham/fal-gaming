@@ -49,7 +49,10 @@ Touch arrives as emulated mouse events, so `PointerGesture` handles mouse
 and touch the same way: a press that moves less than 14 px and is released
 is a tap; held 0.4 s it is a long press (a right click is one too); moved
 further it is a drag. Other mouse buttons are ignored while a press is held
-(a right click mid-drag does nothing; the left release still drops).
+(a right click mid-drag does nothing; the left release still drops). A
+widget that only acts on a release (the sell zone, the reward cards) sets
+`is_long_press_enabled = false`: then a press held any time is still a tap,
+and right clicks are ignored.
 `is_dragging()` and `is_pressed()` (a press held, dragging or not) let a
 widget draw its pressed state.
 

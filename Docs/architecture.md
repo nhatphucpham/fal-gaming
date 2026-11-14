@@ -32,7 +32,8 @@
   `Battle`) and `BattleFactory` (a `Battle` with the catalog's rules and
   line-ups added). `Systems/Run/` has the run's rules as pure-data
   GDScript: `RunState` and its parts (`RunRoster`, `Shop`, `RunPiece`),
-  the data types `RunRules` and `StageData`, and `RunSave` and
+  the data types `RunRules` and `StageData`, and `RunSave` (with
+  `RunSaveFields` and `SaveReader` to check a save) and
   `RunSettings` for `user://`. `Systems/Lineup/` has `Lineup`, the single owner of a side's
   formation (pure data with signals), and its data types `LineupSlot` and
   `LineupPreset`.

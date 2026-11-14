@@ -1,9 +1,8 @@
 class_name SaveReader
 extends RefCounted
 ## Reads typed fields out of one parsed JSON dictionary of a save without
-## script errors: a missing key (without a fallback), a wrong type or a
-## number that is not a whole number marks the reader invalid and returns a
-## neutral value. Callers read every field, then check [member is_valid].
+## script errors: a missing key, a wrong type or a number that is not a
+## whole number marks the reader invalid and returns a neutral value. Callers read every field, then check [member is_valid].
 ## [codeblock]
 ## var reader := SaveReader.new(data)
 ## var gold := reader.get_int("gold")
@@ -24,10 +23,9 @@ func _init(data: Dictionary) -> void:
 	_data = data
 
 
-## A whole number (JSON gives floats); `fallback` when the key is missing,
-## or invalid when there is no fallback.
-func get_int(key: String, fallback: Variant = null) -> int:
-	var value: Variant = _get_value(key, fallback)
+## A whole number (JSON gives floats).
+func get_int(key: String) -> int:
+	var value: Variant = _get_value(key)
 	if value is int:
 		return value
 	if value is float and is_finite(value) and value == floorf(value) and absf(value) <= MAX_EXACT_NUMBER:
@@ -36,16 +34,16 @@ func get_int(key: String, fallback: Variant = null) -> int:
 	return 0
 
 
-func get_bool(key: String, fallback: Variant = null) -> bool:
-	var value: Variant = _get_value(key, fallback)
+func get_bool(key: String) -> bool:
+	var value: Variant = _get_value(key)
 	if value is bool:
 		return value
 	is_valid = false
 	return false
 
 
-func get_string(key: String, fallback: Variant = null) -> String:
-	var value: Variant = _get_value(key, fallback)
+func get_string(key: String) -> String:
+	var value: Variant = _get_value(key)
 	if value is String:
 		return value
 	is_valid = false
@@ -65,16 +63,15 @@ func get_int_string(key: String) -> int:
 
 
 func get_array(key: String) -> Array:
-	var value: Variant = _get_value(key, null)
+	var value: Variant = _get_value(key)
 	if value is Array:
 		return value
 	is_valid = false
 	return []
 
 
-func _get_value(key: String, fallback: Variant) -> Variant:
+func _get_value(key: String) -> Variant:
 	if _data.has(key):
 		return _data[key]
-	if fallback == null:
-		is_valid = false
-	return fallback
+	is_valid = false
+	return null

@@ -11,8 +11,9 @@ title screen, a run is 12 stages: in each preparation buy units from a shop
 of five, keep them on a bench, place them on your half of the 7 x 8 board
 and merge three copies into a stronger star, then press **Ra trận** and
 watch the battle at x1, x2 or x4. Wins give gold and supply, losses cost
-morale; after each stage pick a reward. The run is saved after every reward
-and can be continued. The sandbox, with the full roster and no economy, is
+morale; after each stage pick a reward. The run is saved as you play (every
+change in the preparation, each battle result and reward) and can be
+continued. The sandbox, with the full roster and no economy, is
 still on the title screen. Text is in Vietnamese. There are smoke, battle,
 sandbox and run tests, a balance bot, Windows, Android and Web export
 presets, and CI. The story is not yet implemented.

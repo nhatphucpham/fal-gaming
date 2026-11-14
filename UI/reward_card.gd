@@ -1,9 +1,9 @@
 class_name RewardCard
 extends Control
-## A large reward card: a drawn icon, a title and one line of effect. A tap
-## or a short drag released on the card emits `chosen`; the card sinks while
-## held. Input goes through PointerGesture, so a cancelled touch chooses
-## nothing, and neither does a long press.
+## A large reward card: a drawn icon, a title and one line of effect. Any
+## release on the card (a tap, however long held, or the end of a drag)
+## emits `chosen`; the card sinks while held. Input goes through
+## PointerGesture, so a cancelled touch chooses nothing.
 
 signal chosen()
 
@@ -19,6 +19,7 @@ var _gesture := PointerGesture.new()
 
 
 func _init() -> void:
+	_gesture.is_long_press_enabled = false
 	_gesture.tapped.connect(_choose_if_inside)
 	_gesture.drag_ended.connect(_choose_if_inside)
 	custom_minimum_size = CARD_SIZE

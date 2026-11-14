@@ -4,8 +4,10 @@ extends Control
 ## battle on the same board, the result banner and the reward choice, stage
 ## after stage, until the run is won or lost. RunState holds every rule;
 ## this screen sends it commands, plays the battle with BattlePlayback and
-## saves after each reward. Main sets [member run], [member sim_clock] and
-## [member prep_seconds] before adding it. See Docs/systems/run.md.
+## saves after every preparation command, battle result and reward. A run
+## loaded in its reward choice opens on the reward cards. Main sets
+## [member run], [member sim_clock] and [member prep_seconds] before adding
+## it. See Docs/systems/run.md.
 
 ## The run was won or lost; Main shows the end screen.
 signal run_finished(run: RunState)
@@ -62,7 +64,10 @@ func _ready() -> void:
 	_hud = RunHud.new(run, layout)
 	_connect_signals()
 	_update_speed_label()
-	_enter_prep()
+	if run.phase == RunState.Phase.REWARD:
+		_enter_reward()
+	else:
+		_enter_prep()
 
 
 func _notification(what: int) -> void:
@@ -143,9 +148,28 @@ func _connect_signals() -> void:
 	playback.battle_finished.connect(func(winner: int, reason: StringName) -> void:
 		_finish_battle(winner == Battle.SIDE_A, BattleFactory.count_alive(_battle, Battle.SIDE_B), reason))
 	run.battle_resolved.connect(_on_battle_resolved)
+	run.prep_changed.connect(_save)
 
 
 func _enter_prep() -> void:
+	_show_stage()
+	layout.timer_badge.visible = prep_seconds > 0
+	timer.start(prep_seconds)
+	controller.is_enabled = true
+
+
+# A run loaded in its reward choice: the stage's board behind the cards, no
+# battle replay and no banner.
+func _enter_reward() -> void:
+	_show_stage()
+	layout.timer_badge.visible = false
+	controller.is_enabled = false
+	reward_screen.present(run.get_reward_options(), run.rules)
+
+
+# The board, pieces, enemies and HUD of the current stage, in the
+# preparation layout.
+func _show_stage() -> void:
 	_is_battling = false
 	_enemy_views.fade_out_all()
 	_enemy_views.set_hp_bars_shown(false)
@@ -154,10 +178,7 @@ func _enter_prep() -> void:
 	layout.board.set_top_half_dim(1.0)
 	_pieces.rebuild()
 	_hud.show_all()
-	layout.timer_badge.visible = prep_seconds > 0
-	timer.start(prep_seconds)
 	layout.show_prep_layout()
-	controller.is_enabled = true
 
 
 # Side A from the board pieces, side B from the stage; views by unit index.
@@ -181,9 +202,11 @@ func _finish_battle(is_win: bool, enemies_alive: int, reason: StringName) -> voi
 	last_battle_won = is_win
 	_deltas.clear()
 	run.finish_battle(is_win, enemies_alive)
-	# The run is over now, not when the banner is dismissed: a save left
-	# behind would let "Chơi tiếp" replay the deciding battle.
-	if is_saving and (run.phase == RunState.Phase.WON or run.phase == RunState.Phase.LOST):
+	# Saved or deleted now, not when the banner is dismissed: an older save
+	# left behind would let "Chơi tiếp" replay this battle.
+	if is_saving and run.phase == RunState.Phase.REWARD:
+		RunSave.save(run)
+	elif is_saving:
 		RunSave.delete()
 	var reason_text := tr("RESULT_TIME_LIMIT") if reason == &"time_limit" else ""
 	if reason == &"" and not is_win:
@@ -200,9 +223,13 @@ func _on_battle_resolved(_is_win: bool, gold_delta: int, supply_delta: int, mora
 func _on_reward_chosen(reward: RunState.Reward) -> void:
 	if run.choose_reward(reward) != RunState.Result.OK:
 		return
+	_save()
+	_enter_prep()
+
+
+func _save() -> void:
 	if is_saving:
 		RunSave.save(run)
-	_enter_prep()
 
 
 func _on_tick_advanced(tick: int) -> void:

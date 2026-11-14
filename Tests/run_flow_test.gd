@@ -3,9 +3,11 @@ extends SceneTree
 # Headless test of one stage through the real screens: Main starts a run,
 # the units are bought and placed with the same taps the gestures call,
 # the battle plays to its end at full speed, the banner's "Tiếp tục" opens
-# the reward cards and a reward begins stage 2's preparation. A lost run
-# deletes its save at the result banner. It writes the run save like the
-# game does, but to TEST_SAVE_PATH (never the player's save), and deletes it.
+# the reward cards; the game is then "closed" and continued, which lands on
+# the same cards, and a held press on one begins stage 2's preparation. A
+# lost run deletes its save at the result banner, and an unusable save is
+# deleted when "Chơi tiếp" fails. It writes the run save like the game does,
+# but to TEST_SAVE_PATH (never the player's save), and deletes it.
 
 const SEED: int = 4242
 const TEST_SAVE_PATH: String = "user://run_save_test.json"
@@ -47,7 +49,11 @@ func _run() -> bool:
 	if not RunSave.has_save():
 		push_error("A new run should be saved at once")
 		return false
-	var checks: Array[Callable] = [_check_place, _check_bench_gap_drag, _check_sell_zone_release, _check_battle, _check_reward, _check_loss_deletes_save]
+	var checks: Array[Callable] = [
+		_check_place, _check_bench_gap_drag, _check_sell_zone_release, _check_battle, _check_reward,
+		_check_reward_after_reload, _check_prep_saves, _check_sell_zone_hold_and_slide,
+		_check_loss_deletes_save, _check_bad_save_cleared,
+	]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Run flow test failed in %s" % check.get_method())
@@ -102,23 +108,101 @@ func _check_battle() -> bool:
 	return true
 
 
+# The banner's "Tiếp tục" opens the cards; the save already holds the
+# reward choice (written when the battle ended).
 func _check_reward() -> bool:
 	var run := _screen.run
 	_screen.continue_after_battle()
 	await process_frame
-	var options := run.get_reward_options()
-	if not _screen.reward_screen.visible or options.is_empty():
+	if not _screen.reward_screen.visible or run.get_reward_options().is_empty():
 		push_error("The reward cards did not open")
 		return false
-	_screen.reward_screen.choose(options[0])
+	var saved := RunSave.load_run(_main._catalog)
+	if saved == null or saved.phase != RunState.Phase.REWARD or saved.morale != run.morale or saved.get_reward_options() != run.get_reward_options():
+		push_error("The save should hold the reward choice at morale %d" % run.morale)
+		return false
+	return true
+
+
+# "Closing" the game at the reward and choosing "Chơi tiếp" lands on the same
+# cards at the same morale, not on stage 1 again. A cancelled release on a
+# card does nothing; a press held 0.5 s chooses it.
+func _check_reward_after_reload() -> bool:
+	var before := _screen.run
+	_screen = _main.continue_run()
+	if _screen == null:
+		push_error("Continuing the saved run failed")
+		return false
+	await create_timer(SLIDE_WAIT_SEC).timeout
+	var run := _screen.run
+	if run.phase != RunState.Phase.REWARD or run.stage != 1 or run.morale != before.morale or _screen.controller.is_enabled:
+		push_error("Continuing should land on stage 1's reward choice at morale %d" % before.morale)
+		return false
+	if not _screen.reward_screen.visible or run.get_reward_options() != before.get_reward_options():
+		push_error("The reloaded run should show the same reward cards")
+		return false
+	var cards := _screen.reward_screen.find_children("*", "RewardCard", true, false)
+	var center := (cards[0] as Control).get_global_rect().get_center()
+	_push_mouse(center, true)
+	_push_mouse(center, false, true)
 	await process_frame
+	if run.phase != RunState.Phase.REWARD:
+		push_error("A cancelled release on a reward card chose it")
+		return false
+	_push_mouse(center, true)
+	await create_timer(0.5).timeout
+	_push_mouse(center, false)
+	await create_timer(1.0).timeout
 	if run.phase != RunState.Phase.PREP or run.stage != 2 or not _screen.controller.is_enabled:
-		push_error("Expected stage 2's preparation, got stage %d in %s" % [run.stage, RunState.Phase.keys()[run.phase]])
+		push_error("A 0.5 s press on a card should begin stage 2, got stage %d in %s" % [run.stage, RunState.Phase.keys()[run.phase]])
 		return false
 	var saved := RunSave.load_run(_main._catalog)
-	if saved == null or saved.stage != 2:
-		push_error("The save should hold stage 2 after the reward")
+	if saved == null or saved.stage != 2 or saved.phase != RunState.Phase.PREP:
+		push_error("The save should hold stage 2's preparation after the reward")
 		return false
+	return true
+
+
+# A refresh is saved at once, so reloading cannot roll it back.
+func _check_prep_saves() -> bool:
+	var run := _screen.run
+	_screen.press_refresh()
+	var saved := RunSave.load_run(_main._catalog)
+	if saved == null or saved.get_shop_offers() != run.get_shop_offers() or saved.gold != run.gold:
+		push_error("A refresh should be saved at once")
+		return false
+	return true
+
+
+# The sell zone sells on a press held past the long-press time and on a
+# finger that slides within the zone before lifting.
+func _check_sell_zone_hold_and_slide() -> bool:
+	var run := _screen.run
+	var zone := _screen.layout.sell_zone
+	while run.get_pieces().size() < 2 and run.gold >= 1:
+		_screen.controller.tap_shop_card(0)
+		_screen.controller.tap_shop_card(0)
+	if run.get_pieces().size() < 2:
+		push_error("Need two pieces to sell")
+		return false
+	for slide: Vector2 in [Vector2.ZERO, Vector2(30, 0)]:
+		var count := run.get_pieces().size()
+		var piece: RunPiece = run.get_pieces()[0]
+		if piece.is_on_bench():
+			_screen.controller.tap_bench_slot(piece.bench_slot)
+		else:
+			_screen.controller.tap_cell(Battle.local_to_global(Battle.SIDE_A, piece.cell.x, piece.cell.y))
+		await process_frame
+		var inside := zone.get_global_rect().get_center()
+		_push_mouse(inside, true)
+		if slide == Vector2.ZERO:
+			await create_timer(0.5).timeout
+		_push_motion(inside + slide)
+		_push_mouse(inside + slide, false)
+		await process_frame
+		if run.get_pieces().size() != count - 1:
+			push_error("A release on the sell zone should sell (held %s, slid %s)" % [slide == Vector2.ZERO, slide])
+			return false
 	return true
 
 
@@ -194,6 +278,23 @@ func _check_loss_deletes_save() -> bool:
 		push_error("A lost run must delete its save at once (phase %s, saved %s)" % [RunState.Phase.keys()[run.phase], RunSave.has_save()])
 		return false
 	_screen.continue_after_battle()
+	return true
+
+
+# A save that cannot be used: "Chơi tiếp" warns once, deletes it and shows
+# the title again without "Chơi tiếp".
+func _check_bad_save_cleared() -> bool:
+	var file := FileAccess.open(RunSave.path, FileAccess.WRITE)
+	file.store_string("{\"version\": 1}")
+	file.close()
+	print("Run flow test: the next warning (an old save) is expected")
+	if _main.continue_run() != null or RunSave.has_save():
+		push_error("An unusable save should be deleted when continuing fails")
+		return false
+	var title := _main.current_screen as TitleScreen
+	if title == null or title.has_save:
+		push_error("The title should offer no \"Chơi tiếp\" after a failed load")
+		return false
 	return true
 
 

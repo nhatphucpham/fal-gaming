@@ -11,7 +11,8 @@ extends RefCounted
 ## [/codeblock]
 
 const PATH: String = "user://run_save.json"
-const VERSION: int = 1
+## 2 added the phase and the offered rewards; older saves are ignored.
+const VERSION: int = 2
 
 ## Where save(), load_run(), has_save() and delete() go without a path
 ## argument. Only tests change it, so they never touch the player's save.
@@ -19,8 +20,12 @@ static var path: String = PATH
 static var _has_warned: bool = false
 
 
-## Writes the run. False (with one warning) when the file cannot be written.
+## Writes the run (in its preparation or reward choice). False (with one
+## warning) when the file cannot be written.
 static func save(run: RunState, file_path: String = "") -> bool:
+	if not run.can_save():
+		push_error("Run: a run in %s cannot be saved" % RunState.Phase.keys()[run.phase])
+		return false
 	var target := _resolve(file_path)
 	var data := run.to_save_data()
 	data["version"] = VERSION
@@ -37,8 +42,8 @@ static func has_save(file_path: String = "") -> bool:
 	return FileAccess.file_exists(_resolve(file_path))
 
 
-## The saved run, ready in its preparation, or null when there is none or
-## it cannot be used (warned once).
+## The saved run, in its preparation or reward choice, or null when there
+## is none or it cannot be used (warned once).
 static func load_run(catalog: Catalog, file_path: String = "") -> RunState:
 	var source := _resolve(file_path)
 	if not FileAccess.file_exists(source):

@@ -52,10 +52,13 @@ func start_new_run(seed_value: int = -1) -> RunScreen:
 	return _open_run(run)
 
 
-## Loads the saved run into its preparation; stays on the title without one.
+## Loads the saved run into its preparation or reward choice. A save that
+## cannot be used (already warned about) is deleted, so the title shown
+## again offers no "Chơi tiếp".
 func continue_run() -> RunScreen:
 	var run := RunSave.load_run(_catalog)
 	if run == null:
+		RunSave.delete()
 		show_title()
 		return null
 	return _open_run(run)
