@@ -60,10 +60,12 @@ func get_threshold(family: StringName) -> int:
 
 ## True when the family's meter is one short of its threshold or at it,
 ## and it can still fire (not mutated, not pending, the run's Kỳ Ngộ not
-## used up): the prep panel shakes its milestone.
+## used up, none fired at the last stage yet, whose repeats count as one
+## stage): the prep panel shakes its milestone.
 func is_near(family: StringName) -> bool:
 	return _thresholds.has(family) and not is_mutated(family) and _pending_family != family \
-		and _chosen.size() < _rules.epiphanies_per_run and get_meter(family) >= get_threshold(family) - 1
+		and _chosen.size() < _rules.epiphanies_per_run and _last_stage < _rules.stage_count \
+		and get_meter(family) >= get_threshold(family) - 1
 
 
 func is_mutated(family: StringName) -> bool:

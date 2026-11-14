@@ -172,6 +172,8 @@ func choose(index: int) -> bool:
 	if not _is_choosing or index < 0 or index >= _cards.size():
 		return false
 	_is_choosing = false
+	# Busy from here on: a tap during the flash must not bring the cards back.
+	_is_busy = true
 	Sound.play(&"epiphany")
 	choice_made.emit(index)
 	var card := _cards[index]

@@ -154,6 +154,12 @@ func _check_choice() -> bool:
 	if not screen.choose(1) or screen.choose(0):
 		push_error("Choosing should take one card once")
 		return false
+	screen.tap()
+	screen.tap()
+	screen.skip()
+	if screen.is_choosing():
+		push_error("Taps during the flash must not bring the cards back")
+		return false
 	if made != [1] or not results.is_empty():
 		push_error("The choice should be reported at once, before the wipe ends: %s %s" % [made, results])
 		return false
