@@ -55,12 +55,16 @@ hash.
   cracks, the status icon, a "Hóa Đá" popup and the petrify sound.
 - In the boss battle the wide boss bar (name, hp, trailing band, quarter
   ticks; grey with "Hóa Đá" while stone) takes the stage title's place in
-  the top bar, so it covers no unit.
+  the top bar, so it covers no unit. It gives the place back when the
+  banner's "Tiếp tục" leaves the battle (also before the reward cards
+  after a loss).
 - From stage 6 the prep top bar shows a red "Trùm" badge (pulsing at stage
   12). Tapping it opens the boss card: the figure, its rule in one sentence
-  and the hint "Mẹo: đừng tung chiêu dồn dập."
+  and the hint "Mẹo: đừng tung chiêu dồn dập." The card closes when the
+  battle starts (also when the prep timer runs out while it is open).
 - When the boss falls it shakes, cracks and crumbles instead of falling; a
-  win over it stamps "Cự Nham đã vỡ!" with confetti before the banner.
+  win over it plays "win" and stamps "Cự Nham đã vỡ!" with confetti; the
+  banner follows 1.6 s later without a sound of its own.
 
 ## Public API
 
@@ -70,7 +74,7 @@ hash.
 | `StageData.get_boss_slot(catalog)` | method | The stage's boss slot or null. |
 | `RunState.is_boss_stage()` | method | True on `boss_stage`. |
 | `BattlePlayback.unit_petrified(index, is_petrified)` | signal | For the boss bar. |
-| `BossHud.show_prep / begin_battle / on_tick / play_victory` | methods | The run screen's boss views. |
+| `BossHud.show_prep / open_card / close_card / begin_battle / on_tick / end_battle / play_victory` | methods | The run screen's boss views. |
 
 ## Tests
 
@@ -78,6 +82,9 @@ hash.
 (fires exactly on the third cast inside 60 ticks, not on spaced casts), no
 damage and no action while petrified, determinism, stage 12 (7 units, one
 boss), the shop never offering it, a save with it refused, the 1.6x view.
+`Tests/run_flow_test.gd`: on the real run screen the boss card closes at
+battle start, the boss bar is gone at the reward cards after a stage-12
+loss, and a win shows the victory moment before the banner.
 
 ## Known limits
 

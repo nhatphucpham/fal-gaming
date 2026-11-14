@@ -40,8 +40,13 @@ func _init(run: RunState, layout: RunLayout, enemy_lineup: Lineup) -> void:
 func refresh(animate: bool = true) -> void:
 	if _synergy == null:
 		return
+	var evaluated := _synergy.evaluate(LineupSynergy.run_pieces(_run), _run.get_synergy_overrides())
+	if evaluated.is_empty():
+		# Synergy refused the line-up or the mutations; it logged why.
+		push_error("SynergyHud: evaluate() gave no result for stage %d" % _run.stage)
+		return
 	var before := _formation_ids(result)
-	result = _synergy.evaluate(LineupSynergy.run_pieces(_run), _run.get_synergy_overrides())
+	result = evaluated
 	if animate and _formation_ids(result).any(func(id: StringName) -> bool: return not before.has(id)):
 		Sound.play(&"formation_on")
 	_layout.synergy_bar.end_preview()
@@ -68,6 +73,9 @@ func preview(piece_id: int, shop_unit: UnitData, local_cell: Vector2i) -> void:
 		end_preview()
 		return
 	var preview_result := _synergy.evaluate(pieces, _run.get_synergy_overrides())
+	if preview_result.is_empty():
+		end_preview()
+		return
 	_layout.synergy_bar.show_preview(preview_result)
 	_layout.outlines.show_preview(preview_result)
 
@@ -127,7 +135,8 @@ func _refresh_shop_hints() -> void:
 			if not hint:
 				var pieces := LineupSynergy.run_pieces(_run)
 				pieces.append({"unit": unit, "col": free.x, "rank": free.y})
-				hint = _reached(_synergy.evaluate(pieces, _run.get_synergy_overrides())) > reached
+				var trial := _synergy.evaluate(pieces, _run.get_synergy_overrides())
+				hint = not trial.is_empty() and _reached(trial) > reached
 		hints.append(hint)
 	_layout.shop.update_synergy_hints(hints)
 

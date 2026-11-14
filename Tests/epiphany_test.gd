@@ -39,7 +39,7 @@ func _run() -> bool:
 		_check_families, _check_gain_rules, _check_thresholds, _check_one_per_stage,
 		_check_run_limit, _check_lower_evaluate, _check_variant_evaluate,
 		_check_lower_battle, _check_variant_battle, _check_run_commands, _check_save_round_trip,
-		_check_bad_saves,
+		_check_bad_saves, _check_bad_variant_data,
 	]
 	for check: Callable in checks:
 		if not check.call():
@@ -155,6 +155,19 @@ func _check_run_limit() -> bool:
 		unique[family] = true
 	if fired.size() != _catalog.run_rules.epiphanies_per_run or unique.size() != fired.size() or tracker.get_chosen_ids().size() != fired.size():
 		push_error("Expected %d Kỳ Ngộ of different families, got %s" % [_catalog.run_rules.epiphanies_per_run, fired])
+		return false
+	# With the run's Kỳ Ngộ used up, a full meter is no longer "near".
+	var full_meters := 0
+	for family: StringName in active:
+		if tracker.is_mutated(family):
+			continue
+		if tracker.get_meter(family) >= tracker.get_threshold(family) - 1:
+			full_meters += 1
+		if tracker.is_near(family):
+			push_error("%s is near after the run's last Kỳ Ngộ" % family)
+			return false
+	if full_meters == 0:
+		push_error("The run limit check needs a family with a full meter left")
 		return false
 	return true
 
@@ -272,6 +285,15 @@ func _check_bad_saves() -> bool:
 	var too_full: Dictionary = good["epiphany"].duplicate(true)
 	too_full["meters"][String(SWORD)] = _catalog.run_rules.ngo_meter_max + 1
 	cases.append(too_full)
+	# Two chosen and one pending by stage 2: one Kỳ Ngộ fires per stage.
+	var too_many: Dictionary = good["epiphany"].duplicate(true)
+	too_many["chosen"] = ["epiphany.shield_lower_2", "epiphany.spear_lower_2"]
+	cases.append(too_many)
+	var none_fired: Dictionary = good["epiphany"].duplicate(true)
+	none_fired["pending_family"] = ""
+	none_fired["pending_options"] = []
+	none_fired["last_stage"] = 0
+	cases.append(none_fired)
 	for epiphany: Dictionary in cases:
 		var data := good.duplicate(true)
 		data["epiphany"] = epiphany
@@ -283,6 +305,25 @@ func _check_bad_saves() -> bool:
 	in_prep["rewards"] = []
 	if RunState.new(_catalog, 0).load_save_data(in_prep):
 		push_error("A pending choice outside the reward phase should not load")
+		return false
+	return true
+
+
+# A Biến Dị whose modifier the native synergy rules refuse on a milestone
+# (scope.members belongs to formations) fails catalog validation, naming
+# its family file. The loaded data is changed for the check and restored.
+func _check_bad_variant_data() -> bool:
+	var shield := _catalog.get_epiphany_family(SHIELD)
+	var modifier := _catalog.get_epiphany(&"epiphany.shield_stone_skin").modifiers[0]
+	var scope := modifier.scope
+	modifier.scope = &"scope.members"
+	print("Epiphany test: the next Synergy error (misplaced scope) is expected")
+	var problems := _catalog.validate()
+	modifier.scope = scope
+	var named := Array(problems).any(func(problem: String) -> bool:
+		return problem.contains("epiphany.shield_stone_skin") and problem.contains(shield.resource_path))
+	if problems.size() != 1 or not named or not _catalog.validate().is_empty():
+		push_error("A variant with a milestone-illegal scope should fail validation once, naming its file: %s" % problems)
 		return false
 	return true
 

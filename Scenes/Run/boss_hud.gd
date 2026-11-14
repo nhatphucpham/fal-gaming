@@ -42,8 +42,15 @@ func open_card() -> void:
 		_layout.boss_card.open(_boss, _run.rules.boss_stage)
 
 
+## Closes the boss card if it is open (the battle starts under it when
+## the timer runs out).
+func close_card() -> void:
+	_layout.boss_card.close()
+
+
 ## Battle start: finds the boss among the battle's units and shows its bar.
 func begin_battle(battle: Battle) -> void:
+	close_card()
 	_layout.boss_badge.visible = false
 	_boss_index = -1
 	for state: Dictionary in battle.get_units():
@@ -70,13 +77,21 @@ func on_petrified(index: int, is_petrified: bool) -> void:
 		_layout.boss_bar.set_petrified(is_petrified)
 
 
+## Leaving the battle (the banner's "Tiếp tục"): the boss bar gives the
+## title its place back, also before the reward cards after a loss.
+func end_battle() -> void:
+	_layout.show_boss_bar(false)
+	_boss_index = -1
+
+
 ## True when the boss fought and fell in `battle`.
 func is_boss_defeated(battle: Battle) -> bool:
 	return _boss_index >= 0 and not battle.get_unit_state(_boss_index)["alive"]
 
 
-## The boss fell: its name is stamped over the board and confetti bursts
-## around it. Returns how long to wait before the banner.
+## The boss fell: "win" sounds, its name is stamped over the board and
+## confetti bursts around it. Returns how long to wait before the banner,
+## which then plays no sound of its own.
 func play_victory() -> float:
 	Sound.play(&"win")
 	var board_rect := _layout.board.get_global_transform_with_canvas() * Rect2(Vector2.ZERO, Vector2(BoardView.COLS, BoardView.ROWS) * BoardView.CELL_PX)

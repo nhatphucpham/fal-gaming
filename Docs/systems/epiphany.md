@@ -87,9 +87,11 @@ The run save (version 3) holds `"epiphany"`: `meters` (family to int, every
 family exactly once, 0..`ngo_meter_max`), `chosen` (ids in order),
 `pending_family`, `pending_options` (two ids of that family) and
 `last_stage`. A save is refused when an id is unknown or doubled, two
-mutations share a family, the count passes the per-run limit, or a pending
-choice is outside the REWARD phase or of another stage. Thresholds are not
-saved: they come from the seed.
+mutations share a family, the count (with the pending one) passes the
+per-run limit or `last_stage` (one fires per stage at most, so no more can
+have fired than the stage of the last one), or a pending choice is outside
+the REWARD phase or of another stage. Thresholds are not saved: they come
+from the seed.
 
 ## Public API
 
@@ -100,7 +102,7 @@ saved: they come from the seed.
 | `RunState.get_synergy_overrides() -> Array` | method | The mutations as overrides (player side). |
 | `RunState.epiphany_offered(family)` | signal | A Kỳ Ngộ fired after the battle (phase REWARD). |
 | `RunState.epiphany_chosen(epiphany_id)` | signal | A choice was taken. |
-| `EpiphanyTracker.get_meter / get_threshold / is_near / is_mutated / get_mutation` | methods | For the prep panel: "near" is one short of the threshold or at it. |
+| `EpiphanyTracker.get_meter / get_threshold / is_near / is_mutated / get_mutation` | methods | For the prep panel: "near" is one short of the threshold or at it, while the family can still fire (not mutated or pending, and fewer than `epiphanies_per_run` chosen). |
 | `EpiphanyTracker.has_pending / get_pending_family / get_pending_options` | methods | The pending choice. |
 | `Synergy.evaluate(pieces, overrides = [])` | method | Milestone entries now carry `thresholds` and `tier_modifiers` after the overrides. |
 | `Battle.set_synergy_overrides(side, overrides)` | method | Before units are added; the side's config is rebuilt from the catalog's. |
@@ -117,7 +119,11 @@ is near its threshold has its heading wobble.
 Add an `EpiphanyData` sub-resource to the family's file: a `lower` names a
 tier whose threshold can drop by one; a `variant` lists modifiers with
 handlers that already exist (see [synergy.md](synergy.md)). Add its
-`description_key` to `Locale/strings.csv`. The catalog validation checks it.
+`description_key` to `Locale/strings.csv`. The catalog validation checks it:
+ids, kind, tier, a lowered threshold above the previous tier, and each
+mutation run through `Synergy.evaluate([], [override])`, so a variant whose
+modifiers the native rules refuse on a milestone (an unknown handler, a
+formation-only scope) fails at load, naming the family file.
 
 ## Tests
 
@@ -125,7 +131,10 @@ handlers that already exist (see [synergy.md](synergy.md)). Add its
 from the seed, one per stage (highest overflow first), four per run with
 each family once, a `lower` and a `variant` changing `Synergy.evaluate` and
 a battle (and not the enemy side), the RunState commands, and save/load
-with mutations and a pending choice, including refused saves.
+with mutations and a pending choice, including refused saves (more
+mutations than stages played), "near" ending once the run's Kỳ Ngộ are used
+up, and a variant with a milestone-illegal scope failing catalog
+validation.
 
 ## Known limits
 

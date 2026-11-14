@@ -59,10 +59,11 @@ func get_threshold(family: StringName) -> int:
 
 
 ## True when the family's meter is one short of its threshold or at it,
-## and it can still fire: the prep panel shakes its milestone.
+## and it can still fire (not mutated, not pending, the run's Kỳ Ngộ not
+## used up): the prep panel shakes its milestone.
 func is_near(family: StringName) -> bool:
 	return _thresholds.has(family) and not is_mutated(family) and _pending_family != family \
-		and get_meter(family) >= get_threshold(family) - 1
+		and _chosen.size() < _rules.epiphanies_per_run and get_meter(family) >= get_threshold(family) - 1
 
 
 func is_mutated(family: StringName) -> bool:
@@ -231,7 +232,8 @@ func _read_ids(saved: Array) -> Variant:
 	return ids
 
 
-# One mutation per family, at most the per-run limit with the pending one;
+# One mutation per family, at most the per-run limit with the pending one
+# and no more than the stage of the last firing (one per stage);
 # a pending choice only in the reward phase, of two options of a family
 # that is not mutated.
 func _is_consistent(phase: int, stage: int) -> bool:
@@ -243,6 +245,10 @@ func _is_consistent(phase: int, stage: int) -> bool:
 		families.append(family)
 	var pending_count := 1 if has_pending() else 0
 	if _chosen.size() + pending_count > _rules.epiphanies_per_run:
+		return false
+	# One Kỳ Ngộ fires per stage at most, each at a later stage than the
+	# one before, so there cannot be more than the last firing stage.
+	if _chosen.size() + pending_count > _last_stage:
 		return false
 	if not has_pending():
 		return _pending_options.is_empty()

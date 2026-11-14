@@ -84,6 +84,8 @@ func _ready() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_PREDELETE and run != null:
 		_disconnect_run()
+	if what == NOTIFICATION_EXIT_TREE:
+		Sound.set_battle_speed(1)
 
 
 ## "Ra trận", or the timer ran out: starts the battle with the board as it
@@ -93,6 +95,7 @@ func start_battle() -> bool:
 		return false
 	controller.is_enabled = false
 	timer.stop()
+	boss_hud.close_card()
 	if run.get_board_count() == 0:
 		run.begin_battle()
 		_finish_battle(false, _enemy_lineup.size(), &"")
@@ -107,6 +110,7 @@ func start_battle() -> bool:
 	layout.show_battle_layout()
 	synergy_hud.roll_call()
 	boss_hud.begin_battle(_battle)
+	Sound.set_battle_speed(SPEEDS[_speed_index])
 	Sound.play(&"battle_drum")
 	Sound.play_music(&"music_battle")
 	_on_tick_advanced(0)
@@ -121,6 +125,7 @@ func continue_after_battle() -> void:
 	layout.banner.dismiss()
 	playback.abort()
 	_clear_fx()
+	boss_hud.end_battle()
 	if run.phase == RunState.Phase.REWARD:
 		_offer_reward()
 		return
@@ -130,7 +135,9 @@ func continue_after_battle() -> void:
 func cycle_speed() -> void:
 	_speed_index = (_speed_index + 1) % SPEEDS.size()
 	playback.speed = SPEEDS[_speed_index]
-	Sound.set_battle_speed(SPEEDS[_speed_index])
+	# Only battle sounds follow the speed; prep and UI sounds stay at pitch 1.
+	if run.phase == RunState.Phase.BATTLE:
+		Sound.set_battle_speed(SPEEDS[_speed_index])
 	_update_speed_label()
 
 
@@ -212,14 +219,18 @@ func _enter_reward() -> void:
 
 # The reward cards, after the pending Kỳ Ngộ's cutscene when there is one.
 func _offer_reward() -> void:
-	if interludes.play_epiphany(_after_epiphany):
+	if interludes.play_epiphany(_on_epiphany_chosen, _present_reward):
 		return
-	reward_screen.present(run.get_reward_options(), run.rules)
+	_present_reward()
 
 
-func _after_epiphany() -> void:
+# Saved the moment the card is taken, not after the closing wipe.
+func _on_epiphany_chosen() -> void:
 	_save()
 	synergy_hud.refresh(false)
+
+
+func _present_reward() -> void:
 	reward_screen.present(run.get_reward_options(), run.rules)
 
 
@@ -263,6 +274,7 @@ func _build_battle() -> Dictionary[int, UnitView]:
 
 func _finish_battle(is_win: bool, enemies_alive: int, reason: StringName) -> void:
 	last_battle_won = is_win
+	Sound.set_battle_speed(1)
 	_deltas.clear()
 	var piece_damage := {}
 	for piece_id: int in _piece_indices:
@@ -281,7 +293,9 @@ func _finish_battle(is_win: bool, enemies_alive: int, reason: StringName) -> voi
 		reason_text = tr("RESULT_EMPTY_BOARD")
 	var deltas := _deltas.duplicate()
 	var show_banner := func() -> void:
-		Sound.play(&"win" if is_win else &"lose")
+		# After the boss falls, play_victory() has already played "win".
+		if not is_boss_win:
+			Sound.play(&"win" if is_win else &"lose")
 		layout.banner.present(is_win, reason_text, deltas, "BUTTON_CONTINUE")
 	if is_boss_win:
 		create_tween().tween_callback(show_banner).set_delay(boss_hud.play_victory())
@@ -299,9 +313,17 @@ func _on_reward_chosen(reward: RunState.Reward) -> void:
 	var previous_stage := run.stage
 	if run.choose_reward(reward) != RunState.Result.OK:
 		return
+	# Before the boss stage the save waits for the story scene's end: closed
+	# during it, the run reloads at the reward choice and the story plays
+	# again after it.
+	if interludes.play_story_if_due(previous_stage, _save_and_enter_prep):
+		return
+	_save_and_enter_prep()
+
+
+func _save_and_enter_prep() -> void:
 	_save()
-	if not interludes.play_story_if_due(previous_stage, _enter_prep):
-		_enter_prep()
+	_enter_prep()
 
 
 func _save() -> void:

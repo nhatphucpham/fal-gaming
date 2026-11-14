@@ -5,8 +5,9 @@ extends Control
 ## types out under the band. A tap finishes the line, the next tap moves
 ## on. "Bỏ qua" skips the lines but never the choice: a cutscene with
 ## choices always ends on its two cards, and a gold flash marks the one
-## taken. `finished` gives the choice (-1 without choices) once the ink has
-## wiped the band away. See Docs/systems/cutscene.md.
+## taken. `choice_made` gives the choice the moment a card is taken;
+## `finished` gives it again (-1 without choices) once the ink has wiped
+## the band away. See Docs/systems/cutscene.md.
 ## [codeblock]
 ## var cutscene := CutsceneScreen.new()
 ## add_child(cutscene)
@@ -14,6 +15,8 @@ extends Control
 ## cutscene.present(data, catalog, tr("EPIPHANY_TITLE"))
 ## [/codeblock]
 
+## A card was taken (0 or 1), before the flash and the closing wipe.
+signal choice_made(choice: int)
 signal finished(choice: int)
 
 const CHARS_PER_SEC: float = 38.0
@@ -170,6 +173,7 @@ func choose(index: int) -> bool:
 		return false
 	_is_choosing = false
 	Sound.play(&"epiphany")
+	choice_made.emit(index)
 	var card := _cards[index]
 	_flash.color = Color(Palette.GOLD, 0.75)
 	var tween := create_tween()
@@ -230,11 +234,11 @@ func _process(delta: float) -> void:
 		Sound.play(&"text_blip")
 
 
+# Mouse buttons only: a touch also arrives as an emulated mouse event
+# (emulate_mouse_from_touch), so handling both would tap twice.
 func _gui_input(event: InputEvent) -> void:
 	var mouse := event as InputEventMouseButton
-	var touch := event as InputEventScreenTouch
-	var is_release := mouse != null and not mouse.pressed and mouse.button_index == MOUSE_BUTTON_LEFT
-	if is_release or (touch != null and not touch.pressed):
+	if mouse != null and not mouse.pressed and mouse.button_index == MOUSE_BUTTON_LEFT:
 		accept_event()
 		tap()
 

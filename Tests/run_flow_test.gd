@@ -6,8 +6,13 @@ extends SceneTree
 # the reward cards; the game is then "closed" and continued, which lands on
 # the same cards, and a held press on one begins stage 2's preparation. A
 # lost run deletes its save at the result banner, and an unusable save is
-# deleted when "Chơi tiếp" fails. It writes the run save like the game does,
-# but to TEST_SAVE_PATH (never the player's save), and deletes it.
+# deleted when "Chơi tiếp" fails. Saved runs then cover the interludes: a
+# pending Kỳ Ngộ plays before the reward cards and leads on to stage 3's
+# preparation; the story scene plays once before stage 12 (saved only at
+# its end) and not again after a stage-12 loss, whose boss bar and boss
+# card are put away; a win over the boss shows its victory moment before
+# the banner. It writes the run save like the game does, but to
+# TEST_SAVE_PATH (never the player's save), and deletes it.
 
 const SEED: int = 4242
 const TEST_SAVE_PATH: String = "user://run_save_test.json"
@@ -53,7 +58,8 @@ func _run() -> bool:
 	var checks: Array[Callable] = [
 		_check_place, _check_bench_gap_drag, _check_sell_zone_release, _check_battle, _check_reward,
 		_check_reward_after_reload, _check_second_fight_press, _check_prep_saves, _check_sell_zone_hold_and_slide,
-		_check_loss_deletes_save, _check_bad_save_cleared,
+		_check_loss_deletes_save, _check_bad_save_cleared, _check_epiphany_flow, _check_story_and_boss_loss,
+		_check_boss_win,
 	]
 	for check: Callable in checks:
 		if not await check.call():
@@ -357,3 +363,175 @@ func _check_second_fight_press() -> bool:
 		push_error("A press on the fight button reached %s" % hovered)
 		return false
 	return true
+
+
+# A saved run in stage 2's reward with a pending sword Kỳ Ngộ: its cutscene
+# plays before the cards; the card taken is in the save at once (before the
+# closing wipe); the reward cards follow, and a reward reaches stage 3's
+# preparation with "Ra trận" on top.
+func _check_epiphany_flow() -> bool:
+	var run := _saved_run({"phase": "reward", "stage": 2, "stages_cleared": 1, "rewards": ["reward.rest", "reward.hunt"]}, {
+		"pending_family": "milestone.class_sword", "last_stage": 2,
+		"pending_options": ["epiphany.sword_lower_2", "epiphany.sword_swift_edge"],
+	})
+	if run == null:
+		return false
+	_screen = _main._open_run(run)
+	await create_timer(SLIDE_WAIT_SEC).timeout
+	var cutscene := _screen.interludes.cutscene
+	if cutscene == null or _screen.reward_screen.visible:
+		push_error("A pending Kỳ Ngộ should play its cutscene before the reward cards")
+		return false
+	await _skip_when_typing(cutscene)
+	if not cutscene.choose(0):
+		push_error("The Kỳ Ngộ cards should be up after skipping")
+		return false
+	var saved := RunSave.load_run(_main._catalog)
+	if run.epiphanies.has_pending() or saved == null or saved.epiphanies.has_pending() or saved.epiphanies.get_chosen_ids() != [&"epiphany.sword_lower_2"]:
+		push_error("The Kỳ Ngộ card should be taken and saved the moment it is chosen")
+		return false
+	if _screen.reward_screen.visible:
+		push_error("The reward cards should wait for the closing wipe")
+		return false
+	await create_timer(1.5).timeout
+	if _screen.interludes.is_playing() or not _screen.reward_screen.visible:
+		push_error("The reward cards should follow the Kỳ Ngộ cutscene")
+		return false
+	await _hold_reward_card(0)
+	if run.phase != RunState.Phase.PREP or run.stage != 3 or not _screen.controller.is_enabled:
+		push_error("A reward after the Kỳ Ngộ should begin stage 3, got stage %d in %s" % [run.stage, RunState.Phase.keys()[run.phase]])
+		return false
+	return await _check_second_fight_press()
+
+
+# Stage 11 won: the reward leads to the story scene, and the save keeps the
+# reward choice until the story ends (closing the app during it plays it
+# again). In stage 12 the boss card closes when the battle starts; after a
+# loss the boss bar is gone at the reward cards, the battle speed no longer
+# pitches sounds, and the next reward goes straight to stage 12 again.
+func _check_story_and_boss_loss() -> bool:
+	var run := _saved_run({"phase": "reward", "stage": 11, "stages_cleared": 11, "rewards": ["reward.rest", "reward.hunt", "reward.black_market"]}, {})
+	if run == null:
+		return false
+	_screen = _main._open_run(run)
+	await create_timer(SLIDE_WAIT_SEC).timeout
+	await _hold_reward_card(0)
+	var story := _screen.interludes.cutscene
+	var saved := RunSave.load_run(_main._catalog)
+	if story == null or run.stage != 12 or saved == null or saved.stage != 11 or saved.phase != RunState.Phase.REWARD:
+		push_error("The story scene should play before stage 12 with stage 11's reward still saved")
+		return false
+	await _skip_when_typing(story)
+	await create_timer(1.2).timeout
+	saved = RunSave.load_run(_main._catalog)
+	if _screen.interludes.is_playing() or not _screen.controller.is_enabled or saved == null or saved.stage != 12 or saved.phase != RunState.Phase.PREP:
+		push_error("After the story, stage 12's preparation should be shown and saved")
+		return false
+	var layout := _screen.layout
+	_screen.boss_hud.open_card()
+	if not layout.boss_card.visible:
+		push_error("The boss badge should open the boss card")
+		return false
+	if not _screen.start_battle() or layout.boss_card.visible or not layout.boss_bar.visible:
+		push_error("The battle should close the boss card and show the boss bar")
+		return false
+	_screen.cycle_speed()
+	var frames := 0
+	while run.phase == RunState.Phase.BATTLE and frames < MAX_FRAMES:
+		_screen.playback.advance(STEP_SEC)
+		await process_frame
+		frames += 1
+	if run.phase != RunState.Phase.REWARD or _screen.last_battle_won:
+		push_error("One sword against the boss should lose into the reward, got %s" % RunState.Phase.keys()[run.phase])
+		return false
+	if AudioService.instance != null and AudioService.instance.battle_speed != 1:
+		push_error("The battle speed should stop pitching sounds when the battle ends")
+		return false
+	_screen.continue_after_battle()
+	await process_frame
+	if not await _pass_cutscene():
+		return false
+	if layout.boss_bar.visible or not _screen.reward_screen.visible:
+		push_error("After a boss loss the reward cards should show without the boss bar")
+		return false
+	await _hold_reward_card(0)
+	if _screen.interludes.is_playing() or run.phase != RunState.Phase.PREP or run.stage != 12:
+		push_error("A stage 12 loss should go back to stage 12 without the story")
+		return false
+	return true
+
+
+# A strong stage-12 board beats the boss: the victory stamp comes first,
+# the banner only after BossHud.VICTORY_SEC.
+func _check_boss_win() -> bool:
+	var units := [
+		["unit.wolf_king_shield", 3, 3, 1], ["unit.ba_khac", 2, 4, 1], ["unit.heavy_rider", 3, 5, 1], ["unit.thiet_nha", 2, 2, 1],
+		["unit.moon_spear", 3, 3, 2], ["unit.moon_spear", 3, 5, 2], ["unit.thunder_mage", 3, 3, 3], ["unit.thunder_mage", 3, 5, 3],
+	]
+	var pieces := []
+	for index: int in units.size():
+		var unit: Array = units[index]
+		pieces.append({"id": index + 1, "unit_id": unit[0], "star": unit[1], "bench": -1, "col": unit[2], "rank": unit[3], "has_fought": true})
+	var run := _saved_run({"stage": 12, "stages_cleared": 11, "level": 9, "pieces": pieces, "next_piece_id": units.size() + 1}, {})
+	if run == null:
+		return false
+	_screen = _main._open_run(run)
+	await create_timer(SLIDE_WAIT_SEC).timeout
+	if not _screen.start_battle():
+		push_error("The boss battle did not start")
+		return false
+	var frames := 0
+	while run.phase == RunState.Phase.BATTLE and frames < MAX_FRAMES:
+		_screen.playback.advance(STEP_SEC)
+		await process_frame
+		frames += 1
+	var banner := _screen.layout.banner
+	if run.phase != RunState.Phase.WON or not _screen.last_battle_won or banner.visible:
+		push_error("The strong board should beat the boss, with no banner yet (phase %s)" % RunState.Phase.keys()[run.phase])
+		return false
+	await create_timer(BossHud.VICTORY_SEC - 0.4).timeout
+	if banner.visible:
+		push_error("The banner should wait for the boss victory moment")
+		return false
+	await create_timer(0.8).timeout
+	if not banner.visible:
+		push_error("The banner should follow the boss victory moment")
+		return false
+	return true
+
+
+# The run of a fresh seed-31 start with one sword on the board, then
+# `changes` (and `epiphany_changes` in its Kỳ Ngộ data), loaded and saved.
+func _saved_run(changes: Dictionary, epiphany_changes: Dictionary) -> RunState:
+	var start := RunState.new(_main._catalog, 31)
+	start.start()
+	var data := start.to_save_data()
+	(data["epiphany"] as Dictionary).merge(epiphany_changes, true)
+	data["pieces"] = [{"id": 1, "unit_id": "unit.blade_wanderer", "star": 1, "bench": -1, "col": 4, "rank": 1, "has_fought": true}]
+	data["next_piece_id"] = 2
+	data.merge(changes, true)
+	var run := RunState.new(_main._catalog, 0)
+	if not run.load_save_data(JSON.parse_string(JSON.stringify(data))) or not RunSave.save(run):
+		push_error("The test run %s did not load" % [changes])
+		return null
+	return run
+
+
+# Skips `cutscene` once its first line types (the opening wipe ignores it).
+func _skip_when_typing(cutscene: CutsceneScreen) -> void:
+	var frames := 0
+	while cutscene.get_line_index() < 0 and frames < MAX_FRAMES:
+		await process_frame
+		frames += 1
+	cutscene.skip()
+
+
+# Holds a press on reward card `index` long enough to choose it, then waits
+# for its animation.
+func _hold_reward_card(index: int) -> void:
+	var cards := _screen.reward_screen.find_children("*", "RewardCard", true, false)
+	var center := (cards[index] as Control).get_global_rect().get_center()
+	_push_mouse(center, true)
+	await create_timer(0.5).timeout
+	_push_mouse(center, false)
+	await create_timer(1.0).timeout

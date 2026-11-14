@@ -41,17 +41,22 @@ rule itself.
   speaker is lit, the other dimmed, the right one mirrored.
 - A line types at 38 characters a second with a blip every 3 characters.
   A tap finishes the line; the next tap goes on. Taps during the wipe do
-  nothing.
+  nothing. Only mouse buttons count: a phone touch also arrives as an
+  emulated mouse click (`emulate_mouse_from_touch`), so one touch is one tap.
 - "Bỏ qua" skips the remaining lines. With choices it lands on the two
   cards, which nothing skips; without, the scene ends.
-- Choosing a card flashes gold, pops the card, wipes the band out with ink
-  and emits `finished(choice)` (-1 without choices).
+- Choosing a card emits `choice_made(choice)` at once, then flashes gold,
+  pops the card, wipes the band out with ink and emits `finished(choice)`
+  (-1 without choices).
 - In the run: after the banner's "Tiếp tục" (and when a run is loaded in
-  its reward phase) a pending Kỳ Ngộ plays first; its choice goes to
-  `RunState.choose_epiphany`, the run is saved, the synergy views refresh,
-  then the reward cards show. The story plays when a reward choice moves
-  the run from stage 11 to 12 (so once per run; replays of stage 12 come
-  from stage 12), before the preparation starts.
+  its reward phase) a pending Kỳ Ngộ plays first; the moment a card is
+  taken its choice goes to `RunState.choose_epiphany`, the run is saved and
+  the synergy views refresh; the reward cards show once the wipe is over.
+  The story plays when a reward choice moves the run from stage 11 to 12
+  (so once per run; replays of stage 12 come from stage 12), before the
+  preparation starts. That reward's save waits until the story ends: an
+  app closed during the story reloads at stage 11's reward cards (the same
+  options), and choosing again plays the story again.
 
 ## Public API
 
@@ -60,9 +65,10 @@ rule itself.
 | `CutsceneScreen.present(data, catalog, title = "")` | method | Starts the scene. |
 | `tap()`, `skip()`, `choose(index) -> bool` | methods | What the input does; tests call them. |
 | `get_line_index()`, `get_visible_text()`, `is_line_complete()`, `is_choosing()`, `is_done()`, `get_choice_texts()` | methods | State for tests. |
+| `choice_made(choice: int)` | signal | A card was taken, before the flash and the closing wipe. |
 | `finished(choice: int)` | signal | The ink has wiped the band away. |
 | `EpiphanyCutscene.build(run) -> CutsceneData` | static | The pending Kỳ Ngộ's scene (null without one). |
-| `RunInterludes.play_epiphany(then)`, `play_story_if_due(previous_stage, then)` | methods | Run integration. |
+| `RunInterludes.play_epiphany(chosen, then)`, `play_story_if_due(previous_stage, then)` | methods | Run integration: `chosen` runs when the card is taken, `then` when the scene is over. |
 
 ## How to extend
 
@@ -73,10 +79,14 @@ and its drawing in `CutsceneBackdrop`.
 ## Tests
 
 `Tests/cutscene_test.gd`: the story data, stepping through lines (tap
-finishes, tap moves on, taps during the wipe do nothing), skip ending a
-scene without choices, a Kỳ Ngộ scene skipping to its cards, taps and skips
-not passing them, and the choice returned. `Tests/run_flow_test.gd` passes
-a Kỳ Ngộ cutscene in the real run screen.
+finishes, tap moves on, taps during the wipe do nothing), one real touch
+through `Input` counting as one tap, skip ending a scene without choices, a
+Kỳ Ngộ scene skipping to its cards, taps and skips not passing them, and the
+choice reported at once and returned. `Tests/run_flow_test.gd`, on the real
+run screen: a saved run with a pending Kỳ Ngộ plays it, saves the card the
+moment it is taken, then shows the reward cards and reaches the next
+preparation; the story plays once before stage 12 (the save waiting for its
+end) and not after a stage-12 loss.
 
 ## Known limits
 

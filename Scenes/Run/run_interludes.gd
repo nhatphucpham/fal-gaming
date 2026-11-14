@@ -1,9 +1,9 @@
 class_name RunInterludes
 extends RefCounted
 ## The cutscenes between stages, played over the run screen: a pending Kỳ
-## Ngộ (its choice goes to RunState.choose_epiphany) and, once per run, the
-## story scene before the boss stage. Each takes a callback for when it is
-## over. See Docs/systems/cutscene.md.
+## Ngộ (its choice goes to RunState.choose_epiphany the moment a card is
+## taken) and, once per run, the story scene before the boss stage. Each
+## takes a callback for when it is over. See Docs/systems/cutscene.md.
 
 ## The cutscene playing now, or null (tests step through it).
 var cutscene: CutsceneScreen
@@ -17,16 +17,23 @@ func _init(run: RunState, host: Control) -> void:
 	_host = host
 
 
-## Plays the pending Kỳ Ngộ, takes the card chosen, then calls `then`.
-## False (and nothing played) when none is pending.
-func play_epiphany(then: Callable) -> bool:
+## Plays the pending Kỳ Ngộ. The card taken goes to the run at once and
+## `chosen` is called (the screen saves there, so closing the app during
+## the closing wipe keeps it); `then` once the wipe is over. False (and
+## nothing played) when none is pending.
+func play_epiphany(chosen: Callable, then: Callable) -> bool:
 	var data := EpiphanyCutscene.build(_run)
 	if data == null:
 		return false
 	var title := _host.tr("EPIPHANY_TITLE_FORMAT") % _host.tr(_family_name_key(_run.epiphanies.get_pending_family()))
+	var take := func(choice: int) -> void:
+		if _run.epiphanies.has_pending():
+			_run.choose_epiphany(maxi(choice, 0))
+			chosen.call()
 	_play(data, title, func(choice: int) -> void:
-		_run.choose_epiphany(maxi(choice, 0))
+		take.call(choice)
 		then.call())
+	cutscene.choice_made.connect(take)
 	return true
 
 

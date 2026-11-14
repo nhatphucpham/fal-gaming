@@ -2,10 +2,11 @@ extends SceneTree
 
 # Headless test of the cutscene screen: the story scene types its first
 # line after the ink wipe, a tap finishes the line, the next tap moves on,
-# "Bỏ qua" ends a scene without choices; a Kỳ Ngộ scene built from a run's
-# pending choice skips to its two cards (never past them), taps do not
-# pass the cards, and choosing one ends it with that index. All cutscene
-# data validates.
+# "Bỏ qua" ends a scene without choices; one real touch (a phone tap, which
+# also arrives as an emulated mouse click) taps once; a Kỳ Ngộ scene built
+# from a run's pending choice skips to its two cards (never past them),
+# taps do not pass the cards, and choosing one reports it at once and ends
+# the scene with that index. All cutscene data validates.
 
 const WIPE_WAIT_SEC: float = 0.8
 const END_WAIT_SEC: float = 1.0
@@ -24,7 +25,7 @@ func _initialize() -> void:
 
 
 func _run() -> bool:
-	var checks: Array[Callable] = [_check_data, _check_story_steps, _check_choice]
+	var checks: Array[Callable] = [_check_data, _check_story_steps, _check_touch_tap, _check_choice]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Cutscene test failed in %s" % check.get_method())
@@ -77,6 +78,47 @@ func _check_story_steps() -> bool:
 	return ok
 
 
+# A phone tap through Input (touch, then the emulated mouse click) finishes
+# the typing line without moving on; a second tap moves on.
+func _check_touch_tap() -> bool:
+	if not ProjectSettings.get_setting("input_devices/pointing/emulate_mouse_from_touch", true):
+		push_error("The project should emulate the mouse from touch, as phones need")
+		return false
+	var screen := CutsceneScreen.new()
+	root.add_child(screen)
+	screen.present(EpiphanyCutscene.load_story(), _catalog, "")
+	await create_timer(WIPE_WAIT_SEC).timeout
+	await process_frame
+	if screen.get_line_index() != 0 or screen.is_line_complete():
+		push_error("The first line should be typing before the touch")
+		return false
+	var at := screen.get_global_rect().get_center()
+	_touch_tap(at)
+	await process_frame
+	if screen.get_line_index() != 0 or not screen.is_line_complete():
+		push_error("One touch should finish line 1 only, got line %d complete %s" % [screen.get_line_index(), screen.is_line_complete()])
+		return false
+	_touch_tap(at)
+	await process_frame
+	var ok := screen.get_line_index() == 1 and not screen.is_line_complete()
+	if not ok:
+		push_error("A second touch should start line 2, got line %d" % screen.get_line_index())
+	screen.queue_free()
+	return ok
+
+
+# One finger down and up through Input, as a platform sends it (canvas
+# position to window position); Godot emulates the mouse for it.
+func _touch_tap(at: Vector2) -> void:
+	for is_pressed: bool in [true, false]:
+		var event := InputEventScreenTouch.new()
+		event.index = 0
+		event.pressed = is_pressed
+		event.position = root.get_final_transform() * at
+		Input.parse_input_event(event)
+		Input.flush_buffered_events()
+
+
 func _check_choice() -> bool:
 	var run := _pending_run()
 	if run == null:
@@ -91,7 +133,9 @@ func _check_choice() -> bool:
 	var screen := CutsceneScreen.new()
 	root.add_child(screen)
 	var results: Array[int] = []
+	var made: Array[int] = []
 	screen.finished.connect(func(choice: int) -> void: results.append(choice))
+	screen.choice_made.connect(func(choice: int) -> void: made.append(choice))
 	screen.present(data, _catalog, "Kỳ Ngộ")
 	await create_timer(WIPE_WAIT_SEC).timeout
 	if screen.choose(0):
@@ -109,6 +153,9 @@ func _check_choice() -> bool:
 		return false
 	if not screen.choose(1) or screen.choose(0):
 		push_error("Choosing should take one card once")
+		return false
+	if made != [1] or not results.is_empty():
+		push_error("The choice should be reported at once, before the wipe ends: %s %s" % [made, results])
 		return false
 	await create_timer(END_WAIT_SEC + 0.5).timeout
 	var ok := results == [1]

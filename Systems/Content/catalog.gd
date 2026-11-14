@@ -154,22 +154,43 @@ func validate() -> PackedStringArray:
 	return problems
 
 
+# Each family's own checks, doubled ids, then each mutation through the
+# native synergy rules (a Biến Dị's modifiers must be legal on a milestone).
 func _validate_epiphanies() -> PackedStringArray:
 	var problems := PackedStringArray()
 	var families: Dictionary[StringName, bool] = {}
 	var ids: Dictionary[StringName, bool] = {}
+	var synergy := _make_checked_synergy()
 	for entry: EpiphanyFamily in epiphanies:
 		if entry == null or families.has(entry.family):
 			problems.append("Catalog: an epiphanies entry is empty or doubled")
 			continue
 		families[entry.family] = true
-		problems.append_array(entry.validate(self))
+		var family_problems := entry.validate(self)
+		problems.append_array(family_problems)
 		for epiphany: EpiphanyData in entry.epiphanies:
-			if epiphany != null and ids.has(epiphany.id):
+			if epiphany == null:
+				continue
+			if ids.has(epiphany.id):
 				problems.append("Catalog: epiphany id %s is used twice" % epiphany.id)
-			if epiphany != null:
-				ids[epiphany.id] = true
+			ids[epiphany.id] = true
+			# to_override() trusts the tier, so only clean families reach it.
+			if synergy != null and family_problems.is_empty():
+				var override := epiphany.to_override(get_milestone(epiphany.family))
+				if synergy.evaluate([], [override]).is_empty():
+					problems.append("Catalog: epiphany %s in %s is refused by the synergy rules (see the Synergy error above)" % [epiphany.id, entry.resource_path])
 	return problems
+
+
+# A fresh Synergy set up from this data, or null when the data is bad
+# (_validate_synergy() reports why). Not cached: validate() must see edits.
+func _make_checked_synergy() -> Synergy:
+	if hop_luc == null:
+		return null
+	var synergy := Synergy.new()
+	if not synergy.setup(formations, milestones, hop_luc).is_empty():
+		return null
+	return synergy
 
 
 # Ids, text keys, the class and race ids they name, then the native checks

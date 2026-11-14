@@ -38,7 +38,10 @@ write it, so the loops are WAV. The files are tracked with Git LFS.
   project has none. Effects use a pool of 8 players; music has its own.
 - The same id plays again only after 40 ms, and at most 4 voices of one id
   at once; a full pool reuses the oldest voice.
-- Effects pitch up by 4% per battle speed step above 1.
+- Effects pitch up by 4% per battle speed step above 1, during the battle
+  only: the run screen sets the speed when the battle starts (or the speed
+  button is pressed in it) and back to 1 when it ends or the screen
+  closes, so preparation and UI sounds keep their pitch.
 - An unknown id warns once ("Audio: unknown sound id") and plays nothing.
 - Web: nothing plays until `unlock()` (the title calls it on its first
   tap), then the requested music starts. The web export uses Sample

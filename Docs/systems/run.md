@@ -233,8 +233,10 @@ cells here are global.
 
 `user://run_save.json` (the browser's IndexedDB on the web), written with
 `FileAccess` at the start of a run, after every successful preparation
-command (`prep_changed`), when a battle ends in the reward choice, and
-after every reward. It is deleted as soon as the run is won or lost (when
+command (`prep_changed`), when a battle ends in the reward choice, the
+moment a Kỳ Ngộ card is taken, and after every reward (the reward that
+leads to stage 12 only once the story scene has ended; see
+[cutscene.md](cutscene.md)). It is deleted as soon as the run is won or lost (when
 the result banner appears). So closing the game at any point after a
 battle cannot replay it: a non-final battle resumes on its reward cards,
 with its result (morale, gold, supply) already applied; and a refresh or
