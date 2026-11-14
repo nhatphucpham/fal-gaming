@@ -1,0 +1,18 @@
+[gd_resource type="PassiveData" format=3]
+
+[sub_resource type="SkillEffectData" id="effect"]
+id = &"effect.add_qi"
+target = 1
+value = 10
+
+[resource]
+id = &"passive.bedrock"
+name_key = "PASSIVE_BEDROCK"
+description_key = "PASSIVE_BEDROCK_DESC"
+trigger = &"trigger.arrow_blocked"
+condition = &""
+condition_radius = 0
+every_nth = 1
+limit_per_battle = 0
+once_per_source = false
+effect = SubResource("effect")

@@ -8,6 +8,18 @@
 [ext_resource type="ClassData" path="res://Data/Classes/cavalry.tres" id="class_cavalry"]
 [ext_resource type="ClassData" path="res://Data/Classes/archer.tres" id="class_archer"]
 [ext_resource type="ClassData" path="res://Data/Classes/mage.tres" id="class_mage"]
+[ext_resource type="SkillData" path="res://Data/Skills/hold_ground.tres" id="skill_hold_ground"]
+[ext_resource type="SkillData" path="res://Data/Skills/sweep.tres" id="skill_sweep"]
+[ext_resource type="SkillData" path="res://Data/Skills/heart_pierce.tres" id="skill_heart_pierce"]
+[ext_resource type="SkillData" path="res://Data/Skills/breakthrough.tres" id="skill_breakthrough"]
+[ext_resource type="SkillData" path="res://Data/Skills/arrow_rain.tres" id="skill_arrow_rain"]
+[ext_resource type="SkillData" path="res://Data/Skills/arcane_circle.tres" id="skill_arcane_circle"]
+[ext_resource type="PassiveData" path="res://Data/Passives/bedrock.tres" id="passive_bedrock"]
+[ext_resource type="PassiveData" path="res://Data/Passives/riposte.tres" id="passive_riposte"]
+[ext_resource type="PassiveData" path="res://Data/Passives/brace.tres" id="passive_brace"]
+[ext_resource type="PassiveData" path="res://Data/Passives/momentum.tres" id="passive_momentum"]
+[ext_resource type="PassiveData" path="res://Data/Passives/steady_aim.tres" id="passive_steady_aim"]
+[ext_resource type="PassiveData" path="res://Data/Passives/spirit_draw.tres" id="passive_spirit_draw"]
 [ext_resource type="UnitData" path="res://Data/Units/shield_guard.tres" id="unit_shield_guard"]
 [ext_resource type="UnitData" path="res://Data/Units/blade_wanderer.tres" id="unit_blade_wanderer"]
 [ext_resource type="UnitData" path="res://Data/Units/wolf_spear.tres" id="unit_wolf_spear"]
@@ -51,6 +63,8 @@
 [resource]
 script = ExtResource("1_catalog")
 classes = Array[ClassData]([ExtResource("class_shield"), ExtResource("class_sword"), ExtResource("class_spear"), ExtResource("class_cavalry"), ExtResource("class_archer"), ExtResource("class_mage")])
+skills = Array[SkillData]([ExtResource("skill_hold_ground"), ExtResource("skill_sweep"), ExtResource("skill_heart_pierce"), ExtResource("skill_breakthrough"), ExtResource("skill_arrow_rain"), ExtResource("skill_arcane_circle")])
+passives = Array[PassiveData]([ExtResource("passive_bedrock"), ExtResource("passive_riposte"), ExtResource("passive_brace"), ExtResource("passive_momentum"), ExtResource("passive_steady_aim"), ExtResource("passive_spirit_draw")])
 units = Array[UnitData]([ExtResource("unit_shield_guard"), ExtResource("unit_blade_wanderer"), ExtResource("unit_wolf_spear"), ExtResource("unit_wolf_rider"), ExtResource("unit_archer"), ExtResource("unit_fire_adept"), ExtResource("unit_wolf_shield"), ExtResource("unit_wolf_blade"), ExtResource("unit_spearman"), ExtResource("unit_light_rider"), ExtResource("unit_wolf_archer"), ExtResource("unit_ice_mage"), ExtResource("unit_iron_guard"), ExtResource("unit_blood_wolf"), ExtResource("unit_wolf_marksman"), ExtResource("unit_wind_mage"), ExtResource("unit_pike_guard"), ExtResource("unit_wolf_king_shield"), ExtResource("unit_heavy_rider"), ExtResource("unit_moon_spear"), ExtResource("unit_thunder_mage"), ExtResource("unit_lieu_mi"), ExtResource("unit_ba_khac"), ExtResource("unit_lac_hong"), ExtResource("unit_thiet_nha")])
 battle_rules = ExtResource("rules_battle")
 run_rules = ExtResource("rules_run")

@@ -1,0 +1,34 @@
+[gd_resource type="SkillData" format=3]
+
+[sub_resource type="SkillEffectData" id="taunt"]
+id = &"effect.taunt"
+target = 0
+duration_ticks = 60
+
+[sub_resource type="SkillEffectData" id="guard"]
+id = &"effect.guard"
+target = 1
+value = 40
+duration_ticks = 60
+
+[sub_resource type="SkillEffectData" id="push"]
+id = &"effect.knockback"
+target = 0
+value = 1
+
+[resource]
+id = &"skill.hold_ground"
+name_key = "SKILL_HOLD_GROUND"
+description_key = "SKILL_HOLD_GROUND_DESC"
+qi_cost = 80
+selector = &"select.self"
+selector_range = 0
+area = &"area.square"
+area_size = 2
+effects = Array[SkillEffectData]([SubResource("taunt"), SubResource("guard")])
+has_after_skill = true
+after_delay_ticks = 60
+after_selector = &"select.self"
+after_area = &"area.square"
+after_area_size = 1
+after_effects = Array[SkillEffectData]([SubResource("push")])

@@ -41,7 +41,9 @@ bool Battle::register_class(const Ref<ClassData> &p_class) {
 	const String where = p_class->get_path().is_empty() ? String() : " in " + p_class->get_path();
 	ERR_FAIL_COND_V_MSG(!p_class->has_valid_damage_kind(), false, vformat("Battle: %s has unknown damage_kind %d%s", p_class->get_id(), p_class->get_damage_kind(), where));
 	std::string error;
-	ERR_FAIL_COND_V_MSG(!sim.register_class(p_class->to_class_def(), &error), false, "Battle: " + to_godot_string(error) + where);
+	battle::ClassDef def;
+	ERR_FAIL_COND_V_MSG(!p_class->to_class_def(&def, &error), false, vformat("Battle: %s: %s%s", p_class->get_id(), to_godot_string(error), where));
+	ERR_FAIL_COND_V_MSG(!sim.register_class(def, &error), false, "Battle: " + to_godot_string(error) + where);
 	return true;
 }
 
@@ -57,6 +59,12 @@ int Battle::add_unit(int64_t p_side, const Ref<UnitData> &p_unit, int64_t p_star
 	spec.cost = p_unit->get_cost();
 	spec.star = static_cast<int>(p_star);
 	std::string error;
+	const Ref<SkillData> skill_override = p_unit->get_skill_override();
+	spec.has_skill_override = skill_override.is_valid();
+	ERR_FAIL_COND_V_MSG(spec.has_skill_override && !skill_override->to_skill_def(&spec.skill_override, &error), -1, vformat("Battle: %s skill_override: %s", p_unit->get_id(), to_godot_string(error)));
+	const Ref<PassiveData> passive_override = p_unit->get_passive_override();
+	spec.has_passive_override = passive_override.is_valid();
+	ERR_FAIL_COND_V_MSG(spec.has_passive_override && !passive_override->to_passive_def(&spec.passive_override, &error), -1, vformat("Battle: %s passive_override: %s", p_unit->get_id(), to_godot_string(error)));
 	const int index = sim.add_unit(static_cast<int>(p_side), spec, static_cast<int>(p_local_col), static_cast<int>(p_local_rank), &error);
 	ERR_FAIL_COND_V_MSG(index < 0, -1, "Battle: " + to_godot_string(error));
 	return index;
@@ -141,6 +149,9 @@ void Battle::log_event(const battle::BattleEvent &p_event) const {
 		case battle::EventType::BATTLE_ENDED:
 			UtilityFunctions::print(prefix + vformat("battle_ended winner=%d reason=%s", p_event.winner, get_end_reason_name(p_event.reason)));
 			break;
+		case battle::EventType::SKILL_CAST_STARTED:
+			UtilityFunctions::print(prefix + vformat("skill_cast_started unit=%d skill=%s cells=%d", p_event.unit, to_godot_string(p_event.skill_id), static_cast<int64_t>(p_event.cells.size())));
+			break;
 		default:
 			break;
 	}
@@ -167,6 +178,10 @@ Dictionary Battle::get_unit_state(int64_t p_index) const {
 	state["row"] = unit.cell.row;
 	state["target"] = unit.target;
 	state["move_ticks_left"] = sim.get_move_ticks_left(unit);
+	state["qi"] = unit.skills.qi;
+	state["qi_max"] = unit.skills.qi_max;
+	state["casting"] = unit.skills.cast.is_casting;
+	state["statuses"] = get_status_array(unit, sim.get_tick());
 	return state;
 }
 

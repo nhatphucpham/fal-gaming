@@ -1,7 +1,8 @@
 #include "battle_openings.h"
 
-#include "battle_board.h"
 #include "battle_sim.h"
+
+#include "skill/skill_charge.h"
 
 namespace battle {
 
@@ -24,50 +25,14 @@ OpeningResult run_hold_line(BattleSim &p_sim, int p_unit) {
 	return OpeningResult::ACTED;
 }
 
-void end_charge(BattleSim &p_sim, int p_unit, int p_hit, int p_cause) {
-	BattleEvent event;
-	event.type = EventType::CHARGE_ENDED;
-	event.unit = p_unit;
-	event.hit = p_hit;
-	event.cause = p_cause;
-	p_sim.emit_event(event);
-	p_sim.deactivate_opening(p_unit);
-}
-
-bool can_knock_back(const BattleSim &p_sim, const UnitState &p_victim, const Cell &p_to) {
-	const ClassDef &victim_class = p_sim.get_class_def(p_victim);
-	return p_victim.is_alive && !victim_class.immune_to_knockback && !victim_class.stops_charge && p_sim.get_board().is_free(p_to);
-}
-
-// Runs straight forward; on reaching an enemy, hits it once and pushes it
-// back one cell when it can be pushed.
+// Runs straight forward through the shared charge runner (skill_charge.h);
+// on reaching an enemy, hits it once with a basic attack and pushes it back.
+// The runner ends the opening when the charge ends.
 OpeningResult run_charge(BattleSim &p_sim, int p_unit) {
-	const UnitState &unit = p_sim.get_units()[p_unit];
-	if (p_sim.is_moving(unit)) {
-		return OpeningResult::ACTED;
+	if (!p_sim.get_units()[p_unit].skills.charge.is_active) {
+		begin_charge(p_sim, p_unit, ChargeState());
 	}
-	const int forward = get_forward_row_step(unit.side);
-	const Cell next = { unit.cell.col, unit.cell.row + forward };
-	if (!is_on_board(next)) {
-		end_charge(p_sim, p_unit, NO_UNIT, 0);
-		return OpeningResult::ACTED;
-	}
-	const int blocker = p_sim.get_board().get_occupant(next);
-	if (blocker == NO_UNIT) {
-		p_sim.start_move(p_unit, next, p_sim.get_rules().charge_ticks_per_cell, MoveKind::CHARGE, 0);
-		return OpeningResult::ACTED;
-	}
-	if (p_sim.get_units()[blocker].side == unit.side) {
-		end_charge(p_sim, p_unit, NO_UNIT, 0);
-		return OpeningResult::ACTED;
-	}
-
-	const int attack_event = p_sim.perform_attack(p_unit, blocker, 0);
-	const Cell pushed_to = { next.col, next.row + forward };
-	if (can_knock_back(p_sim, p_sim.get_units()[blocker], pushed_to)) {
-		p_sim.start_move(blocker, pushed_to, p_sim.get_rules().charge_ticks_per_cell, MoveKind::KNOCKBACK, attack_event);
-	}
-	end_charge(p_sim, p_unit, blocker, attack_event);
+	advance_charge(p_sim, p_unit);
 	return OpeningResult::ACTED;
 }
 

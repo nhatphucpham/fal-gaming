@@ -1,0 +1,20 @@
+[gd_resource type="SkillData" format=3]
+
+[sub_resource type="SkillEffectData" id="blast"]
+id = &"effect.damage"
+target = 0
+value = 220
+damage_kind = 1
+
+[resource]
+id = &"skill.arcane_circle"
+name_key = "SKILL_ARCANE_CIRCLE"
+description_key = "SKILL_ARCANE_CIRCLE_DESC"
+qi_cost = 120
+selector = &"select.densest_area"
+selector_range = 4
+area = &"area.plus"
+area_size = 0
+effects = Array[SkillEffectData]([SubResource("blast")])
+star3_area = &"area.square"
+star3_area_size = 1

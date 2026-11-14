@@ -1,0 +1,19 @@
+[gd_resource type="PassiveData" format=3]
+
+[sub_resource type="SkillEffectData" id="effect"]
+id = &"effect.damage"
+target = 2
+value = 100
+damage_kind = 0
+
+[resource]
+id = &"passive.brace"
+name_key = "PASSIVE_BRACE"
+description_key = "PASSIVE_BRACE_DESC"
+trigger = &"trigger.charge_impact_incoming"
+condition = &"condition.victim_or_in_range"
+condition_radius = 0
+every_nth = 1
+limit_per_battle = 0
+once_per_source = true
+effect = SubResource("effect")

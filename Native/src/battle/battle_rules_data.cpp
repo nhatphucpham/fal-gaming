@@ -22,6 +22,21 @@ PackedInt64Array BattleRulesData::get_cost_multipliers_pct() const {
 	return values;
 }
 
+void BattleRulesData::set_star_skill_pct(const PackedInt64Array &p_values) {
+	ERR_FAIL_COND_MSG(p_values.size() != battle::MAX_STAR, vformat("Battle: star_skill_pct needs %d values, got %d", battle::MAX_STAR, p_values.size()));
+	for (int index = 0; index < battle::MAX_STAR; index++) {
+		rules.star_skill_pct[index] = clamp_to_int(p_values[index]);
+	}
+}
+
+PackedInt64Array BattleRulesData::get_star_skill_pct() const {
+	PackedInt64Array values;
+	for (int value : rules.star_skill_pct) {
+		values.push_back(value);
+	}
+	return values;
+}
+
 void BattleRulesData::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_attack_charge_full"), &BattleRulesData::get_attack_charge_full);
 	BATTLE_BIND_ACCESSORS(BattleRulesData, ticks_per_second);
@@ -36,6 +51,11 @@ void BattleRulesData::_bind_methods() {
 	BATTLE_BIND_ACCESSORS(BattleRulesData, hold_line_max_ticks);
 	BATTLE_BIND_ACCESSORS(BattleRulesData, hold_line_grace_ticks);
 	BATTLE_BIND_ACCESSORS(BattleRulesData, max_units_per_side);
+	BATTLE_BIND_ACCESSORS(BattleRulesData, qi_per_attack);
+	BATTLE_BIND_ACCESSORS(BattleRulesData, qi_per_hit_taken);
+	BATTLE_BIND_ACCESSORS(BattleRulesData, cast_ticks);
+	BATTLE_BIND_ACCESSORS(BattleRulesData, star_skill_pct);
+	BATTLE_BIND_ACCESSORS(BattleRulesData, crit_multiplier_pct);
 
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "ticks_per_second", PROPERTY_HINT_RANGE, "1,240,1"), "set_ticks_per_second", "get_ticks_per_second");
 	ADD_PROPERTY(PropertyInfo(Variant::PACKED_INT64_ARRAY, "cost_multipliers_pct"), "set_cost_multipliers_pct", "get_cost_multipliers_pct");
@@ -49,4 +69,10 @@ void BattleRulesData::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "hold_line_max_ticks", PROPERTY_HINT_RANGE, "0,10000,1"), "set_hold_line_max_ticks", "get_hold_line_max_ticks");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "hold_line_grace_ticks", PROPERTY_HINT_RANGE, "0,10000,1"), "set_hold_line_grace_ticks", "get_hold_line_grace_ticks");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "max_units_per_side", PROPERTY_HINT_RANGE, "1,28,1"), "set_max_units_per_side", "get_max_units_per_side");
+	ADD_GROUP("Skills", "");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "qi_per_attack", PROPERTY_HINT_RANGE, "0,1000,1"), "set_qi_per_attack", "get_qi_per_attack");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "qi_per_hit_taken", PROPERTY_HINT_RANGE, "0,1000,1"), "set_qi_per_hit_taken", "get_qi_per_hit_taken");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "cast_ticks", PROPERTY_HINT_RANGE, "1,1000,1"), "set_cast_ticks", "get_cast_ticks");
+	ADD_PROPERTY(PropertyInfo(Variant::PACKED_INT64_ARRAY, "star_skill_pct"), "set_star_skill_pct", "get_star_skill_pct");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "crit_multiplier_pct", PROPERTY_HINT_RANGE, "100,300,1"), "set_crit_multiplier_pct", "get_crit_multiplier_pct");
 }

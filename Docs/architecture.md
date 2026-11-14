@@ -14,17 +14,20 @@
   Screen flow below). Screens are built in code, except the sandbox scene.
 - `Tests/` holds headless test scripts run in CI: `smoke_test.gd` (the
   extension, the main scene and its `SimClock`), `battle_test.gd` and
-  `battle_api_test.gd` (the battle core and its node API), `sandbox_test.gd`
+  `battle_api_test.gd` (the battle core and its node API), `skill_test.gd`
+  and `passive_test.gd` (skills, Khí, passives and statuses, sharing
+  `skill_test_kit.gd`), `sandbox_test.gd`
   (the sandbox screen and one full battle), `run_test.gd` (the run's rules)
   and `run_flow_test.gd` (stage 1 through the real screens).
 - `Tools/` holds developer scripts that are not tests and not exported:
   `run_bot.gd`, the balance bot that plays whole runs (see
   [Run](systems/run.md)).
 - `Data/` holds game content as typed `.tres` resources: `Data/Classes/`,
-  `Data/Units/`, `Data/Rules/` (battle rules and `run_rules.tres`),
+  `Data/Units/`, `Data/Skills/` and `Data/Passives/` (each class's skill and
+  passive), `Data/Rules/` (battle rules and `run_rules.tres`),
   `Data/Stages/` (the run's 12 enemy line-ups), `Data/Sandbox/sandbox.tres`
   (the sandbox's enemy line-ups) and `Data/catalog.tres`, which lists every
-  unit, class and stage file explicitly so nothing scans directories at runtime (that breaks in
+  unit, class, skill, passive and stage file explicitly so nothing scans directories at runtime (that breaks in
   exported and web builds).
 - `Systems/` holds GDScript bridge services and data scripts, one folder per
   system. `Systems/Content/` has `Catalog` (lookup and validation),
@@ -39,7 +42,8 @@
   `LineupPreset`.
 - `Scenes/Board/` holds the reusable battlefield: `BoardView`, `UnitView`,
   `UnitPainter` and `LineupViews`. `Scenes/Battle/` holds `BattlePlayback`
-  and `BattleFx`, which play a `Battle` on a board. `Scenes/Sandbox/` holds
+  and `BattleFx`, which play a `Battle` on a board, and `SkillPlayback`,
+  `SkillFx` and `SkillOverlay` for skill events. `Scenes/Sandbox/` holds
   the sandbox screen and its setup interaction; it is the only part that
   knows about the sandbox. `Scenes/Run/` holds the run screen and its
   parts (layout, HUD, preparation controller, piece views, rewards, end
@@ -108,6 +112,14 @@ the `ClassData`, `UnitData` and `BattleRulesData` resources and the `Battle`
 node, which turns simulation events into dictionaries and signals. `Battle`
 does not tick by itself; the caller steps it, for example from
 `SimClock.ticked`. See [Battle](systems/battle.md).
+
+`Native/src/skill/` is the skill system inside the battle simulation: Khí,
+casts, the 3-star Hậu chiêu, passives and statuses, as plain C++ with
+registries of selectors, areas, effects, triggers and conditions keyed by
+the ids used in `Data/Skills/` and `Data/Passives/`. `BattleSim` owns the
+state and calls into it; its resources (`SkillData`, `SkillEffectData`,
+`PassiveData`) live with the other bridge classes in `Native/src/battle/`.
+See [Skill](systems/skill.md).
 
 ## Layers and documentation
 

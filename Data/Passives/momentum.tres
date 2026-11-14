@@ -1,0 +1,18 @@
+[gd_resource type="PassiveData" format=3]
+
+[sub_resource type="SkillEffectData" id="effect"]
+id = &"effect.impact_bonus_per_cell"
+target = 1
+value = 15
+
+[resource]
+id = &"passive.momentum"
+name_key = "PASSIVE_MOMENTUM"
+description_key = "PASSIVE_MOMENTUM_DESC"
+trigger = &"trigger.charge_impact"
+condition = &""
+condition_radius = 0
+every_nth = 1
+limit_per_battle = 0
+once_per_source = false
+effect = SubResource("effect")

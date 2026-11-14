@@ -1,6 +1,8 @@
 #pragma once
 
 #include "bridge_strings.h"
+#include "passive_data.h"
+#include "skill_data.h"
 
 #include <godot_cpp/classes/resource.hpp>
 #include <godot_cpp/variant/string_name.hpp>
@@ -18,6 +20,10 @@ class UnitData : public Resource {
 	StringName race_id;
 	int cost = 1;
 	StringName element_id;
+	// Replace the class skill or passive for this unit only (heroes,
+	// variants); empty uses the class's.
+	Ref<SkillData> skill_override;
+	Ref<PassiveData> passive_override;
 
 protected:
 	static void _bind_methods();
@@ -35,6 +41,10 @@ public:
 	int get_cost() const { return cost; }
 	void set_element_id(const StringName &p_element_id) { element_id = p_element_id; }
 	StringName get_element_id() const { return element_id; }
+	void set_skill_override(const Ref<SkillData> &p_value) { skill_override = p_value; }
+	Ref<SkillData> get_skill_override() const { return skill_override; }
+	void set_passive_override(const Ref<PassiveData> &p_value) { passive_override = p_value; }
+	Ref<PassiveData> get_passive_override() const { return passive_override; }
 };
 
 } // namespace godot

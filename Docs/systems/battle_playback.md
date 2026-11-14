@@ -9,11 +9,14 @@ only through `Battle` getters (`get_unit_state` for max hp at the start).
 ## Layer and files
 
 - Layer: presentation.
-- Code: `Scenes/Battle/battle_playback.gd` (`BattlePlayback`, a Node) and
-  `Scenes/Battle/battle_fx.gd` (`BattleFx`, short-lived effects) and
-  `Scenes/Battle/impact_order.gd` (`ImpactOrder`).
+- Code: `Scenes/Battle/battle_playback.gd` (`BattlePlayback`, a Node),
+  `Scenes/Battle/battle_fx.gd` (`BattleFx`, short-lived effects),
+  `Scenes/Battle/impact_order.gd` (`ImpactOrder`), and for skills
+  `Scenes/Battle/skill_playback.gd` (`SkillPlayback`, the skill event
+  handlers), `Scenes/Battle/skill_fx.gd` (`SkillFx`, skill effects) and
+  `Scenes/Battle/skill_overlay.gd` (`SkillOverlay`, the marks on a unit).
 - Depends on: `Battle` and `SimClock` (native), `BoardView` and `UnitView`
-  ([Board](board.md)).
+  ([Board](board.md)), `Catalog` (skill names), [Skill](skill.md) events.
 
 ## Ticking and speed
 
@@ -48,16 +51,38 @@ a unit already playing its death shows nothing.
 | `unit_attacked` `melee` | lunge toward the target and a slash arc on the target cell |
 | `unit_attacked` `ranged` | recoil and an arrow flying in an arc to the target cell |
 | `unit_attacked` `magic` | recoil and a bolt, then the three cells of the row flash |
-| `damage_dealt` | target flashes white and flinches, a damage number pops and floats (bigger and gold when `is_counter`), the hp bar slides down with a pale trail; with `blocked_by`, a shield flash at the blocker |
+| `damage_dealt` | target flashes white and flinches, a damage number pops and floats (bigger and gold when `is_counter`; gold with "!" when `is_crit`), the hp bar slides down with a pale trail; with `blocked_by`, a shield flash at the blocker. Skill damage may add its own look (below) |
 | `unit_died` | the unit falls over and fades out |
 | `charge_ended` | none (the charge's moves and hit already show it) |
 | `battle_ended` | after 0.6 s the winners hop twice, then `battle_finished` fires and the screen shows the result banner |
+| `qi_changed` | the thin blue Khí bar under the hp bar fills; when full its frame glows and pulses |
+| `skill_cast_started` | 0.2 s wind-up (crouch and rise), a glow at the caster's feet in its class colour until it resolves, the skill's cells lit in that colour with one outline around the area for the cast, and the skill name rising over the caster for 0.6 s |
+| `skill_resolved` | a 2.5 px shake of the pieces and effects for 0.15 s and the skill's effect (table below) |
+| `passive_triggered` | the passive icon (a diamond left of the hp bar) blinks once; no text |
+| `status_applied`, `status_ended` | a small icon right of the hp bar while it lasts: red "!" taunted, indigo shield guard, cracked ochre shield armor break, gold star stun; a taunt also bounces a "!" over the taunted unit |
+
+Skill effects, from `SkillPlayback`'s registry by skill id:
+
+| Skill | Effect |
+| --- | --- |
+| `skill.hold_ground` | a ring spreading over the ground around the shield |
+| `skill.sweep` | a wide arc over the three cells in front |
+| `skill.heart_pierce` | a long thrust line down the column |
+| `skill.breakthrough` | dust at the start, a star burst on each impact |
+| `skill.arrow_rain` | one arrow falls per hit, 0.07 s apart; each hit lands with its arrow |
+| `skill.arcane_circle` and any skill not in the registry | a spinning glyph on each cell |
+
+Big effects are capped at 3 at a time (a resolve over the cap shows only the
+shake and the damage) and name popups at 3; popups of casters side by side
+stack instead of overlapping and stay on the board. Everything uses the
+battle speed.
 
 ## Public API
 
 | Member | Kind | Description |
 | --- | --- | --- |
-| `begin(battle, board, views, clock)` | method | Starts playing a started battle; `views` maps unit index to `UnitView`; resets the clock |
+| `begin(battle, board, views, clock, catalog = null)` | method | Starts playing a started battle; `views` maps unit index to `UnitView`; resets the clock; sets each view's Khí; `catalog` names skills in popups (none without it) |
+| `get_view(index)`, `spawn_fx(fx)`, `run_after(seconds, action)`, `cell_center(cell)`, `get_ticks_per_second()`, `get_shake_layers()` | methods | Helpers `SkillPlayback` uses; `run_after` waits battle time at the current speed and is dropped by `abort()` |
 | `advance(delta_sec)` | method | Feeds real time (scaled by speed) to the clock; tests call it directly |
 | `stop()` | method | Stops ticking; delayed animations still finish |
 | `abort()` | method | Stops, drops every delayed animation and forgets the views (the screen frees them next) |
@@ -67,8 +92,13 @@ a unit already playing its death shows nothing.
 | `battle_finished(winner, reason)` | signal | After the closing animation |
 
 `BattleFx` factories: `arrow`, `bolt`, `cell_flash`, `slash`, `number`,
-`shield_flash`, `dust`; add to `board.get_fx_layer()` and call `play(speed)`.
-Each draws itself in `_draw` and frees itself at the end.
+`shield_flash`, `dust`; `SkillFx` (a `BattleFx`) adds `area_glow`,
+`name_popup`, `ground_ring`, `taunt_mark`, `wide_slash`, `thrust`, `burst`,
+`falling_arrow`, `glyph`. Add to `board.get_fx_layer()` (or use
+`spawn_fx`) and call `play(speed)`. Each draws itself in `_draw` and frees
+itself at the end. `UnitView` adds `set_qi(qi, qi_max)`, `wind_up(seconds)`
+and `skill_overlay` (`set_casting`, `add_status`, `remove_status`,
+`blink_passive`).
 
 ## Log events
 
@@ -76,7 +106,12 @@ None. Use `Battle.log_enabled` for the simulation's own log.
 
 ## How to extend
 
-- **New event type:** add a handler to `_handlers` in `_ready()`.
+- **New event type:** add a handler to `_handlers` in `_ready()` (skill
+  events: `SkillPlayback.get_handlers()`).
+- **A skill's look:** add its id to `_resolvers` (on resolve) or
+  `_damage_looks` (per damage event, may delay the hit) in
+  `SkillPlayback._init()`, with a `SkillFx` factory if needed. A status icon
+  goes in `SkillOverlay`'s `_painters`.
 - **New attack kind:** add a branch for it in `_on_unit_attacked()` and, if
   needed, a `BattleFx` factory.
 
@@ -84,7 +119,8 @@ None. Use `Battle.log_enabled` for the simulation's own log.
 
 `Tests/sandbox_test.gd` plays a full battle through `advance()` at x4 and
 checks that a result is produced, tests the `ImpactOrder` rule, and checks
-that the playback forgets its views after "Xếp lại". Animations are checked by eye.
+that the playback forgets its views after "Xếp lại"; skills fire in that
+battle, so their handlers run headless. Animations are checked by eye.
 
 ## Known limits
 

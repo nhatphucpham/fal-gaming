@@ -3,42 +3,14 @@
 // Plain C++ types shared by the battle simulation. No Godot headers here: the
 // simulation must build and replay without the engine. See Docs/systems/battle.md.
 
+#include "battle/battle_basic_types.h"
+#include "skill/skill_types.h"
+
 #include <cstdint>
 #include <string>
 #include <vector>
 
 namespace battle {
-
-constexpr int BOARD_COLS = 7;
-constexpr int BOARD_ROWS = 8;
-constexpr int SIDE_RANKS = 4;
-constexpr int CENTER_COL = 3;
-constexpr int NO_UNIT = -1;
-constexpr int NO_WINNER = -1;
-
-enum Side {
-	SIDE_A = 0,
-	SIDE_B = 1,
-};
-
-// A global board cell: col 0..6, row 0..7. Side A owns rows 0..3.
-struct Cell {
-	int col = 0;
-	int row = 0;
-};
-
-inline bool operator==(const Cell &p_a, const Cell &p_b) {
-	return p_a.col == p_b.col && p_a.row == p_b.row;
-}
-
-inline bool operator!=(const Cell &p_a, const Cell &p_b) {
-	return !(p_a == p_b);
-}
-
-enum class DamageKind {
-	PHYSICAL = 0,
-	MAGIC = 1,
-};
 
 // Class definition as the simulation sees it. Handler ids are resolved
 // against the registries when the class is registered.
@@ -59,6 +31,11 @@ struct ClassDef {
 	bool blocks_arrows = false;
 	bool immune_to_knockback = false;
 	bool stops_charge = false;
+	// The class skill and passive; units may override them (UnitSpec).
+	bool has_skill = false;
+	SkillDef skill;
+	bool has_passive = false;
+	PassiveDef passive;
 };
 
 // What add_unit needs to know about a unit's content.
@@ -67,6 +44,11 @@ struct UnitSpec {
 	std::string class_id;
 	int cost = 1;
 	int star = 1;
+	// Optional per-unit replacements for the class skill and passive.
+	bool has_skill_override = false;
+	SkillDef skill_override;
+	bool has_passive_override = false;
+	PassiveDef passive_override;
 };
 
 struct UnitState {
@@ -91,6 +73,7 @@ struct UnitState {
 	int target_out_of_range_ticks = 0;
 	int no_path_ticks = 0;
 	bool is_opening_active = false;
+	UnitSkillState skills;
 };
 
 enum class EventType {
@@ -101,6 +84,12 @@ enum class EventType {
 	UNIT_DIED,
 	CHARGE_ENDED,
 	BATTLE_ENDED,
+	QI_CHANGED,
+	SKILL_CAST_STARTED,
+	SKILL_RESOLVED,
+	PASSIVE_TRIGGERED,
+	STATUS_APPLIED,
+	STATUS_ENDED,
 };
 
 enum class MoveKind {
@@ -144,6 +133,14 @@ struct BattleEvent {
 	bool is_crit = false;
 	int winner = NO_WINNER;
 	EndReason reason = EndReason::ELIMINATION;
+	// Skill or passive id: damage from a skill or passive, casts, triggers.
+	std::string skill_id;
+	std::vector<Cell> cells;
+	bool is_after_skill = false;
+	int qi = 0;
+	int qi_max = 0;
+	StatusKind status = StatusKind::TAUNTED;
+	int end_tick = 0;
 };
 
 } // namespace battle

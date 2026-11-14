@@ -10,6 +10,7 @@ extends Node2D
 
 const NUMBER_FONT_SIZE: int = 24
 const COUNTER_FONT_SIZE: int = 36
+const CRIT_FONT_SIZE: int = 30
 
 ## 0 at the start, 1 at the end.
 var progress: float = 0.0:
@@ -62,10 +63,11 @@ static func slash(at: Vector2, direction: Vector2) -> BattleFx:
 	return fx
 
 
-static func number(at: Vector2, amount: int, is_counter: bool) -> BattleFx:
-	var fx := _make(at, at + Vector2(0, -32), 0.6, Palette.GOLD if is_counter else Palette.CREAM)
-	fx.text = str(amount)
-	fx.font_size = COUNTER_FONT_SIZE if is_counter else NUMBER_FONT_SIZE
+## A damage number; counters are big and gold, critical hits gold.
+static func number(at: Vector2, amount: int, is_counter: bool, is_crit: bool = false) -> BattleFx:
+	var fx := _make(at, at + Vector2(0, -32), 0.6, Palette.GOLD if is_counter or is_crit else Palette.CREAM)
+	fx.text = str(amount) + ("!" if is_crit else "")
+	fx.font_size = COUNTER_FONT_SIZE if is_counter else (CRIT_FONT_SIZE if is_crit else NUMBER_FONT_SIZE)
 	fx._painter = fx._paint_number
 	return fx
 

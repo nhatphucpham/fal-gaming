@@ -1,5 +1,8 @@
 [gd_resource type="ClassData" format=3]
 
+[ext_resource type="SkillData" path="res://Data/Skills/arrow_rain.tres" id="skill"]
+[ext_resource type="PassiveData" path="res://Data/Passives/steady_aim.tres" id="passive"]
+
 [resource]
 id = &"class.archer"
 name_key = "CLASS_ARCHER"
@@ -18,3 +21,5 @@ is_ranged = true
 blocks_arrows = false
 immune_to_knockback = false
 stops_charge = false
+skill = ExtResource("skill")
+passive = ExtResource("passive")

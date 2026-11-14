@@ -1,0 +1,20 @@
+[gd_resource type="SkillData" format=3]
+
+[sub_resource type="SkillEffectData" id="charge"]
+id = &"effect.charge_column"
+target = 0
+value = 150
+duration_ticks = 5
+count = 1
+star3_count = 2
+
+[resource]
+id = &"skill.breakthrough"
+name_key = "SKILL_BREAKTHROUGH"
+description_key = "SKILL_BREAKTHROUGH_DESC"
+qi_cost = 100
+selector = &"select.column_most_enemies"
+selector_range = 0
+area = &"area.column"
+area_size = 0
+effects = Array[SkillEffectData]([SubResource("charge")])

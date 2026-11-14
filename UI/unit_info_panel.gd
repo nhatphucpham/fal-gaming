@@ -1,7 +1,8 @@
 class_name UnitInfoPanel
 extends Control
-## A small card with a unit's portrait, name, class, race, cost and derived
-## stats. It covers the screen while open so that a tap anywhere closes it.
+## A small card with a unit's portrait, name, class, race, cost, derived
+## stats, skill and passive (with the Khí during a battle). It covers the
+## screen while open so that a tap anywhere closes it.
 ## [codeblock]
 ## info_panel.open(unit_data, {"hp": 1100, "max_hp": 1100, "attack": 40, ...})
 ## [/codeblock]
@@ -18,6 +19,7 @@ var _portrait: Control
 var _name_label: Label
 var _tags_label: Label
 var _stat_grid: GridContainer
+var _ability_rows: VBoxContainer
 var _unit: UnitData
 var _star: int = 1
 var _tween: Tween
@@ -62,10 +64,14 @@ func _init() -> void:
 	_stat_grid.add_theme_constant_override(&"h_separation", 18)
 	_stat_grid.add_theme_constant_override(&"v_separation", 6)
 	rows.add_child(_stat_grid)
+	_ability_rows = VBoxContainer.new()
+	_ability_rows.add_theme_constant_override(&"separation", 2)
+	rows.add_child(_ability_rows)
 
 
-## Opens the panel for `unit`. `stats` holds hp, max_hp, attack,
-## attacks_per_second, range_cells, armor and magic_resist.
+## Opens the panel for `unit`. `stats` holds the UnitStats keys: hp, max_hp,
+## attack, attacks_per_second, range_cells, armor, magic_resist, and the
+## optional skill, passive and Khí keys.
 func open(unit: UnitData, stats: Dictionary, star: int = 1) -> void:
 	_unit = unit
 	_star = star
@@ -83,6 +89,7 @@ func open(unit: UnitData, stats: Dictionary, star: int = 1) -> void:
 	_add_stat("INFO_RANGE", tr("INFO_RANGE_VALUE") % stats["range_cells"])
 	_add_stat("INFO_ARMOR", str(stats["armor"]))
 	_add_stat("INFO_MAGIC_RESIST", str(stats["magic_resist"]))
+	_fill_abilities(stats)
 	_portrait.queue_redraw()
 	visible = true
 	_panel.reset_size()
@@ -135,6 +142,33 @@ func _add_stat(key: String, value: String) -> void:
 	var value_label := _make_label(24)
 	value_label.text = value
 	_stat_grid.add_child(value_label)
+
+
+func _fill_abilities(stats: Dictionary) -> void:
+	for child: Node in _ability_rows.get_children():
+		child.queue_free()
+	var skill_key: String = stats.get("skill_name_key", "")
+	if not skill_key.is_empty():
+		# In a battle the Khí it has; outside, what the skill costs.
+		var qi_text: String = tr("INFO_QI_COST") % stats["qi_cost"]
+		if stats.has("qi"):
+			qi_text = "%s %s" % [tr("INFO_QI"), tr("INFO_QI_VALUE") % [stats["qi"], stats["qi_max"]]]
+		_add_ability(tr("INFO_SKILL"), tr(skill_key), qi_text, tr(stats["skill_description_key"]))
+	var passive_key: String = stats.get("passive_name_key", "")
+	if not passive_key.is_empty():
+		_add_ability(tr("INFO_PASSIVE"), tr(passive_key), "", tr(stats["passive_description_key"]))
+
+
+func _add_ability(kind: String, title: String, note: String, description: String) -> void:
+	var head := _make_label(22)
+	head.text = "%s: %s" % [kind, title] + ("  ·  " + note if not note.is_empty() else "")
+	_ability_rows.add_child(head)
+	var body := _make_label(19)
+	body.text = description
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	body.custom_minimum_size.x = PANEL_WIDTH_PX - 60.0
+	body.modulate = Color(1, 1, 1, 0.75)
+	_ability_rows.add_child(body)
 
 
 func _class_key(stats: Dictionary) -> String:
