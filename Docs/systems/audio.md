@@ -105,3 +105,13 @@ export preset's `html/head_include` holds a small script that:
 The in-game speaker button is the mute. None of this has been checked on a
 real iPhone from the build machine; it was checked that Chromium still
 plays.
+
+## Buses come from the layout file
+
+`default_bus_layout.tres` defines Music and Sfx. Do not add buses at run
+time for anything that must be heard on the web: with Sample playback a bus
+added by `AudioServer.add_bus()` is silent in the browser (the first web
+build had no sound at all for this reason). `_ensure_bus()` remains only as
+a fallback for runs without the layout. To check a web build, measure the
+signal at the audio destination in a browser; counting started sounds is
+not enough.
