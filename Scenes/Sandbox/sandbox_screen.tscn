@@ -1,0 +1,271 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://Scenes/Sandbox/sandbox_screen.gd" id="1_screen"]
+[ext_resource type="Script" path="res://UI/backdrop.gd" id="2_backdrop"]
+[ext_resource type="PackedScene" path="res://Scenes/Board/board_view.tscn" id="3_board"]
+[ext_resource type="Script" path="res://UI/roster_strip.gd" id="4_roster"]
+[ext_resource type="Script" path="res://UI/press_button.gd" id="5_button"]
+[ext_resource type="Script" path="res://UI/drag_ghost.gd" id="6_ghost"]
+[ext_resource type="Script" path="res://UI/result_banner.gd" id="7_banner"]
+[ext_resource type="Script" path="res://UI/unit_info_panel.gd" id="8_info"]
+[ext_resource type="Script" path="res://Scenes/Sandbox/setup_controller.gd" id="9_setup"]
+[ext_resource type="Script" path="res://Scenes/Battle/battle_playback.gd" id="10_playback"]
+[ext_resource type="Script" path="res://UI/battle_status.gd" id="11_status"]
+
+[node name="SandboxScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_screen")
+
+[node name="Backdrop" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_backdrop")
+
+[node name="Column" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 13
+anchor_left = 0.5
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -360.0
+offset_right = 360.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Layout" type="VBoxContainer" parent="Column"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 0
+
+[node name="TopBar" type="MarginContainer" parent="Column/Layout"]
+custom_minimum_size = Vector2(0, 108)
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 52
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 52
+theme_override_constants/margin_bottom = 8
+
+[node name="TopRow" type="HBoxContainer" parent="Column/Layout/TopBar"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="TitleSlot" type="Control" parent="Column/Layout/TopBar/TopRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+mouse_filter = 2
+
+[node name="TitleBox" type="VBoxContainer" parent="Column/Layout/TopBar/TopRow/TitleSlot"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = -4
+alignment = 1
+
+[node name="TitleLabel" type="Label" parent="Column/Layout/TopBar/TopRow/TitleSlot/TitleBox"]
+layout_mode = 2
+theme_type_variation = &"TitleLabel"
+text = "GAME_TITLE"
+
+[node name="EnemyLabel" type="Label" parent="Column/Layout/TopBar/TopRow/TitleSlot/TitleBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_type_variation = &"DimLabel"
+
+[node name="TimerLabel" type="Label" parent="Column/Layout/TopBar/TopRow/TitleSlot"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_type_variation = &"TitleLabel"
+vertical_alignment = 1
+
+[node name="SpeedButton" type="Button" parent="Column/Layout/TopBar/TopRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 88)
+layout_mode = 2
+size_flags_vertical = 4
+focus_mode = 0
+text = "x1"
+script = ExtResource("5_button")
+
+[node name="TopSpace" type="Control" parent="Column/Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="BoardView" parent="Column/Layout" instance=ExtResource("3_board")]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="InfoRow" type="MarginContainer" parent="Column/Layout"]
+custom_minimum_size = Vector2(0, 56)
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/margin_left = 52
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 52
+
+[node name="InfoBox" type="HBoxContainer" parent="Column/Layout/InfoRow"]
+layout_mode = 2
+mouse_filter = 2
+
+[node name="CountLabel" type="Label" parent="Column/Layout/InfoRow/InfoBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 30
+text = "0/8"
+vertical_alignment = 1
+
+[node name="MidSpace" type="Control" parent="Column/Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+
+[node name="SetupSlot" type="Control" parent="Column/Layout"]
+custom_minimum_size = Vector2(0, 276)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="SetupPanel" type="VBoxContainer" parent="Column/Layout/SetupSlot"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+theme_override_constants/separation = 6
+
+[node name="Roster" type="Control" parent="Column/Layout/SetupSlot/SetupPanel"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 162)
+layout_mode = 2
+script = ExtResource("4_roster")
+
+[node name="Buttons" type="MarginContainer" parent="Column/Layout/SetupSlot/SetupPanel"]
+layout_mode = 2
+size_flags_vertical = 3
+mouse_filter = 2
+theme_override_constants/margin_left = 20
+theme_override_constants/margin_top = 4
+theme_override_constants/margin_right = 20
+theme_override_constants/margin_bottom = 4
+
+[node name="ButtonRow" type="HBoxContainer" parent="Column/Layout/SetupSlot/SetupPanel/Buttons"]
+layout_mode = 2
+mouse_filter = 2
+theme_override_constants/separation = 12
+
+[node name="NextEnemyButton" type="Button" parent="Column/Layout/SetupSlot/SetupPanel/Buttons/ButtonRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(176, 92)
+layout_mode = 2
+focus_mode = 0
+text = "BUTTON_NEXT_ENEMY"
+script = ExtResource("5_button")
+
+[node name="ClearButton" type="Button" parent="Column/Layout/SetupSlot/SetupPanel/Buttons/ButtonRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(156, 92)
+layout_mode = 2
+focus_mode = 0
+text = "BUTTON_CLEAR"
+script = ExtResource("5_button")
+
+[node name="FightButton" type="Button" parent="Column/Layout/SetupSlot/SetupPanel/Buttons/ButtonRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 92)
+layout_mode = 2
+size_flags_horizontal = 3
+focus_mode = 0
+theme_type_variation = &"PrimaryButton"
+text = "BUTTON_FIGHT"
+script = ExtResource("5_button")
+
+[node name="BattleStatus" type="Control" parent="Column/Layout/SetupSlot"]
+unique_name_in_owner = true
+modulate = Color(1, 1, 1, 0)
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 320.0
+offset_bottom = 320.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("11_status")
+
+[node name="BottomSpace" type="Control" parent="Column/Layout"]
+custom_minimum_size = Vector2(0, 16)
+layout_mode = 2
+mouse_filter = 2
+
+[node name="Overlay" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Ghost" type="Node2D" parent="Overlay"]
+unique_name_in_owner = true
+script = ExtResource("6_ghost")
+
+[node name="ResultBanner" type="Control" parent="Overlay"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("7_banner")
+
+[node name="InfoPanel" type="Control" parent="Overlay"]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("8_info")
+
+[node name="SetupController" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("9_setup")
+
+[node name="BattlePlayback" type="Node" parent="."]
+unique_name_in_owner = true
+script = ExtResource("10_playback")

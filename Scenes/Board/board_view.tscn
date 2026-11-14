@@ -1,0 +1,11 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://Scenes/Board/board_view.gd" id="1_board"]
+
+[node name="BoardView" type="Control"]
+custom_minimum_size = Vector2(616, 704)
+layout_mode = 3
+anchors_preset = 0
+offset_right = 616.0
+offset_bottom = 704.0
+script = ExtResource("1_board")

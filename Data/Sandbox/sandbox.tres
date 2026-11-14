@@ -1,0 +1,114 @@
+[gd_resource type="Resource" script_class="SandboxData" format=3]
+
+[ext_resource type="Script" path="res://Systems/Lineup/lineup_preset.gd" id="1_2f2nv"]
+[ext_resource type="Script" path="res://Systems/Lineup/lineup_slot.gd" id="2_3hbh2"]
+[ext_resource type="Script" path="res://Systems/Content/sandbox_data.gd" id="3_elx6g"]
+
+[sub_resource type="Resource" id="Resource_t7ntp"]
+script = ExtResource("2_3hbh2")
+unit_id = &"unit.wolf_blade"
+local_col = 3
+
+[sub_resource type="Resource" id="Resource_prbl8"]
+script = ExtResource("2_3hbh2")
+unit_id = &"unit.blade_wanderer"
+local_col = 5
+
+[sub_resource type="Resource" id="Resource_rtskt"]
+script = ExtResource("2_3hbh2")
+unit_id = &"unit.wolf_archer"
+local_col = 4
+local_rank = 3
+
+[sub_resource type="Resource" id="Resource_e16fe"]
+script = ExtResource("1_2f2nv")
+id = &"preset.rabble"
+name_key = "PRESET_RABBLE"
+slots = Array[ExtResource("2_3hbh2")]([SubResource("Resource_t7ntp"), SubResource("Resource_prbl8"), SubResource("Resource_rtskt")])
+
+[sub_resource type="Resource" id="Resource_jyxkp"]
+script = ExtResource("2_3hbh2")
+unit_id = &"unit.wolf_shield"
+local_col = 4
+
+[sub_resource type="Resource" id="Resource_x60xo"]
+script = ExtResource("2_3hbh2")
+unit_id = &"unit.blade_wanderer"
+local_col = 3
+
+[sub_resource type="Resource" id="Resource_2n8cc"]
+script = ExtResource("2_3hbh2")
+unit_id = &"unit.spearman"
+local_col = 5
+local_rank = 2
+
+[sub_resource type="Resource" id="Resource_bqo6h"]
+script = ExtResource("2_3hbh2")
+unit_id = &"unit.archer"
+local_col = 4
+local_rank = 3
+
+[sub_resource type="Resource" id="Resource_0aokd"]
+script = ExtResource("2_3hbh2")
+unit_id = &"unit.ice_mage"
+local_col = 3
+local_rank = 4
+
+[sub_resource type="Resource" id="Resource_osqow"]
+script = ExtResource("1_2f2nv")
+id = &"preset.border_patrol"
+name_key = "PRESET_BORDER_PATROL"
+slots = Array[ExtResource("2_3hbh2")]([SubResource("Resource_jyxkp"), SubResource("Resource_x60xo"), SubResource("Resource_2n8cc"), SubResource("Resource_bqo6h"), SubResource("Resource_0aokd")])
+
+[sub_resource type="Resource" id="Resource_l7bqq"]
+script = ExtResource("2_3hbh2")
+unit_id = &"unit.shield_guard"
+local_col = 3
+
+[sub_resource type="Resource" id="Resource_n0j4q"]
+script = ExtResource("2_3hbh2")
+unit_id = &"unit.iron_guard"
+local_col = 4
+
+[sub_resource type="Resource" id="Resource_sbvc3"]
+script = ExtResource("2_3hbh2")
+unit_id = &"unit.wolf_shield"
+local_col = 5
+
+[sub_resource type="Resource" id="Resource_xgux4"]
+script = ExtResource("2_3hbh2")
+unit_id = &"unit.light_rider"
+
+[sub_resource type="Resource" id="Resource_lopnc"]
+script = ExtResource("2_3hbh2")
+unit_id = &"unit.spearman"
+local_col = 4
+local_rank = 2
+
+[sub_resource type="Resource" id="Resource_824ku"]
+script = ExtResource("2_3hbh2")
+unit_id = &"unit.archer"
+local_col = 3
+local_rank = 3
+
+[sub_resource type="Resource" id="Resource_og73s"]
+script = ExtResource("2_3hbh2")
+unit_id = &"unit.wolf_marksman"
+local_col = 5
+local_rank = 3
+
+[sub_resource type="Resource" id="Resource_82wt7"]
+script = ExtResource("2_3hbh2")
+unit_id = &"unit.wind_mage"
+local_col = 4
+local_rank = 4
+
+[sub_resource type="Resource" id="Resource_hbuwu"]
+script = ExtResource("1_2f2nv")
+id = &"preset.shield_wall"
+name_key = "PRESET_SHIELD_WALL"
+slots = Array[ExtResource("2_3hbh2")]([SubResource("Resource_l7bqq"), SubResource("Resource_n0j4q"), SubResource("Resource_sbvc3"), SubResource("Resource_xgux4"), SubResource("Resource_lopnc"), SubResource("Resource_824ku"), SubResource("Resource_og73s"), SubResource("Resource_82wt7")])
+
+[resource]
+script = ExtResource("3_elx6g")
+enemy_presets = Array[ExtResource("1_2f2nv")]([SubResource("Resource_e16fe"), SubResource("Resource_osqow"), SubResource("Resource_hbuwu")])
