@@ -59,6 +59,9 @@ struct ModifierHandler {
 	ModifierKind kind;
 	// The modifier needs `param` (a stat name or a shape id).
 	bool needs_param;
+	// Applied once at the start and never reverted (max hp, range, shape),
+	// so it may not hang on a formation, which can break mid-battle.
+	bool is_fixed_at_start = false;
 };
 
 struct RuleHandler {

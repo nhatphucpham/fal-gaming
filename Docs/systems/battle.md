@@ -154,7 +154,8 @@ allowed.
   for skills) add to the increase, the victim's `mod.damage_taken_pct` and,
   against ranged physical attacks, `mod.ranged_physical_taken_pct` add to
   the decrease (capped at 100). Then a synergy block makes it 0
-  (`is_blocked_by_modifier`), a fish-scales split shares it, and a sword's
+  (`is_blocked_by_modifier`; the victim gains no Khí and fires no
+  `DAMAGED` / `MELEE_HIT_TAKEN` passive for it), a fish-scales split shares it, and a sword's
   reflection deals fixed damage back if the victim lives (see
   [Synergy](synergy.md)).
 - **Synergies.** With `set_synergy()`, `start()` evaluates both line-ups

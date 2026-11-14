@@ -87,8 +87,8 @@ func end_battle() -> void:
 	_layout.outlines.is_battle = false
 
 
-func on_formation_broken(side: int, formation_id: StringName) -> void:
-	_layout.outlines.shatter(side, formation_id)
+func on_formation_broken(side: int, formation_id: StringName, cells: Array) -> void:
+	_layout.outlines.shatter(side, formation_id, cells)
 
 
 func open_panel() -> void:

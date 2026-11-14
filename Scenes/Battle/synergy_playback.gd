@@ -41,7 +41,7 @@ func _on_modifier_triggered(event: Dictionary) -> void:
 
 
 func _on_formation_broken(event: Dictionary) -> void:
-	_playback.formation_broken.emit(event["side"], event["source_id"])
+	_playback.formation_broken.emit(event["side"], event["source_id"], event["cells"])
 
 
 func _show_word(view: UnitView, _event: Dictionary, key: String, color: Color) -> void:

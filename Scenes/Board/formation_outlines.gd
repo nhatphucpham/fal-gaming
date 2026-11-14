@@ -37,8 +37,9 @@ var is_battle: bool = false:
 var _catalog: Catalog
 var _time: float = 0.0
 var _alpha: float = 1.0
-# Outlines by side: dictionaries with id, color, loops, is_near, ghost,
-# ghost_class, run_at, stamp_at, flash_at, broken_at, center, name.
+# Outlines by side: dictionaries with id, cells (global, sorted), color,
+# loops, is_near, ghost, ghost_class, run_at, stamp_at, flash_at, broken_at,
+# center, name.
 var _by_side: Array[Array] = [[], []]
 var _saved_own: Array = []
 var _is_previewing: bool = false
@@ -146,12 +147,23 @@ func roll_call() -> void:
 	queue_redraw()
 
 
-## The battle broke a formation: its outline shatters and fades.
-func shatter(side: int, id: StringName) -> void:
+## The battle broke a formation: the outline of that instance (matched by
+## its members' global cells, as formation_broken reports them) shatters.
+func shatter(side: int, id: StringName, cells: Array) -> void:
+	var key := _sorted_cells(cells)
 	for outline: Dictionary in _by_side[side]:
-		if outline["id"] == id and not outline["is_near"] and outline["broken_at"] < 0.0:
+		if outline["id"] == id and not outline["is_near"] and outline["broken_at"] < 0.0 and outline["cells"] == key:
 			outline["broken_at"] = _time
 			return
+
+
+## Ids of a side's shattered outlines still fading, with their cells, for tests.
+func get_broken(side: int) -> Array:
+	var broken: Array = []
+	for outline: Dictionary in _by_side[side]:
+		if outline["broken_at"] >= 0.0:
+			broken.append([outline["id"], outline["cells"]])
+	return broken
 
 
 func clear() -> void:
@@ -301,10 +313,17 @@ func _make_outline(side: int, id: StringName, local_cells: Array, is_near: bool)
 		center += _cell_center(cell)
 	center /= maxf(1.0, cells.size())
 	return {
-		"id": id, "color": color, "loops": OutlineGeometry.loops(cells, INSET_PX), "is_near": is_near, "ghost": null, "ghost_class": &"",
+		"id": id, "cells": _sorted_cells(cells), "color": color, "loops": OutlineGeometry.loops(cells, INSET_PX), "is_near": is_near, "ghost": null, "ghost_class": &"",
 		"run_at": -1.0, "stamp_at": -1.0, "flash_at": -1.0, "broken_at": -1.0, "center": center, "stamp": center,
 		"name": tr(formation.name_key) if formation != null else String(id),
 	}
+
+
+static func _sorted_cells(cells: Array) -> Array[Vector2i]:
+	var sorted: Array[Vector2i] = []
+	sorted.assign(cells)
+	sorted.sort()
+	return sorted
 
 
 # 1 at `start`, easing to 0 over `seconds`; 0 when never started.

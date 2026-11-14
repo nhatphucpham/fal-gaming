@@ -59,6 +59,8 @@ Array units_to_array(const std::vector<int> &p_units) {
 	for (int unit : p_units) {
 		units.push_back(unit);
 	}
+	// Shared by every listener, like the cells (see cells_to_array).
+	units.make_read_only();
 	return units;
 }
 

@@ -3,7 +3,6 @@
 #include "formation/formation_match.h"
 
 #include <algorithm>
-#include <array>
 
 namespace rules {
 
@@ -253,8 +252,9 @@ void collect_grants(const SynergyConfig &p_config, const SynergyResult &p_result
 		}
 	}
 
-	// (piece, formation, modifier index) already granted by an instance.
-	std::vector<std::array<int, 3>> granted;
+	// Instances of one formation id never share a unit (matching uses a
+	// piece once per id, and validation keeps scope.side off formations),
+	// so each grant here is the only one of its kind for that unit.
 	for (int index = 0; index < formation_count; index++) {
 		const FormationState &state = p_result.formations[index];
 		const FormationDef &entry = p_config.formations[state.match.formation];
@@ -262,11 +262,6 @@ void collect_grants(const SynergyConfig &p_config, const SynergyResult &p_result
 			const ModifierDef &def = entry.modifiers[modifier];
 			const int value = scale_by_level(def.value, state.level, p_config.hop_luc.level_step_pct);
 			for (int piece : get_formation_targets(def, state.match, p_pieces)) {
-				const std::array<int, 3> key = { piece, state.match.formation, modifier };
-				if (std::find(granted.begin(), granted.end(), key) != granted.end()) {
-					continue;
-				}
-				granted.push_back(key);
 				r_grants->push_back({ piece, &def, value, first_formation_source + index, entry.id });
 			}
 		}

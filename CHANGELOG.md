@@ -116,6 +116,20 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Fixed
 
+- A hit a shield's "Chặn" blocks is no longer damage taken: the shield
+  gains no Khí and no on-hit passive fires (the attacker still gains its
+  Khí).
+- The drag preview shows what the drop really does: a shop card that
+  completes a merge previews the board after the merge (also over a taken
+  cell), and a third legend previews as refused.
+- With two copies of one formation, the one that loses a member is the one
+  whose outline shatters.
+- Formation data can no longer give max hp, front-rank range or an attack
+  shape (they could not be taken back when the formation breaks), reach the
+  whole side, or put two slots on one cell.
+
+- "Ra trận" did nothing from the second stage on, on phone-sized screens:
+  the hidden battle panel took the press.
 - In the run, a drag that starts between two bench slots no longer picks up
   (and can no longer sell) a unit on the board.
 - The sell zone and the reward cards ignore a cancelled touch, and the sell

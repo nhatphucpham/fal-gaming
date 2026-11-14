@@ -4,7 +4,8 @@ extends SceneTree
 # pattern (positive, negative, mirrored, at the board edges, overlapping),
 # the wolf-folk and human rules, levels, near-misses, milestone counting
 # (copies of a unit count once for classes, cost 4-5 twice for races), Hợp
-# Lực totals and tiers, and that evaluating changes nothing. Cells are local
+# Lực totals and tiers, the level cap, that evaluating changes nothing, and
+# the data validation refuses. Cells are local
 # (col 1..7, rank 1..4, rank 1 at the front).
 
 const Kit := preload("res://Tests/synergy_test_kit.gd")
@@ -36,7 +37,7 @@ func _run() -> bool:
 	var checks: Array[Callable] = [
 		_check_rows, _check_arrow_rain, _check_pairs, _check_spearhead, _check_wide_shapes,
 		_check_corners_and_diagonals, _check_three_powers, _check_overlaps, _check_wolf_rules,
-		_check_human_levels, _check_near_misses, _check_milestones, _check_hop_luc,
+		_check_human_levels, _check_level_cap, _check_near_misses, _check_milestones, _check_hop_luc,
 		_check_no_mutation, _check_bad_data,
 	]
 	for check: Callable in checks:
@@ -184,6 +185,27 @@ func _check_human_levels() -> bool:
 		and Kit.expect("one human with human 5", level.call(two_humans, &"formation.twin_blades"), 2))
 
 
+# The level cap: rules give at most +3, so a +3 rule reaches the catalog's
+# cap of 4 exactly; a lower max_formation_level clamps the same line-up.
+func _check_level_cap() -> bool:
+	var human := _kit.catalog.milestones.filter(func(entry: MilestoneData) -> bool: return entry.id == &"milestone.race_human")[0].duplicate(true) as MilestoneData
+	(human.tiers[0].modifiers[0] as ModifierData).value = 3
+	var milestones: Array = _kit.catalog.milestones.map(func(entry: MilestoneData) -> MilestoneData: return human if entry.id == human.id else entry)
+	var at_cap := Synergy.new()
+	var capped := Synergy.new()
+	var low_cap := _kit.catalog.hop_luc.duplicate(true) as HopLucData
+	low_cap.max_formation_level = 3
+	var problems := at_cap.setup(_kit.catalog.formations, milestones, _kit.catalog.hop_luc) + capped.setup(_kit.catalog.formations, milestones, low_cap)
+	var line := _kit.pieces([["blade_wanderer", 4, 1], ["wolf_blade", 5, 1]])
+	var level := func(synergy: Synergy) -> int:
+		var formations: Array = synergy.evaluate(line)["formations"]
+		return formations[0]["level"] if formations.size() == 1 else 0
+	return (Kit.expect("test configs valid", problems, PackedStringArray())
+		and Kit.expect("catalog cap", _kit.catalog.hop_luc.max_formation_level, 4)
+		and Kit.expect("+3 reaches the cap of 4", level.call(at_cap), 4)
+		and Kit.expect("cap of 3 clamps", level.call(capped), 3))
+
+
 # Two shields with a free cell beside: a near-miss naming the class. A
 # taken cell or a lone unit gives none.
 func _check_near_misses() -> bool:
@@ -247,4 +269,34 @@ func _check_bad_data() -> bool:
 	print("Formation test: refused as expected: %s; %s" % [problems, shape_problems])
 	return (Kit.expect("bad handler refused", problems.size(), 1)
 		and Kit.expect("message names it", String(problems[0]).contains("mod.nope"), true)
-		and Kit.expect("bad pattern refused", shape_problems.size(), 1))
+		and Kit.expect("bad pattern refused", shape_problems.size(), 1)
+		and _check_refused_formations())
+
+
+# Formations refuse what a broken formation could not take back: stats
+# fixed at the start (max hp, front-rank range, attack shape), also as a
+# per-formation milestone modifier; scope.side; one offset for two slots.
+func _check_refused_formations() -> bool:
+	var cases: Array = []
+	for handler: StringName in [&"mod.max_hp_pct", &"mod.range_add_if_front", &"mod.attack_shape"]:
+		var fixed := _kit.catalog.get_formation(&"formation.square").duplicate(true) as FormationData
+		var modifier := fixed.modifiers[0] as ModifierData
+		modifier.handler = handler
+		modifier.param = &"shape.row3_behind" if handler == &"mod.attack_shape" else &""
+		cases.append([String(handler), [fixed], _kit.catalog.milestones, "never reverted"])
+	var human := _kit.catalog.milestones.filter(func(entry: MilestoneData) -> bool: return entry.id == &"milestone.race_human")[0].duplicate(true) as MilestoneData
+	(human.tiers[1].modifiers[0] as ModifierData).handler = &"mod.max_hp_pct"
+	cases.append(["per_formation max hp", [], [human], "never reverted"])
+	var side := _kit.catalog.get_formation(&"formation.square").duplicate(true) as FormationData
+	(side.modifiers[0] as ModifierData).scope = &"scope.side"
+	cases.append(["formation scope.side", [side], [], "scope.side"])
+	var twice := _kit.catalog.get_formation(&"formation.shield_wall").duplicate(true) as FormationData
+	var offsets: Array[Vector2i] = [Vector2i(0, 0), Vector2i(0, 0), Vector2i(1, 0)]
+	twice.cells = offsets
+	cases.append(["repeated offset", [twice], [], "share the offset"])
+	for entry: Array in cases:
+		var problems := Synergy.new().setup(entry[1], entry[2], _kit.catalog.hop_luc)
+		if not Kit.expect("%s refused" % entry[0], problems.size() == 1 and String(problems[0]).contains(entry[3]), true):
+			push_error("Formation test: %s gave %s" % [entry[0], problems])
+			return false
+	return true

@@ -61,7 +61,9 @@ bool is_scope_allowed(ModifierScope p_scope, Owner p_owner) {
 		case Owner::MILESTONE:
 			return p_scope == ModifierScope::COUNTED || p_scope == ModifierScope::SIDE;
 		case Owner::FORMATION:
-			return p_scope != ModifierScope::COUNTED;
+			// No scope.side: one formation id could then reach a unit from two
+			// instances, and nothing needs it.
+			return p_scope != ModifierScope::COUNTED && p_scope != ModifierScope::SIDE;
 		case Owner::HOP_LUC:
 			return p_scope == ModifierScope::SIDE;
 	}
@@ -93,8 +95,11 @@ bool resolve_scope(const std::string &p_owner, ModifierDef *r_modifier, Owner p_
 	return true;
 }
 
-bool resolve_mod(const std::string &p_owner, ModifierDef *r_modifier, std::string *r_error) {
+bool resolve_mod(const std::string &p_owner, ModifierDef *r_modifier, Owner p_owner_kind, std::string *r_error) {
 	const ModifierHandler *handler = r_modifier->handler;
+	if (handler->is_fixed_at_start && (p_owner_kind == Owner::FORMATION || r_modifier->is_per_formation)) {
+		return fail(p_owner + " is applied once at the start and never reverted, so it belongs to milestones and hop_luc, not to formations", r_error);
+	}
 	if (handler->needs_param && r_modifier->param.empty()) {
 		return fail(p_owner + " needs a param", r_error);
 	}
@@ -137,7 +142,7 @@ bool resolve_modifier(const std::string &p_owner, ModifierDef *r_modifier, Owner
 	if (r_modifier->handler == nullptr) {
 		return fail(p_owner + " has unknown modifier '" + r_modifier->handler_id + "'", r_error);
 	}
-	return resolve_scope(owner, r_modifier, p_owner_kind, p_slot_count, r_error) && resolve_mod(owner, r_modifier, r_error);
+	return resolve_scope(owner, r_modifier, p_owner_kind, p_slot_count, r_error) && resolve_mod(owner, r_modifier, p_owner_kind, r_error);
 }
 
 bool resolve_tiers(const std::string &p_owner, std::vector<TierDef> *r_tiers, Owner p_owner_kind, std::string *r_error) {
@@ -190,6 +195,11 @@ bool resolve_pattern(SynergyConfig *r_config, FormationDef *r_formation, std::st
 		formation::Slot &entry = pattern.slots[slot];
 		if (!check_range(owner, "slot dcol", entry.dcol, -MAX_PATTERN_DCOL, MAX_PATTERN_DCOL, r_error) || !check_range(owner, "slot drank", entry.drank, MIN_PATTERN_DRANK, MAX_PATTERN_DRANK, r_error)) {
 			return false;
+		}
+		for (int other = 0; other < slot; other++) {
+			if (pattern.slots[other].dcol == entry.dcol && pattern.slots[other].drank == entry.drank) {
+				return fail(owner + " slots " + std::to_string(other) + " and " + std::to_string(slot) + " share the offset (" + std::to_string(entry.dcol) + ", " + std::to_string(entry.drank) + ")", r_error);
+			}
 		}
 		const std::string &class_id = r_formation->slot_class_ids[slot];
 		entry.class_index = class_id.empty() ? formation::ANY : intern(&r_config->class_ids, class_id);

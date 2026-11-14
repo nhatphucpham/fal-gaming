@@ -47,6 +47,30 @@ func check_buy_target(unit: UnitData, bench_slot: int, cell: Vector2i, capacity:
 	return Result.BENCH_FULL if first_free_bench_slot() == RunPiece.NO_BENCH else Result.OK
 
 
+## Where a bought 1-star `unit` goes, as [Result, bench_slot, cell]: a
+## purchase that completes a merge goes nowhere (both unset) whatever the
+## target; otherwise the target must pass check_buy_target(), and no target
+## means the first free bench slot.
+func resolve_buy_target(unit: UnitData, bench_slot: int, cell: Vector2i, capacity: int) -> Array:
+	if would_merge(unit.id):
+		return [Result.OK, RunPiece.NO_BENCH, RunPiece.NO_CELL]
+	var check := check_buy_target(unit, bench_slot, cell, capacity)
+	if check == Result.OK and bench_slot == RunPiece.NO_BENCH and cell == RunPiece.NO_CELL:
+		bench_slot = first_free_bench_slot()
+	return [check, bench_slot, cell]
+
+
+## A copy of the pieces and their places, for previews that apply the same
+## rules without touching this roster; its signals reach nobody.
+func copy() -> RunRoster:
+	var other := RunRoster.new(_catalog, _rules)
+	for piece: RunPiece in get_all():
+		var twin := _copy_piece(piece)
+		other._pieces[twin.id] = twin
+	other._next_id = _next_id
+	return other
+
+
 ## Moves a piece onto a board cell, swapping with a piece there; refused
 ## over `capacity` or past the legend limit.
 func move_to_board(piece: RunPiece, cell: Vector2i, capacity: int) -> Result:
@@ -333,3 +357,14 @@ func _is_free(piece: RunPiece) -> bool:
 	if piece.is_on_bench():
 		return get_bench_piece(piece.bench_slot) == null
 	return get_board_piece(piece.cell) == null
+
+
+static func _copy_piece(piece: RunPiece) -> RunPiece:
+	var twin := RunPiece.new()
+	twin.id = piece.id
+	twin.unit_id = piece.unit_id
+	twin.star = piece.star
+	twin.has_fought = piece.has_fought
+	twin.bench_slot = piece.bench_slot
+	twin.cell = piece.cell
+	return twin

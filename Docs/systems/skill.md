@@ -99,7 +99,9 @@ coefficient by star, each 1..400) and `crit_multiplier_pct` 150 (100..300).
 ## Rules
 
 - **Khí.** +`qi_per_attack` once per basic attack landed (a blocked arrow
-  counts), +`qi_per_hit_taken` per damage event from an enemy; capped at
+  counts, and so does one a synergy block stopped), +`qi_per_hit_taken` per
+  damage event from an enemy (not one a synergy block made 0: that hit is
+  not damage taken and fires no on-hit passive either); capped at
   `qi_cost`; no gain while casting. Units without a skill have no Khí.
 - **Cast.** On its action, a unit with full Khí that is not moving starts a
   cast if its selector finds cells with at least one enemy; else it acts

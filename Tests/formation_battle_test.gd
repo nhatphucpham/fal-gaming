@@ -178,13 +178,16 @@ func _check_three_powers() -> bool:
 	return Kit.expect("starting Khí", [battle.get_unit_state(0)["qi"], battle.get_unit_state(1)["qi"], battle.get_unit_state(2)["qi"]], [20, 20, 20])
 
 
-# Wild geese and long serpent activate with their five members.
+# Wild geese and long serpent activate with their five members; the
+# event's nested arrays are read-only like the event itself.
 func _check_wide_formations() -> bool:
 	var geese := _kit.synergy_battle([["blade_wanderer", 4, 1], ["archer", 3, 2], ["wolf_archer", 5, 2], ["fire_adept", 2, 3], ["ice_mage", 6, 3]], [["blade_wanderer", 4, 4]])
 	var serpent := _kit.synergy_battle([["blade_wanderer", 2, 3], ["archer", 3, 3], ["fire_adept", 4, 3], ["spearman", 5, 3], ["shield_guard", 6, 3]], [["blade_wanderer", 4, 4]])
 	var geese_event := Kit.activated(_kit.run_ticks(geese, 1), Battle.SIDE_A, &"formation.wild_geese")
 	var serpent_event := Kit.activated(_kit.run_ticks(serpent, 1), Battle.SIDE_A, &"formation.long_serpent")
-	return Kit.expect("wild geese units", geese_event.get("units"), [0, 1, 2, 3, 4]) and Kit.expect("long serpent units", serpent_event.get("units"), [0, 1, 2, 3, 4])
+	return (Kit.expect("wild geese units", geese_event.get("units"), [0, 1, 2, 3, 4])
+		and Kit.expect("long serpent units", serpent_event.get("units"), [0, 1, 2, 3, 4])
+		and Kit.expect("read-only units and cells", [(geese_event["units"] as Array).is_read_only(), (geese_event["cells"] as Array).is_read_only()], [true, true]))
 
 
 # A member's death breaks its formation once: formation_broken, caused by
@@ -200,7 +203,8 @@ func _check_broken() -> bool:
 	return (Kit.expect("broken formation", broken.get("source_id"), &"formation.square")
 		and Kit.expect("caused by a death", death.get("type"), &"unit_died")
 		and Kit.expect("cells", broken.get("cells"), [Vector2i(3, 3), Vector2i(4, 3), Vector2i(3, 2), Vector2i(4, 2)])
-		and Kit.expect("broken once", count, 1))
+		and Kit.expect("broken once", count, 1)
+		and Kit.expect("read-only broken units", (broken["units"] as Array).is_read_only(), true))
 
 
 # The same line-ups give the same hash; moving one unit changes it.
@@ -216,19 +220,27 @@ func _check_determinism() -> bool:
 	return Kit.expect("same hash", second, first) and Kit.expect("moved hash differs", third != first, true)
 
 
-# What evaluate() shows is what the battle turns on: formations, levels,
-# milestones and Hợp Lực.
+# What evaluate() shows is what the battle turns on, for both sides:
+# formations, levels, milestones and Hợp Lực.
 func _check_evaluate_matches_battle() -> bool:
-	var line := [["shield_guard", 3, 1], ["iron_guard", 4, 1], ["wolf_shield", 5, 1], ["archer", 3, 4], ["wolf_archer", 4, 4], ["fire_adept", 4, 2], ["spearman", 1, 3]]
-	var result: Dictionary = _kit.catalog.get_synergy().evaluate(_kit.pieces(line))
-	var events := _kit.run_ticks(_kit.synergy_battle(line, [["blade_wanderer", 4, 4]]), 1).filter(func(event: Dictionary) -> bool:
-		return event["type"] == &"synergy_activated" and event["side"] == Battle.SIDE_A)
-	var shown: Array = result["formations"].map(func(entry: Dictionary) -> Array: return [entry["id"], entry["level"]])
-	var applied: Array = events.filter(func(event: Dictionary) -> bool: return event["kind"] == &"formation").map(func(event: Dictionary) -> Array: return [event["source_id"], event["level"]])
-	var milestones := 0
-	for entry: Dictionary in result["class_milestones"] + result["race_milestones"]:
-		milestones += entry["reached"]
-	var applied_milestones := events.filter(func(event: Dictionary) -> bool: return event["kind"] == &"class" or event["kind"] == &"race").size()
-	return (Kit.expect("formations", applied, shown)
-		and Kit.expect("milestones", applied_milestones, milestones)
-		and Kit.expect("hop luc", Kit.activated(events, Battle.SIDE_A, &"hop_luc").get("level"), result["hop_luc"]))
+	var lines: Array = [
+		[["shield_guard", 3, 1], ["iron_guard", 4, 1], ["wolf_shield", 5, 1], ["archer", 3, 4], ["wolf_archer", 4, 4], ["fire_adept", 4, 2], ["spearman", 1, 3]],
+		[["wolf_blade", 3, 1], ["blood_wolf", 4, 1], ["wolf_spear", 4, 2], ["wolf_marksman", 4, 4], ["light_rider", 7, 1], ["thiet_nha", 1, 2]],
+	]
+	var events := _kit.run_ticks(_kit.synergy_battle(lines[Battle.SIDE_A], lines[Battle.SIDE_B]), 1)
+	for side: int in [Battle.SIDE_A, Battle.SIDE_B]:
+		var result: Dictionary = _kit.catalog.get_synergy().evaluate(_kit.pieces(lines[side]))
+		var own := events.filter(func(event: Dictionary) -> bool: return event["type"] == &"synergy_activated" and event["side"] == side)
+		var shown: Array = result["formations"].map(func(entry: Dictionary) -> Array: return [entry["id"], entry["level"]])
+		var applied: Array = own.filter(func(event: Dictionary) -> bool: return event["kind"] == &"formation").map(func(event: Dictionary) -> Array: return [event["source_id"], event["level"]])
+		var milestones := 0
+		for entry: Dictionary in result["class_milestones"] + result["race_milestones"]:
+			milestones += entry["reached"]
+		var applied_milestones := own.filter(func(event: Dictionary) -> bool: return event["kind"] == &"class" or event["kind"] == &"race").size()
+		var what := "side %d " % side
+		if not (Kit.expect(what + "has formations", shown.is_empty(), false)
+				and Kit.expect(what + "formations", applied, shown)
+				and Kit.expect(what + "milestones", applied_milestones, milestones)
+				and Kit.expect(what + "hop luc", Kit.activated(events, side, &"hop_luc").get("level"), result["hop_luc"])):
+			return false
+	return true

@@ -37,7 +37,7 @@ battle; this system only matches shapes.
 | --- | --- | --- |
 | `id`, `name_key`, `description_key` | `formation.<name>`, translation keys | e.g. `FORMATION_SHIELD_WALL`, `FORMATION_SHIELD_WALL_DESC` |
 | `pattern` | handler id | `pattern.shape` (the only one so far) |
-| `cells` | `Array[Vector2i]` of (dcol, drank) offsets, 1..6 slots | slot 0 is the anchor at (0, 0); drank grows toward the back |
+| `cells` | `Array[Vector2i]` of (dcol, drank) offsets, 1..6 slots, all different | slot 0 is the anchor at (0, 0); drank grows toward the back |
 | `slot_classes` | one class id per slot, or empty | empty matches any unit |
 | `anchor_col`, `anchor_rank` | 0 (anywhere) or 1..7, 1..4 | pins slot 0 to a column or rank |
 | `is_mirrored` | bool | also tries the shape mirrored left to right |
@@ -86,6 +86,10 @@ The twelve formations of GDD section 12:
   human 5 and two humans), at most `max_formation_level` (4). Each level
   above 1 scales every modifier value: `value * (100 + 40 * (level - 1)) /
   100`, integers.
+- **Modifiers.** A formation's modifiers act while it is active, so a
+  formation may not carry start-of-battle stats (`mod.max_hp_pct`,
+  `mod.range_add_if_front`, `mod.attack_shape`), which could not be taken
+  back when it breaks, nor `scope.side`; validation refuses both.
 - **In battle.** Formations are matched once, at `start()`, on both sides.
   A formation stays active while its members move; the first death of a
   member turns it off (`formation_broken`).
@@ -109,9 +113,9 @@ formation part of its result:
 | `show_side(side, result, animate)` | method | Outlines a side's result; with `animate`, a formation that was not active before runs a light along its outline and stamps its name |
 | `show_preview(result)`, `end_preview()`, `is_previewing()` | methods | The player's outlines as a drag would leave them, and back |
 | `roll_call()` | method | Battle start: all outlines flash, names stamp one after another within 0.8 s |
-| `shatter(side, id)` | method | Breaks and fades a formation's outline |
+| `shatter(side, id, cells)` | method | Breaks and fades the outline of the instance with these global member cells (as `formation_broken` reports them) |
 | `is_battle` | property | Hides near-misses and fades outlines while units walk away |
-| `get_formation_ids(side)`, `get_near_ids()` | methods | What is drawn, for tests |
+| `get_formation_ids(side)`, `get_near_ids()`, `get_broken(side)` | methods | What is drawn, for tests |
 
 Active outlines are a glowing line in the formation's colour around the
 members' cells; the enemy's are tinted red and dimmer; a near-miss is a
@@ -136,12 +140,15 @@ None; the battle logs its own events.
 
 `Tests/formation_test.gd`: every formation positive and negative, mirrored,
 at the board edges, overlapping and repeated instances, Tam Tài's distinct
-classes, wolf-folk 1 and 5 missing members, human levels and the level
-cap, near-misses (two members, free cell, needed class). `Tests/
-formation_battle_test.gd`: each formation's effect with exact numbers in a
-tiny battle, a formation broken by a death, determinism, and that
-`Synergy.evaluate()` equals what the battle applies.
-`Tests/synergy_ui_test.gd` checks the outlines on the run screen.
+classes, wolf-folk 1 and 5 missing members, human levels, the level cap
+(test-only configs: a +3 rule reaches the cap of 4, a cap of 3 clamps it),
+near-misses (two members, free cell, needed class), and the validation of
+repeated slot offsets. `Tests/formation_battle_test.gd`: each formation's
+effect with exact numbers in a tiny battle, a formation broken by a death,
+read-only event arrays, determinism, and that `Synergy.evaluate()` equals
+what the battle applies on both sides. `Tests/synergy_ui_test.gd` checks
+the outlines on the run screen, including that a broken formation shatters
+its own instance's outline.
 
 ## Known limits
 

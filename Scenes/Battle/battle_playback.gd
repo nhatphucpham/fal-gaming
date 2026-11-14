@@ -17,7 +17,9 @@ signal tick_advanced(tick: int)
 ## The battle ended and its closing animation (winners cheering) is done.
 signal battle_finished(winner: int, reason: StringName)
 ## A member's death broke a formation; the screen shatters its outline.
-signal formation_broken(side: int, formation_id: StringName)
+## `cells` are the instance's members' global cells (two instances of one
+## formation are told apart by them).
+signal formation_broken(side: int, formation_id: StringName, cells: Array)
 
 const MELEE_IMPACT_SEC: float = 0.08
 const PROJECTILE_PX_PER_SEC: float = 900.0

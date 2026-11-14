@@ -67,13 +67,16 @@ charges already start on tick 1.
   GDD's chain tier until chains exist), 12 +10% attack speed, 15 +30 Khí
   more.
 - **Grants.** A modifier reaches units by its scope; values of the same
-  handler on a unit add up, except that one formation id's modifier counts
-  once per unit even when two instances of that formation hold it.
+  handler on a unit add up. Two instances of one formation never reach the
+  same unit (a piece joins one instance per formation id, and formations
+  may not use `scope.side`), so each instance's modifiers end with it.
 - **Damage.** Increases (`mod.damage_dealt_pct`, the attacker's
   `mod.skill_damage_pct` for skills) join the damage request's increase;
   decreases (`mod.damage_taken_pct`, `mod.ranged_physical_taken_pct` against
   ranged physical attacks) join its decrease; the one-division formula of
-  [Battle](battle.md) is unchanged. A block makes the hit 0; a split gives
+  [Battle](battle.md) is unchanged. A block makes the hit 0 and it does
+  not count as damage taken (no Khí for the victim, no on-hit passives;
+  the attacker still gains its Khí per attack); a split gives
   the victim the rounding remainder and the others `amount / living`;
   reflection is fixed damage (no mitigation, never reflected again) and
   happens only if the victim survives.
@@ -103,10 +106,16 @@ charges already start on tick 1.
 `max_formation_level` (4).
 
 Validation (`Synergy.setup()` and `Catalog.validate()`) rejects unknown
-handlers, scopes or stats, misplaced scopes, rules outside milestones,
-formation rules outside race milestones, `per_formation` outside a side
-modifier, empty slot lists, tiers out of order, and milestones counting an
-unknown class or race.
+handlers, scopes or stats, misplaced scopes (formations may not use
+`scope.counted` or `scope.side`), rules outside milestones,
+`rule.formation_level` and `rule.formation_missing_middle` outside race
+milestones (they count the milestone's race; `rule.formation_missing_any`
+needs no race and may sit on a class milestone too), `per_formation`
+outside a side modifier, start-of-battle stats (`mod.max_hp_pct`,
+`mod.range_add_if_front`, `mod.attack_shape`: applied once, never reverted)
+on a formation or a `per_formation` modifier, since a formation can break,
+empty slot lists, two formation slots at one offset, tiers out of order,
+and milestones counting an unknown class or race.
 
 ## Public API
 
@@ -126,11 +135,14 @@ Presentation:
 - `SynergyHud` (RefCounted, built by `RunScreen`): `refresh(animate)`,
   `refresh_enemy()`, `preview(piece_id, shop_unit, local_cell)`,
   `end_preview()`, `roll_call()`, `end_battle()`,
-  `on_formation_broken(side, id)`, `open_panel()`, `get_counts(side)`;
+  `on_formation_broken(side, id, cells)`, `open_panel()`, `get_counts(side)`;
   `result` and `enemy_result` hold the last evaluations.
 - `LineupSynergy`: `run_pieces(run)`, `lineup_pieces(catalog, lineup)`,
-  `preview_pieces(run, piece_id, shop_unit, to)` (a copy, empty when
-  RunState would refuse the move).
+  `preview_pieces(run, piece_id, shop_unit, to)`: the board as
+  `RunState.preview_board()` says the drop would leave it (a card whose
+  purchase merges shows the board after the merge, wherever it is dropped;
+  the legend limit and a full board refuse), empty when RunState would
+  refuse it.
 - `SynergyBar` (the info row, one row with the unit counter): `setup`,
   `show_result`, `show_preview`, `end_preview`, `bounce`, `opened` signal;
   `get_chip_ids()` and `get_more_count()` for tests.
@@ -167,15 +179,21 @@ event table in [Battle](battle.md).
 `Tests/synergy_test.gd`: every milestone modifier with exact numbers in
 tiny battles (armor, block, sword damage, Khí and reflection, spear range
 and pierce, cavalry impact and knockback, archer speed, crit and pierce,
-mage shape and skill damage, wolf-folk Khí on kills), Hợp Lực tier bonuses,
-and that a battle without synergy behaves as before.
+mage shape and skill damage, wolf-folk Khí on kills: exactly +10 for every
+living wolf-folk and none for others), that a blocked hit gives the victim
+no Khí and fires no on-hit passive while the attacker keeps its Khí, Hợp
+Lực tier bonuses, and that a battle without synergy behaves as before.
 `Tests/formation_test.gd` also covers milestone counting (duplicates once
 for classes, cost 4-5 double for races), Hợp Lực totals and tiers, that
-evaluate() changes nothing, and validation errors;
+evaluate() changes nothing, and validation errors (including start stats
+and `scope.side` on formations and repeated slot offsets);
 `Tests/formation_battle_test.gd`: see [Formation](formation.md).
 `Tests/synergy_ui_test.gd` (scene level): placing units updates the info
 row and outlines, the "+N" panel opens, a drag previews without changing
-the run, the enemy's formations are outlined, a battle with synergies plays
+the run and the outlines come back after it, the preview follows RunState
+(a merging card on a free or taken cell, the legend limit), a broken
+formation shatters its own instance's outline, the enemy's formations are
+outlined, a battle with synergies plays
 through. All run in CI.
 
 ## Known limits

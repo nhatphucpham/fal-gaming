@@ -268,7 +268,9 @@ int BattleSim::deal_damage(const DamageSpec &p_spec) {
 	const int damage_event = emit_event(event);
 	if (victim.hp == 0) {
 		kill(p_spec.victim, p_spec.source, damage_event);
-	} else {
+	} else if (!is_blocked) {
+		// A fully blocked hit ("Chặn") is not damage taken: no Khí, no
+		// on-hit passives. The attacker still gets its Khí per attack.
 		react_to_damage(p_spec, damage_event);
 	}
 	if (split_modifier >= 0) {

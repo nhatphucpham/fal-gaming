@@ -241,6 +241,36 @@ func move_to_bench(piece_id: int, slot: int) -> Result:
 	return check if check != Result.OK else _changed_if_ok(_roster.move_to_bench(piece, slot))
 
 
+## The board pieces as buying a shop card of `unit_id` onto local `cell`
+## (buy_to() with no bench slot) or, with an empty `unit_id`, as
+## move_to_board(piece_id, cell) would leave them: worked out on a copy of
+## the roster with the same rules (merges, capacity, legend limit). Fills
+## `board` (copies) when the command would succeed; returns its Result.
+func preview_board(piece_id: int, unit_id: StringName, cell: Vector2i, board: Array[RunPiece]) -> Result:
+	board.clear()
+	if phase != Phase.PREP:
+		return Result.WRONG_PHASE
+	var roster := _roster.copy()
+	var result := Result.OK
+	if unit_id != &"":
+		var unit := catalog.get_unit(unit_id)
+		if unit == null:
+			return Result.NOT_OFFERED
+		if gold < unit.cost:
+			return Result.NOT_ENOUGH_GOLD
+		var target := roster.resolve_buy_target(unit, RunPiece.NO_BENCH, cell, get_capacity())
+		result = target[0]
+		if result == Result.OK:
+			roster.add(unit_id, 1, target[1], target[2])
+			roster.merge_all()
+	else:
+		var piece := roster.get_piece(piece_id)
+		result = Result.NO_PIECE if piece == null else roster.move_to_board(piece, cell, get_capacity())
+	if result == Result.OK:
+		board.assign(roster.get_board_pieces())
+	return result
+
+
 # --- Battle and reward ---------------------------------------------------
 
 ## Ends the preparation: every board piece now counts as having fought.
@@ -357,19 +387,12 @@ func _buy(shop_slot: int, bench_slot: int, cell: Vector2i) -> Result:
 	var unit := catalog.get_unit(unit_id)
 	if gold < unit.cost:
 		return Result.NOT_ENOUGH_GOLD
-	var merges := would_merge(unit_id)
-	if not merges:
-		var target_check := _roster.check_buy_target(unit, bench_slot, cell, get_capacity())
-		if target_check != Result.OK:
-			return target_check
-		if bench_slot == RunPiece.NO_BENCH and cell == RunPiece.NO_CELL:
-			bench_slot = _roster.first_free_bench_slot()
-	else:
-		bench_slot = RunPiece.NO_BENCH
-		cell = RunPiece.NO_CELL
+	var target := _roster.resolve_buy_target(unit, bench_slot, cell, get_capacity())
+	if target[0] != Result.OK:
+		return target[0]
 	_shop.take(shop_slot)
 	_add_gold(-unit.cost)
-	var piece := _roster.add(unit_id, 1, bench_slot, cell)
+	var piece := _roster.add(unit_id, 1, target[1], target[2])
 	piece_bought.emit(piece.id, shop_slot)
 	_roster.merge_all()
 	return Result.OK

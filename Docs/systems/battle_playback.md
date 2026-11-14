@@ -62,7 +62,7 @@ a unit already playing its death shows nothing.
 | `passive_triggered` | the passive icon (a diamond left of the hp bar) blinks once; no text |
 | `status_applied`, `status_ended` | a small icon right of the hp bar while it lasts: red "!" taunted, indigo shield guard, cracked ochre shield armor break, gold star stun; a taunt also bounces a "!" over the taunted unit |
 | `synergy_activated` | none here: the screen's roll call (outlines flash, names stamp, the Hợp Lực ring bounces) plays when the battle starts, see [Synergy](synergy.md) |
-| `formation_broken` | the `formation_broken(side, id)` signal; the screen shatters that outline |
+| `formation_broken` | the `formation_broken(side, id, cells)` signal; the screen shatters the outline of that instance (matched by its cells) |
 | `modifier_triggered` | by handler, with the hit it belongs to: block "Chặn", reflection "Phản", charge immunity "Mất đà", double hit a gold cell flash and "Gấp đôi", split thin lines from the unit hit to the other members and "Chia đòn", volley the archer recoils and the formation name shows (its arrows fall like Tiễn Vũ's) |
 | `damage_dealt` with `is_blocked_by_modifier` | no number (the "Chặn" says it) |
 
@@ -95,7 +95,7 @@ battle speed.
 | `speed` | property | 1, 2 or 4 |
 | `tick_advanced(tick)` | signal | After each stepped tick (the screen updates the timer and side bars) |
 | `battle_finished(winner, reason)` | signal | After the closing animation |
-| `formation_broken(side, formation_id)` | signal | A formation lost a member |
+| `formation_broken(side, formation_id, cells)` | signal | A formation instance lost a member; `cells` are its members' global cells |
 | `get_impact_delay(event_id)`, `show_source_name(view, source_id, color)` | methods | Helpers `SynergyPlayback` uses |
 
 `BattleFx` factories: `arrow`, `bolt`, `cell_flash`, `slash`, `number`,

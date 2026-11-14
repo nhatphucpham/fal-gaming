@@ -27,33 +27,18 @@ static func lineup_pieces(catalog: Catalog, lineup: Lineup) -> Array:
 	return list
 
 
-## The board after moving piece `piece_id` (or placing a new `shop_unit`) to
-## local cell `to`, swapping with the piece there like RunState does; an
-## empty array when RunState would refuse the move (a full board, a card
-## onto a taken cell).
+## The board as dropping piece `piece_id` (or buying `shop_unit`) on local
+## cell `to` would leave it, from RunState.preview_board(), so the preview
+## follows RunState's own rules (swaps, merging purchases, capacity, the
+## legend limit); an empty array when RunState would refuse it.
 static func preview_pieces(run: RunState, piece_id: int, shop_unit: UnitData, to: Vector2i) -> Array:
-	var moving := run.get_piece(piece_id) if shop_unit == null else null
-	if shop_unit == null and moving == null:
-		return []
-	var occupant := run.get_board_piece(to)
-	if shop_unit != null and occupant != null:
-		return []
-	var joins_board := shop_unit != null or not moving.is_on_board()
-	if joins_board and occupant == null and run.get_board_count() >= run.get_capacity():
+	var board: Array[RunPiece] = []
+	var unit_id := shop_unit.id if shop_unit != null else &""
+	if run.preview_board(piece_id, unit_id, to, board) != RunState.Result.OK:
 		return []
 	var list: Array = []
-	for piece: RunPiece in run.get_board_pieces():
-		if piece == moving:
-			continue
-		var cell := piece.cell
-		if piece == occupant:
-			# A swap: the piece there takes the mover's old cell or the bench.
-			if moving == null or not moving.is_on_board():
-				continue
-			cell = moving.cell
-		list.append(_piece(run.catalog.get_unit(piece.unit_id), cell))
-	var unit := shop_unit if shop_unit != null else run.catalog.get_unit(moving.unit_id)
-	list.append(_piece(unit, to))
+	for piece: RunPiece in board:
+		list.append(_piece(run.catalog.get_unit(piece.unit_id), piece.cell))
 	return list
 
 

@@ -28,7 +28,7 @@ func _run() -> bool:
 	if not _kit.load_catalog():
 		return false
 	var checks: Array[Callable] = [
-		_check_shield_armor, _check_shield_block, _check_sword_damage, _check_sword_qi,
+		_check_shield_armor, _check_shield_block, _check_block_skips_passives, _check_sword_damage, _check_sword_qi,
 		_check_sword_reflect, _check_spear_range, _check_spear_pierce, _check_cavalry,
 		_check_archer_speed_and_crit, _check_archer_pierce, _check_mage_shape, _check_mage_skill,
 		_check_wolf_kill, _check_hop_luc, _check_no_synergy,
@@ -56,17 +56,73 @@ func _check_shield_armor() -> bool:
 
 
 # Shield 4: the first hit each shield takes is blocked (0, flagged), the
-# next one is not.
+# next one is not. The blocked hit is not damage taken: the shield gains no
+# Khí for it (the next hit gives qi_per_hit_taken, 5), while the attacker
+# still gains its 10 Khí for the attack.
 func _check_shield_block() -> bool:
 	var battle := _kit.synergy_battle([["shield_guard", 1, 1], ["wolf_shield", 2, 1], ["iron_guard", 3, 1], ["wolf_king_shield", 4, 1]], [["blade_wanderer", 4, 1]])
 	var events := _until_damage(battle, 4, 3)
 	var first_hit: Dictionary = events.back()
-	var second: Dictionary = _until_damage(battle, 4, 3).back()
 	var blocks := Kit.triggered(events, &"mod.block_first_hit")
+	events.append_array(_kit.run_ticks(battle, 1))
+	var later := _until_damage(battle, 4, 3)
+	var second: Dictionary = later.back()
+	events.append_array(later)
+	events.append_array(_kit.run_ticks(battle, 1))
 	return (Kit.expect("blocked amount", first_hit["amount"], 0)
 		and Kit.expect("blocked flag", first_hit["is_blocked_by_modifier"], true)
 		and Kit.expect("block event", blocks.size() == 1 and blocks[0]["unit"] == 3, true)
-		and Kit.expect("second hit", second["amount"], Kit.damage(_attack(battle, 4), 60)))
+		and Kit.expect("second hit", second["amount"], Kit.damage(_attack(battle, 4), 60))
+		and Kit.expect("no Khí for the blocked hit", _gains(events, first_hit["id"]), [])
+		and Kit.expect("attacker's Khí for the attack", _gains(events, first_hit["cause"]), [[4, 10]])
+		and Kit.expect("Khí for the next hit", _gains(events, second["id"]), [[3, 5]]))
+
+
+# A blocked hit fires no on-hit passive: with a test-only "every sword
+# blocks its first hit" milestone, a sword's riposte (every 3rd melee hit
+# taken) answers the 4th hit, the 3rd that landed.
+func _check_block_skips_passives() -> bool:
+	var block := ModifierData.new()
+	block.handler = &"mod.block_first_hit"
+	block.scope = &"scope.counted"
+	block.count = 1
+	var tier := SynergyTierData.new()
+	tier.at = 1
+	tier.description_key = "TEST"
+	var modifiers: Array[ModifierData] = [block]
+	tier.modifiers = modifiers
+	var milestone := MilestoneData.new()
+	milestone.id = &"milestone.test_sword_block"
+	milestone.name_key = "TEST"
+	milestone.counted_kind = &"class"
+	milestone.counted_id = &"class.sword"
+	var tiers: Array[SynergyTierData] = [tier]
+	milestone.tiers = tiers
+	var synergy := Synergy.new()
+	var problems := synergy.setup([], [milestone], _kit.catalog.hop_luc)
+	var battle := _kit.new_battle()
+	battle.set_synergy(synergy)
+	_kit.add(battle, Battle.SIDE_A, &"unit.blade_wanderer", 4, 1)
+	_kit.add(battle, Battle.SIDE_B, &"unit.shield_guard", 4, 1)
+	var events := _kit.run_until(battle, func(event: Dictionary) -> bool: return event["type"] == &"passive_triggered" and event["unit"] == 0)
+	var hits: Array[Dictionary] = Kit.damage_to(events, 1, 0).filter(func(event: Dictionary) -> bool: return event["skill"] == &"")
+	var riposte: Dictionary = events.back()
+	return (Kit.expect("test milestone valid", problems, PackedStringArray())
+		and Kit.expect("first hit blocked", hits.map(func(hit: Dictionary) -> bool: return hit["is_blocked_by_modifier"]), [true, false, false, false])
+		and Kit.expect("riposte answers the 4th hit", riposte.get("cause"), hits[3]["id"] if hits.size() == 4 else -2))
+
+
+# [unit, Khí gained] for each qi_changed caused by `cause`, sorted.
+func _gains(events: Array[Dictionary], cause: int) -> Array:
+	var gains: Array = []
+	for event: Dictionary in Kit.caused_by(events, cause, &"qi_changed"):
+		var before := 0
+		for earlier: Dictionary in events:
+			if earlier["id"] < event["id"] and earlier["type"] == &"qi_changed" and earlier["unit"] == event["unit"]:
+				before = earlier["qi"]
+		gains.append([event["unit"], event["qi"] - before])
+	gains.sort()
+	return gains
 
 
 # Sword 2: +15% damage.
@@ -172,13 +228,15 @@ func _check_mage_skill() -> bool:
 	return Kit.expect("skill damage", hits[0]["amount"], Kit.damage(_attack(battle, 0), 20, 30, 0, 220))
 
 
-# Wolf 3: a wolf-folk kill gives every living wolf-folk 10 Khí.
+# Wolf 3: a wolf-folk kill gives every living wolf-folk (units 0-2) exactly
+# 10 Khí, and the human shield (unit 3) none.
 func _check_wolf_kill() -> bool:
-	var battle := _kit.synergy_battle([["wolf_blade", 4, 1], ["wolf_spear", 3, 2], ["wolf_archer", 6, 4]], [["fire_adept", 4, 1]])
+	var battle := _kit.synergy_battle([["wolf_blade", 4, 1], ["wolf_spear", 3, 2], ["wolf_archer", 6, 4], ["shield_guard", 1, 4]], [["fire_adept", 4, 1]])
 	var events := _kit.run_until(battle, func(event: Dictionary) -> bool: return event["type"] == &"unit_died")
 	var trigger: Array[Dictionary] = Kit.triggered(events, &"mod.qi_on_ally_kill")
-	var rewarded: Array[Dictionary] = Kit.caused_by(events, trigger[0]["id"] if not trigger.is_empty() else -1, &"qi_changed")
-	return Kit.expect("kill trigger", trigger.size(), 1) and Kit.expect("wolves rewarded", rewarded.size() >= 1, true)
+	events.append_array(_kit.run_ticks(battle, 1))
+	var gains := _gains(events, trigger[0]["id"] if not trigger.is_empty() else -1)
+	return Kit.expect("kill trigger", trigger.size(), 1) and Kit.expect("every wolf +10, no one else", gains, [[0, 10], [1, 10], [2, 10]])
 
 
 # Hợp Lực 9 points: +10 Khí at the start (tier 3) and +12% max hp (tier 9).

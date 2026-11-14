@@ -116,6 +116,7 @@ cells are local (col, rank) of side A.
 | `choose_reward(reward)` | command | `Reward.REST`, `HUNT` or `BLACK_MARKET`, if offered |
 | `get_piece`, `get_pieces`, `get_bench_piece`, `get_board_piece`, `get_board_pieces`, `get_board_count`, `get_capacity` | queries | Pieces and places |
 | `get_shop_offers`, `get_refresh_cost`, `get_level_up_cost`, `get_sell_value`, `would_merge` | queries | Shop and prices |
+| `preview_board(piece_id, unit_id, cell, board) -> Result` | query | The board (copies, into `board`) as buying a card of `unit_id` onto `cell`, or with an empty `unit_id` moving `piece_id` there, would leave it, worked out on a copy of the roster with the same rules (a merging purchase ignores the cell, capacity, legend limit); the run is unchanged. The drag preview uses it |
 | `get_stage_data`, `get_board_slots`, `get_reward_options`, `is_black_market_active` | queries | Stage, battle slots, rewards |
 | `to_save_data()`, `load_save_data(data) -> bool`, `can_save()` | methods | See the save format below; `can_save()` is true in `PREP` and `REWARD` |
 | `gold_changed(gold, delta)`, `supply_changed(supply, delta)`, `morale_changed(morale, delta)`, `level_changed(level)` | signals | Each change, with its size for the chips' animation |
@@ -294,7 +295,8 @@ each run's first battle at that stage; stage 12 is retried after a loss.
 | 12 | 33 (12 per attempt over 784 attempts) | 20.1 |
 
 Run win rate 32.7% (98 of 300), 9.5 stages cleared on average (35.0% from
-seed 1000). History: 37.7% with skills (milestone 4). Turning synergies on
+seed 1000); unchanged since a hit a shield's "Chặn" blocks stopped giving
+the shield Khí. History: 37.7% with skills (milestone 4). Turning synergies on
 for both sides with the old stages and bot gave 48.0%; the formation stages
 with the old bot (no habits) 8.3%; with the habits 63.7%. The retune made
 stage 9 lighter (one mage off its Hộ Pháp) and stages 10-12 heavier (2-star
