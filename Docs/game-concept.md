@@ -19,13 +19,13 @@ chuẩn bị; trận tự đánh, các tầng kết hợp tự kích hoạt nhau
 - **Luật trận:** tất định 20 nhịp/giây trên SimClock, không may rủi trong trận, không hồi máu.
 - **Cảnh cắt** hai nhân vật đối mặt ở khoảnh khắc lớn.
 
-## Đã chốt (GDD bản 2.6)
+## Đã chốt (GDD bản 2.7)
 
 - **Tên:** Bát Trận. Tên trên cửa hàng quốc tế: "Bat Tran: Eight Formations".
 - **Phát hành:** trọng tâm là Hành Quân chơi đơn. Bản web chơi thử, rồi PC (Steam), rồi Android và iOS.
   Bóng Quân (đánh bản chụp đội người khác) sau phát hành; Loạn Chiến 8 người khi đủ người chơi.
 - **Mô hình:** mua một lần. Điện thoại chơi thử miễn phí đến hết bậc ải 1. Không gacha, không bán sức mạnh.
-- **Hình ảnh:** cắt giấy có khớp, tô phẳng, viền đậm, bảng màu tranh dân gian.
+- **Hình ảnh:** pixel art kiểu game chiến thuật đời GBA (quân chibi trên bàn, cảnh cắt nhìn ngang, chân dung khi thoại), bảng màu ấm lấy từ tranh dân gian.
 
 ## Mong muốn của Phúc và giới hạn kỹ thuật
 

@@ -161,7 +161,7 @@ nav.toc li.part:first-child{margin-top:2px}
       <span class="eyebrow">Tài liệu thiết kế game · Falemag</span>
       <h1>Bát Trận</h1>
       <p class="lead">Auto chess kiếm, cung, giáp, phép, nơi <b>hình dạng đội hình là vũ khí</b>. Người chơi chỉ chuẩn bị; trận đánh tự diễn ra, và các tầng kết hợp tự kích hoạt lẫn nhau thành chuỗi combo.</p>
-      <div class="meta"><span>Bản 2.6 · 14/11/2026</span><span>Godot 4.7 · C++ GDExtension</span><span>PC yếu và điện thoại</span><span>Trạng thái: thiết kế, chưa cân bằng</span></div>
+      <div class="meta"><span>Bản 2.7 · 14/11/2026</span><span>Godot 4.7 · C++ GDExtension</span><span>PC yếu và điện thoại</span><span>Trạng thái: thiết kế, chưa cân bằng</span></div>
       <p class="note">Mọi con số là <b>giá trị khởi điểm</b> để dựng bản thử, sẽ chỉnh khi chơi thử. Mọi tên riêng là tên tạm, trừ tên game. Mục có nhãn <span class="tag later">Sau bản thử</span> không làm trong bản thử đầu; còn lại là đã chốt.</p>
     </header>
 
@@ -528,7 +528,7 @@ nav.toc li.part:first-child{margin-top:2px}
       <ul class="dots">
         <li>Sprite chia lớp: thân theo tộc, đầu, tóc, giáp theo lớp, vũ khí theo lớp và giá, bảng màu theo xuất thân. Vài chục bộ phận ra hàng trăm dáng, nhẹ cho máy yếu.</li>
         <li>Quân giá cao có giáp và vũ khí cầu kỳ hơn, nhìn là biết đắt. Tướng Lĩnh có sprite vẽ riêng hoàn toàn.</li>
-        <li>Cùng bộ phận dùng cho sprite trận (64 px) và cảnh cắt (khoảng 256 px), vẽ một lần ở cỡ lớn, thu nhỏ cho sprite trận.</li>
+        <li>Bộ phận ghép dùng cho sprite trên bàn (32 px). Sprite cảnh cắt (96–128 px) vẽ theo bộ hoạt ảnh chung của từng lớp rồi ghép đầu, giáp, vũ khí và đổi bảng màu; Tướng Lĩnh có hoạt ảnh vẽ tay riêng.</li>
       </ul>
     </section>
 
@@ -1012,9 +1012,11 @@ nav.toc li.part:first-child{margin-top:2px}
     <section id="hinh-tieng">
       <h2><span class="n">23</span>Hình ảnh và âm thanh</h2>
       <ul class="dots">
-        <li>Sprite trận khoảng 64 px, động tác chạy bằng khớp, 3–5 tư thế khóa mỗi động tác, góc nhìn chéo nhẹ từ trên xuống.</li>
-        <li>Sprite cảnh cắt lớn hơn (khoảng 256 px), nhìn ngang, một nền theo địa hình.</li>
-        <li>Phong cách hình ảnh: cắt giấy có khớp, tô phẳng, viền đậm, bảng màu tranh dân gian. Mỗi lớp một dáng bóng riêng, nhìn bóng là biết lớp.</li>
+        <li><b>Phong cách:</b> pixel art kiểu game chiến thuật cầm tay đời GBA: quân nhỏ dáng chibi trên bàn, cảnh cắt nhìn ngang với sprite lớn và hoạt ảnh đòn đánh rõ ràng, chân dung bán thân khi thoại. Bảng màu ấm lấy từ tranh dân gian để khác các game pixel khác. Mỗi lớp một dáng bóng riêng, nhìn bóng là biết lớp. Tự vẽ toàn bộ, không dùng lại hình của game nào.</li>
+        <li><b>Sprite trên bàn:</b> 32×32 px, dáng chibi, góc nhìn chéo nhẹ từ trên xuống. Đứng yên 2–4 khung, đánh 4–6 khung. Phóng to theo bội số nguyên (×2, ×3), lọc nearest để điểm ảnh luôn sắc.</li>
+        <li><b>Sprite cảnh cắt:</b> nhìn ngang, cao khoảng 96–128 px, 8–14 khung mỗi đòn (vào thế, ra đòn, trúng). Nền pixel theo địa hình, thanh máu hai bên ở cạnh dưới.</li>
+        <li><b>Chân dung:</b> bán thân 96×96 px cạnh hộp thoại, 2–3 nét mặt cho mỗi Tướng Lĩnh.</li>
+        <li><b>Bảng màu:</b> mỗi sprite tối đa 16 màu. Quân địch và quân phe khác dùng đổi bảng màu, không vẽ lại.</li>
         <li>Giọng Tướng Lĩnh và nhân vật có tên sinh trước lúc build bằng TTS tts.falevon.com: câu ra trận, câu tung chiêu, thoại cảnh cắt giữa các cặp có quan hệ. Không gọi mạng khi chơi.</li>
         <li>Giọng TTS là giọng máy: ghi rõ trên trang cửa hàng; Tướng Lĩnh có thể thu giọng người sau.</li>
       </ul>
@@ -1135,7 +1137,7 @@ Data/
     <section id="cau-hoi">
       <h2><span class="n">27</span>Quyết định đã chốt</h2>
       <ul class="dots">
-        <li><b>Phong cách hình ảnh:</b> cắt giấy có khớp, tô phẳng, viền đậm, bảng màu tranh dân gian. Mỗi lớp một dáng bóng riêng, nhìn bóng là biết lớp.</li>
+        <li><b>Phong cách hình ảnh:</b> pixel art kiểu game chiến thuật cầm tay đời GBA: quân nhỏ dáng chibi trên bàn, cảnh cắt nhìn ngang với sprite lớn và hoạt ảnh đòn đánh rõ ràng, chân dung bán thân khi thoại. Bảng màu ấm lấy từ tranh dân gian để khác các game pixel khác. Mỗi lớp một dáng bóng riêng, nhìn bóng là biết lớp. Tự vẽ toàn bộ, không dùng lại hình của game nào. (Phúc chọn, 14/11/2026.)</li>
         <li><b>Trọng tâm phát hành:</b> Hành Quân chơi đơn. Thứ tự: bản web chơi thử, rồi PC (Steam), rồi Android và iOS. Sau phát hành thêm Bóng Quân: đánh với bản chụp đội của người chơi khác, không cần online cùng lúc. Loạn Chiến 8 người chỉ làm khi đã đủ người chơi.</li>
         <li><b>Tên chính thức:</b> Bát Trận. Tên trên cửa hàng quốc tế: "Bat Tran: Eight Formations". Kiểm tra nhãn hiệu và tên miền trước khi công bố.</li>
         <li><b>Số tầng kết hợp:</b> giữ đủ tám tầng. Bản thử bật hết để đo. Bản phát hành mở từng tầng theo mục 19; người mới chỉ cần nhìn vòng Hợp Lực. Trong trận, cùng lúc chỉ nháy tối đa 3 loại hiệu ứng tầng.</li>
