@@ -111,22 +111,23 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
         <li><a href="#ky-nang"><span class="n">07</span>Kỹ năng</a></li>
         <li><a href="#danh-sach-quan"><span class="n">08</span>Danh sách quân (bản thử)</a></li>
         <li><a href="#ket-hop"><span class="n">09</span>Hệ kết hợp</a></li>
-        <li><a href="#tran-do"><span class="n">10</span>Trận đồ</a></li>
-        <li><a href="#nguyen-to"><span class="n">11</span>Nguyên tố</a></li>
-        <li><a href="#nang-cap"><span class="n">12</span>Nâng cấp</a></li>
-        <li><a href="#kinh-te"><span class="n">13</span>Kinh tế</a></li>
-        <li><a href="#van-choi"><span class="n">14</span>Ván Hành Quân</a></li>
-        <li><a href="#chua-te"><span class="n">15</span>Chúa tể, tinh anh và sự kiện</a></li>
-        <li><a href="#bien-hoa"><span class="n">16</span>Biến hóa giữa các trận</a></li>
-        <li><a href="#do-kho"><span class="n">17</span>Độ khó và mở khóa</a></li>
-        <li><a href="#canh-cat"><span class="n">18</span>Cảnh cắt</a></li>
-        <li><a href="#che-do"><span class="n">19</span>Chế độ chơi</a></li>
-        <li><a href="#giao-dien"><span class="n">20</span>Giao diện</a></li>
-        <li><a href="#hinh-tieng"><span class="n">21</span>Hình ảnh và âm thanh</a></li>
-        <li><a href="#ky-thuat"><span class="n">22</span>Kỹ thuật</a></li>
-        <li><a href="#pham-vi"><span class="n">23</span>Bản thử đầu tiên</a></li>
-        <li><a href="#thuat-ngu"><span class="n">24</span>Thuật ngữ</a></li>
-        <li><a href="#cau-hoi"><span class="n">25</span>Câu hỏi còn mở</a></li>
+        <li><a href="#ky-ngo"><span class="n">10</span>Kỳ Ngộ</a></li>
+        <li><a href="#tran-do"><span class="n">11</span>Trận đồ</a></li>
+        <li><a href="#nguyen-to"><span class="n">12</span>Nguyên tố</a></li>
+        <li><a href="#nang-cap"><span class="n">13</span>Nâng cấp</a></li>
+        <li><a href="#kinh-te"><span class="n">14</span>Kinh tế</a></li>
+        <li><a href="#van-choi"><span class="n">15</span>Ván Hành Quân</a></li>
+        <li><a href="#chua-te"><span class="n">16</span>Chúa tể, tinh anh và sự kiện</a></li>
+        <li><a href="#bien-hoa"><span class="n">17</span>Biến hóa giữa các trận</a></li>
+        <li><a href="#do-kho"><span class="n">18</span>Độ khó và mở khóa</a></li>
+        <li><a href="#canh-cat"><span class="n">19</span>Cảnh cắt</a></li>
+        <li><a href="#che-do"><span class="n">20</span>Chế độ chơi</a></li>
+        <li><a href="#giao-dien"><span class="n">21</span>Giao diện</a></li>
+        <li><a href="#hinh-tieng"><span class="n">22</span>Hình ảnh và âm thanh</a></li>
+        <li><a href="#ky-thuat"><span class="n">23</span>Kỹ thuật</a></li>
+        <li><a href="#pham-vi"><span class="n">24</span>Bản thử đầu tiên</a></li>
+        <li><a href="#thuat-ngu"><span class="n">25</span>Thuật ngữ</a></li>
+        <li><a href="#cau-hoi"><span class="n">26</span>Câu hỏi còn mở</a></li>
       </ol>
     </details>
   </nav>
@@ -136,7 +137,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
       <span class="eyebrow">Tài liệu thiết kế game · Falemag</span>
       <h1>Bát Trận</h1>
       <p class="lead">Auto chess kiếm, cung, giáp, phép, nơi <b>hình dạng đội hình là vũ khí</b>. Người chơi chỉ chuẩn bị; trận đánh tự diễn ra, và các tầng kết hợp tự kích hoạt lẫn nhau thành chuỗi combo.</p>
-      <div class="meta"><span>Bản 2.0 · 14/11/2026</span><span>Godot 4.7 · C++ GDExtension</span><span>PC yếu và điện thoại</span><span>Trạng thái: thiết kế, chưa cân bằng</span></div>
+      <div class="meta"><span>Bản 2.1 · 14/11/2026</span><span>Godot 4.7 · C++ GDExtension</span><span>PC yếu và điện thoại</span><span>Trạng thái: thiết kế, chưa cân bằng</span></div>
       <p class="note">Mọi con số trong tài liệu là <b>giá trị khởi điểm</b> để dựng bản thử, sẽ chỉnh khi chơi thử. Mọi tên riêng là tên tạm.</p>
     </header>
 
@@ -172,7 +173,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
         <tbody>
           <tr><td><b>Lượt chuẩn bị</b></td><td class="num">60 giây, cố định</td><td>Mua, bán, ghép quân; gắn trang bị; xếp quân lên bàn; xem trước combo sẽ nổ. Hết giờ thì vào trận với đội đang xếp; xong sớm thì bấm Ra trận</td></tr>
           <tr><td><b>Trận</b></td><td class="num">30–45 giây</td><td>Xem trận tự đánh, xem chuỗi combo và cảnh cắt</td></tr>
-          <tr><td><b>Chặng</b></td><td class="num">2–3 phút</td><td>Một nút trên bản đồ: trận, chợ quân, lò rèn, hạ trại, sự kiện</td></tr>
+          <tr><td><b>Chặng</b></td><td class="num">2–3 phút</td><td>Chuẩn bị, một trận, rồi chọn phần thưởng</td></tr>
           <tr><td><b>Ván</b></td><td class="num">25–35 phút</td><td>12 chặng, kết thúc bằng chúa tể. Thắng thì mở khóa và lên bậc ải</td></tr>
           <tr><td><b>Lâu dài</b></td><td>Nhiều tuần</td><td>Sổ Trận Đồ, mở khóa tướng và tộc, bậc ải 1–20, Thử Thách Ngày</td></tr>
         </tbody>
@@ -184,12 +185,12 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
       <ul class="dots">
         <li><b>Bàn:</b> mỗi bên 5 cột × 3 hàng (tiền, trung, hậu). Hai bàn đối mặt nhau, hàng tiền của hai bên giáp nhau.</li>
         <li><b>Lượt chuẩn bị:</b> cố định 60 giây trước mỗi trận, ở mọi chế độ. Đồng hồ đếm ngược ở đầu màn hình; 10 giây cuối chuyển đỏ. Hết giờ, quân đang cầm trên tay về chỗ cũ và trận bắt đầu.</li>
-        <li><b>Quân số:</b> số quân trên bàn bằng Cấp của người chơi, từ 3 đến tối đa 8 (mục 13). Địch có số quân theo chặng. Ghế dự bị chứa thêm 6 quân, không ra trận.</li>
+        <li><b>Quân số:</b> số quân trên bàn bằng Cấp của người chơi, từ 3 đến tối đa 8 (mục 14). Địch có số quân theo chặng. Ghế dự bị chứa thêm 6 quân, không ra trận.</li>
         <li><b>Mô phỏng:</b> chạy 20 nhịp mỗi giây trên SimClock, tất định (cùng đầu vào cho cùng kết quả). Quân tự chọn mục tiêu theo luật của lớp (mục 06).</li>
         <li><b>Không hồi máu trong trận.</b> Máu chỉ giảm. Chữa thương chỉ có giữa các chặng.</li>
         <li><b>Kết thúc:</b> một bên hết quân. Sau 45 giây, bên có tổng phần trăm máu còn lại cao hơn thắng.</li>
         <li><b>Thua trận:</b> người chơi mất <b>Sĩ khí</b> = 6 + 2 × số quân địch còn sống. Sĩ khí khởi đầu 60; về 0 thì hết ván.</li>
-        <li><b>Chuỗi combo:</b> mỗi khi một tầng kết hợp kích hoạt tầng khác trong vòng 1 giây, chuỗi tăng một nấc (Chuỗi ×2, ×3…). Chuỗi từ ×4 trở lên được cảnh cắt (mục 18).</li>
+        <li><b>Chuỗi combo:</b> mỗi khi một tầng kết hợp kích hoạt tầng khác trong vòng 1 giây, chuỗi tăng một nấc (Chuỗi ×2, ×3…). Chuỗi từ ×4 trở lên được cảnh cắt (mục 19).</li>
         <li><b>Nhật Ký Combo</b> sau trận: combo nào đã nổ, sát thương bao nhiêu, combo nào thiếu một quân là thành.</li>
       </ul>
     </section>
@@ -233,7 +234,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
       <ul class="dots">
         <li><b>Theo giá:</b> máu và công × 1,0 / 1,25 / 1,55 / 1,9 / 2,3 cho giá 1 đến 5. Giá càng cao càng mạnh, và càng mang nhiều liên kết: giá 3 trở lên có chiêu biến thể và Duyên, giá 4–5 tính là 2 khi đếm tộc, giá 5 là Tướng Lĩnh (mục 07).</li>
         <li><b>Quân rẻ vẫn có giá trị:</b> quân giá 1 dễ lên 3 sao (×3,24), mạnh hơn quân giá 3 hai sao (×2,79), và rẻ để lấp mốc nghề, tộc.</li>
-        <li><b>Theo sao:</b> máu và công × 1,8 mỗi sao (mục 12). Tốc đánh, tầm, giáp không đổi.</li>
+        <li><b>Theo sao:</b> máu và công × 1,8 mỗi sao (mục 13). Tốc đánh, tầm, giáp không đổi.</li>
         <li><b>Di chuyển:</b> 1 ô mỗi 0,5 giây. Kỵ xung phong 3 ô mỗi giây.</li>
         <li><b>Tầm</b> đếm theo ô, ô chéo tính là 1. Tầm 1 là cận chiến.</li>
         <li>Kiểm tra nhanh: đội 8 quân 1 sao đánh nhau hết trong khoảng 20–30 giây, chưa kể chiêu.</li>
@@ -327,7 +328,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
         <li><b>Lên sao riêng:</b> Tướng Lĩnh lên 2 sao với 2 bản. Lên 3 sao cần thêm 1 bản và một <b>Ấn Thống Lĩnh</b>.</li>
         <li><b>Ấn Thống Lĩnh</b> chỉ có từ: thắng trận tinh anh mà đạt cả hai Quân Lệnh, hoặc sự kiện hiếm Đền Tướng. Mục tiêu: khoảng 1 trong 8 ván có Thống Lĩnh.</li>
         <li><b>Giới hạn:</b> mỗi đội tối đa 2 Tướng Lĩnh và 1 Thống Lĩnh. Thống Lĩnh tính là 2 quân khi đếm số quân trên bàn.</li>
-        <li><b>Tỉ lệ ra:</b> theo Cấp người chơi (mục 13). Chợ không có Tướng Lĩnh dưới cấp 7; cấp 7 mỗi ô 1%, cấp 8 là 4%, cấp 9 là 10%.</li>
+        <li><b>Tỉ lệ ra:</b> theo Cấp người chơi (mục 14). Chợ không có Tướng Lĩnh dưới cấp 7; cấp 7 mỗi ô 1%, cấp 8 là 4%, cấp 9 là 10%.</li>
       </ul>
       <h3>Một chuỗi mẫu</h3>
       <ol class="dots">
@@ -402,9 +403,9 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
         <tbody>
           <tr><td><b>Nghề</b></td><td>Đếm số quân khác nhau cùng lớp, mốc tùy lớp (1 đến 4)</td><td>Thanh đồng bộ cạnh bàn</td></tr>
           <tr><td><b>Tộc</b></td><td>Bẻ một luật xếp hình; mốc 3 và 5 làm luật mạnh hơn</td><td>Biểu tượng nhỏ trên quân</td></tr>
-          <tr><td><b>Trận đồ</b></td><td>Xếp đúng hình thì mở hiệu lực (mục 10)</td><td>Đường sáng nối các ô</td></tr>
-          <tr><td><b>Nguyên tố</b></td><td>Hai hệ chạm nhau trên một địch thì phản ứng (mục 11)</td><td>Màu viền kèm hình dạng</td></tr>
-          <tr><td><b>Trang bị</b></td><td>Đổi cách đánh của một quân (mục 12)</td><td>Ô đồ dưới chân quân</td></tr>
+          <tr><td><b>Trận đồ</b></td><td>Xếp đúng hình thì mở hiệu lực (mục 11)</td><td>Đường sáng nối các ô</td></tr>
+          <tr><td><b>Nguyên tố</b></td><td>Hai hệ chạm nhau trên một địch thì phản ứng (mục 12)</td><td>Màu viền kèm hình dạng</td></tr>
+          <tr><td><b>Trang bị</b></td><td>Đổi cách đánh của một quân (mục 13)</td><td>Ô đồ dưới chân quân</td></tr>
           <tr><td><b>Kỹ năng</b></td><td>Chiêu tự tung khi đầy Khí; nội tại phản ứng với sự kiện (mục 07)</td><td>Thanh Khí, tên chiêu, biểu tượng nháy</td></tr>
           <tr><td><b>Duyên</b></td><td>Liên kết giữa 2–3 quân có tên</td><td>Sợi chỉ nối giữa các quân</td></tr>
           <tr><td><b>Tướng</b></td><td>Một luật riêng nối các tầng</td><td>Khung tên trên đầu</td></tr>
@@ -484,8 +485,37 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
       <p>Tướng, tộc, trận đồ, trang bị đều là dữ liệu. Thêm nội dung chỉ cần thêm file, không sửa code.</p>
     </section>
 
+    <section id="ky-ngo">
+      <h2><span class="n">10</span>Kỳ Ngộ</h2>
+      <p>Mốc liên kết không cố định. Trong ván, một mốc đang bật có thể gặp <b>Kỳ Ngộ</b> và đột biến: ngưỡng dời đi, hiệu lực đổi khác, hoặc mở ra mốc vượt trần. Không ván nào giống ván nào, và người giỏi là người nhận ra thời cơ để đổi hướng.</p>
+      <h3>Ngộ tích lũy thế nào</h3>
+      <ul class="dots">
+        <li>Mỗi mốc có thanh <b>Ngộ</b> riêng. Sau mỗi trận, mốc được cộng Ngộ theo số lần nó kích hoạt trong trận đó, tối đa 3 mỗi trận.</li>
+        <li>Mốc gây nhiều sát thương nhất trận được thêm 2. <b>Thua trận</b> thì mọi mốc đang bật được thêm 1: thất bại cũng là một con đường giác ngộ.</li>
+        <li>Ngưỡng Kỳ Ngộ của mỗi mốc là một số ẩn từ 6 đến 12, bốc theo seed của ván. Khi gần chạm ngưỡng, biểu tượng mốc <b>rung động</b> để người chơi biết mà giữ hướng.</li>
+        <li>Chạm ngưỡng thì Kỳ Ngộ nổ ngay sau trận: người chơi chọn 1 trong 2 đột biến cho mốc đó, giữ đến hết ván. Mỗi ván khoảng 2–4 Kỳ Ngộ. Trong trận không có may rủi; Kỳ Ngộ chỉ xảy ra giữa các trận.</li>
+      </ul>
+      <h3>Bốn kiểu đột biến</h3>
+      <div class="tbl"><table>
+        <thead><tr><th>Kiểu</th><th>Làm gì</th><th>Ví dụ</th></tr></thead>
+        <tbody>
+          <tr><td><b>Hạ Mốc</b></td><td>Ngưỡng giảm 1</td><td>Khiên 4 chỉ cần 3 Khiên: thừa một chỗ cho lớp khác</td></tr>
+          <tr><td><b>Biến Dị</b></td><td>Hiệu lực đổi thành bản khác</td><td>Cung 2 "tốc bắn +20%" thành "mỗi mũi thứ năm bắn hai tên"</td></tr>
+          <tr><td><b>Khai Mốc</b></td><td>Mở một mốc vượt trần, chỉ trong ván này</td><td>Kiếm 5: mỗi Kiếm hạ địch thì chém lan ra mọi ô kề</td></tr>
+          <tr><td><b>Giao Thoa</b></td><td>Hai mốc đang bật hợp thành một mốc lai, tính 3 điểm Hợp Lực</td><td>Khiên + Pháp thành Pháp Thuẫn: Khiên phản lại một nửa sát thương phép</td></tr>
+        </tbody>
+      </table></div>
+      <h3>Luật giữ cân bằng</h3>
+      <ul class="dots">
+        <li>Đột biến gắn vào mốc, không gắn vào quân. Bán hết quân của lớp đó thì mốc tắt, đột biến nằm chờ đến khi mốc bật lại.</li>
+        <li>Một mốc chỉ đột biến một lần mỗi ván. Giao Thoa cần cả hai mốc đều đã từng rung động.</li>
+        <li>Sự kiện và Lò rèn đôi khi bán <b>Ngộ Đan</b> (+3 Ngộ cho một mốc tự chọn), để người chơi chủ động nhắm tới một Kỳ Ngộ.</li>
+        <li>Mỗi lớp, tộc và Duyên có sẵn 4–6 đột biến trong dữ liệu (<code>Data/Epiphanies/</code>); hai lựa chọn được bốc theo seed của ván.</li>
+      </ul>
+    </section>
+
     <section id="tran-do">
-      <h2><span class="n">10</span>Trận đồ</h2>
+      <h2><span class="n">11</span>Trận đồ</h2>
       <p>Trận đồ là hình dạng trên bàn. Nhiều trận đồ được chồng lên nhau; một quân có thể nằm trong nhiều trận đồ. Bản thử có 12 trận đồ, bản đầy đủ khoảng 40 (có trận đồ ẩn).</p>
       <div class="tbl"><table>
         <thead><tr><th>Trận đồ</th><th>Hình</th><th>Hiệu lực cấp 1</th></tr></thead>
@@ -518,7 +548,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
     </section>
 
     <section id="nguyen-to">
-      <h2><span class="n">11</span>Nguyên tố</h2>
+      <h2><span class="n">12</span>Nguyên tố</h2>
       <p>Năm hệ: Hỏa, Băng, Lôi, Phong, Độc. Bốn nguồn gắn nguyên tố: <b>Pháp</b> (đòn phép), <b>Phù</b> (bùa lên đồng đội), <b>trang bị có Ngọc</b>, <b>Trận Nhãn nguyên tố</b>. Một địch đang mang hệ A bị trúng hệ B thì phản ứng xảy ra và cả hai dấu biến mất.</p>
       <div class="tbl"><table>
         <thead><tr><th>Phản ứng</th><th>Tên</th><th>Hiệu lực</th></tr></thead>
@@ -538,7 +568,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
     </section>
 
     <section id="nang-cap">
-      <h2><span class="n">12</span>Nâng cấp</h2>
+      <h2><span class="n">13</span>Nâng cấp</h2>
       <p>Bốn cách, mỗi cách tác động ở một tầm khác nhau.</p>
       <div class="tbl"><table>
         <thead><tr><th>Cách</th><th>Tầm</th><th>Làm gì</th><th>Khi bán quân</th></tr></thead>
@@ -571,7 +601,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
       </table></div>
       <h3>Binh Thư</h3>
       <ul class="dots">
-        <li>Khoảng 4 trang mỗi ván, từ trận tinh anh, chúa tể và sự kiện.</li>
+        <li>Khoảng 4 trang mỗi ván, từ phần thưởng nhánh tinh anh và sự kiện.</li>
         <li>Mỗi trang mở một nhánh cho một lớp, áp cho mọi quân lớp đó kể cả quân mua sau. Mỗi lớp chọn 1 trong 2 nhánh mỗi ván.</li>
       </ul>
       <div class="tbl"><table>
@@ -605,13 +635,13 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
     </section>
 
     <section id="kinh-te">
-      <h2><span class="n">13</span>Kinh tế</h2>
+      <h2><span class="n">14</span>Kinh tế</h2>
       <p>Hai đồng tiền. <b>Vàng</b> để mua quân. <b>Lương</b> để lên Cấp: có lương mới nuôi được đội đông hơn, và chợ mới chịu bán quân giá cao. Câu hỏi luôn là: tiêu vàng mua quân ngay, hay đổi vàng ra lương để lớn nhanh?</p>
       <div class="tbl"><table>
         <thead><tr><th>Mục</th><th class="num">Giá trị</th><th>Ghi chú</th></tr></thead>
         <tbody>
           <tr><td>Vàng khởi đầu</td><td class="num">10</td><td></td></tr>
-          <tr><td>Vàng mỗi chặng</td><td class="num">5 (+1 nếu thắng trận)</td><td>Lãi +1 mỗi 10 vàng đang giữ, tối đa +3</td></tr>
+          <tr><td>Vàng mỗi chặng</td><td class="num">4 → 10</td><td>Tăng dần: chặng 1–2 nhận 4, chặng 11 nhận 9, chặng 12 nhận 10. +1 nếu thắng. Không có lãi</td></tr>
           <tr><td>Giá quân</td><td class="num">1–5</td><td>Theo độ hiếm. Bán lại được bằng giá mua × số sao</td></tr>
           <tr><td>Làm mới cửa hàng</td><td class="num">2</td><td>Cửa hàng 5 ô</td></tr>
           <tr><td>Thu mua lương</td><td class="num">4</td><td>4 vàng đổi 4 lương, bấm bao nhiêu lần cũng được</td></tr>
@@ -621,8 +651,8 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
       </table></div>
       <h3>Kiểm tra một ván</h3>
       <ul class="dots">
-        <li><b>Vàng:</b> 10 + 12 chặng × 5 + khoảng 8 trận thắng + lãi ≈ 90–95. Chi chia ba hướng: thu mua lương để lên cấp nhanh hơn, mua và ghép sao, làm mới chợ. Không đủ cho cả ba, nên mỗi ván phải chọn: lên cấp nhanh, hay giữ cấp thấp mà ghép 3 sao quân rẻ.</li>
-        <li><b>Lương:</b> không mua thêm thì cả ván được khoảng 45–50 (tiếp tế khoảng 20, thắng trận khoảng 16, săn và bán quân khoảng 10), đủ lên cấp 7 lúc cuối ván. Muốn cấp 8 hoặc lên sớm thì phải đổi vàng ra lương.</li>
+        <li><b>Vàng:</b> 10 + bổng lộc 12 chặng (79) + khoảng 9 trận thắng ≈ 98. Chi chia ba hướng: thu mua lương để lên cấp nhanh hơn, mua và ghép sao, làm mới chợ. Không đủ cho cả ba, nên mỗi ván phải chọn: lên cấp nhanh, hay giữ cấp thấp mà ghép 3 sao quân rẻ.</li>
+        <li><b>Lương:</b> không đổi vàng thì cả ván được khoảng 38 (tiếp tế khoảng 20, thắng trận khoảng 18), vừa đủ lên cấp 8 ở chặng cuối. Muốn lên sớm, hoặc lên cấp 9, thì phải đổi vàng ra lương.</li>
         <li><b>Quân số:</b> bàn 15 ô, nhiều nhất 8 quân, nên luôn còn ô trống để đổi hình trận đồ. Ghế dự bị 6 chỗ đủ để gom 3 bản ghép sao.</li>
       </ul>
       <h3>Cấp chỉ huy</h3>
@@ -636,17 +666,17 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
         <thead><tr><th class="num">Cấp</th><th class="num">Lương lên cấp sau</th><th class="num">Quân trên bàn</th><th class="num">Giá 1</th><th class="num">2</th><th class="num">3</th><th class="num">4</th><th class="num">5</th></tr></thead>
         <tbody>
           <tr><td class="num">3</td><td class="num">2</td><td class="num">3</td><td class="num">75%</td><td class="num">25%</td><td class="num">0%</td><td class="num">0%</td><td class="num">0%</td></tr>
-          <tr><td class="num">4</td><td class="num">6</td><td class="num">4</td><td class="num">55%</td><td class="num">30%</td><td class="num">15%</td><td class="num">0%</td><td class="num">0%</td></tr>
-          <tr><td class="num">5</td><td class="num">10</td><td class="num">5</td><td class="num">45%</td><td class="num">33%</td><td class="num">20%</td><td class="num">2%</td><td class="num">0%</td></tr>
-          <tr><td class="num">6</td><td class="num">16</td><td class="num">6</td><td class="num">30%</td><td class="num">40%</td><td class="num">25%</td><td class="num">5%</td><td class="num">0%</td></tr>
-          <tr><td class="num">7</td><td class="num">24</td><td class="num">7</td><td class="num">19%</td><td class="num">30%</td><td class="num">35%</td><td class="num">15%</td><td class="num">1%</td></tr>
-          <tr><td class="num">8</td><td class="num">32</td><td class="num">8</td><td class="num">16%</td><td class="num">22%</td><td class="num">35%</td><td class="num">23%</td><td class="num">4%</td></tr>
+          <tr><td class="num">4</td><td class="num">4</td><td class="num">4</td><td class="num">55%</td><td class="num">30%</td><td class="num">15%</td><td class="num">0%</td><td class="num">0%</td></tr>
+          <tr><td class="num">5</td><td class="num">6</td><td class="num">5</td><td class="num">45%</td><td class="num">33%</td><td class="num">20%</td><td class="num">2%</td><td class="num">0%</td></tr>
+          <tr><td class="num">6</td><td class="num">10</td><td class="num">6</td><td class="num">30%</td><td class="num">40%</td><td class="num">25%</td><td class="num">5%</td><td class="num">0%</td></tr>
+          <tr><td class="num">7</td><td class="num">14</td><td class="num">7</td><td class="num">19%</td><td class="num">30%</td><td class="num">35%</td><td class="num">15%</td><td class="num">1%</td></tr>
+          <tr><td class="num">8</td><td class="num">20</td><td class="num">8</td><td class="num">16%</td><td class="num">22%</td><td class="num">35%</td><td class="num">23%</td><td class="num">4%</td></tr>
           <tr><td class="num">9</td><td class="num">—</td><td class="num">8</td><td class="num">10%</td><td class="num">18%</td><td class="num">30%</td><td class="num">32%</td><td class="num">10%</td></tr>
         </tbody>
       </table></div>
       <ul class="dots">
         <li>Cấp 9 không thêm chỗ (bàn 15 ô giữ tối đa 8 quân cho còn chỗ đổi hình), chỉ tăng mạnh tỉ lệ quân giá 4–5. Đây là đường đi tìm Tướng Lĩnh.</li>
-        <li>Từ cấp 3 lên 8 cần 58 lương, lên 9 cần thêm 32. Lương tự có trong ván chỉ đủ tới khoảng cấp 7; ai muốn 8 quân sớm phải đổi vàng, tức bớt tiền mua và ghép quân. Không ai vừa lên cấp 8 sớm vừa có đội 2 sao đầy đủ: phải chọn.</li>
+        <li>Từ cấp 3 lên 8 cần 36 lương, lên 9 cần thêm 20. Lương tự có trong ván vừa đủ lên cấp 8 ở chặng cuối; ai muốn 8 quân sớm phải đổi vàng, tức bớt tiền mua và ghép quân. Không ai vừa lên cấp 8 sớm vừa có đội 2 sao đầy đủ: phải chọn.</li>
       </ul>
       <h3>Quân địch theo chặng</h3>
       <div class="tbl"><table>
@@ -662,25 +692,28 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
     </section>
 
     <section id="van-choi">
-      <h2><span class="n">14</span>Ván Hành Quân</h2>
-      <p>Bản đồ nhánh 12 chặng; mỗi chặng chọn 1 trong 2–3 nút.</p>
-      <div class="flow"><span class="st">Trận</span><span class="ar">·</span><span class="st">Trận tinh anh</span><span class="ar">·</span><span class="st">Chợ quân</span><span class="ar">·</span><span class="st">Lò rèn</span><span class="ar">·</span><span class="st">Hạ trại</span><span class="ar">·</span><span class="st">Sự kiện</span><span class="ar">·</span><span class="st">Chúa tể (chặng 12)</span></div>
+      <h2><span class="n">15</span>Ván Hành Quân</h2>
+      <p>12 chặng, <b>chặng nào cũng là một trận</b>. Mỗi chặng gồm: lượt chuẩn bị 60 giây, trận 30–45 giây, rồi chọn 1 trong 3 phần thưởng. Cả ván khoảng 25 phút, có 12 lượt chợ để phát triển.</p>
+      <div class="flow"><span class="st">Chọn đường</span><span class="ar">·</span><span class="st">Chuẩn bị 60 giây</span><span class="ar">·</span><span class="st">Trận</span><span class="ar">·</span><span class="st">Chọn thưởng</span><span class="ar">·</span><span class="st">Chặng sau</span></div>
+      <h3>Chọn đường</h3>
+      <p>Bản đồ có ngã rẽ. Mỗi nhánh cho thấy trước phe địch, kiểu trận và loại phần thưởng sẽ được chọn. Nhánh tinh anh khó hơn và thưởng Binh Thư. Chúa tể ở chặng 12, lộ diện từ chặng 6.</p>
+      <h3>Phần thưởng sau trận</h3>
       <div class="tbl"><table>
-        <thead><tr><th>Nút</th><th>Có gì</th></tr></thead>
+        <thead><tr><th>Thưởng</th><th>Có gì</th></tr></thead>
         <tbody>
-          <tr><td><b>Trận</b></td><td>Đánh một đội địch. Thắng: vàng, lương, mảnh trang bị</td></tr>
-          <tr><td><b>Trận tinh anh</b></td><td>Địch mạnh có luật riêng. Thắng: trang Binh Thư</td></tr>
-          <tr><td><b>Chợ quân</b></td><td>Làm mới miễn phí 2 lần, có quân hiếm 4–5</td></tr>
-          <tr><td><b>Lò rèn</b></td><td>Ghép trang bị, nhận Ấn, khắc hoặc dời Trận Nhãn</td></tr>
-          <tr><td><b>Hạ trại</b></td><td>Chọn 1: hồi 15 Sĩ khí, hoặc đi săn +6 lương (20% gặp phục kích)</td></tr>
-          <tr><td><b>Sự kiện</b></td><td>Lựa chọn có rủi ro: đổi vàng lấy quân lạ, cược lương lấy Binh Thư…</td></tr>
-          <tr><td><b>Chúa tể</b></td><td>Đội mạnh nhất, có luật phá combo, lộ diện từ chặng 6</td></tr>
+          <tr><td><b>Chiến lợi phẩm</b></td><td>Mảnh trang bị hoặc Ngọc</td></tr>
+          <tr><td><b>Chợ đen</b></td><td>Chợ phụ 5 ô, ra quân như cao hơn 1 cấp, làm mới 1 lần miễn phí</td></tr>
+          <tr><td><b>Lò rèn</b></td><td>Nhận Ấn, khắc hoặc dời Trận Nhãn</td></tr>
+          <tr><td><b>Hạ trại</b></td><td>Hồi 15 Sĩ khí, hoặc đi săn +6 lương</td></tr>
+          <tr><td><b>Sự kiện</b></td><td>Một sự kiện ở mục 16</td></tr>
+          <tr><td><b>Binh Thư</b></td><td>Chỉ ở nhánh tinh anh</td></tr>
         </tbody>
       </table></div>
+      <p>Thua trận vẫn được chọn thưởng, nhưng chỉ 1 trong 2.</p>
     </section>
 
     <section id="chua-te">
-      <h2><span class="n">15</span>Chúa tể, tinh anh và sự kiện</h2>
+      <h2><span class="n">16</span>Chúa tể, tinh anh và sự kiện</h2>
       <h3>Chúa tể</h3>
       <p>Mỗi chúa tể chiếm 2 ô, đi cùng 4–6 hộ vệ, và có một <b>luật phá combo</b> nhắm vào đúng thứ người chơi giỏi nhất. Lộ diện từ chặng 6 để kịp chuẩn bị.</p>
       <div class="tbl"><table>
@@ -721,24 +754,25 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
     </section>
 
     <section id="bien-hoa">
-      <h2><span class="n">16</span>Biến hóa giữa các trận</h2>
-      <p class="note"><b>Đề xuất, chờ chốt.</b> Mục 04–13 chạy lại ở mọi trận, nên cái dễ nhàm là đánh mãi một đội trên cùng một bàn. Nguyên tắc: <b>đổi câu đố, không đổi chỉ số.</b> Mỗi trận phải bắt người chơi nghĩ lại cách xếp, dù đội vẫn là đội cũ.</p>
+      <h2><span class="n">17</span>Biến hóa giữa các trận</h2>
+      <p class="note"><b>Đề xuất, chờ chốt.</b> Mục 04–14 chạy lại ở mọi trận, nên cái dễ nhàm là đánh mãi một đội trên cùng một bàn. Nguyên tắc: <b>đổi câu đố, không đổi chỉ số.</b> Mỗi trận phải bắt người chơi nghĩ lại cách xếp, dù đội vẫn là đội cũ.</p>
       <div class="tbl"><table>
         <thead><tr><th>Ý tưởng</th><th>Cách chạy</th><th>Đánh vào mục</th></tr></thead>
         <tbody>
-          <tr><td><b>Địa hình</b></td><td>Mỗi trận bàn có 1–3 ô đặc biệt: <b>Đá</b> (không đứng được, cắt trận đồ), <b>Sông</b> (Kỵ không qua, Băng làm đóng băng thành đường), <b>Đồi</b> (Cung +1 tầm), <b>Rừng</b> (quân đứng đó khó bị chọn), <b>Lửa trại</b> (Hỏa lan). Vì trận đồ theo hình dạng, một tảng đá đủ buộc phải xếp lại cả đội</td><td>04, 10</td></tr>
+          <tr><td><b>Địa hình</b></td><td>Mỗi trận bàn có 1–3 ô đặc biệt: <b>Đá</b> (không đứng được, cắt trận đồ), <b>Sông</b> (Kỵ không qua, Băng làm đóng băng thành đường), <b>Đồi</b> (Cung +1 tầm), <b>Rừng</b> (quân đứng đó khó bị chọn), <b>Lửa trại</b> (Hỏa lan). Vì trận đồ theo hình dạng, một tảng đá đủ buộc phải xếp lại cả đội</td><td>04, 11</td></tr>
           <tr><td><b>Kiểu trận</b></td><td><b>Giáp chiến</b> (thường). <b>Phục kích:</b> một phần địch xuất hiện ở hàng sau của mình. <b>Công thành:</b> địch đứng sau tường, phải phá tường trước. <b>Hộ tống:</b> giữ xe lương ở một ô đến hết 30 giây. <b>Truy binh:</b> địch đến thành ba đợt</td><td>04, 05</td></tr>
-          <tr><td><b>Thời tiết</b></td><td>Mưa: Lôi lan sang quân đứng cạnh, Hỏa yếu. Gió: Phong đẩy thêm 1 ô. Sương: mọi tầm −1. Nắng: Khí đầy nhanh hơn 20%. Báo trước một chặng để kịp đổi đồ</td><td>07, 11</td></tr>
+          <tr><td><b>Thời tiết</b></td><td>Mưa: Lôi lan sang quân đứng cạnh, Hỏa yếu. Gió: Phong đẩy thêm 1 ô. Sương: mọi tầm −1. Nắng: Khí đầy nhanh hơn 20%. Báo trước một chặng để kịp đổi đồ</td><td>07, 12</td></tr>
           <tr><td><b>Phe địch</b></td><td>Sáu phe, mỗi phe một luật bẻ và một lối xếp ưa thích. Ví dụ Thiết Kỵ Bắc Mạc (Kỵ xung phong hai lần), Hồn Sư (quân chết thành hồn 5 giây), Thạch Bảo (Khiên chặn cả phép). Bản đồ cho thấy nhánh nào gặp phe nào, nên chọn đường cũng là chọn câu đố</td><td>05, 09</td></tr>
-          <tr><td><b>Quân Lệnh</b></td><td>Mỗi trận có 1–2 lệnh phụ tùy chọn: thắng với tối đa 5 quân, nổ Chuỗi ×4, không mất quân nào, hạ tướng địch trước giây 15. Đạt thì nhận thưởng hiếm (Ấn, Ngọc, trang Binh Thư)</td><td>13</td></tr>
-          <tr><td><b>Thiên Mệnh của ván</b></td><td>Đầu ván chọn 1 trong 3 lá luật toàn ván, ví dụ: trận đồ được xếp chéo; Khí ×2 nhưng máu −25%; Kỵ xung phong theo hàng ngang. Thêm 2 trận đồ "Thịnh" ngẫu nhiên được +1 cấp cả ván. Mỗi ván một meta khác</td><td>09, 10, 12</td></tr>
-          <tr><td><b>Dị bản</b></td><td>Khoảng 1 trong 15 quân ở chợ là dị bản: chiêu đổi hình vùng hoặc đổi nguyên tố, nội tại nghe một sự kiện khác. Gặp được dị bản là lý do để đổi cả hướng xây đội</td><td>07, 13</td></tr>
+          <tr><td><b>Quân Lệnh</b></td><td>Mỗi trận có 1–2 lệnh phụ tùy chọn: thắng với tối đa 5 quân, nổ Chuỗi ×4, không mất quân nào, hạ tướng địch trước giây 15. Đạt thì nhận thưởng hiếm (Ấn, Ngọc, trang Binh Thư)</td><td>14</td></tr>
+          <tr><td><b>Kỳ Ngộ</b></td><td>Mốc liên kết đột biến giữa ván (mục 10)</td><td>10</td></tr>
+          <tr><td><b>Thiên Mệnh của ván</b></td><td>Đầu ván chọn 1 trong 3 lá luật toàn ván, ví dụ: trận đồ được xếp chéo; Khí ×2 nhưng máu −25%; Kỵ xung phong theo hàng ngang. Thêm 2 trận đồ "Thịnh" ngẫu nhiên được +1 cấp cả ván. Mỗi ván một meta khác</td><td>09, 11, 13</td></tr>
+          <tr><td><b>Dị bản</b></td><td>Khoảng 1 trong 15 quân ở chợ là dị bản: chiêu đổi hình vùng hoặc đổi nguyên tố, nội tại nghe một sự kiện khác. Gặp được dị bản là lý do để đổi cả hướng xây đội</td><td>07, 14</td></tr>
         </tbody>
       </table></div>
       <h3>Nhịp trong một ván</h3>
       <ul class="dots">
         <li>Không có hai trận liền nhau cùng kiểu trận, cùng phe, hoặc cùng địa hình.</li>
-        <li>Chặng 1–3 chỉ dùng địa hình. Chặng 4 trở đi mới có thời tiết, kiểu trận và Quân Lệnh, theo trục khó dần ở mục 17.</li>
+        <li>Chặng 1–3 chỉ dùng địa hình. Chặng 4 trở đi mới có thời tiết, kiểu trận và Quân Lệnh, theo trục khó dần ở mục 18.</li>
         <li>Mỗi ván gặp ít nhất ba kiểu trận khác nhau và hai phe.</li>
         <li>Mọi biến hóa hiện rõ ở màn chuẩn bị bằng biểu tượng trên ô hoặc trên khung trận, không có luật ẩn.</li>
       </ul>
@@ -750,7 +784,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
     </section>
 
     <section id="do-kho">
-      <h2><span class="n">17</span>Độ khó và mở khóa</h2>
+      <h2><span class="n">18</span>Độ khó và mở khóa</h2>
       <h3>Mở dần các tầng</h3>
       <div class="tbl"><table>
         <thead><tr><th>Khi nào</th><th>Mở thêm</th></tr></thead>
@@ -787,7 +821,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
     </section>
 
     <section id="canh-cat">
-      <h2><span class="n">18</span>Cảnh cắt</h2>
+      <h2><span class="n">19</span>Cảnh cắt</h2>
       <p>Trận dừng, màn hình chuyển sang cảnh hai nhân vật đối mặt nhìn ngang, giao đấu 2–3 giây, rồi trận chạy tiếp. Mô phỏng tất định nên dừng không ảnh hưởng kết quả.</p>
       <div class="tbl"><table>
         <thead><tr><th>Điều kiện</th><th>Ưu tiên</th></tr></thead>
@@ -806,11 +840,11 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
     </section>
 
     <section id="che-do">
-      <h2><span class="n">19</span>Chế độ chơi</h2>
+      <h2><span class="n">20</span>Chế độ chơi</h2>
       <div class="tbl"><table>
         <thead><tr><th>Chế độ</th><th>Mô tả</th><th>Mạng</th></tr></thead>
         <tbody>
-          <tr><td><b>Hành Quân</b></td><td>Ván roguelite 12 chặng (mục 14)</td><td>Offline</td></tr>
+          <tr><td><b>Hành Quân</b></td><td>Ván roguelite 12 chặng (mục 15)</td><td>Offline</td></tr>
           <tr><td><b>Thử Thách Ngày</b></td><td>Mọi người cùng một seed, so điểm</td><td>Gửi điểm, máy chủ chạy lại để kiểm</td></tr>
           <tr><td><b>Thủ Thành</b></td><td>Hai người giữ chung một thành, mỗi người nửa bàn; trận đồ nối qua ranh giới</td><td>Co-op 2 người</td></tr>
           <tr><td><b>Loạn Chiến</b></td><td>8 người, kho quân chung, đấu vòng tròn; lên cấp bằng lương như Hành Quân</td><td>Thời gian thực, chỉ gửi lệnh xếp quân</td></tr>
@@ -819,7 +853,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
     </section>
 
     <section id="giao-dien">
-      <h2><span class="n">20</span>Giao diện</h2>
+      <h2><span class="n">21</span>Giao diện</h2>
       <ul class="dots">
         <li><b>Điện thoại, dọc:</b> bàn nửa trên, cửa hàng và ghế dự bị nửa dưới. Ngón cái với tới mọi nút.</li>
         <li><b>PC, ngang:</b> bàn ở giữa, đồng bộ bên trái, cửa hàng bên dưới, Nhật Ký Combo bên phải.</li>
@@ -831,17 +865,17 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
     </section>
 
     <section id="hinh-tieng">
-      <h2><span class="n">21</span>Hình ảnh và âm thanh</h2>
+      <h2><span class="n">22</span>Hình ảnh và âm thanh</h2>
       <ul class="dots">
         <li>Sprite trận khoảng 64 px, 4–6 khung mỗi động tác, góc nhìn chéo nhẹ từ trên xuống.</li>
         <li>Sprite cảnh cắt lớn hơn (khoảng 256 px), nhìn ngang, một nền theo địa hình.</li>
-        <li>Phong cách vẽ: còn mở (mục 25).</li>
+        <li>Phong cách vẽ: còn mở (mục 26).</li>
         <li>Giọng tướng sinh trước lúc build bằng TTS tts.falevon.com: câu ra trận, câu tung chiêu, thoại cảnh cắt giữa các cặp có quan hệ. Không gọi mạng khi chơi.</li>
       </ul>
     </section>
 
     <section id="ky-thuat">
-      <h2><span class="n">22</span>Kỹ thuật</h2>
+      <h2><span class="n">23</span>Kỹ thuật</h2>
       <p>Khung C++ đã có trên master: godot-cpp 10.0.0 (API Godot 4.7), SCons, <code>falemag.gdextension</code>, node <code>SimClock</code>, và CI build Linux, Windows, Android, Web. Mục này bám theo quy ước trong <code>Docs/conventions.md</code> và <code>Docs/architecture.md</code> của repo.</p>
       <h3>Ba lớp</h3>
       <div class="tbl"><table>
@@ -891,7 +925,7 @@ Data/
     </section>
 
     <section id="pham-vi">
-      <h2><span class="n">23</span>Bản thử đầu tiên</h2>
+      <h2><span class="n">24</span>Bản thử đầu tiên</h2>
       <div class="tbl"><table>
         <thead><tr><th>Hạng mục</th><th>Phạm vi</th></tr></thead>
         <tbody>
@@ -908,7 +942,7 @@ Data/
     </section>
 
     <section id="thuat-ngu">
-      <h2><span class="n">24</span>Thuật ngữ</h2>
+      <h2><span class="n">25</span>Thuật ngữ</h2>
       <div class="tbl"><table>
         <tbody>
           <tr><td><b>Trận đồ</b></td><td>Hình dạng đội hình trên bàn, xếp đúng thì mở hiệu lực</td></tr>
@@ -921,6 +955,7 @@ Data/
           <tr><td><b>Binh Thư</b></td><td>Nâng cấp theo lớp quân, mỗi lớp một nhánh mỗi ván</td></tr>
           <tr><td><b>Trận Nhãn</b></td><td>Ô trên bàn đã khắc Ấn</td></tr>
           <tr><td><b>Cấp</b></td><td>Cấp chỉ huy 3–9, lên bằng lương: số quân trên bàn và tỉ lệ ra quân giá cao</td></tr>
+          <tr><td><b>Kỳ Ngộ</b></td><td>Mốc liên kết đột biến giữa ván khi tích đủ Ngộ</td></tr>
           <tr><td><b>Bậc ải</b></td><td>Mức khó 1–20, luật cộng dồn</td></tr>
           <tr><td><b>Chúa tể</b></td><td>Trận cuối ván, có luật phá combo</td></tr>
         </tbody>
@@ -928,7 +963,7 @@ Data/
     </section>
 
     <section id="cau-hoi">
-      <h2><span class="n">25</span>Câu hỏi còn mở</h2>
+      <h2><span class="n">26</span>Câu hỏi còn mở</h2>
       <ul class="dots">
         <li>Phong cách hình ảnh: pixel art, vẽ tay phẳng, hay cắt giấy có khớp?</li>
         <li>Trọng tâm phát hành: Hành Quân chơi đơn, hay Loạn Chiến 8 người?</li>
