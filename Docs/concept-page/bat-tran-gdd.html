@@ -136,7 +136,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
       <span class="eyebrow">Tài liệu thiết kế game · Falemag</span>
       <h1>Bát Trận</h1>
       <p class="lead">Auto chess kiếm, cung, giáp, phép, nơi <b>hình dạng đội hình là vũ khí</b>. Người chơi chỉ chuẩn bị; trận đánh tự diễn ra, và các tầng kết hợp tự kích hoạt lẫn nhau thành chuỗi combo.</p>
-      <div class="meta"><span>Bản 1.3 · 14/11/2026</span><span>Godot 4.7 · C++ GDExtension</span><span>PC yếu và điện thoại</span><span>Trạng thái: thiết kế, chưa cân bằng</span></div>
+      <div class="meta"><span>Bản 1.4 · 14/11/2026</span><span>Godot 4.7 · C++ GDExtension</span><span>PC yếu và điện thoại</span><span>Trạng thái: thiết kế, chưa cân bằng</span></div>
       <p class="note">Mọi con số trong tài liệu là <b>giá trị khởi điểm</b> để dựng bản thử, sẽ chỉnh khi chơi thử. Mọi tên riêng là tên tạm.</p>
     </header>
 
@@ -170,7 +170,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
       <div class="tbl"><table>
         <thead><tr><th>Tầng</th><th>Thời lượng</th><th>Người chơi làm gì</th></tr></thead>
         <tbody>
-          <tr><td><b>Lượt chuẩn bị</b></td><td class="num">30–90 giây</td><td>Mua, bán, ghép quân; gắn trang bị; xếp quân lên bàn; xem trước combo sẽ nổ</td></tr>
+          <tr><td><b>Lượt chuẩn bị</b></td><td class="num">60 giây, cố định</td><td>Mua, bán, ghép quân; gắn trang bị; xếp quân lên bàn; xem trước combo sẽ nổ. Hết giờ thì vào trận với đội đang xếp; xong sớm thì bấm Ra trận</td></tr>
           <tr><td><b>Trận</b></td><td class="num">30–45 giây</td><td>Xem trận tự đánh, xem chuỗi combo và cảnh cắt</td></tr>
           <tr><td><b>Chặng</b></td><td class="num">2–3 phút</td><td>Một nút trên bản đồ: trận, chợ quân, lò rèn, hạ trại, sự kiện</td></tr>
           <tr><td><b>Ván</b></td><td class="num">25–35 phút</td><td>12 chặng, kết thúc bằng chúa tể. Thắng thì mở khóa và lên bậc ải</td></tr>
@@ -183,6 +183,7 @@ pre{font-family:var(--mono);font-size:13px;background:var(--surface);border:1px 
       <h2><span class="n">04</span>Trận đánh</h2>
       <ul class="dots">
         <li><b>Bàn:</b> mỗi bên 5 cột × 3 hàng (tiền, trung, hậu). Hai bàn đối mặt nhau, hàng tiền của hai bên giáp nhau.</li>
+        <li><b>Lượt chuẩn bị:</b> cố định 60 giây trước mỗi trận, ở mọi chế độ. Đồng hồ đếm ngược ở đầu màn hình; 10 giây cuối chuyển đỏ. Hết giờ, quân đang cầm trên tay về chỗ cũ và trận bắt đầu.</li>
         <li><b>Quân số:</b> tối đa 8 quân trên bàn mỗi bên. Ghế dự bị chứa thêm 6 quân, không ra trận.</li>
         <li><b>Mô phỏng:</b> chạy 15 nhịp mỗi giây, tất định (cùng đầu vào cho cùng kết quả). Quân tự chọn mục tiêu theo luật của lớp (mục 06).</li>
         <li><b>Không hồi máu trong trận.</b> Máu chỉ giảm. Chữa thương chỉ có giữa các chặng.</li>
