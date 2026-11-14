@@ -81,17 +81,22 @@ func show_battle_layout() -> void:
 	_phase_tween.parallel().tween_property(capacity_chip, ^"modulate:a", 0.0, 0.2)
 	_phase_tween.parallel().tween_property(_battle_panel, ^"position:y", 0.0, 0.3).set_delay(0.15).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_phase_tween.parallel().tween_property(_battle_panel, ^"modulate:a", 1.0, 0.2).set_delay(0.15)
+	_battle_panel.visible = true
 	_battle_panel.mouse_filter = Control.MOUSE_FILTER_PASS
 
 
 ## Slides the preparation layout back.
 func show_prep_layout() -> void:
 	_restart_phase_tween()
+	# The slid-away battle panel still overlaps the fight button on short
+	# screens: it must not take presses meant for the preparation.
+	_battle_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_phase_tween.tween_property(_battle_panel, ^"position:y", SLIDE_PX, 0.25).set_ease(Tween.EASE_IN)
 	_phase_tween.parallel().tween_property(_battle_panel, ^"modulate:a", 0.0, 0.2)
 	_phase_tween.parallel().tween_property(_prep_panel, ^"position:y", 0.0, 0.3).set_delay(0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_phase_tween.parallel().tween_property(_prep_panel, ^"modulate:a", 1.0, 0.2).set_delay(0.1)
 	_phase_tween.parallel().tween_property(capacity_chip, ^"modulate:a", 1.0, 0.2)
+	_phase_tween.chain().tween_callback(_battle_panel.set_visible.bind(false))
 
 
 func _build_top_bar() -> Control:
@@ -214,6 +219,7 @@ func _build_battle_panel() -> Control:
 	_battle_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_battle_panel.position.y = SLIDE_PX
 	_battle_panel.modulate.a = 0.0
+	_battle_panel.visible = false
 	battle_status = BattleStatus.new()
 	battle_status.custom_minimum_size = Vector2(0, 2 * BattleStatus.ROW_HEIGHT_PX)
 	_battle_panel.add_child(battle_status)
