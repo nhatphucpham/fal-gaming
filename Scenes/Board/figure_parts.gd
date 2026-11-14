@@ -6,6 +6,9 @@ extends RefCounted
 ## blend of a weapon's key poses. Figure space: feet at (0, 0), head centre
 ## near (0, -44). See Docs/systems/board.md and the visual reference
 ## Docs/concept-page/unit-figures.html.
+## A grip (one key pose of a weapon) is a Vector4: the hand (x, y), the
+## weapon's angle (z, 0 up) and how far the weapon slides through the hand
+## along its length (w). A value, so drawing a figure allocates no objects.
 
 const SHOULDER_RIGHT := Vector2(10, -32)
 const SHOULDER_LEFT := Vector2(-10, -32)
@@ -37,22 +40,27 @@ static func pop_upper_body(brush: FigureBrush) -> void:
 	brush.pop()
 
 
-## A humanoid: cape, legs, then `back` (func(brush)) behind the torso and
-## `front` (func(brush, head_center)) for the arms, head and weapon.
-static func draw_humanoid(brush: FigureBrush, back: Callable, front: Callable) -> void:
-	var pose := brush.pose
+## Starts a humanoid: cape and legs, then pushes the upper-body frame.
+## Draw what goes behind the torso, then draw_trunk(), then the arms, head
+## and weapon, then end_humanoid(). Returns the head centre.
+static func begin_humanoid(brush: FigureBrush) -> Vector2:
 	var frame := body_frame(brush)
 	push_upper_body(brush, frame)
 	draw_cape(brush)
 	pop_upper_body(brush)
 	draw_legs(brush, frame.x)
 	push_upper_body(brush, frame)
-	if back.is_valid():
-		back.call(brush)
+	return head_center_of(brush.pose)
+
+
+## The torso and the pauldrons of a humanoid.
+static func draw_trunk(brush: FigureBrush) -> void:
 	draw_torso(brush)
 	draw_pauldrons(brush)
-	var head_center := head_center_of(pose)
-	front.call(brush, head_center)
+
+
+## Ends a humanoid: the crown, then pops the upper-body frame.
+static func end_humanoid(brush: FigureBrush, head_center: Vector2) -> void:
 	draw_crown(brush, head_center.x)
 	pop_upper_body(brush)
 
@@ -197,29 +205,32 @@ static func free_hand(brush: FigureBrush, side: float) -> Vector2:
 		-19.0 + sin(pose.step) * pose.stride * 3.0 * side - pose.flinch * 10.0 + pose.limp * 12.0 - pose.raise * 4.0)
 
 
-## The weapon hand and angle, blended from four key poses by strike and
-## raise, plus the idle wobble, the flinch jerk and the death sink.
-static func weapon_grip(brush: FigureBrush, ready: Grip, wind: Grip, strike: Grip, raised: Grip) -> Grip:
+## A grip from its hand, angle and slide.
+static func grip_of(hand: Vector2, angle: float, slide: float = 0.0) -> Vector4:
+	return Vector4(hand.x, hand.y, angle, slide)
+
+
+## The hand of a grip.
+static func hand_of(grip: Vector4) -> Vector2:
+	return Vector2(grip.x, grip.y)
+
+
+## The weapon grip blended from four key poses by strike and raise, plus the
+## idle wobble, the flinch jerk and the death sink.
+static func weapon_grip(brush: FigureBrush, ready: Vector4, wind: Vector4, strike: Vector4, raised: Vector4) -> Vector4:
 	var pose := brush.pose
-	var target := strike if pose.strike >= 0.0 else wind
-	var amount := absf(pose.strike)
-	var grip := Grip.new(ready.hand.lerp(target.hand, amount), lerpf(ready.angle, target.angle, amount), lerpf(ready.slide, target.slide, amount))
-	grip.hand = grip.hand.lerp(raised.hand, pose.raise)
-	grip.angle = lerpf(grip.angle, raised.angle, pose.raise) + pose.sway * 0.04 + pose.flinch * 0.5
-	grip.slide = lerpf(grip.slide, raised.slide, pose.raise)
-	grip.hand += Vector2(pose.flinch * 3.0, -pose.flinch * 4.0)
-	grip.hand = grip.hand.lerp(LIMP_HAND, pose.limp)
-	grip.angle = lerpf(grip.angle, 1.9, pose.limp)
-	return grip
+	var grip := ready.lerp(strike if pose.strike >= 0.0 else wind, absf(pose.strike)).lerp(raised, pose.raise)
+	grip += Vector4(pose.flinch * 3.0, -pose.flinch * 4.0, pose.sway * 0.04 + pose.flinch * 0.5, 0.0)
+	return grip.lerp(Vector4(LIMP_HAND.x, LIMP_HAND.y, 1.9, grip.w), pose.limp)
 
 
 ## The white smear of a swing, right after a strike.
-static func draw_slash_trail(brush: FigureBrush, grip: Grip, radius: float, sweep: float) -> void:
+static func draw_slash_trail(brush: FigureBrush, grip: Vector4, radius: float, sweep: float) -> void:
 	var amount := brush.pose.trail
 	if amount <= 0.0:
 		return
-	var end := grip.angle - PI / 2.0
-	brush.arc(grip.hand, radius, end - sweep, end, Color(Color.WHITE, amount * 0.75), 7.0)
+	var end := grip.z - PI / 2.0
+	brush.arc(hand_of(grip), radius, end - sweep, end, Color(Color.WHITE, amount * 0.75), 7.0)
 
 
 ## A straight white streak along a thrust, in the weapon's frame.
@@ -317,15 +328,3 @@ static func _dome(center: Vector2, radius_x: float, radius_y: float) -> PackedVe
 		dome.append(center + Vector2(cos(angle) * radius_x, -2.0 + sin(angle) * radius_y))
 	return dome
 
-
-## One key pose of a weapon: where the hand is, the weapon's angle (0 up),
-## and how far the weapon slides through the hand along its length.
-class Grip:
-	var hand: Vector2
-	var angle: float
-	var slide: float
-
-	func _init(grip_hand: Vector2, grip_angle: float, grip_slide: float = 0.0) -> void:
-		hand = grip_hand
-		angle = grip_angle
-		slide = grip_slide

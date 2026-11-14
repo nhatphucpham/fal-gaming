@@ -6,105 +6,117 @@ extends RefCounted
 ## strike, raise) that FigureParts.weapon_grip blends by the pose. Port of
 ## the prototype in Docs/concept-page/unit-figures.html.
 
-const Grip := FigureParts.Grip
 const RIGHT: float = 1.0
 const LEFT: float = -1.0
+# Key poses that do not depend on the aim (see FigureParts: hand, angle, slide).
+const SWORD_READY := Vector4(16, -26, 0.3, 0)
+const SWORD_RAISED := Vector4(14, -47, 0.05, 0)
+const SHIELD_READY := Vector4(16, -24, 0.6, 0)
+const SHIELD_RAISED := Vector4(15, -46, 0.1, 0)
+const SPEAR_READY := Vector4(16, -27, 0.0, 0)
+const SPEAR_RAISED := Vector4(15, -44, 0.0, -6)
+const MAGE_READY := Vector4(16, -30, 0.0, 0)
+const MAGE_WIND := Vector4(13, -34, -0.45, 0)
+const MAGE_RAISED := Vector4(14, -42, 0.0, -8)
+const LANCE_READY := Vector4(11, -6, 0.55, 0)
+const LANCE_WIND_HAND := Vector2(6, -8)
+const LANCE_RAISED := Vector4(11, -24, 0.15, -4)
 
 
 ## No weapon: both hands hang free.
 static func draw_plain(brush: FigureBrush) -> void:
-	FigureParts.draw_humanoid(brush, Callable(), func(b: FigureBrush, head_center: Vector2) -> void:
-		FigureParts.draw_arm(b, LEFT, FigureParts.free_hand(b, LEFT), b.tunic)
-		FigureParts.draw_head(b, head_center)
-		FigureParts.draw_arm(b, RIGHT, FigureParts.free_hand(b, RIGHT), b.tunic))
+	var head_center := FigureParts.begin_humanoid(brush)
+	FigureParts.draw_trunk(brush)
+	FigureParts.draw_arm(brush, LEFT, FigureParts.free_hand(brush, LEFT), brush.tunic)
+	FigureParts.draw_head(brush, head_center)
+	FigureParts.draw_arm(brush, RIGHT, FigureParts.free_hand(brush, RIGHT), brush.tunic)
+	FigureParts.end_humanoid(brush, head_center)
 
 
 ## A sword swung in an arc, a scabbard on the back.
 static func draw_sword(brush: FigureBrush) -> void:
-	var aim := brush.pose.aim
-	var direction := FigureBrush.dir_of(aim)
-	var ready := Grip.new(Vector2(16, -26), 0.3)
-	var wind := Grip.new(FigureParts.SHOULDER_RIGHT + Vector2(2 - direction.x * 3, -9), aim - 1.9)
-	var strike := Grip.new(FigureParts.SHOULDER_RIGHT + direction * 11.0, aim + 0.75)
-	var raised := Grip.new(Vector2(14, -47), 0.05)
-	var glow_color := Palette.class_color(brush.unit.class_id)
-	FigureParts.draw_humanoid(brush, func(b: FigureBrush) -> void:
-		b.stick(Vector2(-7, -18), Vector2(-17, -5), 3.5, UnitPainter.LEATHER),
-		func(b: FigureBrush, head_center: Vector2) -> void:
-			FigureParts.draw_arm(b, LEFT, FigureParts.free_hand(b, LEFT), b.tunic)
-			FigureParts.draw_head(b, head_center)
-			var grip := FigureParts.weapon_grip(b, ready, wind, strike, raised)
-			FigureParts.draw_slash_trail(b, grip, 22.0, 1.9)
-			FigureParts.draw_arm(b, RIGHT, grip.hand, b.tunic)
-			b.push(grip.hand, grip.angle)
-			b.glow(Vector2(0, -18), 16.0, glow_color, b.pose.glow)
-			b.poly(PackedVector2Array([Vector2(-2.4, -3), Vector2(2.4, -3), Vector2(2.4, -24), Vector2(0, -31), Vector2(-2.4, -24)]), Palette.STEEL)
-			b.line(PackedVector2Array([Vector2(0, -5), Vector2(0, -24)]), UnitPainter.STEEL_DARK, 1.0)
-			b.stick(Vector2(-5.5, -3), Vector2(5.5, -3), 2.5, Palette.OCHRE)
-			b.stick(Vector2(0, -2), Vector2(0, 4), 2.5, UnitPainter.LEATHER)
-			b.pop()
-			b.circle(grip.hand, FigureParts.HAND_RADIUS, b.skin))
+	var pose := brush.pose
+	var direction := FigureBrush.dir_of(pose.aim)
+	var head_center := FigureParts.begin_humanoid(brush)
+	brush.stick(Vector2(-7, -18), Vector2(-17, -5), 3.5, UnitPainter.LEATHER)
+	FigureParts.draw_trunk(brush)
+	FigureParts.draw_arm(brush, LEFT, FigureParts.free_hand(brush, LEFT), brush.tunic)
+	FigureParts.draw_head(brush, head_center)
+	var wind := FigureParts.grip_of(FigureParts.SHOULDER_RIGHT + Vector2(2 - direction.x * 3, -9), pose.aim - 1.9)
+	var strike := FigureParts.grip_of(FigureParts.SHOULDER_RIGHT + direction * 11.0, pose.aim + 0.75)
+	var grip := FigureParts.weapon_grip(brush, SWORD_READY, wind, strike, SWORD_RAISED)
+	var hand := FigureParts.hand_of(grip)
+	FigureParts.draw_slash_trail(brush, grip, 22.0, 1.9)
+	FigureParts.draw_arm(brush, RIGHT, hand, brush.tunic)
+	brush.push(hand, grip.z)
+	brush.glow(Vector2(0, -18), 16.0, Palette.class_color(brush.unit.class_id), pose.glow)
+	brush.poly(PackedVector2Array([Vector2(-2.4, -3), Vector2(2.4, -3), Vector2(2.4, -24), Vector2(0, -31), Vector2(-2.4, -24)]), Palette.STEEL)
+	brush.line(PackedVector2Array([Vector2(0, -5), Vector2(0, -24)]), UnitPainter.STEEL_DARK, 1.0)
+	brush.stick(Vector2(-5.5, -3), Vector2(5.5, -3), 2.5, Palette.OCHRE)
+	brush.stick(Vector2(0, -2), Vector2(0, 4), 2.5, UnitPainter.LEATHER)
+	brush.pop()
+	brush.circle(hand, FigureParts.HAND_RADIUS, brush.skin)
+	FigureParts.end_humanoid(brush, head_center)
 
 
 ## A short blade and a kite shield on the off arm: raised to guard, shoved
 ## toward the target to bash.
 static func draw_shield(brush: FigureBrush) -> void:
-	var aim := brush.pose.aim
-	var direction := FigureBrush.dir_of(aim)
-	var ready := Grip.new(Vector2(16, -24), 0.6)
-	var wind := Grip.new(Vector2(15, -37), aim - 1.7)
-	var strike := Grip.new(FigureParts.SHOULDER_RIGHT + direction * 10.0, aim + 0.6)
-	var raised := Grip.new(Vector2(15, -46), 0.1)
-	var glow_color := Palette.class_color(brush.unit.class_id)
-	FigureParts.draw_humanoid(brush, Callable(), func(b: FigureBrush, head_center: Vector2) -> void:
-		var pose := b.pose
-		var grip := FigureParts.weapon_grip(b, ready, wind, strike, raised)
-		FigureParts.draw_slash_trail(b, grip, 15.0, 1.6)
-		FigureParts.draw_arm(b, RIGHT, grip.hand, b.tunic)
-		b.push(grip.hand, grip.angle)
-		b.poly(PackedVector2Array([Vector2(-2.6, -2), Vector2(2.6, -2), Vector2(3, -15), Vector2(0, -19), Vector2(-3, -15)]), Palette.STEEL)
-		b.stick(Vector2(-4.5, -2), Vector2(4.5, -2), 2.5, Palette.OCHRE)
-		b.pop()
-		b.circle(grip.hand, FigureParts.HAND_RADIUS, b.skin)
-		FigureParts.draw_head(b, head_center)
-		var bash := maxf(0.0, pose.strike)
-		var center := Vector2(-13, -22)
-		center += Vector2(pose.guard * 9.0 + bash * (6.0 + direction.x * 5.0), -pose.guard * 7.0 + bash * direction.y * 5.0 - pose.raise * 8.0)
-		center += Vector2(pose.flinch * 2.0, pose.limp * 12.0)
-		var size := 1.0 + pose.guard * 0.12 + bash * 0.08
-		b.limb(FigureParts.SHOULDER_LEFT, center + Vector2(2, -3), FigureParts.ARM_BONE, FigureParts.ARM_BONE, -1.0, 4.0, b.tunic)
-		b.push(center, -0.06 + pose.guard * 0.1 + pose.limp * 0.9, Vector2(size, size))
-		b.glow(Vector2.ZERO, 26.0, glow_color, maxf(pose.glow, pose.guard * 0.8))
-		b.poly(PackedVector2Array([Vector2(-14, -19), Vector2(14, -19), Vector2(15, -3), Vector2(0, 21), Vector2(-15, -3)]), Palette.VERMILION)
-		b.outline(PackedVector2Array([Vector2(-10, -15), Vector2(10, -15), Vector2(10.5, -3), Vector2(0, 14), Vector2(-10.5, -3)]), b.trim, 2.0)
-		b.circle(Vector2(0, -5), 4.6, Palette.OCHRE)
-		b.dot(Vector2(0, -5), 1.6, Palette.INK)
-		b.pop())
+	var pose := brush.pose
+	var direction := FigureBrush.dir_of(pose.aim)
+	var head_center := FigureParts.begin_humanoid(brush)
+	FigureParts.draw_trunk(brush)
+	var wind := FigureParts.grip_of(Vector2(15, -37), pose.aim - 1.7)
+	var strike := FigureParts.grip_of(FigureParts.SHOULDER_RIGHT + direction * 10.0, pose.aim + 0.6)
+	var grip := FigureParts.weapon_grip(brush, SHIELD_READY, wind, strike, SHIELD_RAISED)
+	var hand := FigureParts.hand_of(grip)
+	FigureParts.draw_slash_trail(brush, grip, 15.0, 1.6)
+	FigureParts.draw_arm(brush, RIGHT, hand, brush.tunic)
+	brush.push(hand, grip.z)
+	brush.poly(PackedVector2Array([Vector2(-2.6, -2), Vector2(2.6, -2), Vector2(3, -15), Vector2(0, -19), Vector2(-3, -15)]), Palette.STEEL)
+	brush.stick(Vector2(-4.5, -2), Vector2(4.5, -2), 2.5, Palette.OCHRE)
+	brush.pop()
+	brush.circle(hand, FigureParts.HAND_RADIUS, brush.skin)
+	FigureParts.draw_head(brush, head_center)
+	var bash := maxf(0.0, pose.strike)
+	var center := Vector2(-13, -22)
+	center += Vector2(pose.guard * 9.0 + bash * (6.0 + direction.x * 5.0), -pose.guard * 7.0 + bash * direction.y * 5.0 - pose.raise * 8.0)
+	center += Vector2(pose.flinch * 2.0, pose.limp * 12.0)
+	var size := 1.0 + pose.guard * 0.12 + bash * 0.08
+	brush.limb(FigureParts.SHOULDER_LEFT, center + Vector2(2, -3), FigureParts.ARM_BONE, FigureParts.ARM_BONE, -1.0, 4.0, brush.tunic)
+	brush.push(center, -0.06 + pose.guard * 0.1 + pose.limp * 0.9, Vector2(size, size))
+	brush.glow(Vector2.ZERO, 26.0, Palette.class_color(brush.unit.class_id), maxf(pose.glow, pose.guard * 0.8))
+	brush.poly(PackedVector2Array([Vector2(-14, -19), Vector2(14, -19), Vector2(15, -3), Vector2(0, 21), Vector2(-15, -3)]), Palette.VERMILION)
+	brush.outline(PackedVector2Array([Vector2(-10, -15), Vector2(10, -15), Vector2(10.5, -3), Vector2(0, 14), Vector2(-10.5, -3)]), brush.trim, 2.0)
+	brush.circle(Vector2(0, -5), 4.6, Palette.OCHRE)
+	brush.dot(Vector2(0, -5), 1.6, Palette.INK)
+	brush.pop()
+	FigureParts.end_humanoid(brush, head_center)
 
 
 ## A long spear held upright, levelled and thrust at the target.
 static func draw_spear(brush: FigureBrush) -> void:
-	var aim := brush.pose.aim
-	var direction := FigureBrush.dir_of(aim)
-	var ready := Grip.new(Vector2(16, -27), 0.0)
-	var wind := Grip.new(FigureParts.SHOULDER_RIGHT + Vector2(-direction.x * 4 + 3, -direction.y * 4 + 4), aim, -9.0)
-	var strike := Grip.new(FigureParts.SHOULDER_RIGHT + direction * 14.0, aim, 12.0)
-	var raised := Grip.new(Vector2(15, -44), 0.0, -6.0)
-	var glow_color := Palette.class_color(brush.unit.class_id)
-	FigureParts.draw_humanoid(brush, Callable(), func(b: FigureBrush, head_center: Vector2) -> void:
-		FigureParts.draw_arm(b, LEFT, FigureParts.free_hand(b, LEFT), b.tunic)
-		FigureParts.draw_head(b, head_center)
-		var grip := FigureParts.weapon_grip(b, ready, wind, strike, raised)
-		b.push(grip.hand, grip.angle)
-		var offset := -grip.slide
-		FigureParts.draw_thrust_trail(b, offset - 20.0, offset - 62.0)
-		b.stick(Vector2(0, offset + 28), Vector2(0, offset - 36), 3.0, Palette.WOOD)
-		b.glow(Vector2(0, offset - 44), 14.0, glow_color, b.pose.glow)
-		b.poly(PackedVector2Array([Vector2(0, offset - 52), Vector2(5, offset - 38), Vector2(0, offset - 34), Vector2(-5, offset - 38)]), Palette.STEEL)
-		var swing := b.pose.sway * 2.0 - b.pose.strike * 3.0
-		b.stick_path(PackedVector2Array([Vector2(0, offset - 33), Vector2(-2 + swing, offset - 27), Vector2(-1 + swing * 1.5, offset - 22)]), 2.4, Palette.VERMILION)
-		b.pop()
-		FigureParts.draw_arm(b, RIGHT, grip.hand, b.tunic))
+	var pose := brush.pose
+	var direction := FigureBrush.dir_of(pose.aim)
+	var head_center := FigureParts.begin_humanoid(brush)
+	FigureParts.draw_trunk(brush)
+	FigureParts.draw_arm(brush, LEFT, FigureParts.free_hand(brush, LEFT), brush.tunic)
+	FigureParts.draw_head(brush, head_center)
+	var wind := FigureParts.grip_of(FigureParts.SHOULDER_RIGHT + Vector2(-direction.x * 4 + 3, -direction.y * 4 + 4), pose.aim, -9.0)
+	var strike := FigureParts.grip_of(FigureParts.SHOULDER_RIGHT + direction * 14.0, pose.aim, 12.0)
+	var grip := FigureParts.weapon_grip(brush, SPEAR_READY, wind, strike, SPEAR_RAISED)
+	var hand := FigureParts.hand_of(grip)
+	brush.push(hand, grip.z)
+	var offset := -grip.w
+	FigureParts.draw_thrust_trail(brush, offset - 20.0, offset - 62.0)
+	brush.stick(Vector2(0, offset + 28), Vector2(0, offset - 36), 3.0, Palette.WOOD)
+	brush.glow(Vector2(0, offset - 44), 14.0, Palette.class_color(brush.unit.class_id), pose.glow)
+	brush.poly(PackedVector2Array([Vector2(0, offset - 52), Vector2(5, offset - 38), Vector2(0, offset - 34), Vector2(-5, offset - 38)]), Palette.STEEL)
+	var swing := pose.sway * 2.0 - pose.strike * 3.0
+	brush.stick_path(PackedVector2Array([Vector2(0, offset - 33), Vector2(-2 + swing, offset - 27), Vector2(-1 + swing * 1.5, offset - 22)]), 2.4, Palette.VERMILION)
+	brush.pop()
+	FigureParts.draw_arm(brush, RIGHT, hand, brush.tunic)
+	FigureParts.end_humanoid(brush, head_center)
 
 
 ## A bow: lowered at rest, held out along the aim while drawn or loosed;
@@ -122,32 +134,32 @@ static func draw_archer(brush: FigureBrush) -> void:
 	var bow_direction := FigureBrush.dir_of(bow_angle)
 	var pull := drawn * 12.0
 	var string_hand := bow_hand + bow_direction * -(7.0 + pull)
-	var glow_color := Palette.class_color(brush.unit.class_id)
-	FigureParts.draw_humanoid(brush, func(b: FigureBrush) -> void:
-		b.stick(Vector2(-13, -42), Vector2(-15.5, -49), 1.6, Palette.CREAM)
-		b.stick(Vector2(-16, -41), Vector2(-19.5, -47), 1.6, Palette.VERMILION)
-		b.poly(PackedVector2Array([Vector2(-18, -41), Vector2(-11, -44), Vector2(-5, -24), Vector2(-11, -21)]), UnitPainter.LEATHER),
-		func(b: FigureBrush, head_center: Vector2) -> void:
-			FigureParts.draw_head(b, head_center)
-			var off_hand := FigureParts.free_hand(b, LEFT).lerp(string_hand, drawn)
-			if loose > 0.0:
-				off_hand = string_hand.lerp(string_hand - bow_direction * 6.0, loose)
-			FigureParts.draw_arm(b, LEFT, off_hand, b.tunic)
-			b.push(bow_hand, bow_angle)
-			b.glow(Vector2(0, -4), 18.0, glow_color, pose.glow)
-			# In bow space the arrow flies along -y; the limbs spread along x.
-			var tip := Vector2(18.0 - drawn * 3.0, 7.0 + drawn * 4.0)
-			var string_y := 7.0 + pull - loose * 3.0
-			b.line(PackedVector2Array([Vector2(-tip.x, tip.y), Vector2(0, string_y), tip]), Palette.CREAM, 1.3)
-			var limbs := _quadratic(Vector2(-tip.x, tip.y), Vector2(0, -15.0 - drawn * 2.0), tip)
-			b.line(limbs, Palette.INK, 6.5)
-			b.line(limbs, b.tint(Palette.WOOD), 3.2)
-			b.stick(Vector2(0, -5.5), Vector2(0, -1.5), 4.0, UnitPainter.LEATHER)
-			if pose.arrow > 0.0 and (drawn > 0.02 or pose.raise > 0.3):
-				b.stick(Vector2(0, string_y), Vector2(0, string_y - 27), 1.5, Palette.CREAM)
-				b.poly(PackedVector2Array([Vector2(0, string_y - 33), Vector2(3, string_y - 26), Vector2(-3, string_y - 26)]), Palette.STEEL)
-			b.pop()
-			FigureParts.draw_arm(b, RIGHT, bow_hand, b.tunic))
+	var head_center := FigureParts.begin_humanoid(brush)
+	brush.stick(Vector2(-13, -42), Vector2(-15.5, -49), 1.6, Palette.CREAM)
+	brush.stick(Vector2(-16, -41), Vector2(-19.5, -47), 1.6, Palette.VERMILION)
+	brush.poly(PackedVector2Array([Vector2(-18, -41), Vector2(-11, -44), Vector2(-5, -24), Vector2(-11, -21)]), UnitPainter.LEATHER)
+	FigureParts.draw_trunk(brush)
+	FigureParts.draw_head(brush, head_center)
+	var off_hand := FigureParts.free_hand(brush, LEFT).lerp(string_hand, drawn)
+	if loose > 0.0:
+		off_hand = string_hand.lerp(string_hand - bow_direction * 6.0, loose)
+	FigureParts.draw_arm(brush, LEFT, off_hand, brush.tunic)
+	brush.push(bow_hand, bow_angle)
+	brush.glow(Vector2(0, -4), 18.0, Palette.class_color(brush.unit.class_id), pose.glow)
+	# In bow space the arrow flies along -y; the limbs spread along x.
+	var tip := Vector2(18.0 - drawn * 3.0, 7.0 + drawn * 4.0)
+	var string_y := 7.0 + pull - loose * 3.0
+	brush.line(PackedVector2Array([Vector2(-tip.x, tip.y), Vector2(0, string_y), tip]), Palette.CREAM, 1.3)
+	var limbs := _quadratic(Vector2(-tip.x, tip.y), Vector2(0, -15.0 - drawn * 2.0), tip)
+	brush.line(limbs, Palette.INK, 6.5)
+	brush.line(limbs, brush.tint(Palette.WOOD), 3.2)
+	brush.stick(Vector2(0, -5.5), Vector2(0, -1.5), 4.0, UnitPainter.LEATHER)
+	if pose.arrow > 0.0 and (drawn > 0.02 or pose.raise > 0.3):
+		brush.stick(Vector2(0, string_y), Vector2(0, string_y - 27), 1.5, Palette.CREAM)
+		brush.poly(PackedVector2Array([Vector2(0, string_y - 33), Vector2(3, string_y - 26), Vector2(-3, string_y - 26)]), Palette.STEEL)
+	brush.pop()
+	FigureParts.draw_arm(brush, RIGHT, bow_hand, brush.tunic)
+	FigureParts.end_humanoid(brush, head_center)
 
 
 ## A robe instead of legs and a staff with a floating orb in the unit's
@@ -156,10 +168,7 @@ static func draw_mage(brush: FigureBrush) -> void:
 	var pose := brush.pose
 	var direction := FigureBrush.dir_of(pose.aim)
 	var orb_color: Color = UnitPainter.ELEMENT_COLORS.get(brush.unit.element_id, Palette.OCHRE)
-	var ready := Grip.new(Vector2(16, -30), 0.0)
-	var wind := Grip.new(Vector2(13, -34), -0.45)
-	var strike := Grip.new(FigureParts.SHOULDER_RIGHT + direction * 9.0, lerpf(0.2, pose.aim, 0.55))
-	var raised := Grip.new(Vector2(14, -42), 0.0, -8.0)
+	var strike := FigureParts.grip_of(FigureParts.SHOULDER_RIGHT + direction * 9.0, lerpf(0.2, pose.aim, 0.55))
 	var frame := FigureParts.body_frame(brush)
 	var hem := pose.sway * 1.5 + sin(pose.step) * pose.stride * 2.5
 	var hem_lift := -frame.x * 0.6
@@ -181,9 +190,10 @@ static func draw_mage(brush: FigureBrush) -> void:
 	var cast := maxf(pose.raise, maxf(0.0, pose.strike) * 0.6)
 	FigureParts.draw_arm(brush, LEFT, FigureParts.free_hand(brush, LEFT).lerp(Vector2(-15, -38), cast), brush.tunic)
 	FigureParts.draw_head(brush, head_center)
-	var grip := FigureParts.weapon_grip(brush, ready, wind, strike, raised)
-	brush.push(grip.hand, grip.angle)
-	var offset := -grip.slide
+	var grip := FigureParts.weapon_grip(brush, MAGE_READY, MAGE_WIND, strike, MAGE_RAISED)
+	var hand := FigureParts.hand_of(grip)
+	brush.push(hand, grip.z)
+	var offset := -grip.w
 	brush.stick(Vector2(0, offset + 30), Vector2(0, offset - 24), 3.0, Palette.WOOD)
 	brush.stick_path(PackedVector2Array([Vector2(-3.5, offset - 24), Vector2(0, offset - 21), Vector2(3.5, offset - 24)]), 2.2, Palette.OCHRE)
 	# The orb bobs when idle and swells while casting.
@@ -193,9 +203,8 @@ static func draw_mage(brush: FigureBrush) -> void:
 	brush.circle(orb, 5.2 * grow, orb_color)
 	brush.dot(orb + Vector2(-1.6, -1.8) * grow, 1.4 * grow, Color.WHITE)
 	brush.pop()
-	FigureParts.draw_arm(brush, RIGHT, grip.hand, brush.tunic)
-	FigureParts.draw_crown(brush, head_center.x)
-	FigureParts.pop_upper_body(brush)
+	FigureParts.draw_arm(brush, RIGHT, hand, brush.tunic)
+	FigureParts.end_humanoid(brush, head_center)
 
 
 ## A rider on a galloping horse with a lance: couched at rest, levelled and
@@ -274,14 +283,13 @@ static func _draw_lance(brush: FigureBrush) -> void:
 	var aim := clampf(pose.aim, 0.9, 2.3)
 	var direction := FigureBrush.dir_of(aim)
 	var shoulder := Vector2(8, -14)
-	var ready := Grip.new(Vector2(11, -6), 0.55)
-	var target := Grip.new(shoulder + direction * 11.0, aim, 12.0) if pose.strike >= 0.0 else Grip.new(Vector2(6, -8), aim, -8.0)
-	var raised := Grip.new(Vector2(11, -24), 0.15, -4.0)
+	var target := FigureParts.grip_of(shoulder + direction * 11.0, aim, 12.0) if pose.strike >= 0.0 else FigureParts.grip_of(LANCE_WIND_HAND, aim, -8.0)
 	var amount := absf(pose.strike)
-	var hand := ready.hand.lerp(target.hand, amount).lerp(raised.hand, pose.raise)
+	var grip := LANCE_READY.lerp(target, amount).lerp(LANCE_RAISED, pose.raise)
+	var hand := FigureParts.hand_of(grip)
 	# Running lowers the lance toward level unless it is already in use.
-	var angle := lerpf(lerpf(lerpf(ready.angle, target.angle, amount), raised.angle, pose.raise), 1.2, run * (1.0 - amount) * (1.0 - pose.raise) * 0.6)
-	var slide := lerpf(lerpf(0.0, target.slide, amount), raised.slide, pose.raise)
+	var angle := lerpf(grip.z, 1.2, run * (1.0 - amount) * (1.0 - pose.raise) * 0.6)
+	var slide := grip.w
 	angle += pose.flinch * 0.5
 	hand = hand.lerp(Vector2(14, 6), pose.limp)
 	angle = lerpf(angle, 1.8, pose.limp)

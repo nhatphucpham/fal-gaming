@@ -50,9 +50,9 @@ static func draw_colossus(brush: FigureBrush) -> void:
 		brush.poly(PackedVector2Array([Vector2(side * 14, -57), Vector2(side * 28, -52), Vector2(side * 20, -48)]), MOSS)
 	brush.poly(PackedVector2Array([Vector2(-9, -56), Vector2(9, -56), Vector2(11, -68), Vector2(0, -74), Vector2(-11, -68)]), STONE_LIGHT)
 	for side: float in [-1.0, 1.0]:
-		brush.canvas.draw_circle(Vector2(side * 4.5, -64 + brush.facing), 2.4, brush.tint(EMBER))
+		brush.dot(Vector2(side * 4.5, -64 + brush.facing), 2.4, brush.tint(EMBER))
 	# Cracks in the chest.
-	brush.canvas.draw_polyline(PackedVector2Array([Vector2(-4, -44), Vector2(0, -36), Vector2(-3, -28), Vector2(2, -20)]), Palette.INK, 1.5, true)
+	brush.line(PackedVector2Array([Vector2(-4, -44), Vector2(0, -36), Vector2(-3, -28), Vector2(2, -20)]), Palette.INK, 1.5)
 	brush.crown_y = -76.0
 
 
@@ -67,7 +67,7 @@ static func draw_sage(brush: FigureBrush) -> void:
 	brush.circle(Vector2(0, -45), 8.5, UnitPainter.SKIN)
 	brush.poly(PackedVector2Array([Vector2(-7, -42), Vector2(7, -42), Vector2(3, -26), Vector2(0, -22), Vector2(-3, -26)]), BEARD)
 	for side: float in [-1.0, 1.0]:
-		brush.canvas.draw_circle(Vector2(side * 3.2, -46 + brush.facing), 1.3, Palette.INK)
+		brush.dot(Vector2(side * 3.2, -46 + brush.facing), 1.3, Palette.INK)
 	brush.poly(PackedVector2Array([Vector2(-17, -49), Vector2(17, -49), Vector2(0, -64)]), STRAW)
 	brush.crown_y = -66.0
 

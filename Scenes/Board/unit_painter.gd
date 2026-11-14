@@ -63,7 +63,7 @@ static func draw_figure(canvas: CanvasItem, unit: UnitData, facing: int, flash: 
 	drawer.call(brush)
 	# Figures outside the six classes do not place their own crown.
 	FigureParts.draw_crown(brush, 0.0)
-	canvas.draw_set_transform(Vector2.ZERO)
+	brush.finish()
 
 
 ## True when the class's figure follows a UnitPose (not the boss or sage).
