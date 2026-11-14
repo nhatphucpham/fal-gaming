@@ -22,6 +22,10 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Added
 
+- Voice: an optional `Voice` module can speak dialogue lines with the
+  Falevon TTS service and keeps every line in a cache, so it is generated
+  once. Nothing in the game speaks yet; `Scenes/Dev/voice_demo.tscn` tries
+  it. Without a key or a connection the game shows the text only.
 - Road encounters ("Dọc đường"): after the reward of stages 2, 4, 6, 8
   and 10 the army meets someone on a painted road (merchants, deserters,
   a wager, villagers, a stranger and more; eight in all, never one twice
