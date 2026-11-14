@@ -281,7 +281,12 @@ spear), lane-target charges (a neighbour-column target: diagonal stop,
 impact and the same one-row knockback; no charge and no `charge_ended`
 with an enemy far to the side, back-rank enemies to the sides, or an ally
 in front; after hitting a shield the rider turns to a mage diagonally next
-to it; two riders against a line give the same hash twice), hold line, switching to an enemy in range, mage row hits, walk,
+to it; a tie between both neighbouring columns goes to the rider's own
+left on either side; riders in the edge columns 1 and 7 of either side
+charge their one neighbouring column; a rider whose target dies or walks
+out of the lane on the way picks the enemy left in its lane; Đột Trận
+right after the opening hits the front enemy it aims at without moving the
+rider; two riders against a line give the same hash twice), hold line, switching to an enemy in range, mage row hits, walk,
 charge and knockback durations, the time limit (the higher score wins with
 fewer units, then both tie rules: more living units, then B), a full 8v8
 that ends by elimination (it prints its length), and coordinate round trips.

@@ -178,7 +178,21 @@ func validate() -> PackedStringArray:
 			break
 	if streak_gold_wins.size() != streak_gold_bonus.size() or loot_gold < 1:
 		problems.append("Run: %s needs one streak_gold_bonus per streak_gold_wins and loot_gold above 0" % resource_path)
-	for stage: int in encounter_stages:
+	problems.append_array(_validate_encounter_stages())
+	return problems
+
+
+# Encounter stages are sorted, each once, in 1..stage_count - 1, and never
+# the boss stage or the stage before it (its reward leads to the story
+# scene, which the run screen plays instead of an encounter).
+func _validate_encounter_stages() -> PackedStringArray:
+	var problems := PackedStringArray()
+	for index: int in encounter_stages.size():
+		var stage := encounter_stages[index]
 		if stage < 1 or stage >= stage_count:
 			problems.append("Run: %s has encounter stage %d, expected 1..%d" % [resource_path, stage, stage_count - 1])
+		if stage == boss_stage or stage == boss_stage - 1:
+			problems.append("Run: %s has encounter stage %d at the boss stage %d or the story stage before it" % [resource_path, stage, boss_stage])
+		if index > 0 and stage <= encounter_stages[index - 1]:
+			problems.append("Run: %s has encounter_stages %s, expected each once in increasing order" % [resource_path, encounter_stages])
 	return problems

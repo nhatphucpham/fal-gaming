@@ -81,6 +81,7 @@ var _rewards: Array[Reward] = []
 # refresh is free.
 var _is_black_market: bool = false
 var _free_refreshes: int = 0
+# The black market was taken at a road stage and opens after the encounter.
 var _is_black_market_next: bool = false
 # Free refreshes a road encounter gave for the next preparation.
 var _encounter_refreshes: int = 0
@@ -428,7 +429,7 @@ func choose_encounter(option: int) -> Result:
 	if refusal != Result.OK:
 		return refusal
 	var data := encounters.get_pending()
-	encounters.clear_pending()
+	encounters.take(option)
 	var handlers := _get_effect_handlers()
 	for effect: EncounterEffect in data.options[option].effects:
 		handlers[effect.kind].call(effect.amount)
@@ -448,8 +449,8 @@ func to_save_data() -> Dictionary:
 		"stage": stage, "stages_cleared": stages_cleared, "morale": morale, "gold": gold,
 		"supply": supply, "level": level, "next_piece_id": _roster.get_next_id(),
 		"pieces": _roster.to_save_data(), "shop": _shop.get_offers().map(func(id: StringName) -> String: return String(id)),
-		"black_market": _is_black_market, "free_refreshes": _free_refreshes,
-		"rewards": _rewards.map(func(reward: Reward) -> String: return String(REWARD_IDS[reward])),
+		"black_market": _is_black_market, "black_market_next": _is_black_market_next,
+		"free_refreshes": _free_refreshes, "rewards": _rewards.map(func(reward: Reward) -> String: return String(REWARD_IDS[reward])),
 		"epiphany": epiphanies.to_save_data(),
 		"encounter": encounters.to_save_data(), "win_streak": win_streak,
 	}
@@ -485,6 +486,7 @@ func load_save_data(data: Dictionary) -> bool:
 	_rng.state = fields["rng_state"]
 	_shop.set_offers(fields["shop"])
 	_is_black_market = fields["black_market"]
+	_is_black_market_next = fields["black_market_next"]
 	win_streak = fields["win_streak"]
 	# Only a black-market stage or the stage after an encounter has free
 	# refreshes, and never more than they give.

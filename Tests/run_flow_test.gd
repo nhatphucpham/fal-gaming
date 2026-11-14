@@ -60,7 +60,7 @@ func _run() -> bool:
 	var checks: Array[Callable] = [
 		_check_place, _check_bench_gap_drag, _check_sell_zone_release, _check_battle, _check_reward,
 		_check_reward_after_reload, _check_second_fight_press, _check_prep_saves, _check_sell_zone_hold_and_slide,
-		_check_loss_deletes_save, _check_bad_save_cleared, _check_epiphany_flow, _check_encounter_resume, _check_story_and_boss_loss,
+		_check_loss_deletes_save, _check_bad_save_cleared, _check_epiphany_flow, _check_encounter_resume, _check_loot_gold_chip, _check_story_and_boss_loss,
 		_check_boss_win,
 	]
 	for check: Callable in checks:
@@ -461,7 +461,7 @@ func _touch_encounter_card(run: RunState, cutscene: CutsceneScreen) -> bool:
 # shakes it and changes nothing; the other card goes on to stage 3.
 func _check_encounter_resume() -> bool:
 	var run := _saved_run({"phase": "encounter", "stage": 2, "stages_cleared": 2, "gold": 0, "rewards": [],
-		"encounter": {"drawn": ["encounter.deserters"], "pending": "encounter.deserters", "bet_gold": 0}}, {})
+		"encounter": {"drawn": ["encounter.deserters"], "pending": "encounter.deserters", "taken": -1, "bet_gold": 0}}, {})
 	if run == null:
 		return false
 	_screen = _main.continue_run()
@@ -490,13 +490,75 @@ func _check_encounter_resume() -> bool:
 	if refused != [0] or run.phase != RunState.Phase.ENCOUNTER or run.gold != 0:
 		push_error("A touch on the greyed card should be refused and change nothing (refused %s)" % [refused])
 		return false
+	var shown := _watch_gold_chip()
 	if not await _touch_encounter_card(run, cutscene):
 		return false
 	await create_timer(1.5).timeout
-	if run.phase != RunState.Phase.PREP or run.stage != 3 or run.gold < 3:
-		push_error("The deserters' free card should pay 3 gold and begin stage 3")
+	if not await _expect_gold_chip_rises(shown, run):
+		return false
+	var deserters: EncounterData = _main._catalog.get_encounter(&"encounter.deserters")
+	var expected := run.rules.get_stage_income(3)
+	for effect: EncounterEffect in deserters.options[1].effects:
+		if effect.kind == EncounterEffects.GOLD:
+			expected += effect.amount
+	if run.phase != RunState.Phase.PREP or run.stage != 3 or run.gold != expected:
+		push_error("The deserters' free card should pay its gold and begin stage 3 with %d gold, got %d" % [expected, run.gold])
 		return false
 	return await _check_second_fight_press()
+
+
+# The loot reward's gold waits in the gold chip until its coins land: the
+# chip counts up to the new total and never shows it early and drops back.
+func _check_loot_gold_chip() -> bool:
+	var run := _saved_run({"phase": "reward", "stage": 3, "stages_cleared": 3, "rewards": ["reward.rest", "reward.hunt", "reward.loot"],
+		"encounter": {"drawn": ["encounter.merchants"], "pending": "", "taken": 0, "bet_gold": 0}}, {})
+	if run == null:
+		return false
+	_screen = _main.continue_run()
+	if _screen == null:
+		push_error("Continuing a run saved at its reward choice failed")
+		return false
+	await create_timer(SLIDE_WAIT_SEC).timeout
+	run = _screen.run
+	var expected := run.gold + run.rules.loot_gold + run.rules.get_stage_income(4)
+	var shown := _watch_gold_chip()
+	await _hold_reward_card(2)
+	if run.phase != RunState.Phase.PREP or run.stage != 4 or run.gold != expected:
+		push_error("The loot card should pay %d gold and begin stage 4, got %d gold at stage %d" % [run.rules.loot_gold, run.gold, run.stage])
+		return false
+	return await _expect_gold_chip_rises(shown, run)
+
+
+# Records the gold chip's shown number every frame until
+# _expect_gold_chip_rises() stops it.
+func _watch_gold_chip() -> Array[int]:
+	var shown: Array[int] = []
+	var chip := _screen.layout.gold_chip
+	var record := func() -> void: shown.append(chip.get_shown_value())
+	process_frame.connect(record)
+	shown.append(chip.get_shown_value())
+	set_meta(&"gold_watch", record)
+	return shown
+
+
+# Waits until the gold chip shows the run's gold (the coins landed), then
+# checks that its number never went down on the way.
+func _expect_gold_chip_rises(shown: Array[int], run: RunState) -> bool:
+	var frames := 0
+	while _screen.layout.gold_chip.get_shown_value() != run.gold and frames < MAX_FRAMES:
+		await process_frame
+		frames += 1
+	await create_timer(0.5).timeout
+	process_frame.disconnect(get_meta(&"gold_watch"))
+	remove_meta(&"gold_watch")
+	for index: int in range(1, shown.size()):
+		if shown[index] < shown[index - 1]:
+			push_error("The gold chip went down from %d to %d during the gain: %s" % [shown[index - 1], shown[index], shown])
+			return false
+	if shown.back() != run.gold:
+		push_error("The gold chip should end at %d, shows %s" % [run.gold, shown])
+		return false
+	return true
 
 
 # Stage 11 won: the reward leads to the story scene, and the save keeps the
@@ -506,7 +568,7 @@ func _check_encounter_resume() -> bool:
 # pitches sounds, and the next reward goes straight to stage 12 again.
 func _check_story_and_boss_loss() -> bool:
 	var run := _saved_run({"phase": "reward", "stage": 11, "stages_cleared": 11, "rewards": ["reward.rest", "reward.hunt", "reward.black_market"],
-		"encounter": {"drawn": FIVE_ENCOUNTERS, "pending": "", "bet_gold": 0}}, {})
+		"encounter": {"drawn": FIVE_ENCOUNTERS, "pending": "", "taken": 0, "bet_gold": 0}}, {})
 	if run == null:
 		return false
 	_screen = _main._open_run(run)
@@ -569,7 +631,7 @@ func _check_boss_win() -> bool:
 		var unit: Array = units[index]
 		pieces.append({"id": index + 1, "unit_id": unit[0], "star": unit[1], "bench": -1, "col": unit[2], "rank": unit[3], "has_fought": true})
 	var run := _saved_run({"stage": 12, "stages_cleared": 11, "level": 9, "pieces": pieces, "next_piece_id": units.size() + 1,
-		"encounter": {"drawn": FIVE_ENCOUNTERS, "pending": "", "bet_gold": 0}}, {})
+		"encounter": {"drawn": FIVE_ENCOUNTERS, "pending": "", "taken": 0, "bet_gold": 0}}, {})
 	if run == null:
 		return false
 	_screen = _main._open_run(run)

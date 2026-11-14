@@ -50,7 +50,7 @@ func _make(pieces: Array, shop: Array, values: Dictionary = {}) -> RunState:
 	var data := {
 		"seed": "99", "rng_state": str(_fresh_rng_state(99)), "phase": "prep", "stage": 1, "morale": 60,
 		"gold": 50, "supply": 0, "level": 3, "next_piece_id": 1, "pieces": rows, "shop": offers,
-		"black_market": false, "free_refreshes": 0, "rewards": [],
+		"black_market": false, "black_market_next": false, "free_refreshes": 0, "rewards": [],
 		"epiphany": EpiphanyTracker.new(_catalog, 99).to_save_data(), "win_streak": 0,
 	}
 	data.merge(values, true)
@@ -72,7 +72,7 @@ func _encounters_before(stage: int) -> Dictionary:
 	for encounter_stage: int in _catalog.run_rules.encounter_stages:
 		if encounter_stage < stage:
 			drawn.append(String(_catalog.encounters[drawn.size()].id))
-	return {"drawn": drawn, "pending": "", "bet_gold": 0}
+	return {"drawn": drawn, "pending": "", "taken": -1 if drawn.is_empty() else 0, "bet_gold": 0}
 
 
 # Takes `preferred` when offered, else the first other reward; then, when a
@@ -488,6 +488,7 @@ func _bad_save_cases() -> Array:
 		["version 1", {"version": 1}], ["version 2", {"version": 2}],
 		["stage as object", {"stage": {}}], ["stage as text", {"stage": "abc"}], ["stage 1.5", {"stage": 1.5}],
 		["morale null", {"morale": null}], ["gold as array", {"gold": []}], ["black_market as text", {"black_market": "yes"}],
+		["black_market_next null", {"black_market_next": null}], ["black_market_next in prep", {"black_market_next": true}],
 		["seed as object", {"seed": {}}], ["seed not a number", {"seed": "abc"}], ["rng_state past 64 bits", {"rng_state": "99999999999999999999"}],
 		["free_refreshes as text", {"free_refreshes": "1"}], ["pieces as text", {"pieces": "none"}], ["shop of numbers", {"shop": [5, 6]}],
 		["too many offers", {"shop": ["", "", "", "", "", ""]}], ["an unknown offer", {"shop": ["unit.nobody"]}],
@@ -544,7 +545,7 @@ func _valid_save() -> Dictionary:
 		"version": RunSave.VERSION, "seed": "1", "rng_state": "5", "phase": "prep", "stage": 2, "stages_cleared": 1,
 		"morale": 60, "gold": 5, "supply": 1, "level": 3, "next_piece_id": 2,
 		"pieces": [_row(1, "archer", 1, 0, 0, 0)], "shop": ["unit.archer", "", "", "", ""],
-		"black_market": false, "free_refreshes": 0, "rewards": [],
+		"black_market": false, "black_market_next": false, "free_refreshes": 0, "rewards": [],
 		"epiphany": EpiphanyTracker.new(_catalog, 1).to_save_data(),
 		"encounter": _encounters_before(2), "win_streak": 0,
 	}

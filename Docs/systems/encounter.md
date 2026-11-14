@@ -107,14 +107,22 @@ banner shows a won bet as its own chip.
 ## Save
 
 The run save (version 4, `Docs/systems/run.md`) holds `"encounter":
-{"drawn": [...ids], "pending": "<id or empty>", "bet_gold": n}` and the phase
-`"encounter"`. A run closed during the cutscene resumes on the same
-encounter. A save is refused when an id is unknown or repeated, the number
+{"drawn": [...ids], "pending": "<id or empty>", "taken": n, "bet_gold": n}`
+and the phase `"encounter"`; `taken` is the option taken at the last
+encounter drawn (-1 while it is pending or before the first). A run closed
+during the cutscene resumes on the same encounter, with a black market
+taken just before it (`black_market_next` in the run save). The keys came
+with version 4, which no player had yet, so the version stays 4 and every
+key is required. A save is refused when an id is unknown or repeated, the number
 drawn does not match the road stages before the stage (plus the stage
 itself in the `encounter` phase), a pending encounter is not the last one
 drawn or appears outside the `encounter` phase (which must be at a road
-stage, never the final one), or a bet is open outside the preparation right
-after a road stage or is not one of the last encounter's bets.
+stage, never the final one), `taken` is not one of the last encounter's
+options (or is set while it is pending, or -1 after it), or a bet is open
+outside the preparation right after a road stage or is not the bet of the
+option taken. Saved free refreshes are capped by what the option taken
+gave (`EncounterTracker.get_free_refresh_allowance()`), so a save that took
+another card cannot claim them.
 
 ## How to extend
 
@@ -127,19 +135,25 @@ after a road stage or is not one of the last encounter's bets.
   if it can be refused, a check in `EncounterEffects.get_option_refusal()`;
   give it an icon in `EncounterCutscene.ICONS`.
 - **Change the road stages:** `encounter_stages` in
-  `Data/Rules/run_rules.tres`.
+  `Data/Rules/run_rules.tres`. `RunRules.validate()` refuses them unsorted,
+  doubled, outside 1..`stage_count` - 1, or at the boss stage or the story
+  stage before it (its reward plays the story scene instead).
 
 ## Tests
 
-`Tests/encounter_test.gd` (headless, in CI): the data, seeded draws without
-repeats, every effect kind, refused options (gold, supply, morale, full
-bench) and their greyed cards, the bet paid only after a won battle, saves
-with a pending encounter and with an open bet, tampered saves refused, the
+`Tests/encounter_test.gd` (headless, in CI): the data, the road-stage
+rules, seeded draws without repeats, every effect kind, refused options
+(gold, supply, morale, full bench) and their greyed cards, the bet paid
+only after a won battle, saves with a pending encounter and with an open
+bet, tampered saves refused (the taken option and its bet included), free
+refreshes capped by the option taken, a black market taken at stage 2
+that survives a save in the encounter and opens at stage 3, the
 win-streak bonus and the loot reward. `Tests/run_flow_test.gd` plays the
 scene: a reward at stage 2 opens the saved encounter cutscene, a real
 screen touch (through `Input.parse_input_event`) takes a card and "Ra trận"
 of stage 3 takes the next press; a run closed at an encounter resumes on
-it, and a touch on a greyed card is refused.
+it, a touch on a greyed card is refused, and the gold chip counts up to
+the card's gold as its coins land without ever counting down.
 
 ## Known limits
 

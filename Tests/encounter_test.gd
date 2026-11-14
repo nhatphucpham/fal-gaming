@@ -12,9 +12,9 @@ var _failures: int = 0
 func _initialize() -> void:
 	_catalog = load("res://Data/catalog.tres") as Catalog
 	var checks: Array[Callable] = [
-		_check_data, _check_draw, _check_run_draw, _check_gold_supply_morale, _check_free_unit,
+		_check_data, _check_stage_rules, _check_draw, _check_run_draw, _check_gold_supply_morale, _check_free_unit,
 		_check_free_refreshes, _check_refusals, _check_bet, _check_pending_save, _check_bet_save,
-		_check_tampered_saves, _check_streak, _check_loot,
+		_check_tampered_saves, _check_refresh_allowance, _check_black_market_save, _check_streak, _check_loot,
 	]
 	for check: Callable in checks:
 		if not check.call():
@@ -41,7 +41,7 @@ func _data(changes: Dictionary) -> Dictionary:
 		for encounter_stage: int in _catalog.run_rules.encounter_stages:
 			if encounter_stage < data["stage"]:
 				drawn.append(String(_catalog.encounters[drawn.size()].id))
-		data["encounter"] = {"drawn": drawn, "pending": "", "bet_gold": 0}
+		data["encounter"] = {"drawn": drawn, "pending": "", "taken": -1 if drawn.is_empty() else 0, "bet_gold": 0}
 	return JSON.parse_string(JSON.stringify(data))
 
 
@@ -56,7 +56,7 @@ func _load(data: Dictionary) -> RunState:
 # A run at stage 2's road encounter `id` with `changes`.
 func _at_encounter(id: String, changes: Dictionary = {}) -> RunState:
 	var values := {"phase": "encounter", "stage": 2, "stages_cleared": 2, "rewards": [],
-		"encounter": {"drawn": [id], "pending": id, "bet_gold": 0}}
+		"encounter": {"drawn": [id], "pending": id, "taken": -1, "bet_gold": 0}}
 	values.merge(changes, true)
 	return _load(_data(values))
 
@@ -106,6 +106,25 @@ func _check_data() -> bool:
 	return true
 
 
+# Encounter stages must be sorted, once each, inside 1..stage_count - 1 and
+# off the boss stage and the story stage before it.
+func _check_stage_rules() -> bool:
+	var rules := _catalog.run_rules.duplicate() as RunRules
+	if not _expect(rules.validate().is_empty(), "The shipped run rules should be valid: %s" % [rules.validate()]):
+		return false
+	var cases := [
+		["the story stage", [2, rules.boss_stage - 1]], ["the boss stage", [rules.boss_stage]],
+		["stage 0", [0, 2]], ["past the last stage", [rules.stage_count + 1]],
+		["a doubled stage", [2, 2, 4]], ["unsorted stages", [4, 2]],
+	]
+	for case: Array in cases:
+		rules.encounter_stages = PackedInt32Array(case[1])
+		var problems := rules.validate()
+		if not _expect(not problems.is_empty() and Array(problems).all(func(problem: String) -> bool: return problem.contains("encounter")), "Encounter stages with %s must be refused: %s" % [case[0], problems]):
+			return false
+	return true
+
+
 # The same seed draws the same encounters; no run meets one twice.
 func _check_draw() -> bool:
 	var orders: Array = []
@@ -116,7 +135,7 @@ func _check_draw() -> bool:
 		var ids: Array[StringName] = []
 		for draw: int in _catalog.encounters.size():
 			ids.append(tracker.draw(rng).id)
-			tracker.clear_pending()
+			tracker.take(0)
 		orders.append(ids)
 	var unique := {}
 	for id: StringName in orders[0]:
@@ -263,33 +282,97 @@ func _check_bet_save() -> bool:
 func _check_tampered_saves() -> bool:
 	var pending := {"phase": "encounter", "stage": 2, "stages_cleared": 2, "rewards": []}
 	var cases := [
-		["an unknown encounter", pending.merged({"encounter": {"drawn": ["encounter.nobody"], "pending": "encounter.nobody", "bet_gold": 0}}, true)],
-		["no encounter drawn at the road stage", pending.merged({"encounter": {"drawn": [], "pending": "", "bet_gold": 0}}, true)],
-		["a pending encounter that is not the last drawn", pending.merged({"stage": 4, "stages_cleared": 4, "encounter": {"drawn": ["encounter.merchants", "encounter.wager"], "pending": "encounter.merchants", "bet_gold": 0}}, true)],
-		["an encounter drawn twice", {"stage": 5, "stages_cleared": 4, "encounter": {"drawn": ["encounter.wager", "encounter.wager"], "pending": "", "bet_gold": 0}}],
-		["too few encounters for the stage", {"stage": 5, "stages_cleared": 4, "encounter": {"drawn": ["encounter.wager"], "pending": "", "bet_gold": 0}}],
-		["too many encounters for the stage", {"stage": 2, "stages_cleared": 1, "encounter": {"drawn": ["encounter.wager"], "pending": "", "bet_gold": 0}}],
-		["a pending encounter in the preparation", {"stage": 3, "stages_cleared": 2, "encounter": {"drawn": ["encounter.wager"], "pending": "encounter.wager", "bet_gold": 0}}],
-		["the encounter phase off a road stage", pending.merged({"stage": 3, "stages_cleared": 3, "encounter": {"drawn": ["encounter.wager"], "pending": "encounter.wager", "bet_gold": 0}}, true)],
+		["an unknown encounter", pending.merged({"encounter": {"drawn": ["encounter.nobody"], "pending": "encounter.nobody", "taken": -1, "bet_gold": 0}}, true)],
+		["no encounter drawn at the road stage", pending.merged({"encounter": {"drawn": [], "pending": "", "taken": -1, "bet_gold": 0}}, true)],
+		["a pending encounter that is not the last drawn", pending.merged({"stage": 4, "stages_cleared": 4, "encounter": {"drawn": ["encounter.merchants", "encounter.wager"], "pending": "encounter.merchants", "taken": -1, "bet_gold": 0}}, true)],
+		["an encounter drawn twice", {"stage": 5, "stages_cleared": 4, "encounter": {"drawn": ["encounter.wager", "encounter.wager"], "pending": "", "taken": 0, "bet_gold": 0}}],
+		["too few encounters for the stage", {"stage": 5, "stages_cleared": 4, "encounter": {"drawn": ["encounter.wager"], "pending": "", "taken": 0, "bet_gold": 0}}],
+		["too many encounters for the stage", {"stage": 2, "stages_cleared": 1, "encounter": {"drawn": ["encounter.wager"], "pending": "", "taken": 0, "bet_gold": 0}}],
+		["a pending encounter in the preparation", {"stage": 3, "stages_cleared": 2, "encounter": {"drawn": ["encounter.wager"], "pending": "encounter.wager", "taken": -1, "bet_gold": 0}}],
+		["the encounter phase off a road stage", pending.merged({"stage": 3, "stages_cleared": 3, "encounter": {"drawn": ["encounter.wager"], "pending": "encounter.wager", "taken": -1, "bet_gold": 0}}, true)],
 		["the encounter phase at the final stage", pending.merged({"stage": 12, "stages_cleared": 12}, true)],
-		["a bet the encounter does not offer", {"stage": 3, "stages_cleared": 2, "encounter": {"drawn": ["encounter.merchants"], "pending": "", "bet_gold": 10}}],
-		["a bet of the wrong size", {"stage": 3, "stages_cleared": 2, "encounter": {"drawn": ["encounter.wager"], "pending": "", "bet_gold": 99}}],
-		["a bet a stage late", {"stage": 4, "stages_cleared": 3, "encounter": {"drawn": ["encounter.wager"], "pending": "", "bet_gold": 10}}],
-		["a negative bet", {"stage": 3, "stages_cleared": 2, "encounter": {"drawn": ["encounter.wager"], "pending": "", "bet_gold": -1}}],
+		["a bet the encounter does not offer", {"stage": 3, "stages_cleared": 2, "encounter": {"drawn": ["encounter.merchants"], "pending": "", "taken": 0, "bet_gold": 10}}],
+		["a bet of the wrong size", {"stage": 3, "stages_cleared": 2, "encounter": {"drawn": ["encounter.wager"], "pending": "", "taken": 1, "bet_gold": 99}}],
+		["a bet a stage late", {"stage": 4, "stages_cleared": 3, "encounter": {"drawn": ["encounter.wager"], "pending": "", "taken": 1, "bet_gold": 10}}],
+		["a negative bet", {"stage": 3, "stages_cleared": 2, "encounter": {"drawn": ["encounter.wager"], "pending": "", "taken": 1, "bet_gold": -1}}],
 		["encounter as text", {"encounter": "encounter.wager"}],
-		["drawn as text", {"encounter": {"drawn": "encounter.wager", "pending": "", "bet_gold": 0}}],
+		["drawn as text", {"encounter": {"drawn": "encounter.wager", "pending": "", "taken": 0, "bet_gold": 0}}],
+		["an option taken while pending", pending.merged({"encounter": {"drawn": ["encounter.wager"], "pending": "encounter.wager", "taken": 0, "bet_gold": 0}}, true)],
+		["no option taken after an encounter", {"stage": 3, "stages_cleared": 2, "encounter": {"drawn": ["encounter.wager"], "pending": "", "taken": -1, "bet_gold": 0}}],
+		["an option the encounter does not have", {"stage": 3, "stages_cleared": 2, "encounter": {"drawn": ["encounter.wager"], "pending": "", "taken": 2, "bet_gold": 0}}],
+		["a negative option", {"stage": 3, "stages_cleared": 2, "encounter": {"drawn": ["encounter.wager"], "pending": "", "taken": -2, "bet_gold": 0}}],
+		["the option as text", {"stage": 3, "stages_cleared": 2, "encounter": {"drawn": ["encounter.wager"], "pending": "", "taken": "1", "bet_gold": 0}}],
+		["a bet of the option not taken", {"stage": 3, "stages_cleared": 2, "encounter": {"drawn": ["encounter.wager"], "pending": "", "taken": 0, "bet_gold": 10}}],
 		["a win streak past the stages cleared", {"stage": 3, "stages_cleared": 2, "win_streak": 3}],
 		["a negative win streak", {"win_streak": -1}],
 		["a win streak as text", {"win_streak": "2"}],
+		["a black market waiting in the preparation", {"stage": 3, "stages_cleared": 2, "black_market_next": true}],
+		["a black market waiting in the reward choice", {"phase": "reward", "stage": 3, "stages_cleared": 3, "rewards": ["reward.rest", "reward.hunt", "reward.loot"], "black_market_next": true}],
+		["a waiting black market as text", pending.merged({"black_market_next": "yes"}, true)],
 	]
 	var accepted: Array[String] = []
 	for case: Array in cases:
 		var run := RunState.new(_catalog, 0)
 		if run.load_save_data(_data(case[1])):
 			accepted.append(case[0])
-	var good := _data({"stage": 3, "stages_cleared": 2, "win_streak": 2, "encounter": {"drawn": ["encounter.wager"], "pending": "", "bet_gold": 10}})
+	var good := _data({"stage": 3, "stages_cleared": 2, "win_streak": 2, "encounter": {"drawn": ["encounter.wager"], "pending": "", "taken": 1, "bet_gold": 10}})
 	var is_good_loaded := RunState.new(_catalog, 0).load_save_data(good)
 	return _expect(accepted.is_empty() and is_good_loaded, "Tampered saves must be refused (accepted %s) and a good bet save loaded (%s)" % [accepted, is_good_loaded])
+
+
+# Saved free refreshes are capped by what the option taken gave: a save
+# that took the stranger's free unit cannot claim the refreshes of its other
+# card, while one that took them keeps them.
+func _check_refresh_allowance() -> bool:
+	var refreshes := []
+	for taken: int in [0, 1]:
+		var run := _load(_data({"stage": 3, "stages_cleared": 2, "free_refreshes": 2,
+			"encounter": {"drawn": ["encounter.stranger"], "pending": "", "taken": taken, "bet_gold": 0}}))
+		if run == null:
+			return false
+		var free := 0
+		while run.get_refresh_cost() == 0 and free < 5:
+			run.refresh_shop()
+			free += 1
+		refreshes.append(free)
+	var given := 0
+	for effect: EncounterEffect in _catalog.get_encounter(&"encounter.stranger").options[0].effects:
+		if effect.kind == EncounterEffects.FREE_REFRESHES:
+			given += effect.amount
+	return _expect(refreshes == [given, 0], "Free refreshes after the stranger's cards should be [%d, 0], got %s" % [given, refreshes])
+
+
+# The black market taken at a road stage waits through the encounter: closed
+# there, the run reloads with it and opens it in the next preparation, as
+# without the reload. A save without the key is refused like any other.
+func _check_black_market_save() -> bool:
+	for seed_value: int in range(1, 100):
+		var run := RunState.new(_catalog, seed_value)
+		run.start()
+		while run.stage < 2 or run.phase != RunState.Phase.REWARD:
+			run.begin_battle()
+			run.finish_battle(true, 0)
+			if run.stage < 2:
+				_advance(run)
+		if run.epiphanies.has_pending():
+			run.choose_epiphany(0)
+		if not run.get_reward_options().has(RunState.Reward.BLACK_MARKET):
+			continue
+		run.choose_reward(RunState.Reward.BLACK_MARKET)
+		var data := JSON.parse_string(JSON.stringify(run.to_save_data())) as Dictionary
+		if not _expect(run.phase == RunState.Phase.ENCOUNTER and data.get("black_market_next") == true, "Seed %d: the black market should wait in the encounter save" % seed_value):
+			return false
+		var copy := _load(data)
+		if copy == null:
+			return false
+		var option := 0 if run.get_encounter_refusal(0) == RunState.Result.OK else 1
+		run.choose_encounter(option)
+		copy.choose_encounter(option)
+		if not _expect(copy.is_black_market_active() and copy.get_refresh_cost() == 0 and copy.to_save_data() == run.to_save_data(), "Seed %d: the reloaded run should open the black market at stage 3 as without the reload" % seed_value):
+			return false
+		data.erase("black_market_next")
+		return _expect(not RunState.new(_catalog, 0).load_save_data(data), "A save without black_market_next must be refused")
+	return _expect(false, "No seed offered the black market at stage 2")
 
 
 # From the 2nd win in a row +1 gold, from the 4th +2; a loss starts over.

@@ -28,8 +28,9 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
   in a run) and you pick one of two cards: gold, supply, morale, a free
   unit, free shop refreshes, or a bet paid if you win the next battle. A
   card you cannot pay for is greyed out and shakes when touched. Gold won
-  flies as coins to the gold chip. Closing the game during an encounter
-  brings it back.
+  flies as coins to the gold chip, which counts up when they land (it
+  never shows the gold early and drops back). Closing the game during an
+  encounter brings it back, with a black market taken just before it.
 - Win streak: from the 2nd win in a row +1 gold, from the 4th +2, shown as
   its own chip under the result with a coin sound.
 - Reward "Kho báu": +5 gold. A win offers three rewards drawn from

@@ -50,7 +50,8 @@ var _speed_index: int = 0
 var _deltas: Array = []
 # The banner's extra chips ([caption, gold]): streak and bet.
 var _banner_extras: Array = []
-# Gold won since the last preparation that still has to fly into the chip.
+# Gold won since the last preparation that still has to fly into the chip
+# (held back from it meanwhile, RunHud.hold_gold).
 var _gold_to_fly: int = 0
 # Pieces a road encounter gave, celebrated when the preparation shows.
 var _gifted_ids: Array[int] = []
@@ -133,7 +134,7 @@ func start_battle() -> bool:
 
 ## The banner's "Tiếp tục": on to the reward, or to the end of the run.
 func continue_after_battle() -> void:
-	if run.phase == RunState.Phase.BATTLE or run.phase == RunState.Phase.PREP:
+	if run.phase == RunState.Phase.BATTLE or run.phase == RunState.Phase.PREP or run.phase == RunState.Phase.ENCOUNTER:
 		return
 	layout.banner.dismiss()
 	playback.abort()
@@ -230,8 +231,8 @@ func _enter_prep() -> void:
 
 
 # Coins for the gold won since the last preparation fly from the middle of
-# the screen into the gold chip, which counts up as they land; a free unit
-# grows in with confetti.
+# the screen into the gold chip, which held that gold back and counts up as
+# they land; a free unit grows in with confetti.
 func _show_gains() -> void:
 	for piece_id: int in _gifted_ids:
 		_pieces.celebrate(piece_id)
@@ -240,26 +241,31 @@ func _show_gains() -> void:
 		return
 	var gold := _gold_to_fly
 	_gold_to_fly = 0
-	layout.gold_chip.set_value(maxi(0, run.gold - gold), false)
 	create_tween().tween_callback(func() -> void:
 		var burst := CoinBurst.new()
 		layout.add_child(burst)
-		burst.landed.connect(func() -> void: layout.gold_chip.set_value(run.gold))
+		burst.landed.connect(_hud.release_gold.bind(gold))
 		burst.launch(layout.get_global_rect().get_center(), layout.gold_chip.get_icon_center(), gold)).set_delay(GAIN_FLY_DELAY_SEC)
+
+
+# Gold that just arrived and will fly into the chip at the next preparation.
+func _add_gold_to_fly(gold: int) -> void:
+	_gold_to_fly += gold
+	_hud.hold_gold(gold)
 
 
 func _add_extra_gain(caption_key: String, gold: int) -> void:
 	if gold <= 0:
 		return
 	_banner_extras.append([tr(caption_key), gold])
-	_gold_to_fly += gold
+	_add_gold_to_fly(gold)
 
 
 func _on_encounter_chosen(encounter_id: StringName, option: int) -> void:
 	var data := _catalog.get_encounter(encounter_id)
 	for effect: EncounterEffect in data.options[option].effects:
 		if effect.kind == EncounterEffects.GOLD and effect.amount > 0:
-			_gold_to_fly += effect.amount
+			_add_gold_to_fly(effect.amount)
 
 
 # A run loaded during a road encounter: the stage's board behind it, then
@@ -389,7 +395,7 @@ func _on_reward_chosen(reward: RunState.Reward) -> void:
 	if run.choose_reward(reward) != RunState.Result.OK:
 		return
 	if reward == RunState.Reward.LOOT:
-		_gold_to_fly += run.rules.loot_gold
+		_add_gold_to_fly(run.rules.loot_gold)
 	# A road encounter waits: saved now, so closing the app during it offers
 	# the same one again.
 	if run.phase == RunState.Phase.ENCOUNTER:

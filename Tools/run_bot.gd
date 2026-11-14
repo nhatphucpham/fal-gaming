@@ -115,14 +115,14 @@ func _describe_board(run: RunState) -> Array[String]:
 # The affordable option that gives the most gold now (a bet counts at half
 # its payout); ties go to the first.
 func _pick_encounter_option(run: RunState) -> int:
-	var options := run.encounters.get_pending().options
+	var data: EncounterData = run.encounters.get_pending()
 	var best := -1
 	var best_gold := -INF
-	for index: int in options.size():
+	for index: int in data.options.size():
 		if run.get_encounter_refusal(index) != RunState.Result.OK:
 			continue
 		var gold := 0.0
-		for effect: EncounterEffect in options[index].effects:
+		for effect: EncounterEffect in data.options[index].effects:
 			if effect.kind == EncounterEffects.GOLD:
 				gold += effect.amount
 			elif effect.kind == EncounterEffects.BET:

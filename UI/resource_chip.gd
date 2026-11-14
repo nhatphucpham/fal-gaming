@@ -59,11 +59,12 @@ func set_value(value: int, animate: bool = true) -> void:
 	if value == _value and animate:
 		return
 	_value = value
+	# A count still running would carry the number past this value.
+	_kill(_count_tween)
 	if not animate or not is_inside_tree():
 		_shown = value
 		_show_number()
 		return
-	_kill(_count_tween)
 	_count_tween = create_tween()
 	_count_tween.tween_method(_set_shown, _shown, float(value), TICK_SEC).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	bounce()
@@ -71,6 +72,11 @@ func set_value(value: int, animate: bool = true) -> void:
 
 func get_value() -> int:
 	return _value
+
+
+## The number on the chip now (between values while it ticks).
+func get_shown_value() -> int:
+	return roundi(_shown)
 
 
 func set_suffix(text_suffix: String) -> void:

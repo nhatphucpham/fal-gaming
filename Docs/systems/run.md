@@ -71,7 +71,7 @@ touches code. `Catalog.validate()` checks it with `RunRules.validate()`.
 | `win_gold`, `win_supply` | 1, 2 | Paid for a won battle |
 | `streak_gold_wins`, `streak_gold_bonus` | 2, 4; 1, 2 | Win streak: from the 2nd win in a row +1 gold more per win, from the 4th +2 (`get_streak_bonus()`); a loss starts over |
 | `loot_gold` | 5 | Reward "Kho báu": gold now |
-| `encounter_stages` | 2, 4, 6, 8, 10 | Stages whose reward is followed by a road encounter ([encounter.md](encounter.md)) |
+| `encounter_stages` | 2, 4, 6, 8, 10 | Stages whose reward is followed by a road encounter ([encounter.md](encounter.md)); sorted, each once, in 1..`stage_count` - 1, never `boss_stage` or the story stage before it |
 | `loss_morale_base`, `loss_morale_per_enemy` | 6, 2 | A loss costs 6 + 2 per enemy still alive |
 | `rest_morale`, `hunt_supply` | 15, 6 | Rewards "Nghỉ ngơi" and "Săn bắn" (morale never above the maximum) |
 | `black_market_levels`, `black_market_free_refreshes` | 1, 1 | "Chợ đen": the next stage's shop rolls one level higher, with one free refresh |
@@ -235,7 +235,10 @@ cells here are global.
   banner shows the streak bonus and a won bet as chips under the result
   ("+N chuỗi thắng", "+N cược thắng"), each popping in with a coin sound;
   gold from an encounter, the streak or the loot reward flies as coins to
-  the gold chip in the next preparation. The end screen shows the result, stages cleared
+  the gold chip in the next preparation. The chip holds that gold back
+  from the moment it arrives (`RunHud.hold_gold()`) and counts up to it
+  when the coins land (`release_gold()`), so it never shows the new total
+  early and drops back. The end screen shows the result, stages cleared
   and the board's units.
 - The top bar has the sound switch (`MuteButton`) and, from stage 6, the
   boss badge; in the boss battle the boss bar takes the title's place.
@@ -265,8 +268,8 @@ repaired, when:
 
 - it is not JSON, any key the game writes is missing (all are required),
   or a field has the wrong JSON type (numbers must be whole, `seed` and
-  `rng_state` decimal strings that fit 64 bits, `black_market` and
-  `has_fought` booleans, `phase`, ids and reward ids strings);
+  `rng_state` decimal strings that fit 64 bits, `black_market`,
+  `black_market_next` and `has_fought` booleans, `phase`, ids and reward ids strings);
 - `version` is not 4; `phase` is not `"prep"`, `"reward"` or
   `"encounter"` (never at the final stage); `stage` is
   outside 1..`stage_count`, `level` outside `start_level`..`max_level`,
@@ -274,7 +277,9 @@ repaired, when:
   `stages_cleared` negative or past the stages fought (below `stage` in
   `prep` and at the final stage; at most `stage` in `reward`, where the
   stage just won already counts; the same in `encounter`); `win_streak`
-  is negative or above `stages_cleared`;
+  is negative or above `stages_cleared`; `black_market_next` (a black
+  market taken at a road stage, waiting for the next preparation) is true
+  outside `encounter`;
 - `rewards` is not empty in `prep` or `encounter`; in `reward` it does
   not hold `rewards_after_win` rewards (after a win) or
   `rewards_after_loss` of them (after a loss; at
@@ -296,7 +301,8 @@ repaired, when:
 A bench piece's `col` and `rank` must be present as whole numbers, but
 their values are ignored (it has no cell), and `free_refreshes` is clamped
 to what the rules give (`black_market_free_refreshes` on a black-market
-stage, plus the free refreshes of the encounter just before, else 0). Fields are read through `SaveReader`, so a hostile file
+stage, plus the free refreshes of the option taken at the encounter just
+before, else 0). Fields are read through `SaveReader`, so a hostile file
 never raises a script error.
 
 ```json
@@ -308,12 +314,12 @@ never raises a script error.
   "pieces": [{"id": 1, "unit_id": "unit.archer", "star": 1, "has_fought": true,
               "bench": -1, "col": 3, "rank": 1}],
   "shop": ["unit.archer", "", "unit.spearman", "unit.shield_guard", "unit.wolf_blade"],
-  "black_market": false, "free_refreshes": 0,
+  "black_market": false, "black_market_next": false, "free_refreshes": 0,
   "rewards": ["reward.hunt", "reward.black_market"], "win_streak": 0,
   "epiphany": {"meters": {"milestone.class_shield": 3, "...": 0},
                "chosen": ["epiphany.archer_lower_2"],
                "pending_family": "", "pending_options": [], "last_stage": 1},
-  "encounter": {"drawn": [], "pending": "", "bet_gold": 0}
+  "encounter": {"drawn": [], "pending": "", "taken": -1, "bet_gold": 0}
 }
 ```
 
@@ -323,7 +329,9 @@ piece has a `bench` slot, or `bench` -1 and a board `col` and `rank`.
 opens on the same reward cards (`rewards`, `REWARD_IDS` ids), and the
 choice then rolls the same next shop as without the reload, since
 `rng_state` is saved after the rewards (and any Kỳ Ngộ options) were
-drawn; `"encounter"` replays the same road encounter. Versions 1, 2 and 3
+drawn; `"encounter"` replays the same road encounter, and a black market
+taken in the reward just before it (`black_market_next`) still opens in the
+next preparation. Versions 1, 2 and 3
 (before the phase and rewards, before Kỳ Ngộ, before road encounters) are
 refused like any unknown version, without a migration: such saves only
 existed during development. Raising `version`
@@ -462,8 +470,11 @@ and settings problems with one `push_warning` each (`Run: could not write
   after the first battle is passed through its cutscene (first card). A
   saved stage-2 reward leads to the road encounter, whose card is taken
   with a real screen touch (`Input.parse_input_event`), then stage 3's
-  "Ra trận" takes a press; a run saved at an encounter resumes on it, and a
-  touch on its greyed card is refused. Both tests set `RunSave.path` to a test file
+  "Ra trận" takes a press; a run saved at an encounter resumes on it, a
+  touch on its greyed card is refused, and its free card pays exactly its
+  gold plus stage 3's income. During that card's coins, and the loot
+  reward's, the gold chip's number never goes down and ends at the run's
+  gold. Both tests set `RunSave.path` to a test file
   (`user://run_save_test.json`, `user://run_test_save.json`) and delete it,
   so the player's save is never touched.
 
@@ -490,6 +501,3 @@ godot --headless --path . --script res://Tests/synergy_ui_test.gd
   cost 1-2 one-star enemies, the bot wins stages 1-4 almost always.
 - The weak bot wins nothing from stage 9 on: stages 9-11 keep their 2-star
   line-ups, so a player who never merges is meant to stop around there.
-- `Tools/run_bot.gd` prints an exit-time leak warning (2 ObjectDB
-  instances, `lineup_slot.gd` still in use) since milestone 7; the tests
-  do not. Not tracked down yet.

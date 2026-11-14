@@ -26,7 +26,7 @@ static func read(data: Dictionary, catalog: Catalog) -> Dictionary:
 		"seed": reader.get_int_string("seed"), "rng_state": reader.get_int_string("rng_state"),
 		"next_piece_id": reader.get_int("next_piece_id"), "pieces": reader.get_array("pieces"),
 		"black_market": reader.get_bool("black_market"), "free_refreshes": reader.get_int("free_refreshes"),
-		"win_streak": reader.get_int("win_streak"),
+		"black_market_next": reader.get_bool("black_market_next"), "win_streak": reader.get_int("win_streak"),
 	}
 	var phase_name := reader.get_string("phase")
 	var shop := reader.get_array("shop")
@@ -84,7 +84,8 @@ static func _read_rewards(saved: Array, fields: Dictionary, rules: RunRules) -> 
 
 # In the reward and encounter phases the stage just won counts as cleared
 # already (the final stage only reaches the reward after a loss, and never
-# has an encounter).
+# has an encounter). A black market taken but not yet open only waits
+# through a road encounter: every other phase has already opened it.
 static func _is_in_range(fields: Dictionary, rules: RunRules) -> bool:
 	var stage: int = fields["stage"]
 	var cleared: int = fields["stages_cleared"]
@@ -97,4 +98,5 @@ static func _is_in_range(fields: Dictionary, rules: RunRules) -> bool:
 		and fields["morale"] >= 1 and fields["morale"] <= rules.max_morale \
 		and fields["gold"] >= 0 and fields["supply"] >= 0 \
 		and fields["level"] >= rules.start_level and fields["level"] <= rules.max_level \
-		and cleared >= 0 and cleared <= cleared_max and fields["win_streak"] >= 0
+		and cleared >= 0 and cleared <= cleared_max and fields["win_streak"] >= 0 \
+		and (not fields["black_market_next"] or fields["phase"] == RunState.Phase.ENCOUNTER)
