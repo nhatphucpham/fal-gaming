@@ -89,6 +89,10 @@ public:
 
 	// Handler API.
 	const Board &get_board() const { return board; }
+	// A move started at tick t with duration d ends at tick t + d, when the
+	// unit can act again: one cell takes exactly d ticks.
+	bool is_moving(const UnitState &p_unit) const;
+	int get_move_ticks_left(const UnitState &p_unit) const;
 	bool is_in_range(const UnitState &p_unit, const UnitState &p_target) const;
 	bool has_enemy_in_range(const UnitState &p_unit) const;
 	bool is_targeted_by_enemy(int p_unit) const;

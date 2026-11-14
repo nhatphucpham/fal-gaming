@@ -36,13 +36,16 @@ bool validate_class(const ClassDef &p_def, std::string *r_error) {
 	if (p_def.id.empty()) {
 		return fail("class has an empty id", r_error);
 	}
-	if (p_def.max_hp < 1 || p_def.attack < 0 || p_def.attacks_per_100s < 1 || p_def.range_cells < 1) {
-		return fail(p_def.id + " needs max_hp >= 1, attack >= 0, attacks_per_100s >= 1 and range_cells >= 1", r_error);
-	}
-	if (p_def.armor < 0 || p_def.magic_resist < 0) {
-		return fail(p_def.id + " has negative armor or magic_resist", r_error);
-	}
-	return true;
+	const auto check = [&](const char *p_field, int p_value, int p_min, int p_max) {
+		if (p_value >= p_min && p_value <= p_max) {
+			return true;
+		}
+		return fail(p_def.id + " " + p_field + " must be " + std::to_string(p_min) + ".." + std::to_string(p_max) + ", got " + std::to_string(p_value), r_error);
+	};
+	return check("max_hp", p_def.max_hp, 1, MAX_CLASS_HP) && check("attack", p_def.attack, 0, MAX_CLASS_ATTACK)
+			&& check("attacks_per_100s", p_def.attacks_per_100s, 1, MAX_CLASS_ATTACKS_PER_100S)
+			&& check("range_cells", p_def.range_cells, 1, MAX_CLASS_RANGE_CELLS)
+			&& check("armor", p_def.armor, 0, MAX_CLASS_MITIGATION) && check("magic_resist", p_def.magic_resist, 0, MAX_CLASS_MITIGATION);
 }
 
 } // namespace
@@ -88,6 +91,13 @@ bool BattleSim::register_class(const ClassDef &p_def, std::string *r_error) {
 		return false;
 	}
 	const int existing = find_class_index(p_def.id);
+	// Units copy stats and opening state from their class when added, so a
+	// class in use must not change under them.
+	for (const UnitState &unit : units) {
+		if (unit.class_index == existing) {
+			return fail("cannot replace " + p_def.id + ": unit " + std::to_string(unit.index) + " (" + unit.unit_id + ") uses it; clear() first", r_error);
+		}
+	}
 	if (existing >= 0) {
 		classes[existing] = registered;
 	} else {
@@ -286,7 +296,7 @@ uint64_t BattleSim::get_state_hash() const {
 		hash_value(&hash, unit.cell.col);
 		hash_value(&hash, unit.cell.row);
 		hash_value(&hash, unit.attack_charge);
-		hash_value(&hash, unit.move_ticks_left);
+		hash_value(&hash, get_move_ticks_left(unit));
 		hash_value(&hash, unit.target);
 	}
 	return hash;

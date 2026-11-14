@@ -15,6 +15,18 @@ constexpr int MAX_STAR = 3;
 // Class attack rates are given per 100 seconds (0.6 attacks/s is 60).
 constexpr int ATTACK_RATE_PERIOD_SECONDS = 100;
 
+// Accepted ranges. Together they keep every scaled stat and the damage
+// numerator inside their integer types (see battle_damage.cpp).
+constexpr int MAX_TICKS_PER_SECOND = 240;
+constexpr int MAX_COST_MULTIPLIER_PCT = 1000;
+constexpr int MAX_STAR_MULTIPLIER_PCT = 300;
+constexpr int MAX_COUNTER_BONUS_PCT = 100;
+constexpr int MAX_CLASS_HP = 100000;
+constexpr int MAX_CLASS_ATTACK = 10000;
+constexpr int MAX_CLASS_ATTACKS_PER_100S = 10000;
+constexpr int MAX_CLASS_RANGE_CELLS = 8;
+constexpr int MAX_CLASS_MITIGATION = 10000;
+
 struct Rules {
 	int ticks_per_second = 20;
 	std::array<int, MAX_COST> cost_multipliers_pct = { 100, 125, 155, 190, 230 };

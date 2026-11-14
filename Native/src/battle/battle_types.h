@@ -83,7 +83,9 @@ struct UnitState {
 	// The unit occupies this cell from the moment a move into it starts.
 	Cell cell;
 	int attack_charge = 0;
-	int move_ticks_left = 0;
+	// The unit is moving while the tick is below this. Stored as an end tick
+	// so a move lasts its duration whatever the action order.
+	int move_end_tick = 0;
 	int target = NO_UNIT;
 	bool has_seen_target_in_range = false;
 	int target_out_of_range_ticks = 0;

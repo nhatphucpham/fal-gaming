@@ -11,14 +11,21 @@ namespace battle {
 
 class BattleSim;
 
-// Returns the chosen enemy's index, or NO_UNIT when no enemy is alive.
-using PickTargetFn = int (*)(const BattleSim &p_sim, const UnitState &p_attacker);
+// Which enemies a handler may choose from.
+enum class TargetPool {
+	ALL,
+	// Only enemies within the attacker's range.
+	IN_RANGE,
+};
+
+// Returns the chosen enemy's index, or NO_UNIT when the pool is empty.
+using PickTargetFn = int (*)(const BattleSim &p_sim, const UnitState &p_attacker, TargetPool p_pool);
 
 struct TargetingHandler {
 	const char *id;
 	PickTargetFn pick;
-	// True: the target is picked again before each attack while an enemy is
-	// in range, instead of being kept.
+	// True: the target is picked again among enemies in range before each
+	// attack, instead of being kept.
 	bool reevaluates_on_attack;
 };
 
@@ -30,6 +37,6 @@ const TargetingHandler *find_targeting_handler(const std::string &p_id);
 // attacker's left, lower index.
 bool is_preferred_candidate(const UnitState &p_attacker, const UnitState &p_a, const UnitState &p_b);
 
-int pick_nearest_enemy(const BattleSim &p_sim, const UnitState &p_attacker);
+int pick_nearest_enemy(const BattleSim &p_sim, const UnitState &p_attacker, TargetPool p_pool);
 
 } // namespace battle

@@ -32,16 +32,12 @@ void BattleSim::act(int p_unit) {
 	if (!unit.is_alive) {
 		return;
 	}
-	// A move that finishes this tick leaves the unit free to act right away,
-	// so one cell takes exactly move_ticks_per_cell ticks.
-	if (unit.move_ticks_left > 0) {
-		unit.move_ticks_left--;
-	}
 	const int charge_full = get_attack_charge_full(rules);
 	unit.attack_charge = std::min(unit.attack_charge + get_class_def(unit).attacks_per_100s, charge_full);
 
-	if (unit.is_opening_active) {
-		if (classes[unit.class_index].opening->run(*this, p_unit) == OpeningResult::ACTED) {
+	const OpeningHandler *opening = classes[unit.class_index].opening;
+	if (unit.is_opening_active && opening != nullptr) {
+		if (opening->run(*this, p_unit) == OpeningResult::ACTED) {
 			return;
 		}
 		deactivate_opening(p_unit);
@@ -52,7 +48,7 @@ void BattleSim::act(int p_unit) {
 void BattleSim::act_normally(int p_unit) {
 	update_target(p_unit);
 	const UnitState &unit = units[p_unit];
-	if (unit.target == NO_UNIT || unit.move_ticks_left > 0) {
+	if (unit.target == NO_UNIT || is_moving(unit)) {
 		return;
 	}
 	if (!attack_if_ready(p_unit)) {
@@ -65,18 +61,22 @@ void BattleSim::update_target(int p_unit) {
 	if (unit.target != NO_UNIT && !units[unit.target].is_alive) {
 		unit.target = NO_UNIT;
 	}
-	if (unit.target != NO_UNIT) {
-		if (is_in_range(unit, units[unit.target])) {
-			unit.has_seen_target_in_range = true;
-			unit.target_out_of_range_ticks = 0;
-			return;
-		}
-		// The lost-target count starts only once the target was in range.
-		if (!unit.has_seen_target_in_range || ++unit.target_out_of_range_ticks <= rules.target_lost_ticks) {
-			return;
-		}
+	if (unit.target != NO_UNIT && is_in_range(unit, units[unit.target])) {
+		unit.has_seen_target_in_range = true;
+		unit.target_out_of_range_ticks = 0;
+		return;
 	}
-	set_target(p_unit, classes[unit.class_index].targeting->pick(*this, unit));
+	const TargetingHandler *targeting = classes[unit.class_index].targeting;
+	// Never ignore an enemy in range for one out of reach.
+	if (has_enemy_in_range(unit)) {
+		set_target(p_unit, targeting->pick(*this, unit, TargetPool::IN_RANGE));
+		return;
+	}
+	// The lost-target count starts only once the target was in range.
+	if (unit.target != NO_UNIT && (!unit.has_seen_target_in_range || ++unit.target_out_of_range_ticks <= rules.target_lost_ticks)) {
+		return;
+	}
+	set_target(p_unit, targeting->pick(*this, unit, TargetPool::ALL));
 }
 
 void BattleSim::set_target(int p_unit, int p_target) {
@@ -90,11 +90,9 @@ void BattleSim::set_target(int p_unit, int p_target) {
 bool BattleSim::attack_if_ready(int p_unit) {
 	UnitState &unit = units[p_unit];
 	const int charge_full = get_attack_charge_full(rules);
-	const RegisteredClass &unit_class = classes[unit.class_index];
-	// Handlers that re-evaluate never walk away from enemies already in range.
-	const bool is_target_in_range = unit.target != NO_UNIT && is_in_range(unit, units[unit.target]);
-	if (unit_class.targeting->reevaluates_on_attack && (unit.attack_charge >= charge_full || !is_target_in_range) && has_enemy_in_range(unit)) {
-		set_target(p_unit, unit_class.targeting->pick(*this, unit));
+	const TargetingHandler *targeting = classes[unit.class_index].targeting;
+	if (targeting->reevaluates_on_attack && unit.attack_charge >= charge_full && has_enemy_in_range(unit)) {
+		set_target(p_unit, targeting->pick(*this, unit, TargetPool::IN_RANGE));
 	}
 	if (unit.target == NO_UNIT || !is_in_range(unit, units[unit.target])) {
 		return false;
@@ -208,7 +206,7 @@ void BattleSim::apply_hit(int p_attacker, int p_victim, int p_blocked_by, int p_
 void BattleSim::kill(int p_victim, int p_killer, int p_damage_event) {
 	UnitState &victim = units[p_victim];
 	victim.is_alive = false;
-	victim.move_ticks_left = 0;
+	victim.move_end_tick = 0;
 	victim.target = NO_UNIT;
 	board.remove(victim.cell);
 	BattleEvent event;
@@ -232,7 +230,7 @@ int BattleSim::start_move(int p_unit, const Cell &p_to, int p_duration_ticks, Mo
 	board.remove(unit.cell);
 	board.place(p_to, p_unit);
 	unit.cell = p_to;
-	unit.move_ticks_left = p_duration_ticks;
+	unit.move_end_tick = tick + p_duration_ticks;
 	return emit_event(event);
 }
 
@@ -256,6 +254,14 @@ bool BattleSim::is_targeted_by_enemy(int p_unit) const {
 		}
 	}
 	return false;
+}
+
+bool BattleSim::is_moving(const UnitState &p_unit) const {
+	return tick < p_unit.move_end_tick;
+}
+
+int BattleSim::get_move_ticks_left(const UnitState &p_unit) const {
+	return is_moving(p_unit) ? p_unit.move_end_tick - tick : 0;
 }
 
 void BattleSim::deactivate_opening(int p_unit) {

@@ -56,10 +56,10 @@ void ClassData::_bind_methods() {
 	ADD_GROUP("Stats", "");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "max_hp", PROPERTY_HINT_RANGE, "1,100000,1"), "set_max_hp", "get_max_hp");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "attack", PROPERTY_HINT_RANGE, "0,10000,1"), "set_attack", "get_attack");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "attacks_per_100s", PROPERTY_HINT_RANGE, "1,1000,1"), "set_attacks_per_100s", "get_attacks_per_100s");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "attacks_per_100s", PROPERTY_HINT_RANGE, "1,10000,1"), "set_attacks_per_100s", "get_attacks_per_100s");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "range_cells", PROPERTY_HINT_RANGE, "1,8,1"), "set_range_cells", "get_range_cells");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "armor", PROPERTY_HINT_RANGE, "0,1000,1"), "set_armor", "get_armor");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "magic_resist", PROPERTY_HINT_RANGE, "0,1000,1"), "set_magic_resist", "get_magic_resist");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "armor", PROPERTY_HINT_RANGE, "0,10000,1"), "set_armor", "get_armor");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "magic_resist", PROPERTY_HINT_RANGE, "0,10000,1"), "set_magic_resist", "get_magic_resist");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "damage_kind", PROPERTY_HINT_ENUM, "Physical,Magic"), "set_damage_kind", "get_damage_kind");
 	ADD_GROUP("Behavior", "");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "targeting"), "set_targeting", "get_targeting");

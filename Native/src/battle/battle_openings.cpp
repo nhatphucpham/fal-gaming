@@ -18,7 +18,7 @@ OpeningResult run_hold_line(BattleSim &p_sim, int p_unit) {
 	}
 
 	p_sim.update_target(p_unit);
-	if (p_sim.get_units()[p_unit].move_ticks_left == 0) {
+	if (!p_sim.is_moving(p_sim.get_units()[p_unit])) {
 		p_sim.attack_if_ready(p_unit);
 	}
 	return OpeningResult::ACTED;
@@ -43,7 +43,7 @@ bool can_knock_back(const BattleSim &p_sim, const UnitState &p_victim, const Cel
 // back one cell when it can be pushed.
 OpeningResult run_charge(BattleSim &p_sim, int p_unit) {
 	const UnitState &unit = p_sim.get_units()[p_unit];
-	if (unit.move_ticks_left > 0) {
+	if (p_sim.is_moving(unit)) {
 		return OpeningResult::ACTED;
 	}
 	const int forward = get_forward_row_step(unit.side);

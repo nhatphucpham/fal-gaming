@@ -26,6 +26,7 @@ String format_hash(uint64_t p_hash) {
 } // namespace
 
 void Battle::set_rules(const Ref<BattleRulesData> &p_rules) {
+	ERR_FAIL_COND_MSG(is_emitting, "Battle: set_rules() cannot be called from an event handler");
 	ERR_FAIL_COND_MSG(p_rules.is_null(), "Battle: set_rules() got a null BattleRulesData");
 	std::string error;
 	ERR_FAIL_COND_MSG(!sim.set_rules(p_rules->to_rules(), &error), "Battle: " + to_godot_string(error));
@@ -33,6 +34,7 @@ void Battle::set_rules(const Ref<BattleRulesData> &p_rules) {
 }
 
 bool Battle::register_class(const Ref<ClassData> &p_class) {
+	ERR_FAIL_COND_V_MSG(is_emitting, false, "Battle: register_class() cannot be called from an event handler");
 	ERR_FAIL_COND_V_MSG(p_class.is_null(), false, "Battle: register_class() got a null ClassData");
 	std::string error;
 	const String where = p_class->get_path().is_empty() ? String() : " in " + p_class->get_path();
@@ -41,6 +43,7 @@ bool Battle::register_class(const Ref<ClassData> &p_class) {
 }
 
 int Battle::add_unit(int p_side, const Ref<UnitData> &p_unit, int p_star, int p_local_col, int p_local_rank) {
+	ERR_FAIL_COND_V_MSG(is_emitting, -1, "Battle: add_unit() cannot be called from an event handler");
 	ERR_FAIL_COND_V_MSG(p_unit.is_null(), -1, "Battle: add_unit() got a null UnitData");
 	battle::UnitSpec spec;
 	spec.unit_id = to_std_string(p_unit->get_id());
@@ -54,30 +57,40 @@ int Battle::add_unit(int p_side, const Ref<UnitData> &p_unit, int p_star, int p_
 }
 
 void Battle::clear() {
+	ERR_FAIL_COND_MSG(is_emitting, "Battle: clear() cannot be called from an event handler");
 	sim.clear();
 }
 
 void Battle::start() {
+	ERR_FAIL_COND_MSG(is_emitting, "Battle: start() cannot be called from an event handler");
 	std::string error;
 	ERR_FAIL_COND_MSG(!sim.start(&error), "Battle: " + to_godot_string(error));
 }
 
 Array Battle::step() {
 	Array result;
+	ERR_FAIL_COND_V_MSG(is_emitting, result, "Battle: step() cannot be called from an event_emitted or battle_ended handler");
 	ERR_FAIL_COND_V_MSG(!sim.is_started(), result, "Battle: step() called before start()");
-	for (const battle::BattleEvent &event : sim.step()) {
-		const Dictionary dict = event_to_dictionary(event);
-		result.push_back(dict);
+	// Copy the tick's events before any handler runs: the simulation reuses
+	// its event buffer on the next step.
+	const std::vector<battle::BattleEvent> events = sim.step();
+	for (const battle::BattleEvent &event : events) {
+		result.push_back(event_to_dictionary(event));
 		log_event(event);
-		emit_signal("event_emitted", dict);
-		if (event.type == battle::EventType::BATTLE_ENDED) {
-			emit_signal("battle_ended", event.winner, get_end_reason_name(event.reason));
-		}
 	}
+	is_emitting = true;
+	for (int64_t index = 0; index < result.size(); index++) {
+		emit_signal("event_emitted", result[index]);
+	}
+	if (sim.is_finished() && !events.empty() && events.back().type == battle::EventType::BATTLE_ENDED) {
+		emit_signal("battle_ended", events.back().winner, get_end_reason_name(events.back().reason));
+	}
+	is_emitting = false;
 	return result;
 }
 
 String Battle::run_to_end(int p_max_ticks) {
+	ERR_FAIL_COND_V_MSG(is_emitting, get_state_hash(), "Battle: run_to_end() cannot be called from an event handler");
 	if (!sim.is_started()) {
 		start();
 	}
@@ -127,6 +140,7 @@ Dictionary Battle::get_unit_state(int p_index) const {
 	state["col"] = unit.cell.col;
 	state["row"] = unit.cell.row;
 	state["target"] = unit.target;
+	state["move_ticks_left"] = sim.get_move_ticks_left(unit);
 	return state;
 }
 

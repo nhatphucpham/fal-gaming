@@ -40,7 +40,7 @@ int count_row3_enemies(const BattleSim &p_sim, const UnitState &p_attacker, cons
 	return count;
 }
 
-int pick_column_first(const BattleSim &p_sim, const UnitState &p_attacker) {
+int pick_column_first(const BattleSim &p_sim, const UnitState &p_attacker, TargetPool p_pool) {
 	auto distance = [&](const UnitState &p_unit) { return get_distance_cells(p_attacker.cell, p_unit.cell); };
 	auto in_range = [&](const UnitState &p_unit) { return p_sim.is_in_range(p_attacker, p_unit); };
 	auto in_column_and_range = [&](const UnitState &p_unit) { return p_unit.cell.col == p_attacker.cell.col && in_range(p_unit); };
@@ -49,15 +49,15 @@ int pick_column_first(const BattleSim &p_sim, const UnitState &p_attacker) {
 	if (target == NO_UNIT) {
 		target = pick_best_enemy(p_sim, p_attacker, in_range, distance);
 	}
-	return target == NO_UNIT ? pick_nearest_enemy(p_sim, p_attacker) : target;
+	return target == NO_UNIT ? pick_nearest_enemy(p_sim, p_attacker, p_pool) : target;
 }
 
-int pick_densest_row3(const BattleSim &p_sim, const UnitState &p_attacker) {
+int pick_densest_row3(const BattleSim &p_sim, const UnitState &p_attacker, TargetPool p_pool) {
 	auto in_range = [&](const UnitState &p_unit) { return p_sim.is_in_range(p_attacker, p_unit); };
 	auto density_score = [&](const UnitState &p_unit) { return -count_row3_enemies(p_sim, p_attacker, p_unit.cell); };
 
 	const int target = pick_best_enemy(p_sim, p_attacker, in_range, density_score);
-	return target == NO_UNIT ? pick_nearest_enemy(p_sim, p_attacker) : target;
+	return target == NO_UNIT ? pick_nearest_enemy(p_sim, p_attacker, p_pool) : target;
 }
 
 const TargetingHandler TARGETING_HANDLERS[] = {
@@ -97,10 +97,10 @@ bool is_preferred_candidate(const UnitState &p_attacker, const UnitState &p_a, c
 	return p_a.index < p_b.index;
 }
 
-int pick_nearest_enemy(const BattleSim &p_sim, const UnitState &p_attacker) {
-	auto any = [](const UnitState &) { return true; };
+int pick_nearest_enemy(const BattleSim &p_sim, const UnitState &p_attacker, TargetPool p_pool) {
+	auto in_pool = [&](const UnitState &p_unit) { return p_pool == TargetPool::ALL || p_sim.is_in_range(p_attacker, p_unit); };
 	auto distance = [&](const UnitState &p_unit) { return get_distance_cells(p_attacker.cell, p_unit.cell); };
-	return pick_best_enemy(p_sim, p_attacker, any, distance);
+	return pick_best_enemy(p_sim, p_attacker, in_pool, distance);
 }
 
 } // namespace battle

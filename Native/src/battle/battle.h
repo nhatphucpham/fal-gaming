@@ -33,6 +33,9 @@ private:
 	battle::BattleSim sim;
 	Ref<BattleRulesData> rules;
 	bool log_enabled = false;
+	// True while signals for a tick are emitted; commands that change the
+	// battle are refused then, so a handler cannot re-enter step().
+	bool is_emitting = false;
 
 	void log_event(const battle::BattleEvent &p_event) const;
 
@@ -52,7 +55,7 @@ public:
 	// Freezes the setup; the first step() emits battle_started.
 	void start();
 	// Advances one tick; returns that tick's events as dictionaries and emits
-	// them as signals.
+	// them as signals. Commands are refused while the signals run.
 	Array step();
 	// Steps until the battle ends or max_ticks steps were taken, starting it
 	// if needed; returns the final state hash.

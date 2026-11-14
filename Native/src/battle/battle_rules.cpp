@@ -30,16 +30,19 @@ int derive_scaled_stat(int p_base, int p_cost, int p_star, const Rules &p_rules)
 }
 
 bool validate_rules(const Rules &p_rules, std::string *r_error) {
-	if (p_rules.ticks_per_second < 1) {
-		return fail("rules ticks_per_second must be at least 1, got " + std::to_string(p_rules.ticks_per_second), r_error);
+	if (p_rules.ticks_per_second < 1 || p_rules.ticks_per_second > MAX_TICKS_PER_SECOND) {
+		return fail("rules ticks_per_second must be 1.." + std::to_string(MAX_TICKS_PER_SECOND) + ", got " + std::to_string(p_rules.ticks_per_second), r_error);
 	}
 	for (int multiplier : p_rules.cost_multipliers_pct) {
-		if (multiplier < 1) {
-			return fail("rules cost_multipliers_pct must be positive, got " + std::to_string(multiplier), r_error);
+		if (multiplier < 1 || multiplier > MAX_COST_MULTIPLIER_PCT) {
+			return fail("rules cost_multipliers_pct must be 1.." + std::to_string(MAX_COST_MULTIPLIER_PCT) + ", got " + std::to_string(multiplier), r_error);
 		}
 	}
-	if (p_rules.star_multiplier_pct < 1 || p_rules.counter_bonus_pct < 0) {
-		return fail("rules star_multiplier_pct must be positive and counter_bonus_pct not negative", r_error);
+	if (p_rules.star_multiplier_pct < 1 || p_rules.star_multiplier_pct > MAX_STAR_MULTIPLIER_PCT) {
+		return fail("rules star_multiplier_pct must be 1.." + std::to_string(MAX_STAR_MULTIPLIER_PCT) + ", got " + std::to_string(p_rules.star_multiplier_pct), r_error);
+	}
+	if (p_rules.counter_bonus_pct < 0 || p_rules.counter_bonus_pct > MAX_COUNTER_BONUS_PCT) {
+		return fail("rules counter_bonus_pct must be 0.." + std::to_string(MAX_COUNTER_BONUS_PCT) + ", got " + std::to_string(p_rules.counter_bonus_pct), r_error);
 	}
 	if (p_rules.move_ticks_per_cell < 1 || p_rules.charge_ticks_per_cell < 1) {
 		return fail("rules move_ticks_per_cell and charge_ticks_per_cell must be at least 1", r_error);

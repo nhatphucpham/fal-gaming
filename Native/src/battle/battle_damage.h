@@ -10,6 +10,14 @@ namespace battle {
 constexpr int BASIC_ATTACK_COEFFICIENT_PCT = 100;
 constexpr int CRIT_MULTIPLIER_PCT = 150;
 constexpr int MIN_DAMAGE = 1;
+// Inputs are clamped to these before the math (see battle_damage.cpp for
+// the overflow bound). Validated classes and rules stay well inside them.
+constexpr int MAX_DAMAGE_ATTACK = 1000000;
+constexpr int MAX_COEFFICIENT_PCT = 1000;
+constexpr int MAX_DAMAGE_COUNTER_BONUS_PCT = 100;
+constexpr int MAX_INCREASE_PCT = 200;
+constexpr int MAX_DECREASE_PCT = 100;
+constexpr int MAX_DAMAGE_MITIGATION = 10000;
 
 // Open for later milestones: skills set the coefficient, formations and
 // elements fill the bonus groups.

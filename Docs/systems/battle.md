@@ -38,10 +38,10 @@ checked by `Battle.register_class()`.
 | Field | Unit / range | Notes |
 | --- | --- | --- |
 | `id`, `name_key` | `class.<name>`, translation key | e.g. `CLASS_SHIELD` |
-| `max_hp`, `attack` | 1+, 0+ | scaled by cost and star |
-| `attacks_per_100s` | attacks per 100 s, 1+ | 60 is 0.6 attacks/s |
+| `max_hp`, `attack` | 1..100000, 0..10000 | scaled by cost and star |
+| `attacks_per_100s` | attacks per 100 s, 1..10000 | 60 is 0.6 attacks/s |
 | `range_cells` | cells, 1..8 | Chebyshev distance |
-| `armor`, `magic_resist` | 0+ | mitigation `100 / (100 + value)` |
+| `armor`, `magic_resist` | 0..10000 | mitigation `100 / (100 + value)` |
 | `damage_kind` | `DAMAGE_PHYSICAL` (0), `DAMAGE_MAGIC` (1) | picks armor or magic resist |
 | `targeting` | handler id | `target.nearest`, `target.column_first`, `target.densest_row3` |
 | `opening` | handler id or empty | `opening.hold_line`, `opening.charge` |
@@ -59,10 +59,10 @@ checked by `Battle.register_class()`.
 
 | Field | Default | Meaning |
 | --- | --- | --- |
-| `ticks_per_second` | 20 | simulation rate |
-| `cost_multipliers_pct` | 100, 125, 155, 190, 230 | hp and attack by cost 1..5 |
-| `star_multiplier_pct` | 180 | hp and attack, once per star above 1 |
-| `counter_bonus_pct` | 30 | extra damage against a countered class |
+| `ticks_per_second` | 20 | simulation rate, 1..240 |
+| `cost_multipliers_pct` | 100, 125, 155, 190, 230 | hp and attack by cost 1..5; each 1..1000 |
+| `star_multiplier_pct` | 180 | hp and attack, once per star above 1; 1..300 |
+| `counter_bonus_pct` | 30 | extra damage against a countered class; 0..100 |
 | `move_ticks_per_cell`, `charge_ticks_per_cell` | 10, 7 | ticks per cell |
 | `time_limit_ticks` | 900 | 45 s |
 | `target_lost_ticks` | 40 | out of range this long drops the target |
@@ -71,6 +71,10 @@ checked by `Battle.register_class()`.
 | `max_units_per_side` | 10 | |
 
 `get_attack_charge_full()` is derived, not stored: `100 * ticks_per_second`.
+
+Classes and rules outside these ranges are refused with a `Battle:` error.
+The ranges keep scaled stats inside `int` and the damage numerator below
+`9e17` (int64 holds about `9.2e18`); `compute_damage` also clamps its inputs.
 
 Stats: `hp = base_hp * cost_mult / 100`, then `* 180 / 100` per star above 1,
 truncating at each step; the same for attack. Other stats do not scale.
@@ -85,18 +89,23 @@ truncating at each step; the same for attack. Other stats do not scale.
   Within a side: the unit nearest the enemy first, then by distance from
   column 3, then the unit's own left first (A: lower col, B: higher col).
   The order is computed at the start of the tick.
-- **Action.** A dead unit skips. A moving unit counts its move timer down
-  (it occupies its destination from the start; a move that finishes this
-  tick lets it act now). The attack charge gains `attacks_per_100s`, capped
+- **Action.** A dead unit skips. A move started on tick `t` with duration
+  `d` lasts until tick `t + d`, when the unit can act again, whatever the
+  action order: a walk takes exactly `move_ticks_per_cell` ticks per cell, a
+  charge `charge_ticks_per_cell`, a knockback its event's `duration_ticks`.
+  The unit occupies its destination from the start. The attack charge gains `attacks_per_100s`, capped
   at full. An active opening decides the action. Otherwise the unit keeps or
   picks a target; if the target is in range it attacks when the charge is
   full (spending it), else it steps one cell along the path.
 - **Targeting.** Ties break by: same column as the attacker, lower hp,
   nearer column 3, further to the attacker's left, lower index. A target is
   kept until it dies or has been out of range for more than
-  `target_lost_ticks` ticks after having been in range once.
-  `target.densest_row3` picks again whenever an enemy is in range and the
-  charge is full or the target is out of range.
+  `target_lost_ticks` ticks after having been in range once. For every
+  class, whenever the target is out of range and some enemy is in range, the
+  unit picks again with its handler among the enemies in range only (a
+  holding shield then fights the sword next to it, not a far archer).
+  `target.densest_row3` also picks again among enemies in range before each
+  attack.
 - **Movement.** Breadth-first search over free cells to the nearest cell in
   range; steps in order forward, sideways toward the target's column (own
   left when in the same column), other sideways, backward. With no path for
@@ -129,15 +138,15 @@ function that calls `step()`, or call `step()` in a loop.
 | --- | --- | --- |
 | `SIDE_A`, `SIDE_B` | constants | 0 and 1 |
 | `set_rules(rules: BattleRulesData)` | method | Required before `add_unit`; refused once units exist |
-| `register_class(class_data: ClassData) -> bool` | method | Validates stats and handler ids; false and an error on bad data |
+| `register_class(class_data: ClassData) -> bool` | method | Adds or replaces a class by id. Validates stats and handler ids; false and an error on bad data or when an added unit uses that id (call `clear()` first) |
 | `add_unit(side, unit: UnitData, star, local_col, local_rank) -> int` | method | Unit index, or -1 with an error (no rules, unknown class, bad cell, cell taken, star not 1..3, side full, started) |
 | `clear()` | method | Removes units, resets the tick; keeps classes and rules |
 | `start()` | method | Freezes the setup; the first `step()` emits `battle_started` |
-| `step() -> Array[Dictionary]` | method | Advances one tick, returns and emits its events; nothing after the end |
+| `step() -> Array[Dictionary]` | method | Advances one tick, returns and emits its events; nothing after the end. While its signals run, `step`, `run_to_end`, `start`, `clear`, `add_unit`, `register_class` and `set_rules` are refused with an error |
 | `run_to_end(max_ticks: int) -> String` | method | Starts if needed, steps until the end or `max_ticks`, returns the hash |
 | `is_started()`, `is_finished()`, `get_winner()`, `get_tick()` | methods | Winner is -1 while running |
 | `get_state_hash() -> String` | method | FNV-1a 64 of tick and unit state, 16 hex digits |
-| `get_unit_count()`, `get_unit_state(index)`, `get_units()` | methods | `{index, side, unit_id, class_id, star, alive, hp, max_hp, attack, col, row, target}` |
+| `get_unit_count()`, `get_unit_state(index)`, `get_units()` | methods | `{index, side, unit_id, class_id, star, alive, hp, max_hp, attack, col, row, target, move_ticks_left}` |
 | `local_to_global(side, local_col, local_rank) -> Vector2i` | static | Global (col, row) |
 | `global_to_local(side, col, row) -> Vector2i` | static | (local col, rank); rank leaves 1..4 in the enemy half |
 | `log_enabled` | property | Prints the info log events below; default false |
@@ -188,10 +197,12 @@ Example: `[info][Battle][t=412] unit_died unit=3 unit_id=unit.archer killer=7 ca
 `Tests/battle_test.gd` (run as in the README, also in CI) loads the catalog
 and checks: validation and counts, stat derivation, determinism of a 5v5
 (same hash twice, a different hash when one unit moves), sword and counter
-damage, arrow blocking, charge with and without knockback, hold line, mage
-row hits, the time limit and its tie rule, a full 8v8 that ends by
-elimination (it prints its length), signals and event ids, and coordinate
-round trips.
+damage, arrow blocking, charge with and without knockback, hold line,
+switching to an enemy in range, mage row hits, walk, charge and knockback
+durations, the time limit with both tie rules (more living units, then B),
+a full 8v8 that ends by elimination (it prints its length), signals and
+event ids, coordinate round trips, and refused commands (replacing a class
+in use, re-entrant `step()`; these print two expected errors).
 
 ## Known limits
 

@@ -39,8 +39,9 @@ func _run() -> bool:
 		return false
 	var checks: Array[Callable] = [
 		_check_stats, _check_determinism, _check_damage, _check_arrow_block,
-		_check_charge, _check_hold_line, _check_mage_row3, _check_time_limit,
-		_check_full_battle, _check_signals, _check_coordinates,
+		_check_charge, _check_hold_line, _check_target_in_range, _check_mage_row3,
+		_check_move_durations, _check_time_limit, _check_full_battle,
+		_check_signals, _check_coordinates, _check_refused_commands,
 	]
 	for check: Callable in checks:
 		if not check.call():
@@ -165,6 +166,66 @@ func _check_hold_line() -> bool:
 	return state["col"] == 3 and state["row"] == 3
 
 
+func _check_target_in_range() -> bool:
+	# A shield at (3,3) first targets the nearer archer at (3,5), out of its
+	# reach. When the sword from (1,7) arrives next to it, the shield switches
+	# to the sword and hits it while still holding the line.
+	var battle := _new_battle()
+	var shield := _add(battle, Battle.SIDE_A, SHIELD, 4, 1)
+	_add(battle, Battle.SIDE_B, ARCHER, 4, 2)
+	var sword := _add(battle, Battle.SIDE_B, SWORD, 6, 4)
+	var hit := _first_event(battle, &"damage_dealt", shield)
+	if hit.get("target", -1) != sword or battle.get_tick() > 3 * _catalog.battle_rules.ticks_per_second:
+		push_error("Shield did not hit the adjacent sword early: %s at tick %d" % [hit, battle.get_tick()])
+		return false
+	return true
+
+
+func _check_move_durations() -> bool:
+	var rules := _catalog.battle_rules
+	# Walking: two swords at (3,0) and (3,7) step toward each other.
+	var battle := _new_battle()
+	var sword := _add(battle, Battle.SIDE_A, SWORD, 4, 4)
+	_add(battle, Battle.SIDE_B, SWORD, 4, 4)
+	var walk_ticks := _move_ticks(_events_until(battle, &"unit_attacked"), sword, &"walk")
+	# Charging: cavalry at (3,3) into an archer at (3,6).
+	battle = _new_battle()
+	var cavalry := _add(battle, Battle.SIDE_A, CAVALRY, 4, 1)
+	_add(battle, Battle.SIDE_B, ARCHER, 4, 3)
+	var charge_ticks := _move_ticks(_events_until(battle, &"charge_ended"), cavalry, &"charge")
+	if walk_ticks.size() < 3 or charge_ticks.size() < 2:
+		push_error("Too few moves to time: walk %s, charge %s" % [walk_ticks, charge_ticks])
+		return false
+	for index: int in range(1, walk_ticks.size()):
+		if walk_ticks[index] - walk_ticks[index - 1] != rules.move_ticks_per_cell:
+			push_error("Walk steps at ticks %s are not %d apart" % [walk_ticks, rules.move_ticks_per_cell])
+			return false
+	if charge_ticks[1] - charge_ticks[0] != rules.charge_ticks_per_cell:
+		push_error("Charge steps at ticks %s are not %d apart" % [charge_ticks, rules.charge_ticks_per_cell])
+		return false
+	# Knockback lasts its event's duration whether the victim acts before
+	# (B victim on odd tick 15) or after (A victim) the cavalry.
+	return _check_knockback_duration(Battle.SIDE_A) and _check_knockback_duration(Battle.SIDE_B)
+
+
+func _check_knockback_duration(cavalry_side: int) -> bool:
+	var battle := _new_battle()
+	_add(battle, cavalry_side, CAVALRY, 4, 1)
+	var archer := _add(battle, 1 - cavalry_side, ARCHER, 4, 3)
+	var events := _events_until(battle, &"charge_ended")
+	var pushes := events.filter(func(event: Dictionary) -> bool: return event["type"] == &"unit_moved" and event["kind"] == &"knockback")
+	if pushes.size() != 1:
+		push_error("No knockback for a side %d charge: %s" % [cavalry_side, events])
+		return false
+	var duration: int = pushes[0]["duration_ticks"]
+	for remaining: int in range(duration, 0, -1):
+		if battle.get_unit_state(archer)["move_ticks_left"] != remaining:
+			push_error("Knocked-back archer has %s ticks left, expected %d" % [battle.get_unit_state(archer)["move_ticks_left"], remaining])
+			return false
+		battle.step()
+	return battle.get_unit_state(archer)["move_ticks_left"] == 0
+
+
 func _check_mage_row3() -> bool:
 	# A mage at (3,1) and three enemy archers side by side in row 4.
 	var battle := _new_battle()
@@ -195,14 +256,36 @@ func _check_time_limit() -> bool:
 	if ended.get("reason") != &"time_limit" or ended.get("winner") != Battle.SIDE_B or battle.get_tick() != 10:
 		push_error("Tied time limit ended as %s at tick %d" % [ended, battle.get_tick()])
 		return false
-	# Same hp share but more living units: side A wins.
-	battle = _new_battle(rules)
-	_add(battle, Battle.SIDE_A, SHIELD, 4, 4)
-	_add(battle, Battle.SIDE_A, SHIELD, 1, 4)
-	_add(battle, Battle.SIDE_B, SHIELD, 4, 4)
-	ended = _end_event(battle)
-	if ended.get("reason") != &"time_limit" or ended.get("winner") != Battle.SIDE_A:
-		push_error("Time limit with more A units ended as %s" % ended)
+	return _check_unit_count_tie()
+
+
+# Equal hp share, more living units: two A units with max_hp 2 each lose 1 hp
+# to one mage hit (5000 + 5000) against the full-hp mage (10000). The mage's
+# first attack lands on tick 34, the time limit.
+func _check_unit_count_tie() -> bool:
+	var rules := _catalog.battle_rules.duplicate() as BattleRulesData
+	rules.time_limit_ticks = 34
+	rules.hold_line_grace_ticks = 1000
+	rules.hold_line_max_ticks = 1000
+	var battle := _new_battle(rules)
+	var fragile := _catalog.get_class_data(&"class.shield").duplicate() as ClassData
+	fragile.id = &"class.test_fragile"
+	fragile.max_hp = 2
+	fragile.attack = 0
+	fragile.magic_resist = 10000
+	battle.register_class(fragile)
+	var a_units: Array[int] = [
+		_add_test_unit(battle, Battle.SIDE_A, fragile, 4, 3),
+		_add_test_unit(battle, Battle.SIDE_A, fragile, 5, 3),
+	]
+	_add(battle, Battle.SIDE_B, MAGE, 4, 1)
+	var ended := _end_event(battle)
+	for index: int in a_units:
+		if battle.get_unit_state(index)["hp"] != 1:
+			push_error("Unit-count tie setup broke: %s" % battle.get_unit_state(index))
+			return false
+	if ended.get("reason") != &"time_limit" or ended.get("winner") != Battle.SIDE_A or battle.get_tick() != 34:
+		push_error("Score tie with more A units ended as %s at tick %d" % [ended, battle.get_tick()])
 		return false
 	return true
 
@@ -248,6 +331,30 @@ func _check_signals() -> bool:
 	return true
 
 
+func _check_refused_commands() -> bool:
+	print("Battle test: the next two errors are expected")
+	# A class in use cannot be replaced: units keep what they copied from it.
+	var battle := _new_battle()
+	_add(battle, Battle.SIDE_A, SHIELD, 4, 1)
+	_add(battle, Battle.SIDE_B, SWORD, 4, 1)
+	var changed := _catalog.get_class_data(&"class.shield").duplicate() as ClassData
+	changed.opening = &""
+	if battle.register_class(changed):
+		push_error("register_class replaced a class that a unit uses")
+		return false
+	# A handler that calls step() is refused and the tick does not move.
+	var nested: Array = []
+	battle.event_emitted.connect(func(_event: Dictionary) -> void:
+		if nested.is_empty():
+			nested.append([battle.step(), battle.get_tick()]))
+	battle.start()
+	var events := battle.step()
+	if nested.size() != 1 or not nested[0][0].is_empty() or nested[0][1] != 1 or battle.get_tick() != 1 or events.is_empty():
+		push_error("Re-entrant step() was not refused: %s" % [nested])
+		return false
+	return battle.run_to_end(MAX_TICKS) != "" and battle.is_finished()
+
+
 func _check_coordinates() -> bool:
 	if Battle.local_to_global(Battle.SIDE_A, 1, 1) != Vector2i(0, 3) or Battle.local_to_global(Battle.SIDE_B, 1, 1) != Vector2i(6, 4):
 		push_error("local_to_global maps the front-left cells wrongly")
@@ -287,6 +394,25 @@ func _add_test_archer(battle: Battle) -> int:
 	unit.id = &"unit.test_archer"
 	unit.class_id = class_data.id
 	return battle.add_unit(Battle.SIDE_A, unit, 1, 4, 3)
+
+
+# Adds a unit of a test class that is already registered.
+func _add_test_unit(battle: Battle, side: int, class_data: ClassData, col: int, rank: int) -> int:
+	var unit := _catalog.get_unit(SHIELD).duplicate() as UnitData
+	unit.id = StringName(String(class_data.id).replace("class.", "unit."))
+	unit.class_id = class_data.id
+	var index := battle.add_unit(side, unit, 1, col, rank)
+	assert(index >= 0, "Battle test: could not add %s" % unit.id)
+	return index
+
+
+# Ticks at which `unit` started a move of this kind.
+func _move_ticks(events: Array[Dictionary], unit: int, kind: StringName) -> Array[int]:
+	var ticks: Array[int] = []
+	for event: Dictionary in events:
+		if event["type"] == &"unit_moved" and event["unit"] == unit and event["kind"] == kind:
+			ticks.append(event["tick"])
+	return ticks
 
 
 func _setup_5v5(battle: Battle, a_archer_col: int) -> Battle:

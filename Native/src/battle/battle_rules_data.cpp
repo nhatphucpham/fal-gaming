@@ -38,8 +38,8 @@ void BattleRulesData::_bind_methods() {
 
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "ticks_per_second", PROPERTY_HINT_RANGE, "1,240,1"), "set_ticks_per_second", "get_ticks_per_second");
 	ADD_PROPERTY(PropertyInfo(Variant::PACKED_INT32_ARRAY, "cost_multipliers_pct"), "set_cost_multipliers_pct", "get_cost_multipliers_pct");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "star_multiplier_pct", PROPERTY_HINT_RANGE, "1,1000,1"), "set_star_multiplier_pct", "get_star_multiplier_pct");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "counter_bonus_pct", PROPERTY_HINT_RANGE, "0,1000,1"), "set_counter_bonus_pct", "get_counter_bonus_pct");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "star_multiplier_pct", PROPERTY_HINT_RANGE, "1,300,1"), "set_star_multiplier_pct", "get_star_multiplier_pct");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "counter_bonus_pct", PROPERTY_HINT_RANGE, "0,100,1"), "set_counter_bonus_pct", "get_counter_bonus_pct");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "move_ticks_per_cell", PROPERTY_HINT_RANGE, "1,1000,1"), "set_move_ticks_per_cell", "get_move_ticks_per_cell");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "charge_ticks_per_cell", PROPERTY_HINT_RANGE, "1,1000,1"), "set_charge_ticks_per_cell", "get_charge_ticks_per_cell");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "time_limit_ticks", PROPERTY_HINT_RANGE, "1,100000,1"), "set_time_limit_ticks", "get_time_limit_ticks");
