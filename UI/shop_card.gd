@@ -5,7 +5,8 @@ extends Control
 ## shows two pulsing stars, one that would raise a class or race milestone
 ## or complete a formation a jade link badge; an empty (bought) slot is a
 ## faint outline. Input is handled by the ShopBar; the card only draws and
-## animates.
+## animates. The pulsing glow and stars are drawn by two child layers, so
+## the card itself (with its bust) redraws only when its offer changes.
 
 const CARD_SIZE := Vector2(128, 156)
 const PORTRAIT_PX := Vector2(116, 100)
@@ -26,6 +27,9 @@ var _merge_hint: bool = false
 var _synergy_hint: bool = false
 var _time: float = 0.0
 var _tween: Tween
+# Behind the card: the cost 4-5 glow. Above it: merge stars, synergy badge.
+var _glow_layer: Control
+var _hint_layer: Control
 
 
 func _init() -> void:
@@ -43,6 +47,9 @@ func _init() -> void:
 	_name_label.position = Vector2(4, PORTRAIT_PX.y + 6)
 	_name_label.size = Vector2(CARD_SIZE.x - 40, CARD_SIZE.y - PORTRAIT_PX.y - 8)
 	add_child(_name_label)
+	_glow_layer = _make_layer(_draw_glow)
+	_glow_layer.show_behind_parent = true
+	_hint_layer = _make_layer(_draw_hints)
 
 
 ## Shows `unit_data`, or an empty slot for null.
@@ -53,6 +60,8 @@ func set_unit(unit_data: UnitData) -> void:
 	_merge_hint = false
 	_synergy_hint = false
 	queue_redraw()
+	_glow_layer.queue_redraw()
+	_hint_layer.queue_redraw()
 
 
 func set_affordable(value: bool) -> void:
@@ -64,7 +73,7 @@ func set_affordable(value: bool) -> void:
 ## Two pulsing stars: buying this card merges at once.
 func set_merge_hint(value: bool) -> void:
 	_merge_hint = value
-	queue_redraw()
+	_hint_layer.queue_redraw()
 
 
 ## A jade badge: buying this card raises a milestone or completes a
@@ -72,7 +81,7 @@ func set_merge_hint(value: bool) -> void:
 func set_synergy_hint(value: bool) -> void:
 	if value != _synergy_hint:
 		_synergy_hint = value
-		queue_redraw()
+		_hint_layer.queue_redraw()
 
 
 func has_synergy_hint() -> bool:
@@ -95,9 +104,15 @@ func get_portrait_center() -> Vector2:
 
 
 func _process(delta: float) -> void:
-	if unit != null and (unit.cost >= GLOW_FROM_COST or _merge_hint):
+	if unit == null:
+		return
+	var is_glowing := unit.cost >= GLOW_FROM_COST
+	if is_glowing or _merge_hint:
 		_time += delta
-		queue_redraw()
+	if is_glowing:
+		_glow_layer.queue_redraw()
+	if _merge_hint:
+		_hint_layer.queue_redraw()
 
 
 func _draw() -> void:
@@ -107,10 +122,6 @@ func _draw() -> void:
 		draw_rect(rect.grow(-6.0), Color(Palette.TEXT_DIM, 0.25), false, 2.0)
 		return
 	var fill := Palette.cost_color(unit.cost)
-	if unit.cost >= GLOW_FROM_COST:
-		var pulse := 0.5 + 0.5 * sin(_time * 4.0)
-		for ring: int in 3:
-			draw_rect(rect.grow(2.0 + ring * 2.5), Color(Palette.GOLD, (0.45 - ring * 0.13) * (0.6 + 0.4 * pulse)), false, 3.0)
 	var box := GameTheme.make_panel(fill.darkened(0.25) if _is_affordable else fill.darkened(0.6), 16, 5)
 	box.border_color = Palette.GOLD if is_selected else Palette.INK
 	box.set_border_width_all(4 if is_selected else 3)
@@ -124,19 +135,42 @@ func _draw() -> void:
 	var coin := Vector2(CARD_SIZE.x - 22.0, CARD_SIZE.y - 26.0)
 	IconPainter.draw(self, &"coin", coin, 30.0)
 	_draw_cost_number(coin)
+
+
+func _draw_glow() -> void:
+	if unit == null or unit.cost < GLOW_FROM_COST:
+		return
+	var rect := Rect2(Vector2.ZERO, CARD_SIZE)
+	var pulse := 0.5 + 0.5 * sin(_time * 4.0)
+	for ring: int in 3:
+		_glow_layer.draw_rect(rect.grow(2.0 + ring * 2.5), Color(Palette.GOLD, (0.45 - ring * 0.13) * (0.6 + 0.4 * pulse)), false, 3.0)
+
+
+func _draw_hints() -> void:
+	if unit == null:
+		return
 	if _merge_hint:
 		var lift := sin(_time * 5.0) * 3.0
-		UnitPainter.draw_star_pips(self, Vector2(CARD_SIZE.x / 2.0, 14.0 + lift), 2, 9.0)
+		UnitPainter.draw_star_pips(_hint_layer, Vector2(CARD_SIZE.x / 2.0, 14.0 + lift), 2, 9.0)
 	if _synergy_hint:
 		_draw_synergy_badge(Vector2(20.0, 20.0))
 
 
 # Two linked rings on a jade disc, in the portrait's top-left corner.
 func _draw_synergy_badge(center: Vector2) -> void:
-	draw_circle(center, 14.0, Palette.INK)
-	draw_circle(center, 12.0, Palette.JADE)
-	draw_arc(center + Vector2(-3.5, 0), 5.5, 0.0, TAU, 16, Palette.CREAM, 2.5, true)
-	draw_arc(center + Vector2(3.5, 0), 5.5, 0.0, TAU, 16, Palette.CREAM, 2.5, true)
+	_hint_layer.draw_circle(center, 14.0, Palette.INK)
+	_hint_layer.draw_circle(center, 12.0, Palette.JADE)
+	_hint_layer.draw_arc(center + Vector2(-3.5, 0), 5.5, 0.0, TAU, 16, Palette.CREAM, 2.5, true)
+	_hint_layer.draw_arc(center + Vector2(3.5, 0), 5.5, 0.0, TAU, 16, Palette.CREAM, 2.5, true)
+
+
+func _make_layer(painter: Callable) -> Control:
+	var layer := Control.new()
+	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.size = CARD_SIZE
+	layer.draw.connect(painter)
+	add_child(layer)
+	return layer
 
 
 func _draw_cost_number(coin: Vector2) -> void:

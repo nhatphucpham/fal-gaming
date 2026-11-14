@@ -140,7 +140,7 @@ func _draw() -> void:
 		box.border_color = Palette.INK
 		box.draw(get_canvas_item(), rect)
 		var floor_center := rect.get_center() + Vector2(0, rect.size.y * 0.3)
-		draw_colored_polygon(UnitPainter.Brush.ellipse(floor_center, 34.0, 9.0, 18), Color(Palette.BACKDROP, 0.6))
+		draw_colored_polygon(FigureBrush.ellipse(floor_center, 34.0, 9.0, 18), Color(Palette.BACKDROP, 0.6))
 		if index == _selected:
 			var pulse := 1.0 + 0.04 * sin(_time * 7.0)
 			var ring := Rect2(rect.get_center() - rect.size * pulse / 2.0, rect.size * pulse)

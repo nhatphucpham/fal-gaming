@@ -6,7 +6,6 @@ extends RefCounted
 ## know). Big effects and name popups are capped so a busy fight stays
 ## readable. See Docs/systems/battle_playback.md.
 
-const WIND_UP_SEC: float = 0.2
 const MAX_BIG_EFFECTS: int = 3
 const MAX_NAME_POPUPS: int = 3
 # How far apart two name popups must be to both be read.
@@ -86,7 +85,8 @@ func _on_cast_started(event: Dictionary) -> void:
 		return
 	var color := _class_color(view)
 	var seconds := float(int(event["end_tick"]) - int(event["tick"]) + 1) / _playback.get_ticks_per_second()
-	view.wind_up(WIND_UP_SEC)
+	# The wind-up spans the cast; the resolve's recoil releases the strike.
+	view.wind_up(seconds)
 	view.skill_overlay.accent = color
 	view.skill_overlay.set_casting(true)
 	var centers: Array[Vector2] = []

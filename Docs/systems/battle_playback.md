@@ -30,7 +30,8 @@ used for this, because `advance()` ignores calls while not running.
 
 `speed` is 1, 2 or 4 (the x1 / x2 / x4 button). It multiplies the tick rate
 and the speed scale of every tween the playback, the effects and the unit
-views create, so animations keep pace with the battle.
+views create, so animations keep pace with the battle. A unit view also
+changes the speed of its moves and poses already running.
 
 ## Events to animations
 
@@ -46,19 +47,19 @@ a unit already playing its death shows nothing.
 | Event | Animation |
 | --- | --- |
 | `battle_started` | none (the screen has already slid to the battle layout) |
-| `unit_moved` `walk` | glide over `duration_ticks`, with a small step bob |
-| `unit_moved` `charge` | faster gallop bob, stretched figure, dust puffs along the path |
-| `unit_moved` `knockback` | quick skidding slide with a tilt and a dust puff, after the hit lands |
-| `unit_attacked` `melee` | lunge toward the target and a slash arc on the target cell |
-| `unit_attacked` `ranged` | recoil and an arrow flying in an arc to the target cell |
-| `unit_attacked` `magic` | recoil and a bolt, then the three cells of the row flash |
-| `damage_dealt` | target flashes white and flinches, a damage number pops and floats (bigger and gold when `is_counter`; gold with "!" when `is_crit`), the hp bar slides down with a pale trail; with `blocked_by`, a shield flash at the blocker. Skill damage may add its own look (below) |
-| `unit_died` | the unit falls over and fades out; a boss instead cracks all over and crumbles (`UnitView.crumble()`, see [Boss](boss.md)) |
-| `charge_ended` | none (the charge's moves and hit already show it) |
-| `battle_ended` | after 0.6 s the winners hop twice, then `battle_finished` fires and the screen shows the result banner |
+| `unit_moved` `walk` | glide over `duration_ticks`, with a small step bob; the legs walk and the unit drops its combat stance |
+| `unit_moved` `charge` | faster gallop bob, stretched figure, dust puffs along the path; the horse gallops with the lance levelled (a rider still winding up keeps the glow, and Breakthrough's resolve in the same tick lands the strike mid-gallop) |
+| `unit_moved` `knockback` | quick skidding slide with a tilt and a dust puff, after the hit lands; the figure flinches back while it slides |
+| `unit_attacked` `melee` | the attacker turns to the target, swings or thrusts at it (a white smear) and lunges; a slash arc on the target cell |
+| `unit_attacked` `ranged` | the archer turns to the target, looses and draws a new arrow, with a recoil; an arrow flies in an arc to the target cell |
+| `unit_attacked` `magic` | the mage turns to the target and thrusts the staff (the orb flashes), with a recoil; a bolt, then the three cells of the row flash |
+| `damage_dealt` | target flashes white and flinches with hurt eyes (a shield raises its shield), a damage number pops and floats (bigger and gold when `is_counter`; gold with "!" when `is_crit`), the hp bar slides down with a pale trail; with `blocked_by`, a shield flash at the blocker. Skill damage may add its own look (below) |
+| `unit_died` | the unit collapses limp with dead eyes, falls over backwards and fades out; a boss instead cracks all over and crumbles (`UnitView.crumble()`, see [Boss](boss.md)) |
+| `charge_ended` | when the charge hit someone, three dust puffs where rider and target meet, just after the impact (the charge's moves and hit already show the rest) |
+| `battle_ended` | after 0.6 s the winners raise their weapons with happy eyes and hop twice, then `battle_finished` fires and the screen shows the result banner |
 | `qi_changed` | the thin blue Khí bar under the hp bar fills; when full its frame glows and pulses |
-| `skill_cast_started` | 0.2 s wind-up (crouch and rise), a glow at the caster's feet in its class colour until it resolves, the skill's cells lit in that colour with one outline around the area for the cast, and the skill name rising over the caster for 0.6 s |
-| `skill_resolved` | a 2.5 px shake of the pieces and effects for 0.15 s and the skill's effect (table below) |
+| `skill_cast_started` | a wind-up over the whole cast (`UnitView.wind_up(seconds)`): the caster crouches with its weapon raised and glowing in its class colour (a horse rears), a glow at the caster's feet in its class colour until it resolves, the skill's cells lit in that colour with one outline around the area for the cast, and the skill name rising over the caster for 0.6 s |
+| `skill_resolved` | the caster's recoil releases the wound-up strike, a 2.5 px shake of the pieces and effects for 0.15 s and the skill's effect (table below) |
 | `passive_triggered` | the passive icon (a diamond left of the hp bar) blinks once; no text |
 | `status_applied`, `status_ended` | a small icon right of the hp bar while it lasts: red "!" taunted, indigo shield guard, cracked ochre shield armor break, gold star stun; a taunt also bounces a "!" over the taunted unit |
 | `synergy_activated` | none here: the screen's roll call (outlines flash, names stamp, the Hợp Lực ring bounces) plays when the battle starts, see [Synergy](synergy.md) |
@@ -66,7 +67,7 @@ a unit already playing its death shows nothing.
 | `modifier_triggered` | by handler, with the hit it belongs to: block "Chặn", reflection "Phản", charge immunity "Mất đà", double hit a gold cell flash and "Gấp đôi", split thin lines from the unit hit to the other members and "Chia đòn", volley the archer recoils and the formation name shows (its arrows fall like Tiễn Vũ's) |
 | `damage_dealt` with `is_blocked_by_modifier` | no number (the "Chặn" says it) |
 | `damage_dealt` with `is_immune` | no number and no flash: the hit bounces off a petrified unit |
-| `status_applied` / `status_ended` of `status.petrified` | the unit stops its cast glow, turns grey with a steel sheen and cracks (`UnitView.set_petrified()`, drawn by `StoneLayer`), "Hóa Đá" pops above it, a steel icon shows by its hp bar, and `unit_petrified(index, true)` fires; the end reverses it and fires `unit_petrified(index, false)` |
+| `status_applied` / `status_ended` of `status.petrified` | the unit stops its cast glow, freezes in its pose of the moment, turns grey with a steel sheen and cracks (`UnitView.set_petrified()`, drawn by `StoneLayer`), "Hóa Đá" pops above it, a steel icon shows by its hp bar, and `unit_petrified(index, true)` fires; the end reverses it and fires `unit_petrified(index, false)` |
 
 Skill effects, from `SkillPlayback`'s registry by skill id:
 

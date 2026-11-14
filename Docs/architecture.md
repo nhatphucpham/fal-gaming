@@ -57,7 +57,9 @@
   (`AudioService`), the static facade `Sound` that presentation code calls,
   and the data types `SoundBank` and `SoundData`.
 - `Scenes/Board/` holds the reusable battlefield: `BoardView`, `UnitView`,
-  `UnitPainter` and `LineupViews`. `Scenes/Battle/` holds `BattlePlayback`
+  `UnitPainter` (with `FigureBrush`, `FigureParts`, `ClassFigures`, the
+  posed figures), `UnitPose` and `PoseAnimator` (the figure's limbs and
+  their animations) and `LineupViews`. `Scenes/Battle/` holds `BattlePlayback`
   and `BattleFx`, which play a `Battle` on a board, and `SkillPlayback`,
   `SkillFx` and `SkillOverlay` for skill events. `Scenes/Sandbox/` holds
   the sandbox screen and its setup interaction; it is the only part that

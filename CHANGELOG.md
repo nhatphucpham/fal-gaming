@@ -162,6 +162,13 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Changed
 
+- Units are drawn as posed figures with arms, legs and class gear
+  (helmets, hats, bow, staff, shield, lance on a horse). They turn toward
+  their target, swing, thrust, shoot or cast, raise their weapon through a
+  skill's wind-up, flinch and look hurt when hit (shields raise their
+  guard), go limp and fall when they die, cheer after a win, sway and
+  blink while idle, and freeze in place when turned to stone. Every pose
+  follows the battle speed.
 - Every button keeps at least 24 px from the top and bottom of the
   screen.
 - The preparation time setting reads "Xếp quân: 60 s".
@@ -180,6 +187,8 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Fixed
 
+- Bosses and the sage no longer redraw 10 times a second while idle, and a
+  unit that glides or hops right after a knockback is no longer left tilted.
 - The web build had no sound at all: the Music and Sfx buses were added
   at run time, which is silent in the browser. They now come from
   `default_bus_layout.tres`.
