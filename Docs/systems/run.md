@@ -67,10 +67,10 @@ touches code. `Catalog.validate()` checks it with `RunRules.validate()`.
 | `shop_odds` | one row per level 3..9 | Percent of cost 1..5 per slot (level 3: 75/25/0/0/0; level 9: 10/18/30/32/10) |
 | `stage_income` | 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 10 | Gold at the start of each stage's preparation |
 | `stage_supply`, `winter_from_stage`, `winter_supply` | 2, 9, 1 | Supply per preparation; 1 from stage 9 |
-| `enemy_counts` | 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 7 | Enemy units per stage, checked against `Data/Stages/` (stage 12: the boss and 6 guards) |
+| `enemy_counts` | 2, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 7 | Enemy units per stage, checked against `Data/Stages/` (stage 12: the boss and 6 guards) |
 | `win_gold`, `win_supply` | 1, 2 | Paid for a won battle |
 | `streak_gold_wins`, `streak_gold_bonus` | 2, 4; 1, 2 | Win streak: from the 2nd win in a row +1 gold more per win, from the 4th +2 (`get_streak_bonus()`); a loss starts over |
-| `loot_gold` | 5 | Reward "Chiến lợi phẩm": gold now |
+| `loot_gold` | 5 | Reward "Kho báu": gold now |
 | `encounter_stages` | 2, 4, 6, 8, 10 | Stages whose reward is followed by a road encounter ([encounter.md](encounter.md)) |
 | `loss_morale_base`, `loss_morale_per_enemy` | 6, 2 | A loss costs 6 + 2 per enemy still alive |
 | `rest_morale`, `hunt_supply` | 15, 6 | Rewards "Nghỉ ngơi" and "Săn bắn" (morale never above the maximum) |
@@ -358,22 +358,23 @@ each run's first battle at that stage; stage 12 is retried after a loss.
 
 | Stage | Normal: first try win % | Avg morale after | Weak: first try win % | Avg morale after |
 | --- | --- | --- | --- | --- |
-| 1 | 97 | 59.7 | 52 | 55.5 |
-| 2 | 100 | 59.7 | 91 | 54.6 |
-| 3 | 100 | 58.8 | 97 | 54.4 |
-| 4 | 100 | 58.8 | 97 | 54.3 |
-| 5 | 100 | 58.2 | 84 | 52.6 |
-| 6 | 100 | 58.2 | 82 | 51.2 |
-| 7 | 100 | 57.6 | 53 | 45.0 |
-| 8 | 100 | 57.6 | 50 (of 298 reaching it) | 41.2 |
-| 9 | 100 | 57.1 | 0 | 25.0 |
-| 10 | 93 | 56.3 | 0 | 15.3 |
-| 11 | 76 | 53.3 | 0 | 7.4 |
-| 12 | 55 (23 per attempt over 747 attempts) | 27.0 | 0 | 2.8 |
+| 1 | 100 | 60.0 | 100 | 60.0 |
+| 2 | 100 | 60.0 | 100 | 60.0 |
+| 3 | 100 | 59.1 | 100 | 59.3 |
+| 4 | 100 | 59.1 | 99 | 59.2 |
+| 5 | 100 | 58.4 | 88 | 57.3 |
+| 6 | 100 | 58.4 | 78 | 54.6 |
+| 7 | 100 | 57.8 | 50 | 47.9 |
+| 8 | 100 | 57.8 | 48 | 42.6 |
+| 9 | 100 | 57.4 | 0 (of 297 reaching it) | 26.9 |
+| 10 | 94 | 56.6 | 0 | 16.2 |
+| 11 | 75 | 53.4 | 0 | 8.1 |
+| 12 | 56 (23 per attempt over 740 attempts) | 27.1 | 0 | 3.0 |
 
-Normal: run win rate 56.3% (169 of 300), 11.2 stages cleared on average,
-5 road encounters and 18.4 streak gold per run. Weak: no run won, 6.1
-stages cleared on average; 97% of runs clear stage 4 and 50% stage 8.
+Normal: run win rate 56.7% (170 of 300), 11.3 stages cleared on average,
+5 road encounters and 18.4 streak gold per run. Weak: no run won, 6.6
+stages cleared on average; 99% of runs win stage 4 and 48% stage 8 at the
+first try.
 
 Milestone 7 (road encounters, streak bonus, loot, lane-target cavalry, and
 stages 5-8 eased), all 300 runs from seed 1:
@@ -382,7 +383,12 @@ stages 5-8 eased), all 300 runs from seed 1:
 | --- | --- | --- | --- |
 | Before (milestone 6 data, new cavalry) | 34.0 | 99% | 0% |
 | Encounters, streak and loot | 56.7 | 97% | 0% |
-| ... and stages 5-8 eased (current) | 56.3 | 97% | 50% |
+| ... and stages 5-8 eased | 56.3 | 97% | 50% |
+| ... and stage 1 with two enemies (current) | 56.7 | 99% | 48% |
+
+Stage 1 had three enemies, a mirror of what 10 gold buys, and the weak
+bot won it only 52% of the time: a first battle that a careless line-up
+loses. It now has two (the wolf archer is gone).
 
 The weak player hit a wall at stage 5 (four 1-star enemies at stage 4,
 five mostly 2-star at stage 5). Stages 5-8 now keep one 2-star each

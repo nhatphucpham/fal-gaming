@@ -16,7 +16,8 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
   back-liner next to it rather than chopping at a shield. Dust bursts where
   a charge hits. Đột Trận no longer pulls the rider back when it is
   already in front of an enemy.
-- Stages 5-8 are gentler: one 2-star enemy each, the rest 1-star.
+- Stage 1 has two enemies instead of three, and stages 5-8 are gentler:
+  one 2-star enemy each, the rest 1-star.
 - Saves from before this version (format 3) are not continued.
 
 ### Added
@@ -31,7 +32,7 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
   brings it back.
 - Win streak: from the 2nd win in a row +1 gold, from the 4th +2, shown as
   its own chip under the result with a coin sound.
-- Reward "Chiến lợi phẩm": +5 gold. A win offers three rewards drawn from
+- Reward "Kho báu": +5 gold. A win offers three rewards drawn from
   rest, hunt, black market and loot.
 - `Tools/run_bot.gd --weak`: a new-player stand-in for balance runs.
 

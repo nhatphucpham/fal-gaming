@@ -68,7 +68,7 @@ extends Resource
 @export var hunt_supply: int = 6
 @export var black_market_levels: int = 1
 @export var black_market_free_refreshes: int = 1
-## "Chiến lợi phẩm": gold paid by the loot reward.
+## "Kho báu": gold paid by the loot reward.
 @export var loot_gold: int = 5
 ## Reward cards offered after a won battle and after a lost one, drawn
 ## from all the rewards.
