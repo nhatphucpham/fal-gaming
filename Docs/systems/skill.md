@@ -138,7 +138,9 @@ coefficient by star, each 1..400) and `crit_multiplier_pct` 150 (100..300).
 Most skills are generic blocks (selector + area + effects). Two are not:
 `effect.charge_column` has to run over many ticks (move to the column, run,
 hit, knock back, maybe the next column) through the charge runner that the
-cavalry opening uses, and `effect.arrow_volley` re-aims each arrow at the
+cavalry opening uses, aimed at the frontmost enemy of the column (the move
+is skipped when the rider already stands in that column in front of an
+enemy), and `effect.arrow_volley` re-aims each arrow at the
 column's new front after the previous one kills. Neither fits a one-shot
 effect on fixed cells, so each has its own handler in
 `skill_effects_special.cpp`.

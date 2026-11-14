@@ -13,28 +13,28 @@ local_rank = 1
 [sub_resource type="Resource" id="Slot_2"]
 script = ExtResource("2_slot")
 unit_id = &"unit.wolf_shield"
-star = 2
+star = 1
 local_col = 3
 local_rank = 1
 
 [sub_resource type="Resource" id="Slot_3"]
 script = ExtResource("2_slot")
 unit_id = &"unit.wolf_shield"
-star = 2
+star = 1
 local_col = 5
 local_rank = 1
 
 [sub_resource type="Resource" id="Slot_4"]
 script = ExtResource("2_slot")
 unit_id = &"unit.wind_mage"
-star = 2
+star = 1
 local_col = 4
 local_rank = 2
 
 [sub_resource type="Resource" id="Slot_5"]
 script = ExtResource("2_slot")
 unit_id = &"unit.wind_mage"
-star = 2
+star = 1
 local_col = 3
 local_rank = 3
 

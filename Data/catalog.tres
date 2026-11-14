@@ -93,6 +93,15 @@
 [ext_resource type="Resource" path="res://Data/Epiphanies/human.tres" id="epiphany_human"]
 [ext_resource type="Resource" path="res://Data/Epiphanies/wolf.tres" id="epiphany_wolf"]
 [ext_resource type="Resource" path="res://Data/Audio/sounds.tres" id="audio_sounds"]
+[ext_resource type="Script" path="res://Systems/Run/encounter_data.gd" id="4_encounter_data"]
+[ext_resource type="Resource" path="res://Data/Encounters/merchants.tres" id="encounter_merchants"]
+[ext_resource type="Resource" path="res://Data/Encounters/wager.tres" id="encounter_wager"]
+[ext_resource type="Resource" path="res://Data/Encounters/deserters.tres" id="encounter_deserters"]
+[ext_resource type="Resource" path="res://Data/Encounters/villagers.tres" id="encounter_villagers"]
+[ext_resource type="Resource" path="res://Data/Encounters/stranger.tres" id="encounter_stranger"]
+[ext_resource type="Resource" path="res://Data/Encounters/surplus.tres" id="encounter_surplus"]
+[ext_resource type="Resource" path="res://Data/Encounters/teacher.tres" id="encounter_teacher"]
+[ext_resource type="Resource" path="res://Data/Encounters/storehouse.tres" id="encounter_storehouse"]
 
 [resource]
 script = ExtResource("1_catalog")
@@ -107,4 +116,5 @@ formations = Array[FormationData]([ExtResource("formation_shield_wall"), ExtReso
 milestones = Array[MilestoneData]([ExtResource("milestone_class_shield"), ExtResource("milestone_class_sword"), ExtResource("milestone_class_spear"), ExtResource("milestone_class_cavalry"), ExtResource("milestone_class_archer"), ExtResource("milestone_class_mage"), ExtResource("milestone_race_human"), ExtResource("milestone_race_wolf")])
 hop_luc = ExtResource("rules_hop_luc")
 epiphanies = Array[ExtResource("3_epiphany_family")]([ExtResource("epiphany_shield"), ExtResource("epiphany_sword"), ExtResource("epiphany_spear"), ExtResource("epiphany_cavalry"), ExtResource("epiphany_archer"), ExtResource("epiphany_mage"), ExtResource("epiphany_human"), ExtResource("epiphany_wolf")])
+encounters = Array[ExtResource("4_encounter_data")]([ExtResource("encounter_merchants"), ExtResource("encounter_wager"), ExtResource("encounter_deserters"), ExtResource("encounter_villagers"), ExtResource("encounter_stranger"), ExtResource("encounter_surplus"), ExtResource("encounter_teacher"), ExtResource("encounter_storehouse")])
 sounds = ExtResource("audio_sounds")

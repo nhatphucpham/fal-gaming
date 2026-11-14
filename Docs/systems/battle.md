@@ -55,7 +55,7 @@ checked by `Battle.register_class()`.
 | `range_cells` | cells, 1..8 | Chebyshev distance |
 | `armor`, `magic_resist` | 0..10000 | mitigation `100 / (100 + value)` |
 | `damage_kind` | `DAMAGE_PHYSICAL` (0), `DAMAGE_MAGIC` (1) | picks armor or magic resist |
-| `targeting` | handler id | `target.nearest`, `target.column_first`, `target.densest_row3` |
+| `targeting` | handler id | `target.nearest`, `target.column_first`, `target.densest_row3`, `target.flank` (cavalry: nearest, a ranged or magic back-liner before a melee unit at the same distance) |
 | `opening` | handler id or empty | `opening.hold_line`, `opening.charge` |
 | `attack_shape` | handler id | `shape.single`, `shape.row3` |
 | `counters` | `Array[StringName]` of class ids | +`counter_bonus_pct` damage against them |
@@ -172,13 +172,25 @@ allowed.
   modifiers off.
 - **Openings.** `opening.hold_line`: no moving, attacks in range; ends at
   `hold_line_max_ticks`, or after `hold_line_grace_ticks` once no enemy
-  targets the unit. `opening.charge`: runs forward at
-  `charge_ticks_per_cell` until the next cell is taken or off the board; an
-  enemy there takes one free basic attack and is pushed one cell further
-  (if free and not prevented), taking `charge_ticks_per_cell` ticks. Before
+  targets the unit. `opening.charge`: at the start the rider picks a lane
+  target: the nearest enemy ahead in its own column, else the nearest
+  ahead in a neighbouring column (a tie goes to its own left), and none if
+  any unit stands in its own column before that enemy's row. With no lane
+  target the opening ends at once (no charge, no `charge_ended`) and the
+  rider walks like anyone. Otherwise it runs forward at
+  `charge_ticks_per_cell`; when the target is one row ahead (straight or
+  diagonal) it stops and the impact lands; an ally in the way ends the
+  charge, an enemy stepping into the lane becomes the impact. If the target
+  dies or leaves the lane on the way, the rider picks again (none: the
+  charge ends). The hit enemy takes one free basic attack and is pushed one
+  cell straight back (if free and not prevented), taking
+  `charge_ticks_per_cell` ticks. Before
   the impact, enemies with a `charge_impact_incoming` passive (brace) may
-  strike first. The tick of the impact is the charge's last action. The
-  cavalry skill reuses this runner.
+  strike first. The tick of the impact is the charge's last action;
+  `charge_ended` is emitted only for a charge that moved or hit (or a
+  skill charge). The cavalry skill reuses this runner, aimed at the
+  frontmost enemy of the column it picks; it only repositions when the
+  rider is not already in that column in front of an enemy.
 - **End.** A side with no living unit at the end of a tick loses (both: B
   wins). At `time_limit_ticks` the higher sum of `hp * 10000 / max_hp` wins,
   then more living units, then B.
@@ -201,7 +213,7 @@ function that calls `step()`, or call `step()` in a loop.
 | `step() -> Array[Dictionary]` | method | Advances one tick, returns and emits its events; nothing after the end. While its signals run, `step`, `run_to_end`, `start`, `clear`, `add_unit`, `register_class` and `set_rules` are refused with an error |
 | `run_to_end(max_ticks: int) -> String` | method | Starts if needed, steps until the end or `max_ticks` (>= 0), returns the hash; empty if a handler freed the node |
 | `is_started()`, `is_finished()`, `get_winner()`, `get_tick()` | methods | Winner is -1 while running |
-| `get_state_hash() -> String` | method | FNV-1a 64, 16 hex digits, over the tick, `finished`, `winner` and, per unit in index order: alive, hp, col, row, attack charge, move ticks left, target, has seen target in range, target out-of-range ticks, no-path ticks, opening active, Khí, cast (ticks left and cells), charge, passive counters (with the sliding window's hits, as ticks ago), statuses, max hp, basic attacks made and range bonus; then the synergy sources (active, split used, level) and modifiers (unit, kind, value, uses); then the scheduled Hậu chiêu |
+| `get_state_hash() -> String` | method | FNV-1a 64, 16 hex digits, over the tick, `finished`, `winner` and, per unit in index order: alive, hp, col, row, attack charge, move ticks left, target, has seen target in range, target out-of-range ticks, no-path ticks, opening active, Khí, cast (ticks left and cells), charge (with its lane target while active), passive counters (with the sliding window's hits, as ticks ago), statuses, max hp, basic attacks made and range bonus; then the synergy sources (active, split used, level) and modifiers (unit, kind, value, uses); then the scheduled Hậu chiêu |
 | `get_unit_count()`, `get_unit_state(index)`, `get_units()` | methods | `{index, side, unit_id, class_id, star, alive, hp, max_hp, attack, range_cells, col, row, target, move_ticks_left, qi, qi_max, casting, statuses, damage_dealt}`; `range_cells` includes a synergy range bonus; `damage_dealt` is the damage this unit has done so far (the run uses it for Kỳ Ngộ) |
 | `local_to_global(side, local_col, local_rank) -> Vector2i` | static | Global (col, row); (-1, -1) with an error for a bad side or cell |
 | `global_to_local(side, col, row) -> Vector2i` | static | (local col, rank); rank leaves 1..4 in the enemy half; (-1, -1) with an error off the board |
@@ -265,7 +277,16 @@ Example: `[info][Battle][t=412] unit_died unit=3 unit_id=unit.archer killer=7 ca
 and checks: validation and counts, stat derivation, determinism of a 5v5
 (same hash twice, a different hash when one unit moves), sword and counter
 damage, arrow blocking, charge with knockback and without it (shield,
-spear), hold line, switching to an enemy in range, mage row hits, walk,
+spear), lane-target charges (a neighbour-column target: diagonal stop,
+impact and the same one-row knockback; no charge and no `charge_ended`
+with an enemy far to the side, back-rank enemies to the sides, or an ally
+in front; after hitting a shield the rider turns to a mage diagonally next
+to it; a tie between both neighbouring columns goes to the rider's own
+left on either side; riders in the edge columns 1 and 7 of either side
+charge their one neighbouring column; a rider whose target dies or walks
+out of the lane on the way picks the enemy left in its lane; Đột Trận
+right after the opening hits the front enemy it aims at without moving the
+rider; two riders against a line give the same hash twice), hold line, switching to an enemy in range, mage row hits, walk,
 charge and knockback durations, the time limit (the higher score wins with
 fewer units, then both tie rules: more living units, then B), a full 8v8
 that ends by elimination (it prints its length), and coordinate round trips.

@@ -1,15 +1,25 @@
 class_name CutsceneChoiceCard
 extends Control
-## One choice of a cutscene: a cream card with a gold seal, a small heading
-## (the kind: Hạ Mốc or Biến Dị) and the choice's text. A release on it
-## emits `chosen`, the same way as a RewardCard.
+## One choice of a cutscene: a cream card with a gold seal (or a drawn
+## icon), a small heading (the kind: Hạ Mốc or Biến Dị, or an encounter
+## option's name) and the choice's text. A release on it emits `chosen`, the
+## same way as a RewardCard. A disabled card is greyed, says the player
+## cannot pay, and emits `refused` instead.
 
 signal chosen()
+signal refused()
 
 const CARD_SIZE := Vector2(316, 300)
+const ICON_PX: float = 52.0
+const DISABLED_TINT := Color(0.62, 0.6, 0.58)
 
 var _heading: Label
 var _text: Label
+var _seal: EpiphanySeal
+var _icon: StringName = &""
+var _is_disabled: bool = false
+var _note: Label
+var _shake_tween: Tween
 var _gesture := PointerGesture.new()
 var _tween: Tween
 var _is_down: bool = false
@@ -23,17 +33,45 @@ func _init() -> void:
 	size = CARD_SIZE
 	pivot_offset = CARD_SIZE / 2.0
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	var seal := EpiphanySeal.new()
-	seal.position = Vector2(CARD_SIZE.x / 2.0 - 26.0, 18.0)
-	seal.size = Vector2(52, 52)
-	add_child(seal)
+	_seal = EpiphanySeal.new()
+	_seal.position = Vector2(CARD_SIZE.x / 2.0 - 26.0, 18.0)
+	_seal.size = Vector2(52, 52)
+	add_child(_seal)
 	_heading = _make_label(30, Vector2(12, 78), Vector2(CARD_SIZE.x - 24, 44), Palette.VERMILION_DARK)
-	_text = _make_label(24, Vector2(16, 126), Vector2(CARD_SIZE.x - 32, 160), Palette.INK)
+	_text = _make_label(24, Vector2(16, 126), Vector2(CARD_SIZE.x - 32, 128), Palette.INK)
+	_note = _make_label(20, Vector2(16, 252), Vector2(CARD_SIZE.x - 32, 36), Palette.VERMILION_DARK)
+	_note.text = "ENCOUNTER_CANNOT_PAY"
+	_note.visible = false
 
 
-func setup(heading: String, text: String) -> void:
+## `icon` (an IconPainter kind) replaces the seal when set.
+func setup(heading: String, text: String, icon: StringName = &"") -> void:
 	_heading.text = heading
 	_text.text = text
+	_icon = icon
+	_seal.visible = icon == &""
+	queue_redraw()
+
+
+## Greys the card out: a release on it shakes it and emits `refused`.
+func set_disabled(disabled: bool) -> void:
+	_is_disabled = disabled
+	_note.visible = disabled
+	modulate = DISABLED_TINT if disabled else Color.WHITE
+
+
+func is_disabled() -> bool:
+	return _is_disabled
+
+
+## A short shake: "you cannot take this one".
+func shake() -> void:
+	if _shake_tween != null and _shake_tween.is_running():
+		return
+	_shake_tween = create_tween()
+	var rest := position.x
+	for offset_x: float in [-9.0, 8.0, -5.0, 3.0, 0.0]:
+		_shake_tween.tween_property(self, ^"position:x", rest + offset_x, 0.045)
 
 
 func get_heading() -> String:
@@ -68,11 +106,18 @@ func _process(delta: float) -> void:
 func _draw() -> void:
 	GameTheme.make_panel(Palette.CREAM, 22, 10).draw(get_canvas_item(), Rect2(Vector2.ZERO, CARD_SIZE))
 	draw_line(Vector2(36, 122), Vector2(CARD_SIZE.x - 36, 122), Palette.PAPER_DARK, 2.0)
+	if _icon != &"":
+		IconPainter.draw(self, _icon, Vector2(CARD_SIZE.x / 2.0, 44.0), ICON_PX)
 
 
 func _choose_if_inside(pointer: Vector2) -> void:
 	var local := get_global_transform_with_canvas().affine_inverse() * pointer
-	if Rect2(Vector2.ZERO, size).has_point(local):
+	if not Rect2(Vector2.ZERO, size).has_point(local):
+		return
+	if _is_disabled:
+		shake()
+		refused.emit()
+	else:
 		chosen.emit()
 
 

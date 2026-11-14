@@ -21,6 +21,7 @@ void apply_charge_column(EffectContext &p_context, const EffectDef &p_effect) {
 	charge.columns_left = get_effect_count(p_context, p_effect) - 1;
 	charge.reposition_ticks = p_effect.duration_ticks;
 	charge.cause = p_context.cause;
+	charge.target = get_frontmost_enemy_in_column(*p_context.sim, p_context.sim->get_units()[p_context.caster].side, p_context.anchor.col);
 	begin_charge(*p_context.sim, p_context.caster, charge);
 	reposition_for_column(*p_context.sim, p_context.caster, p_context.anchor.col, p_effect.duration_ticks, p_context.cause);
 }

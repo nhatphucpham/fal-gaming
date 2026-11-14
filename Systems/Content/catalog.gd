@@ -32,6 +32,8 @@ const MAX_COST: int = 5
 @export var hop_luc: HopLucData
 ## One entry per Data/Epiphanies/ file (a family's Kỳ Ngộ list).
 @export var epiphanies: Array[EpiphanyFamily] = []
+## One entry per Data/Encounters/ file (road encounters).
+@export var encounters: Array[EncounterData] = []
 ## The sound ids and their files (Data/Audio/sounds.tres).
 @export var sounds: SoundBank
 
@@ -77,6 +79,14 @@ func get_epiphany_family(family: StringName) -> EpiphanyFamily:
 
 
 ## The Kỳ Ngộ mutation with this id, or null.
+## The road encounter with this id, or null.
+func get_encounter(id: StringName) -> EncounterData:
+	for entry: EncounterData in encounters:
+		if entry != null and entry.id == id:
+			return entry
+	return null
+
+
 func get_epiphany(id: StringName) -> EpiphanyData:
 	for entry: EpiphanyFamily in epiphanies:
 		if entry == null:
@@ -147,10 +157,27 @@ func validate() -> PackedStringArray:
 	problems.append_array(_validate_run())
 	problems.append_array(_validate_synergy())
 	problems.append_array(_validate_epiphanies())
+	problems.append_array(_validate_encounters())
 	if sounds == null:
 		problems.append("Catalog: sounds is not set in %s" % resource_path)
 	else:
 		problems.append_array(sounds.validate())
+	return problems
+
+
+# Each encounter's own checks, doubled ids, and enough of them that no
+# encounter stage repeats one.
+func _validate_encounters() -> PackedStringArray:
+	var problems := PackedStringArray()
+	var ids: Dictionary[StringName, bool] = {}
+	for entry: EncounterData in encounters:
+		if entry == null or ids.has(entry.id):
+			problems.append("Catalog: an encounters entry is empty or doubled")
+			continue
+		ids[entry.id] = true
+		problems.append_array(entry.validate(self))
+	if run_rules != null and encounters.size() < run_rules.encounter_stages.size():
+		problems.append("Catalog: %d encounters for %d encounter stages" % [encounters.size(), run_rules.encounter_stages.size()])
 	return problems
 
 
