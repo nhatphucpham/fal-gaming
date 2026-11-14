@@ -1030,6 +1030,26 @@ nav.toc li.part:first-child{margin-top:2px}
         <li>Giọng Tướng Lĩnh và nhân vật có tên sinh trước lúc build bằng TTS tts.falevon.com: câu ra trận, câu tung chiêu, thoại cảnh cắt giữa các cặp có quan hệ. Không gọi mạng khi chơi.</li>
         <li>Giọng TTS là giọng máy: ghi rõ trên trang cửa hàng; Tướng Lĩnh có thể thu giọng người sau.</li>
       </ul>
+      <h3>Hoạt ảnh và hiệu ứng: không có gì đứng im</h3>
+      <p>Mọi thứ người chơi chạm vào hoặc nhìn thấy đổi trạng thái đều phải có hoạt ảnh, hiệu ứng và tiếng. Nếu một thay đổi không có phản hồi thì coi là lỗi, không phải việc trau chuốt để sau. Mỗi phản hồi dài 0,1–0,4 giây để không làm chậm 60 giây chuẩn bị.</p>
+      <div class="tbl"><table>
+        <thead><tr><th>Chỗ</th><th>Hoạt ảnh</th><th>Hiệu ứng và tiếng</th></tr></thead>
+        <tbody>
+          <tr><td><b>Quân trên bàn</b></td><td>Thở nhẹ khi đứng; đi, đánh, trúng đòn, ngã, mừng thắng; Kỵ phi, Cung giương, Pháp vung trượng</td><td>Bụi chân, vệt vũ khí theo lớp, số sát thương nảy lên, chớp trắng khi trúng</td></tr>
+          <tr><td><b>Chiêu và nguyên tố</b></td><td>Vào thế 0,2 giây trước khi tung, vùng chiêu tô sáng trên ô</td><td>Mỗi hình vùng và mỗi nguyên tố một hiệu ứng riêng (lửa, băng, sét, gió, nước); phản ứng nguyên tố nổ to hơn và rung màn nhẹ</td></tr>
+          <tr><td><b>Trận đồ và Hợp Lực</b></td><td>Đủ hình thì đường viền chạy nối các ô, tên trận đồ bật lên</td><td>Vòng Hợp Lực nảy số; chuỗi combo chậm nửa giây, chữ "Chuỗi ×N" đóng dấu như ấn son</td></tr>
+          <tr><td><b>Cửa hàng</b></td><td>Thẻ lật mở khi làm mới; mua thì quân bay vào ghế dự bị</td><td>Quân giá 4–5 có viền sáng; tiếng xu, tiếng giấy lật</td></tr>
+          <tr><td><b>Ghép sao</b></td><td>Ba quân hút vào một, quân mới lớn lên rồi nảy</td><td>Vụn giấy vàng tung lên, sao đóng từng cái một</td></tr>
+          <tr><td><b>Lên Cấp, Kỳ Ngộ</b></td><td>Thanh lương đầy rồi tràn, ô bàn mới mở ra; mốc sắp đột biến thì rung</td><td>Mực loang và ánh vàng khi Kỳ Ngộ nổ, nhạc chuyển sang cảnh cắt</td></tr>
+          <tr><td><b>Giao diện</b></td><td>Nút lún khi chạm, màn trượt như cuộn tranh, đồng hồ đập nhanh ở 10 giây cuối</td><td>Rung tay nhẹ (tắt được), tiếng trống khi bấm Ra trận</td></tr>
+          <tr><td><b>Thắng, thua, bản đồ</b></td><td>Quân mừng hoặc gục; đường hành quân vẽ dần từng nét</td><td>Cờ phấp phới, bản đồ cuộn mở như tranh dân gian</td></tr>
+        </tbody>
+      </table></div>
+      <ul class="dots">
+        <li><b>Làm thế nào cho đủ:</b> trên bàn dùng khớp cắt giấy (Skeleton2D hoặc AnimationPlayer trên các mảnh), mỗi lớp một bộ động tác chung, quân dùng lại bộ của lớp. Hiệu ứng dùng GPUParticles2D và shader nhỏ, gom vào một thư viện chung theo tên (<code>vfx/hit_slash</code>, <code>vfx/fire</code>…) để Xưởng Quân và kỹ năng gọi theo dữ liệu.</li>
+        <li><b>Không lấn trận:</b> giữ luật "mỗi lúc một điểm nhấn" của mục 22. Trợ năng có mức "giảm hiệu ứng": tắt rung màn, chớp sáng và vụn giấy, vẫn giữ hoạt ảnh để đọc được trận.</li>
+        <li><b>Không đổi kết quả:</b> hoạt ảnh và hiệu ứng chỉ là phần hiển thị, nghe tín hiệu từ mô phỏng; tắt hết vẫn ra cùng một trận.</li>
+      </ul>
     </section>
 
     <div class="part">Phần VIII · Làm game</div>
