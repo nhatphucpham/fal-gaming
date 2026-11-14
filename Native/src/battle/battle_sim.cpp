@@ -1,0 +1,299 @@
+#include "battle_sim.h"
+
+#include "battle_openings.h"
+#include "battle_shapes.h"
+#include "battle_targeting.h"
+
+#include <algorithm>
+#include <cstdlib>
+
+namespace battle {
+
+namespace {
+
+constexpr uint64_t FNV_OFFSET_BASIS = 14695981039346656037ULL;
+constexpr uint64_t FNV_PRIME = 1099511628211ULL;
+constexpr int64_t HP_SCORE_SCALE = 10000;
+
+// Hashes the value as 8 little-endian bytes, so the result does not depend
+// on the platform's byte order.
+void hash_value(uint64_t *r_hash, int64_t p_value) {
+	const uint64_t bits = static_cast<uint64_t>(p_value);
+	for (int byte = 0; byte < 8; byte++) {
+		*r_hash ^= (bits >> (byte * 8)) & 0xFFu;
+		*r_hash *= FNV_PRIME;
+	}
+}
+
+bool fail(const std::string &p_message, std::string *r_error) {
+	if (r_error != nullptr) {
+		*r_error = p_message;
+	}
+	return false;
+}
+
+bool validate_class(const ClassDef &p_def, std::string *r_error) {
+	if (p_def.id.empty()) {
+		return fail("class has an empty id", r_error);
+	}
+	if (p_def.max_hp < 1 || p_def.attack < 0 || p_def.attacks_per_100s < 1 || p_def.range_cells < 1) {
+		return fail(p_def.id + " needs max_hp >= 1, attack >= 0, attacks_per_100s >= 1 and range_cells >= 1", r_error);
+	}
+	if (p_def.armor < 0 || p_def.magic_resist < 0) {
+		return fail(p_def.id + " has negative armor or magic_resist", r_error);
+	}
+	return true;
+}
+
+} // namespace
+
+bool BattleSim::set_rules(const Rules &p_rules, std::string *r_error) {
+	if (!units.empty()) {
+		return fail("rules cannot change after units were added", r_error);
+	}
+	if (!validate_rules(p_rules, r_error)) {
+		return false;
+	}
+	rules = p_rules;
+	has_rules = true;
+	return true;
+}
+
+bool BattleSim::resolve_handlers(const ClassDef &p_def, RegisteredClass *r_class, std::string *r_error) const {
+	r_class->def = p_def;
+	r_class->targeting = find_targeting_handler(p_def.targeting_id);
+	if (r_class->targeting == nullptr) {
+		return fail(p_def.id + " has unknown targeting '" + p_def.targeting_id + "'", r_error);
+	}
+	r_class->shape = find_shape_handler(p_def.attack_shape_id);
+	if (r_class->shape == nullptr) {
+		return fail(p_def.id + " has unknown attack_shape '" + p_def.attack_shape_id + "'", r_error);
+	}
+	r_class->opening = nullptr;
+	if (!p_def.opening_id.empty()) {
+		r_class->opening = find_opening_handler(p_def.opening_id);
+		if (r_class->opening == nullptr) {
+			return fail(p_def.id + " has unknown opening '" + p_def.opening_id + "'", r_error);
+		}
+	}
+	return true;
+}
+
+bool BattleSim::register_class(const ClassDef &p_def, std::string *r_error) {
+	if (started) {
+		return fail("cannot register " + p_def.id + " after the battle started", r_error);
+	}
+	RegisteredClass registered;
+	if (!validate_class(p_def, r_error) || !resolve_handlers(p_def, &registered, r_error)) {
+		return false;
+	}
+	const int existing = find_class_index(p_def.id);
+	if (existing >= 0) {
+		classes[existing] = registered;
+	} else {
+		classes.push_back(registered);
+	}
+	return true;
+}
+
+int BattleSim::find_class_index(const std::string &p_class_id) const {
+	for (size_t index = 0; index < classes.size(); index++) {
+		if (classes[index].def.id == p_class_id) {
+			return static_cast<int>(index);
+		}
+	}
+	return -1;
+}
+
+bool BattleSim::check_new_unit(int p_side, const UnitSpec &p_spec, int p_local_col, int p_local_rank, std::string *r_error) const {
+	const std::string where = p_spec.unit_id + " at col " + std::to_string(p_local_col) + " rank " + std::to_string(p_local_rank);
+	if (started) {
+		return fail("cannot add " + where + " after the battle started", r_error);
+	}
+	if (!has_rules) {
+		return fail("set the rules before adding " + where, r_error);
+	}
+	if (p_side != SIDE_A && p_side != SIDE_B) {
+		return fail(where + " has invalid side " + std::to_string(p_side), r_error);
+	}
+	if (find_class_index(p_spec.class_id) < 0) {
+		return fail(where + " has unregistered class '" + p_spec.class_id + "'", r_error);
+	}
+	if (p_spec.star < MIN_STAR || p_spec.star > MAX_STAR || p_spec.cost < MIN_COST || p_spec.cost > MAX_COST) {
+		return fail(where + " needs star 1..3 and cost 1..5, got star " + std::to_string(p_spec.star) + " cost " + std::to_string(p_spec.cost), r_error);
+	}
+	if (!is_local_cell_valid(p_local_col, p_local_rank) || !board.is_free(local_to_global(p_side, p_local_col, p_local_rank))) {
+		return fail(where + " is off the board or the cell is taken", r_error);
+	}
+	const int side_count = static_cast<int>(std::count_if(units.begin(), units.end(), [&](const UnitState &p_unit) { return p_unit.side == p_side; }));
+	if (side_count >= rules.max_units_per_side) {
+		return fail(where + ": side " + std::to_string(p_side) + " already has " + std::to_string(side_count) + " units", r_error);
+	}
+	return true;
+}
+
+int BattleSim::add_unit(int p_side, const UnitSpec &p_spec, int p_local_col, int p_local_rank, std::string *r_error) {
+	if (!check_new_unit(p_side, p_spec, p_local_col, p_local_rank, r_error)) {
+		return NO_UNIT;
+	}
+	const int class_index = find_class_index(p_spec.class_id);
+	const RegisteredClass &unit_class = classes[class_index];
+	UnitState unit;
+	unit.index = static_cast<int>(units.size());
+	unit.side = p_side;
+	unit.class_index = class_index;
+	unit.unit_id = p_spec.unit_id;
+	unit.cost = p_spec.cost;
+	unit.star = p_spec.star;
+	unit.max_hp = derive_scaled_stat(unit_class.def.max_hp, p_spec.cost, p_spec.star, rules);
+	unit.hp = unit.max_hp;
+	unit.attack = derive_scaled_stat(unit_class.def.attack, p_spec.cost, p_spec.star, rules);
+	unit.cell = local_to_global(p_side, p_local_col, p_local_rank);
+	unit.is_opening_active = unit_class.opening != nullptr;
+	board.place(unit.cell, unit.index);
+	units.push_back(unit);
+	return unit.index;
+}
+
+void BattleSim::clear() {
+	units.clear();
+	board.clear();
+	events.clear();
+	tick = 0;
+	next_event_id = 1;
+	started = false;
+	finished = false;
+	winner = NO_WINNER;
+}
+
+bool BattleSim::start(std::string *r_error) {
+	if (started) {
+		return fail("the battle already started", r_error);
+	}
+	if (!has_rules) {
+		return fail("set the rules before starting", r_error);
+	}
+	started = true;
+	return true;
+}
+
+const std::vector<BattleEvent> &BattleSim::step() {
+	events.clear();
+	if (!started || finished) {
+		return events;
+	}
+	tick++;
+	if (tick == 1) {
+		BattleEvent event;
+		event.type = EventType::BATTLE_STARTED;
+		emit_event(event);
+	}
+	for (int unit : get_action_order()) {
+		act(unit);
+	}
+	check_end();
+	return events;
+}
+
+std::vector<int> BattleSim::get_action_order() const {
+	std::vector<int> order;
+	for (const UnitState &unit : units) {
+		if (unit.is_alive) {
+			order.push_back(unit.index);
+		}
+	}
+	// Side A first on even ticks, side B first on odd ticks.
+	const int first_side = tick % 2 == 0 ? SIDE_A : SIDE_B;
+	std::sort(order.begin(), order.end(), [&](int p_a, int p_b) { return acts_before(units[p_a], units[p_b], first_side); });
+	return order;
+}
+
+bool BattleSim::acts_before(const UnitState &p_a, const UnitState &p_b, int p_first_side) const {
+	if (p_a.side != p_b.side) {
+		return p_a.side == p_first_side;
+	}
+	// Nearest the enemy first: A advances toward higher rows, B toward lower.
+	const int a_depth = p_a.side == SIDE_A ? -p_a.cell.row : p_a.cell.row;
+	const int b_depth = p_b.side == SIDE_A ? -p_b.cell.row : p_b.cell.row;
+	if (a_depth != b_depth) {
+		return a_depth < b_depth;
+	}
+	const int a_from_center = std::abs(p_a.cell.col - CENTER_COL);
+	const int b_from_center = std::abs(p_b.cell.col - CENTER_COL);
+	if (a_from_center != b_from_center) {
+		return a_from_center < b_from_center;
+	}
+	if (p_a.cell.col != p_b.cell.col) {
+		return p_a.side == SIDE_A ? p_a.cell.col < p_b.cell.col : p_a.cell.col > p_b.cell.col;
+	}
+	return p_a.index < p_b.index;
+}
+
+void BattleSim::check_end() {
+	int alive_a = 0;
+	int alive_b = 0;
+	for (const UnitState &unit : units) {
+		if (unit.is_alive) {
+			(unit.side == SIDE_A ? alive_a : alive_b)++;
+		}
+	}
+	if (alive_a == 0 || alive_b == 0) {
+		end_battle(alive_a > 0 ? SIDE_A : SIDE_B, EndReason::ELIMINATION);
+	} else if (tick >= rules.time_limit_ticks) {
+		end_battle(get_time_limit_winner(), EndReason::TIME_LIMIT);
+	}
+}
+
+// Higher total of hp * 10000 / max_hp wins, then more living units, then B.
+int BattleSim::get_time_limit_winner() const {
+	int64_t scores[2] = { 0, 0 };
+	int alive[2] = { 0, 0 };
+	for (const UnitState &unit : units) {
+		if (unit.is_alive) {
+			scores[unit.side] += static_cast<int64_t>(unit.hp) * HP_SCORE_SCALE / unit.max_hp;
+			alive[unit.side]++;
+		}
+	}
+	if (scores[SIDE_A] != scores[SIDE_B]) {
+		return scores[SIDE_A] > scores[SIDE_B] ? SIDE_A : SIDE_B;
+	}
+	return alive[SIDE_A] > alive[SIDE_B] ? SIDE_A : SIDE_B;
+}
+
+void BattleSim::end_battle(int p_winner, EndReason p_reason) {
+	finished = true;
+	winner = p_winner;
+	BattleEvent event;
+	event.type = EventType::BATTLE_ENDED;
+	event.winner = p_winner;
+	event.reason = p_reason;
+	emit_event(event);
+}
+
+int BattleSim::emit_event(BattleEvent p_event) {
+	p_event.id = next_event_id++;
+	p_event.tick = tick;
+	events.push_back(p_event);
+	return p_event.id;
+}
+
+uint64_t BattleSim::get_state_hash() const {
+	uint64_t hash = FNV_OFFSET_BASIS;
+	hash_value(&hash, tick);
+	for (const UnitState &unit : units) {
+		hash_value(&hash, unit.is_alive ? 1 : 0);
+		hash_value(&hash, unit.hp);
+		hash_value(&hash, unit.cell.col);
+		hash_value(&hash, unit.cell.row);
+		hash_value(&hash, unit.attack_charge);
+		hash_value(&hash, unit.move_ticks_left);
+		hash_value(&hash, unit.target);
+	}
+	return hash;
+}
+
+const ClassDef &BattleSim::get_class_def(const UnitState &p_unit) const {
+	return classes[p_unit.class_index].def;
+}
+
+} // namespace battle

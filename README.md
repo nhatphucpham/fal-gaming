@@ -4,9 +4,11 @@ Falemag is a lightweight 2D game built with Godot 4.7.2, focused on story and
 tactics. It targets low-end PCs and mobile phones, and may later support
 online play.
 
-The project is at the starter stage: a C++ GDExtension with one sample node,
-a main scene that uses it, a smoke test, Windows, Android and Web export
-presets, and CI. Gameplay, story, and controls are not yet implemented.
+The project is at an early stage: a C++ GDExtension with a fixed-step clock
+and a headless, deterministic battle core (classes, units and rules as data
+under `Data/`), a main scene, smoke and battle tests, Windows, Android and Web
+export presets, and CI. The battle has no screen yet; story and controls are
+not yet implemented.
 
 ## Requirements
 
@@ -33,6 +35,7 @@ echo res://falemag.gdextension> .godot\extension_list.cfg
 "%GODOT%" --headless --editor --path "%CD%" --import
 "%GODOT%" --editor --path "%CD%"
 "%GODOT%" --headless --path "%CD%" --script res://Tests/smoke_test.gd
+"%GODOT%" --headless --path "%CD%" --script res://Tests/battle_test.gd
 ```
 
 In the editor, press **F5** to run the project or **F6** to run the current
@@ -61,6 +64,7 @@ Git.
 - [Architecture](Docs/architecture.md)
 - [Coding conventions](Docs/conventions.md): rules for every change
 - [System doc template](Docs/systems/_template.md)
+- Systems: [SimClock](Docs/systems/sim_clock.md), [Battle](Docs/systems/battle.md)
 - [Changelog](CHANGELOG.md)
 - [Agent instructions](AGENTS.md)
 

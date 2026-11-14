@@ -1,0 +1,20 @@
+[gd_resource type="ClassData" format=3]
+
+[resource]
+id = &"class.mage"
+name_key = "CLASS_MAGE"
+max_hp = 550
+attack = 45
+attacks_per_100s = 60
+range_cells = 3
+armor = 10
+magic_resist = 25
+damage_kind = 1
+targeting = &"target.densest_row3"
+opening = &""
+attack_shape = &"shape.row3"
+counters = Array[StringName]([&"class.shield"])
+is_ranged = true
+blocks_arrows = false
+immune_to_knockback = false
+stops_charge = false

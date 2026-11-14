@@ -1,0 +1,9 @@
+[gd_resource type="UnitData" format=3]
+
+[resource]
+id = &"unit.blade_wanderer"
+name_key = "UNIT_BLADE_WANDERER"
+class_id = &"class.sword"
+race_id = &"race.human"
+cost = 1
+element_id = &""

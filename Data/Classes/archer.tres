@@ -1,0 +1,20 @@
+[gd_resource type="ClassData" format=3]
+
+[resource]
+id = &"class.archer"
+name_key = "CLASS_ARCHER"
+max_hp = 600
+attack = 55
+attacks_per_100s = 80
+range_cells = 4
+armor = 10
+magic_resist = 10
+damage_kind = 0
+targeting = &"target.column_first"
+opening = &""
+attack_shape = &"shape.single"
+counters = Array[StringName]([&"class.spear"])
+is_ranged = true
+blocks_arrows = false
+immune_to_knockback = false
+stops_charge = false

@@ -1,0 +1,9 @@
+[gd_resource type="UnitData" format=3]
+
+[resource]
+id = &"unit.archer"
+name_key = "UNIT_ARCHER"
+class_id = &"class.archer"
+race_id = &"race.human"
+cost = 1
+element_id = &""

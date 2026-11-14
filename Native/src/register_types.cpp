@@ -5,6 +5,10 @@
 #include <godot_cpp/core/defs.hpp>
 #include <godot_cpp/godot.hpp>
 
+#include "battle/battle.h"
+#include "battle/battle_rules_data.h"
+#include "battle/class_data.h"
+#include "battle/unit_data.h"
 #include "sim_clock.h"
 
 using namespace godot;
@@ -16,6 +20,12 @@ void initialize_falemag_module(ModuleInitializationLevel p_level) {
 
 	// Runtime classes do not run their callbacks inside the editor.
 	GDREGISTER_RUNTIME_CLASS(SimClock);
+
+	// Data resources load in the editor too, so they are regular classes.
+	GDREGISTER_CLASS(ClassData);
+	GDREGISTER_CLASS(UnitData);
+	GDREGISTER_CLASS(BattleRulesData);
+	GDREGISTER_CLASS(Battle);
 }
 
 void uninitialize_falemag_module(ModuleInitializationLevel p_level) {

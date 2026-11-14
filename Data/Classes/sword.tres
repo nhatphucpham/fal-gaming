@@ -1,0 +1,20 @@
+[gd_resource type="ClassData" format=3]
+
+[resource]
+id = &"class.sword"
+name_key = "CLASS_SWORD"
+max_hp = 850
+attack = 60
+attacks_per_100s = 80
+range_cells = 1
+armor = 25
+magic_resist = 20
+damage_kind = 0
+targeting = &"target.nearest"
+opening = &""
+attack_shape = &"shape.single"
+counters = Array[StringName]([])
+is_ranged = false
+blocks_arrows = false
+immune_to_knockback = false
+stops_charge = false
