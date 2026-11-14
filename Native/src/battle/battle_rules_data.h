@@ -50,6 +50,17 @@ public:
 	int get_hold_line_grace_ticks() const { return rules.hold_line_grace_ticks; }
 	void set_max_units_per_side(int64_t p_value) { rules.max_units_per_side = clamp_to_int(p_value); }
 	int get_max_units_per_side() const { return rules.max_units_per_side; }
+	void set_qi_per_attack(int64_t p_value) { rules.qi_per_attack = clamp_to_int(p_value); }
+	int get_qi_per_attack() const { return rules.qi_per_attack; }
+	void set_qi_per_hit_taken(int64_t p_value) { rules.qi_per_hit_taken = clamp_to_int(p_value); }
+	int get_qi_per_hit_taken() const { return rules.qi_per_hit_taken; }
+	void set_cast_ticks(int64_t p_value) { rules.cast_ticks = clamp_to_int(p_value); }
+	int get_cast_ticks() const { return rules.cast_ticks; }
+	// Exactly three values, for stars 1..3; other sizes are rejected.
+	void set_star_skill_pct(const PackedInt64Array &p_values);
+	PackedInt64Array get_star_skill_pct() const;
+	void set_crit_multiplier_pct(int64_t p_value) { rules.crit_multiplier_pct = clamp_to_int(p_value); }
+	int get_crit_multiplier_pct() const { return rules.crit_multiplier_pct; }
 };
 
 } // namespace godot

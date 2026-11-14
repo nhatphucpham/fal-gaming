@@ -95,7 +95,7 @@ func start_battle() -> bool:
 	layout.board.set_top_half_dim(0.0)
 	layout.show_battle_layout()
 	_on_tick_advanced(0)
-	playback.begin(_battle, layout.board, views, sim_clock)
+	playback.begin(_battle, layout.board, views, sim_clock, _catalog)
 	return true
 
 

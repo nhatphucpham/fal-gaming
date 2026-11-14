@@ -9,6 +9,28 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Added
 
+- Skills. Every unit fills a thin blue Khí bar under its health bar by
+  attacking (+10) and being hit (+5); when it is full and glowing, the unit
+  winds up, lights the cells it aims at in its class colour, shows the
+  skill's name and casts for half a second. Shield "Trấn Thủ" taunts nearby
+  enemies and takes 40% less damage, sword "Hoành Tảo" sweeps the three
+  cells in front, spear "Xuyên Tâm" thrusts down the column and breaks
+  armor, cavalry "Đột Trận" charges again into the most crowded column,
+  archer "Tiễn Vũ" rains arrows on it and mage "Pháp Trận" blasts a cross.
+  Skills grow with stars (150% at 2, 250% at 3), and at 3 stars each adds a
+  Hậu chiêu: a push when the taunt ends, a second sweep, the whole column,
+  a second charge, 8 arrows, a 3x3 square. Each skill has its own effect
+  and the board shakes a little when it lands.
+- Passives: Bàn Thạch (shield, Khí when blocking an arrow), Phản Kiếm
+  (sword, strikes back every third melee hit), Nghênh Chiến (spear, hits a
+  charging enemy first), Đà Ngựa (cavalry, harder charges from further),
+  Ngắm Kỹ (archer, every fourth shot is a critical hit). A small icon
+  blinks when one fires; critical hits show gold numbers with "!".
+- Small icons beside the health bar show taunt, guard, armor break and
+  stun.
+- The unit info panel shows the skill and passive with a one-line
+  description, and the Khí during a battle.
+
 - A run of 12 stages, from a new title screen with "Ván mới", "Chơi tiếp"
   (when a run is saved), "Bàn thử" and the preparation time (60 s, 90 s or
   unlimited). Each stage starts with a preparation: buy units from a shop of
@@ -54,6 +76,8 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Changed
 
+- Stages 7 to 12 each have one 2-star enemy fewer (now 1-star), to keep
+  the run winnable with skills.
 - The game is now portrait (720 x 1280 base size); in a landscape window the
   game column stays centred.
 - The game opens on the title screen; the sandbox is reached from "Bàn thử"

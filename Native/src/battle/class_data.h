@@ -2,6 +2,8 @@
 
 #include "battle_types.h"
 #include "bridge_strings.h"
+#include "passive_data.h"
+#include "skill_data.h"
 
 #include <godot_cpp/classes/resource.hpp>
 #include <godot_cpp/variant/string_name.hpp>
@@ -40,13 +42,16 @@ private:
 	bool blocks_arrows = false;
 	bool immune_to_knockback = false;
 	bool stops_charge = false;
+	Ref<SkillData> skill;
+	Ref<PassiveData> passive;
 
 protected:
 	static void _bind_methods();
 
 public:
-	// Copies the fields into the simulation's plain struct.
-	battle::ClassDef to_class_def() const;
+	// Copies the fields into the simulation's plain struct; false and
+	// r_error when the skill or passive resource is malformed.
+	bool to_class_def(battle::ClassDef *r_def, std::string *r_error) const;
 
 	void set_id(const StringName &p_id) { id = p_id; }
 	StringName get_id() const { return id; }
@@ -84,6 +89,10 @@ public:
 	bool get_immune_to_knockback() const { return immune_to_knockback; }
 	void set_stops_charge(bool p_stops_charge) { stops_charge = p_stops_charge; }
 	bool get_stops_charge() const { return stops_charge; }
+	void set_skill(const Ref<SkillData> &p_skill) { skill = p_skill; }
+	Ref<SkillData> get_skill() const { return skill; }
+	void set_passive(const Ref<PassiveData> &p_passive) { passive = p_passive; }
+	Ref<PassiveData> get_passive() const { return passive; }
 };
 
 } // namespace godot

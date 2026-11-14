@@ -1,7 +1,8 @@
 class_name UnitView
 extends Node2D
-## One unit on the board: base ring, figure, hp bar and star pips, and every
-## animation a unit plays (drop in, pop out, glide, lunge, hit, die, cheer).
+## One unit on the board: base ring, figure, hp bar, Khí bar and star pips,
+## the skill marks (skill_overlay) and every animation a unit plays (drop in,
+## pop out, glide, lunge, wind up, hit, die, cheer).
 ## Its origin is the centre of its cell. It never reads simulation state;
 ## callers tell it what happened. See Docs/systems/board.md.
 ## [codeblock]
@@ -18,6 +19,7 @@ const FIGURE_SCALE: float = 1.08
 const RING_RADIUS := Vector2(28.0, 9.0)
 const BAR_SIZE := Vector2(54.0, 6.0)
 const BAR_Y: float = -40.0
+const QI_BAR_HEIGHT: float = 3.0
 const BREATH_AMOUNT: float = 0.035
 const BREATH_SPEED: float = 2.4
 
@@ -42,11 +44,15 @@ var is_hp_bar_shown: bool = true:
 var unit: UnitData
 var side: int = 0
 var star: int = 1
+## Cast glow, status icons and passive blink, drawn over the figure.
+var skill_overlay: SkillOverlay
 
 var _figure: UnitFigure
 var _bar: Node2D
 var _hp_ratio: float = 1.0
 var _hp_trail: float = 1.0
+# Share of full Khí, or below 0 for a unit without a skill (no bar).
+var _qi_ratio: float = -1.0
 var _dust: float = 0.0
 var _breath_phase: float = 0.0
 var _time: float = 0.0
@@ -67,6 +73,8 @@ func _init() -> void:
 	_bar.show_behind_parent = true
 	_bar.draw.connect(_draw_bar)
 	add_child(_bar)
+	skill_overlay = SkillOverlay.new(self)
+	add_child(skill_overlay)
 
 
 ## Sets what the view shows. Side 0 faces up with a blue ring, side 1 down
@@ -88,6 +96,8 @@ func _process(delta: float) -> void:
 	_figure.scale = squash * Vector2(1.0 - breath * 0.4, 1.0 + breath) * FIGURE_SCALE
 	_figure.position = FEET + anim_offset + Vector2(0.0, -bob)
 	_figure.rotation = lean
+	if _qi_ratio >= 1.0 and is_hp_bar_shown:
+		_bar.queue_redraw()
 
 
 func _draw() -> void:
@@ -105,13 +115,18 @@ func _draw() -> void:
 
 
 func _draw_bar() -> void:
-	var origin := Vector2(-BAR_SIZE.x / 2.0, BAR_Y)
+	var has_qi := is_hp_bar_shown and _qi_ratio >= 0.0
+	# With a Khí bar the hp bar moves up so the pair keeps clear of the head.
+	var origin := Vector2(-BAR_SIZE.x / 2.0, BAR_Y - (QI_BAR_HEIGHT if has_qi else 0.0))
 	if is_hp_bar_shown:
-		_bar.draw_rect(Rect2(origin - Vector2(2, 2), BAR_SIZE + Vector2(4, 4)), Palette.INK)
+		var frame := BAR_SIZE + Vector2(4, 4 + (QI_BAR_HEIGHT + 1.0 if has_qi else 0.0))
+		_bar.draw_rect(Rect2(origin - Vector2(2, 2), frame), Palette.INK)
 		_bar.draw_rect(Rect2(origin, Vector2(BAR_SIZE.x * _hp_trail, BAR_SIZE.y)), Palette.CREAM)
 		var fill := Palette.PLAYER_HP if side == 0 else Palette.ENEMY_HP
 		_bar.draw_rect(Rect2(origin, Vector2(BAR_SIZE.x * _hp_ratio, BAR_SIZE.y)), fill)
-	var pips_y := BAR_Y - 6.0 if is_hp_bar_shown else BAR_Y
+	if has_qi:
+		_draw_qi_bar(origin + Vector2(0, BAR_SIZE.y + 1.0))
+	var pips_y := origin.y - 6.0 if is_hp_bar_shown else BAR_Y
 	var spacing := 4.5 * 2.2
 	for index: int in star:
 		var pip_scale: float = _star_scales[mini(index, _star_scales.size() - 1)]
@@ -128,6 +143,23 @@ func set_hp_ratio(ratio: float) -> void:
 	_hp_tween.tween_method(_set_shown_hp, _hp_ratio, ratio, 0.15)
 	_hp_tween.tween_interval(0.15)
 	_hp_tween.tween_method(_set_hp_trail, _hp_trail, ratio, 0.25)
+
+
+## Shows Khí as `qi` of `qi_max`; a qi_max of 0 hides the Khí bar.
+func set_qi(qi: int, qi_max: int) -> void:
+	_qi_ratio = clampf(float(qi) / qi_max, 0.0, 1.0) if qi_max > 0 else -1.0
+	_bar.queue_redraw()
+
+
+## Crouches and rises over `seconds`: the wind-up before a skill.
+func wind_up(seconds: float) -> void:
+	var tween := _new_figure_tween()
+	tween.tween_property(self, ^"squash", Vector2(1.18, 0.82), seconds * 0.6).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(self, ^"anim_offset", Vector2(0, 3), seconds * 0.6)
+	tween.tween_property(self, ^"squash", Vector2(0.9, 1.14), seconds * 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(self, ^"anim_offset", Vector2(0, -6), seconds * 0.4)
+	tween.tween_property(self, ^"squash", Vector2.ONE, 0.12)
+	tween.parallel().tween_property(self, ^"anim_offset", Vector2.ZERO, 0.12)
 
 
 ## Falls into the cell with a squash and a puff of dust.
@@ -247,6 +279,7 @@ func hit_flash() -> void:
 ## Falls over and fades out; stays in the tree, hidden.
 func die() -> void:
 	is_dead = true
+	skill_overlay.clear()
 	_reset_tween(_motion_tween)
 	var tween := _new_figure_tween()
 	var fall_side := -1.0 if side == 0 else 1.0
@@ -282,6 +315,18 @@ func set_dim(amount: float) -> void:
 	# Only the colour channels: alpha may be mid-animation (drop in, fades).
 	for channel: NodePath in [^"modulate:r", ^"modulate:g", ^"modulate:b"]:
 		tween.parallel().tween_property(self, channel, value, 0.2)
+
+
+func _draw_qi_bar(origin: Vector2) -> void:
+	var width := BAR_SIZE.x
+	_bar.draw_rect(Rect2(origin, Vector2(width, QI_BAR_HEIGHT)), Palette.INDIGO_DARK)
+	_bar.draw_rect(Rect2(origin, Vector2(width * _qi_ratio, QI_BAR_HEIGHT)), Palette.QI)
+	if _qi_ratio >= 1.0:
+		# Full: the whole frame glows, pulsing.
+		var pulse := 0.55 + 0.45 * sin(_time * 8.0)
+		var frame_origin := origin - Vector2(3, BAR_SIZE.y + 4.0)
+		var frame_size := Vector2(width + 6.0, BAR_SIZE.y + QI_BAR_HEIGHT + 7.0)
+		_bar.draw_rect(Rect2(frame_origin, frame_size), Color(Palette.QI_GLOW, pulse), false, 2.0)
 
 
 func _walk_step(progress: float, from: Vector2, target: Vector2, cells: float) -> void:

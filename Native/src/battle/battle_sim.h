@@ -25,6 +25,22 @@ struct TargetingHandler;
 struct ShapeHandler;
 struct OpeningHandler;
 
+// One damage event through the pipeline (basic attacks, skills, passives).
+struct DamageSpec {
+	int source = NO_UNIT;
+	int victim = NO_UNIT;
+	int coefficient_pct = 100;
+	DamageKind kind = DamageKind::PHYSICAL;
+	int increase_pct = 0;
+	bool is_crit = false;
+	// Empty for basic attacks; the skill or passive id otherwise.
+	std::string skill_id;
+	int blocked_by = NO_UNIT;
+	int cause = 0;
+	// A melee basic attack: counts for passives that react to melee hits.
+	bool is_melee_attack = false;
+};
+
 class BattleSim {
 	struct RegisteredClass {
 		ClassDef def;
@@ -35,8 +51,16 @@ class BattleSim {
 
 	Rules rules;
 	bool has_rules = false;
+	struct UnitLoadout {
+		SkillDef skill;
+		PassiveDef passive;
+	};
+
 	std::vector<RegisteredClass> classes;
 	std::vector<UnitState> units;
+	// Parallel to units: the skill and passive each unit uses.
+	std::vector<UnitLoadout> loadouts;
+	std::vector<ScheduledStep> scheduled_steps;
 	Board board;
 	std::vector<BattleEvent> events;
 	int tick = 0;
@@ -56,8 +80,10 @@ class BattleSim {
 	void move_toward_target(int p_unit);
 	int pick_nearest_reachable_enemy(int p_unit) const;
 	bool find_step_toward(int p_unit, int p_target, Cell *r_step) const;
-	void apply_hit(int p_attacker, int p_victim, int p_blocked_by, int p_attack_event);
+	void apply_hit(int p_attacker, int p_victim, int p_blocked_by, int p_attack_event, bool p_is_crit, int p_increase_pct);
+	void react_to_damage(const DamageSpec &p_spec, int p_damage_event);
 	void kill(int p_victim, int p_killer, int p_damage_event);
+	void hash_skill_state(uint64_t *r_hash, const UnitState &p_unit) const;
 	void check_end();
 	void end_battle(int p_winner, EndReason p_reason);
 	int get_time_limit_winner() const;
@@ -105,10 +131,27 @@ public:
 	// and spends it.
 	bool attack_if_ready(int p_unit);
 	// Attacks without using the attack charge; returns the attack event id.
-	int perform_attack(int p_unit, int p_target, int p_cause);
+	// p_increase_pct adds to the damage increase group (charge momentum).
+	int perform_attack(int p_unit, int p_target, int p_cause, int p_increase_pct = 0);
 	// Starts a move into a free neighbour cell; returns the move event id.
 	int start_move(int p_unit, const Cell &p_to, int p_duration_ticks, MoveKind p_kind, int p_cause);
 	int emit_event(BattleEvent p_event);
+
+	// Skill API, used by Native/src/skill/.
+	// The unit's skill state (Khí, cast, statuses, passive counters, charge).
+	// Hp and cells change only through deal_damage() and start_move().
+	UnitSkillState &edit_skill_state(int p_unit) { return units[p_unit].skills; }
+	const SkillDef &get_skill(int p_unit) const { return loadouts[p_unit].skill; }
+	const PassiveDef &get_passive(int p_unit) const { return loadouts[p_unit].passive; }
+	// Applies one damage event: Khí for the victim, its passives, death.
+	// Returns the damage event id, or 0 when the victim was already dead.
+	int deal_damage(const DamageSpec &p_spec);
+	// Pushes the unit into p_to when it is alive, can be pushed and the cell
+	// is free; returns whether it moved.
+	bool knock_back(int p_unit, const Cell &p_to, int p_cause);
+	void schedule_step(const ScheduledStep &p_step) { scheduled_steps.push_back(p_step); }
+	// Removes and returns the steps due at the current tick, in order.
+	std::vector<ScheduledStep> take_due_steps();
 };
 
 } // namespace battle

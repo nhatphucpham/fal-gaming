@@ -1,0 +1,25 @@
+[gd_resource type="SkillData" format=3]
+
+[sub_resource type="SkillEffectData" id="thrust"]
+id = &"effect.damage"
+target = 0
+value = 200
+damage_kind = 0
+
+[sub_resource type="SkillEffectData" id="break"]
+id = &"effect.armor_break"
+target = 0
+value = 30
+duration_ticks = 80
+
+[resource]
+id = &"skill.heart_pierce"
+name_key = "SKILL_HEART_PIERCE"
+description_key = "SKILL_HEART_PIERCE_DESC"
+qi_cost = 100
+selector = &"select.self"
+selector_range = 0
+area = &"area.column_ahead"
+area_size = 3
+effects = Array[SkillEffectData]([SubResource("thrust"), SubResource("break")])
+star3_area_size = 0

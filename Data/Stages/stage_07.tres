@@ -34,7 +34,7 @@ local_rank = 1
 [sub_resource type="Resource" id="Slot_5"]
 script = ExtResource("2_slot")
 unit_id = &"unit.wolf_marksman"
-star = 2
+star = 1
 local_col = 4
 local_rank = 3
 

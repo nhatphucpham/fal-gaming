@@ -1,5 +1,8 @@
 [gd_resource type="ClassData" format=3]
 
+[ext_resource type="SkillData" path="res://Data/Skills/hold_ground.tres" id="skill"]
+[ext_resource type="PassiveData" path="res://Data/Passives/bedrock.tres" id="passive"]
+
 [resource]
 id = &"class.shield"
 name_key = "CLASS_SHIELD"
@@ -18,3 +21,5 @@ is_ranged = false
 blocks_arrows = true
 immune_to_knockback = true
 stops_charge = false
+skill = ExtResource("skill")
+passive = ExtResource("passive")

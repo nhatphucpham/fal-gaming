@@ -1,0 +1,17 @@
+[gd_resource type="PassiveData" format=3]
+
+[sub_resource type="SkillEffectData" id="effect"]
+id = &"effect.crit"
+target = 1
+
+[resource]
+id = &"passive.steady_aim"
+name_key = "PASSIVE_STEADY_AIM"
+description_key = "PASSIVE_STEADY_AIM_DESC"
+trigger = &"trigger.basic_attack_landed"
+condition = &""
+condition_radius = 0
+every_nth = 4
+limit_per_battle = 0
+once_per_source = false
+effect = SubResource("effect")

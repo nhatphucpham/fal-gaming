@@ -1,5 +1,8 @@
 [gd_resource type="ClassData" format=3]
 
+[ext_resource type="SkillData" path="res://Data/Skills/arcane_circle.tres" id="skill"]
+[ext_resource type="PassiveData" path="res://Data/Passives/spirit_draw.tres" id="passive"]
+
 [resource]
 id = &"class.mage"
 name_key = "CLASS_MAGE"
@@ -18,3 +21,5 @@ is_ranged = true
 blocks_arrows = false
 immune_to_knockback = false
 stops_charge = false
+skill = ExtResource("skill")
+passive = ExtResource("passive")

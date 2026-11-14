@@ -1,0 +1,20 @@
+[gd_resource type="SkillData" format=3]
+
+[sub_resource type="SkillEffectData" id="volley"]
+id = &"effect.arrow_volley"
+target = 0
+value = 70
+count = 5
+star3_count = 8
+damage_kind = 0
+
+[resource]
+id = &"skill.arrow_rain"
+name_key = "SKILL_ARROW_RAIN"
+description_key = "SKILL_ARROW_RAIN_DESC"
+qi_cost = 100
+selector = &"select.column_most_enemies"
+selector_range = 0
+area = &"area.column"
+area_size = 0
+effects = Array[SkillEffectData]([SubResource("volley")])

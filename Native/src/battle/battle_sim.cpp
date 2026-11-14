@@ -4,6 +4,10 @@
 #include "battle_shapes.h"
 #include "battle_targeting.h"
 
+#include "skill/skill_cast.h"
+#include "skill/skill_statuses.h"
+#include "skill/skill_validation.h"
+
 #include <algorithm>
 #include <cstdlib>
 
@@ -22,6 +26,14 @@ void hash_value(uint64_t *r_hash, int64_t p_value) {
 	for (int byte = 0; byte < 8; byte++) {
 		*r_hash ^= (bits >> (byte * 8)) & 0xFFu;
 		*r_hash *= FNV_PRIME;
+	}
+}
+
+void hash_cells(uint64_t *r_hash, const std::vector<Cell> &p_cells) {
+	hash_value(r_hash, static_cast<int64_t>(p_cells.size()));
+	for (const Cell &cell : p_cells) {
+		hash_value(r_hash, cell.col);
+		hash_value(r_hash, cell.row);
 	}
 }
 
@@ -78,6 +90,13 @@ bool BattleSim::resolve_handlers(const ClassDef &p_def, RegisteredClass *r_class
 		if (r_class->opening == nullptr) {
 			return fail(p_def.id + " has unknown opening '" + p_def.opening_id + "'", r_error);
 		}
+	}
+	std::string skill_error;
+	if (r_class->def.has_skill && !resolve_skill(&r_class->def.skill, &skill_error)) {
+		return fail(p_def.id + " skill: " + skill_error, r_error);
+	}
+	if (r_class->def.has_passive && !resolve_passive(&r_class->def.passive, &skill_error)) {
+		return fail(p_def.id + " passive: " + skill_error, r_error);
 	}
 	return true;
 }
@@ -164,13 +183,35 @@ int BattleSim::add_unit(int p_side, const UnitSpec &p_spec, int p_local_col, int
 	unit.attack = derive_scaled_stat(unit_class.def.attack, p_spec.cost, p_spec.star, rules);
 	unit.cell = local_to_global(p_side, p_local_col, p_local_rank);
 	unit.is_opening_active = unit_class.opening != nullptr;
+	UnitLoadout loadout;
+	std::string skill_error;
+	unit.skills.has_skill = p_spec.has_skill_override || unit_class.def.has_skill;
+	if (unit.skills.has_skill) {
+		loadout.skill = p_spec.has_skill_override ? p_spec.skill_override : unit_class.def.skill;
+		if (p_spec.has_skill_override && !resolve_skill(&loadout.skill, &skill_error)) {
+			fail(p_spec.unit_id + " skill_override: " + skill_error, r_error);
+			return NO_UNIT;
+		}
+		unit.skills.qi_max = loadout.skill.qi_cost;
+	}
+	unit.skills.has_passive = p_spec.has_passive_override || unit_class.def.has_passive;
+	if (unit.skills.has_passive) {
+		loadout.passive = p_spec.has_passive_override ? p_spec.passive_override : unit_class.def.passive;
+		if (p_spec.has_passive_override && !resolve_passive(&loadout.passive, &skill_error)) {
+			fail(p_spec.unit_id + " passive_override: " + skill_error, r_error);
+			return NO_UNIT;
+		}
+	}
 	board.place(unit.cell, unit.index);
 	units.push_back(unit);
+	loadouts.push_back(loadout);
 	return unit.index;
 }
 
 void BattleSim::clear() {
 	units.clear();
+	loadouts.clear();
+	scheduled_steps.clear();
 	board.clear();
 	events.clear();
 	tick = 0;
@@ -202,6 +243,8 @@ const std::vector<BattleEvent> &BattleSim::step() {
 		event.type = EventType::BATTLE_STARTED;
 		emit_event(event);
 	}
+	expire_statuses(*this);
+	run_scheduled_steps(*this);
 	for (int unit : get_action_order()) {
 		act(unit);
 	}
@@ -309,8 +352,44 @@ uint64_t BattleSim::get_state_hash() const {
 		hash_value(&hash, unit.target_out_of_range_ticks);
 		hash_value(&hash, unit.no_path_ticks);
 		hash_value(&hash, unit.is_opening_active ? 1 : 0);
+		hash_skill_state(&hash, unit);
+	}
+	hash_value(&hash, static_cast<int64_t>(scheduled_steps.size()));
+	for (const ScheduledStep &step : scheduled_steps) {
+		hash_value(&hash, step.tick);
+		hash_value(&hash, step.caster);
+		hash_cells(&hash, step.cells);
 	}
 	return hash;
+}
+
+void BattleSim::hash_skill_state(uint64_t *r_hash, const UnitState &p_unit) const {
+	const UnitSkillState &skills = p_unit.skills;
+	hash_value(r_hash, skills.qi);
+	hash_value(r_hash, skills.cast.is_casting ? skills.cast.end_tick - tick : -1);
+	hash_cells(r_hash, skills.cast.cells);
+	hash_value(r_hash, skills.charge.is_active ? 1 : 0);
+	hash_value(r_hash, skills.charge.is_skill ? 1 : 0);
+	hash_value(r_hash, skills.charge.cells_run);
+	hash_value(r_hash, skills.charge.columns_left);
+	hash_value(r_hash, skills.passive.trigger_count);
+	hash_value(r_hash, skills.passive.fire_count);
+	hash_value(r_hash, static_cast<int64_t>(skills.passive.used_sources));
+	for (const StatusSlot &slot : skills.statuses) {
+		hash_value(r_hash, slot.is_active ? slot.end_tick - tick : -1);
+		hash_value(r_hash, slot.is_active ? slot.amount : 0);
+		hash_value(r_hash, slot.is_active ? slot.source : NO_UNIT);
+	}
+}
+
+std::vector<ScheduledStep> BattleSim::take_due_steps() {
+	std::vector<ScheduledStep> due;
+	std::vector<ScheduledStep> later;
+	for (const ScheduledStep &step : scheduled_steps) {
+		(step.tick <= tick ? due : later).push_back(step);
+	}
+	scheduled_steps = later;
+	return due;
 }
 
 const ClassDef &BattleSim::get_class_def(const UnitState &p_unit) const {

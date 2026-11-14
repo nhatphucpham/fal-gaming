@@ -1,0 +1,18 @@
+[gd_resource type="PassiveData" format=3]
+
+[sub_resource type="SkillEffectData" id="effect"]
+id = &"effect.add_qi"
+target = 1
+value = 15
+
+[resource]
+id = &"passive.spirit_draw"
+name_key = "PASSIVE_SPIRIT_DRAW"
+description_key = "PASSIVE_SPIRIT_DRAW_DESC"
+trigger = &"trigger.element_reaction"
+condition = &"condition.within_radius"
+condition_radius = 2
+every_nth = 1
+limit_per_battle = 0
+once_per_source = false
+effect = SubResource("effect")

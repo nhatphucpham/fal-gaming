@@ -6,8 +6,8 @@
 
 using namespace godot;
 
-battle::ClassDef ClassData::to_class_def() const {
-	battle::ClassDef def;
+bool ClassData::to_class_def(battle::ClassDef *r_def, std::string *r_error) const {
+	battle::ClassDef &def = *r_def;
 	def.id = to_std_string(id);
 	def.max_hp = max_hp;
 	def.attack = attack;
@@ -26,7 +26,12 @@ battle::ClassDef ClassData::to_class_def() const {
 	def.blocks_arrows = blocks_arrows;
 	def.immune_to_knockback = immune_to_knockback;
 	def.stops_charge = stops_charge;
-	return def;
+	def.has_skill = skill.is_valid();
+	if (def.has_skill && !skill->to_skill_def(&def.skill, r_error)) {
+		return false;
+	}
+	def.has_passive = passive.is_valid();
+	return !def.has_passive || passive->to_passive_def(&def.passive, r_error);
 }
 
 void ClassData::_bind_methods() {
@@ -50,6 +55,8 @@ void ClassData::_bind_methods() {
 	BATTLE_BIND_ACCESSORS(ClassData, blocks_arrows);
 	BATTLE_BIND_ACCESSORS(ClassData, immune_to_knockback);
 	BATTLE_BIND_ACCESSORS(ClassData, stops_charge);
+	BATTLE_BIND_ACCESSORS(ClassData, skill);
+	BATTLE_BIND_ACCESSORS(ClassData, passive);
 
 	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "id"), "set_id", "get_id");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "name_key"), "set_name_key", "get_name_key");
@@ -70,4 +77,7 @@ void ClassData::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "blocks_arrows"), "set_blocks_arrows", "get_blocks_arrows");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "immune_to_knockback"), "set_immune_to_knockback", "get_immune_to_knockback");
 	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "stops_charge"), "set_stops_charge", "get_stops_charge");
+	ADD_GROUP("Skills", "");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "skill", PROPERTY_HINT_RESOURCE_TYPE, "SkillData"), "set_skill", "get_skill");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "passive", PROPERTY_HINT_RESOURCE_TYPE, "PassiveData"), "set_passive", "get_passive");
 }

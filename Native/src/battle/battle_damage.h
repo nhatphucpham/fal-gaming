@@ -8,7 +8,8 @@
 namespace battle {
 
 constexpr int BASIC_ATTACK_COEFFICIENT_PCT = 100;
-constexpr int CRIT_MULTIPLIER_PCT = 150;
+constexpr int DEFAULT_CRIT_MULTIPLIER_PCT = 150;
+constexpr int MAX_DAMAGE_CRIT_MULTIPLIER_PCT = 300;
 constexpr int MIN_DAMAGE = 1;
 // Inputs are clamped to these before the math (see battle_damage.cpp for
 // the overflow bound). Validated classes and rules stay well inside them.
@@ -19,8 +20,8 @@ constexpr int MAX_INCREASE_PCT = 200;
 constexpr int MAX_DECREASE_PCT = 100;
 constexpr int MAX_DAMAGE_MITIGATION = 10000;
 
-// Open for later milestones: skills set the coefficient, formations and
-// elements fill the bonus groups.
+// Skills set the coefficient, guard fills the decrease group and armor
+// break lowers the armor; formations and elements will add to the groups.
 struct DamageRequest {
 	int attack = 0;
 	int coefficient_pct = BASIC_ATTACK_COEFFICIENT_PCT;
@@ -28,10 +29,13 @@ struct DamageRequest {
 	bool is_counter = false;
 	int counter_bonus_pct = 0;
 	bool is_crit = false;
+	int crit_multiplier_pct = DEFAULT_CRIT_MULTIPLIER_PCT;
 	int increase_pct = 0;
 	int decrease_pct = 0;
 	int armor = 0;
 	int magic_resist = 0;
+	// Lowers armor (not magic resist) by this percent before mitigation.
+	int armor_break_pct = 0;
 };
 
 struct DamageResult {

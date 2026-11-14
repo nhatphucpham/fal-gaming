@@ -11,15 +11,19 @@ rounds or economy; presentation listens to its events.
 
 - Layer: simulation (plain C++17) with a bridge (Godot classes).
 - Simulation, no Godot headers, no floating point, in `Native/src/battle/`:
-  - `battle_types.h`: ids, enums, cells, `ClassDef`, `UnitState`, `BattleEvent`.
+  - `battle_basic_types.h`: board size, sides, cells, damage kinds (shared
+    with `Native/src/skill/`).
+  - `battle_types.h`: ids, enums, `ClassDef`, `UnitState`, `BattleEvent`.
   - `battle_rules.h/.cpp`: the `Rules` struct, stat derivation, rule checks.
   - `battle_board.h/.cpp`: occupancy, coordinates, distance, path search.
   - `battle_targeting.h/.cpp`, `battle_shapes.h/.cpp`,
     `battle_openings.h/.cpp`: the handler registries.
   - `battle_damage.h/.cpp`: the damage pipeline.
   - `battle_sim.h`, `battle_sim.cpp` (setup, tick loop, end, hash) and
-    `battle_sim_actions.cpp` (targeting, attacks, moves): `BattleSim`.
-- Bridge: `class_data`, `unit_data`, `battle_rules_data` (resources),
+    `battle_sim_actions.cpp` (targeting, attacks, moves, skill damage): `BattleSim`.
+- Skills, Khí, passives and statuses: `Native/src/skill/`, see [Skill](skill.md).
+- Bridge: `class_data`, `unit_data`, `battle_rules_data`, `skill_data`,
+  `skill_effect_data`, `passive_data` (resources),
   `battle` (the `Battle` node), `battle_event_dictionary` (events to
   dictionaries), `bridge_strings.h` (string helpers).
 - Content: `Systems/Content/catalog.gd` (`Catalog`) and `Data/`.
@@ -29,7 +33,7 @@ rounds or economy; presentation listens to its events.
 ## Data
 
 All files are listed in `Data/catalog.tres` (`Catalog`: `classes`, `units`,
-`battle_rules`). Ids are `class.<name>`, `unit.<name>`, `race.<name>`,
+`skills`, `passives`, `battle_rules`). Ids are `class.<name>`, `unit.<name>`, `race.<name>`,
 `element.<name>`. `Catalog.validate()` reports empty entries, malformed and
 duplicate ids, unknown `class_id`s and costs outside 1..5; handler ids are
 checked by `Battle.register_class()`.
@@ -51,10 +55,12 @@ checked by `Battle.register_class()`.
 | `is_ranged` | bool | ranged single-target attacks can be blocked |
 | `blocks_arrows` | bool | takes ranged shots aimed past it |
 | `immune_to_knockback`, `stops_charge` | bool | either one prevents knockback |
+| `skill`, `passive` | `SkillData`, `PassiveData` or null | see [Skill](skill.md) |
 
 `UnitData` (`Data/Units/<name>.tres`): `id`, `name_key` (`UNIT_<NAME>`),
 `class_id`, `race_id` (`race.human`, `race.wolf`), `cost` 1..5, `element_id`
-(empty, or `element.fire`/`ice`/`wind`/`lightning` for mages; unused yet).
+(empty, or `element.fire`/`ice`/`wind`/`lightning` for mages; unused yet),
+`skill_override`, `passive_override` (null: the class's).
 
 `BattleRulesData` (`Data/Rules/battle_rules.tres`):
 
@@ -70,6 +76,10 @@ checked by `Battle.register_class()`.
 | `repath_ticks` | 20 | ticks without a path before switching target; 1..10000 |
 | `hold_line_max_ticks`, `hold_line_grace_ticks` | 200, 20 | hold line limits; 0..10000 |
 | `max_units_per_side` | 10 | 1..28 |
+| `qi_per_attack`, `qi_per_hit_taken` | 10, 5 | Khí gains; 0..1000 |
+| `cast_ticks` | 10 | skill cast length; 1..1000 |
+| `star_skill_pct` | 100, 150, 250 | skill coefficient by star 1..3; each 1..1000 |
+| `crit_multiplier_pct` | 150 | critical hit damage; 100..300 |
 
 `get_attack_charge_full()` is derived, not stored: `100 * ticks_per_second`.
 
@@ -102,10 +112,13 @@ allowed.
   action order: a walk takes exactly `move_ticks_per_cell` ticks per cell, a
   charge `charge_ticks_per_cell`, a knockback its event's `duration_ticks`.
   The unit occupies its destination from the start. The attack charge gains `attacks_per_100s`, capped
-  at full. An active opening decides the action. Otherwise the unit keeps or
+  at full. A stunned unit does nothing more; a unit casting or starting a
+  skill casts (see [Skill](skill.md)); a skill charge runs. Then an active
+  opening decides the action. Otherwise the unit keeps or
   picks a target; if the target is in range it attacks when the charge is
   full (spending it), else it steps one cell along the path.
-- **Targeting.** Ties break by: same column as the attacker, lower hp,
+- **Targeting.** A taunted unit targets its taunter while both live and
+  does not re-pick. Otherwise ties break by: same column as the attacker, lower hp,
   nearer column 3, further to the attacker's left, lower index. A target is
   kept until it dies or has been out of range for more than
   `target_lost_ticks` ticks after having been in range once. For every
@@ -123,16 +136,20 @@ allowed.
   takes the hit (`blocked_by`). `shape.row3` hits every enemy in the target's
   cell and the cells left and right of it.
 - **Damage.** `attack * coefficient / 100`, counter `* 130 / 100`, crit
-  `* 150 / 100` (never yet), bonus groups `* (100 + increase) / 100 *
-  (100 - decrease) / 100` (zero yet), mitigation `* 100 / (100 + armor or
-  magic_resist)`; all multiplications first, one truncation, at least 1.
+  `* crit_multiplier_pct / 100` (steady aim), bonus groups `* (100 +
+  increase) / 100 * (100 - decrease) / 100` (increase: momentum; decrease:
+  guard), mitigation `* 100 / (100 + armor or magic_resist)`, where armor
+  is first lowered by armor break for physical damage; all multiplications
+  first, one truncation, at least 1.
 - **Openings.** `opening.hold_line`: no moving, attacks in range; ends at
   `hold_line_max_ticks`, or after `hold_line_grace_ticks` once no enemy
   targets the unit. `opening.charge`: runs forward at
   `charge_ticks_per_cell` until the next cell is taken or off the board; an
   enemy there takes one free basic attack and is pushed one cell further
-  (if free and not prevented), taking `charge_ticks_per_cell` ticks. The
-  tick of the impact is the charge's last action.
+  (if free and not prevented), taking `charge_ticks_per_cell` ticks. Before
+  the impact, enemies with a `charge_impact_incoming` passive (brace) may
+  strike first. The tick of the impact is the charge's last action. The
+  cavalry skill reuses this runner.
 - **End.** A side with no living unit at the end of a tick loses (both: B
   wins). At `time_limit_ticks` the higher sum of `hp * 10000 / max_hp` wins,
   then more living units, then B.
@@ -153,15 +170,17 @@ function that calls `step()`, or call `step()` in a loop.
 | `step() -> Array[Dictionary]` | method | Advances one tick, returns and emits its events; nothing after the end. While its signals run, `step`, `run_to_end`, `start`, `clear`, `add_unit`, `register_class` and `set_rules` are refused with an error |
 | `run_to_end(max_ticks: int) -> String` | method | Starts if needed, steps until the end or `max_ticks` (>= 0), returns the hash; empty if a handler freed the node |
 | `is_started()`, `is_finished()`, `get_winner()`, `get_tick()` | methods | Winner is -1 while running |
-| `get_state_hash() -> String` | method | FNV-1a 64, 16 hex digits, over the tick, `finished`, `winner` and, per unit in index order: alive, hp, col, row, attack charge, move ticks left, target, has seen target in range, target out-of-range ticks, no-path ticks, opening active |
-| `get_unit_count()`, `get_unit_state(index)`, `get_units()` | methods | `{index, side, unit_id, class_id, star, alive, hp, max_hp, attack, col, row, target, move_ticks_left}` |
+| `get_state_hash() -> String` | method | FNV-1a 64, 16 hex digits, over the tick, `finished`, `winner` and, per unit in index order: alive, hp, col, row, attack charge, move ticks left, target, has seen target in range, target out-of-range ticks, no-path ticks, opening active, Khí, cast (ticks left and cells), charge, passive counters and statuses; then the scheduled Hậu chiêu |
+| `get_unit_count()`, `get_unit_state(index)`, `get_units()` | methods | `{index, side, unit_id, class_id, star, alive, hp, max_hp, attack, col, row, target, move_ticks_left, qi, qi_max, casting, statuses}` |
 | `local_to_global(side, local_col, local_rank) -> Vector2i` | static | Global (col, row); (-1, -1) with an error for a bad side or cell |
 | `global_to_local(side, col, row) -> Vector2i` | static | (local col, rank); rank leaves 1..4 in the enemy half; (-1, -1) with an error off the board |
 | `log_enabled` | property | Prints the info log events below; default false |
 | `event_emitted(event: Dictionary)` | signal | Every event, in order |
 | `battle_ended(winner: int, reason: StringName)` | signal | Once, at the end |
 
-`Catalog` (Resource script): `get_unit(id)`, `get_class_data(id)`, `validate()`.
+`Catalog` (Resource script): `get_unit(id)`, `get_class_data(id)`,
+`get_skill(id)`, `get_passive(id)`, `get_unit_skill(unit)`,
+`get_unit_passive(unit)`, `validate()`.
 
 ## Events
 
@@ -177,10 +196,11 @@ indexes; cells are global.
 | `battle_started` | | 0 |
 | `unit_moved` | `unit`, `from_col`, `from_row`, `to_col`, `to_row`, `duration_ticks`, `kind`: `walk`/`charge`/`knockback` | knockback: the attack |
 | `unit_attacked` | `unit`, `target`, `kind`: `melee`/`ranged`/`magic`, `to_col`, `to_row` | 0 |
-| `damage_dealt` | `source`, `target`, `amount`, `hp_after`, `is_counter`, `is_crit`, `blocked_by` (-1 if none) | the attack |
+| `damage_dealt` | `source`, `target`, `amount`, `hp_after`, `is_counter`, `is_crit`, `blocked_by` (-1 if none), `skill` (skill or passive id, empty for a basic attack) | the attack, or the skill's resolve |
 | `unit_died` | `unit`, `killer` | the damage |
 | `charge_ended` | `unit`, `hit` (-1 if none) | the impact attack, or 0 |
 | `battle_ended` | `winner` (0 A, 1 B), `reason`: `elimination`/`time_limit` | 0 |
+| `qi_changed`, `skill_cast_started`, `skill_resolved`, `passive_triggered`, `status_applied`, `status_ended` | see [Skill](skill.md) | |
 
 ## Log events
 
@@ -190,6 +210,7 @@ Only when `log_enabled` is true:
 | --- | --- | --- |
 | info | `battle_started` | `units` |
 | info | `unit_died` | `unit`, `unit_id`, `killer`, `cause` |
+| info | `skill_cast_started` | `unit`, `skill`, `cells` |
 | info | `battle_ended` | `winner`, `reason` |
 
 Example: `[info][Battle][t=412] unit_died unit=3 unit_id=unit.archer killer=7 cause=e41`.
@@ -214,6 +235,9 @@ charge and knockback durations, the time limit (the higher score wins with
 fewer units, then both tie rules: more living units, then B), a full 8v8
 that ends by elimination (it prints its length), and coordinate round trips.
 
+Skills, Khí, passives and statuses have their own tests
+(`Tests/skill_test.gd`, `Tests/passive_test.gd`; see [Skill](skill.md)).
+
 `Tests/battle_api_test.gd` checks the node's API: signals and event ids,
 read-only events, a handler that frees the node mid-step, refused commands
 (replacing a class in use, re-entrant `step()`) and rejected input (rules
@@ -223,8 +247,8 @@ coordinates). It prints the errors it provokes and announces each group.
 
 ## Known limits
 
-- No skills, mana, formations, synergies, elements or crits yet; the damage
-  request has the fields for them.
+- No formations, synergies or elements yet; the damage request has the
+  fields for them.
 - No random numbers yet, so there is no seed.
 - Data is validated when a class or unit is registered or added, not when
   `Data/` changes; run the battle test after editing data.

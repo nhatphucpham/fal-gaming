@@ -45,6 +45,8 @@ echo res://falemag.gdextension> .godot\extension_list.cfg
 "%GODOT%" --headless --path "%CD%" --script res://Tests/smoke_test.gd
 "%GODOT%" --headless --path "%CD%" --script res://Tests/battle_test.gd
 "%GODOT%" --headless --path "%CD%" --script res://Tests/battle_api_test.gd
+"%GODOT%" --headless --path "%CD%" --script res://Tests/skill_test.gd
+"%GODOT%" --headless --path "%CD%" --script res://Tests/passive_test.gd
 "%GODOT%" --headless --path "%CD%" --script res://Tests/sandbox_test.gd
 "%GODOT%" --headless --path "%CD%" --script res://Tests/run_test.gd
 "%GODOT%" --headless --path "%CD%" --script res://Tests/run_flow_test.gd

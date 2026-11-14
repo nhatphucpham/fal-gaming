@@ -32,6 +32,20 @@ const ENEMY_RING := Color("d2462e")
 const PLAYER_HP := Color("4cbf86")
 const ENEMY_HP := Color("e2553a")
 
+## Khí bar fill, and its outline glow when full.
+const QI := Color("5aa9ff")
+const QI_GLOW := Color("bfe3ff")
+
+## Skill highlights and casting glow by class id.
+const CLASS_COLORS: Dictionary[StringName, Color] = {
+	&"class.shield": Color("6f9fe8"),
+	&"class.sword": Color("f06a4a"),
+	&"class.spear": Color("4fc79a"),
+	&"class.cavalry": Color("f0b13e"),
+	&"class.archer": Color("a6d65a"),
+	&"class.mage": Color("c78bff"),
+}
+
 ## Card background and unit trim by cost 1..5: grey, green, blue, purple, red.
 const COST_COLORS: Array[Color] = [
 	Color("8e8a82"), Color("4e9a5b"), Color("3d6fb5"), Color("8250a8"), Color("c8402e"),
@@ -41,3 +55,8 @@ const COST_COLORS: Array[Color] = [
 ## The colour of a unit cost, clamped to 1..5.
 static func cost_color(cost: int) -> Color:
 	return COST_COLORS[clampi(cost, 1, COST_COLORS.size()) - 1]
+
+
+## The highlight colour of a class; gold for an unknown class.
+static func class_color(class_id: StringName) -> Color:
+	return CLASS_COLORS.get(class_id, GOLD)

@@ -133,7 +133,7 @@ func start_battle() -> bool:
 	board.set_top_half_dim(0.0)
 	_on_tick_advanced(0)
 	_slide_setup_out()
-	playback.begin(_battle, board, views, sim_clock)
+	playback.begin(_battle, board, views, sim_clock, _catalog)
 	return true
 
 

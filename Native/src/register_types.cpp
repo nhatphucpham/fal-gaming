@@ -8,6 +8,9 @@
 #include "battle/battle.h"
 #include "battle/battle_rules_data.h"
 #include "battle/class_data.h"
+#include "battle/passive_data.h"
+#include "battle/skill_data.h"
+#include "battle/skill_effect_data.h"
 #include "battle/unit_data.h"
 #include "sim_clock.h"
 
@@ -22,6 +25,9 @@ void initialize_falemag_module(ModuleInitializationLevel p_level) {
 	GDREGISTER_RUNTIME_CLASS(SimClock);
 
 	// Data resources load in the editor too, so they are regular classes.
+	GDREGISTER_CLASS(SkillEffectData);
+	GDREGISTER_CLASS(SkillData);
+	GDREGISTER_CLASS(PassiveData);
 	GDREGISTER_CLASS(ClassData);
 	GDREGISTER_CLASS(UnitData);
 	GDREGISTER_CLASS(BattleRulesData);

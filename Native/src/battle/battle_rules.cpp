@@ -2,6 +2,8 @@
 
 #include "battle_types.h"
 
+#include <cstdint>
+
 namespace battle {
 
 namespace {
@@ -29,6 +31,11 @@ int derive_scaled_stat(int p_base, int p_cost, int p_star, const Rules &p_rules)
 	return static_cast<int>(value);
 }
 
+int scale_skill_coefficient(int p_coefficient_pct, int p_star, const Rules &p_rules) {
+	const int star = p_star < MIN_STAR ? MIN_STAR : (p_star > MAX_STAR ? MAX_STAR : p_star);
+	return static_cast<int>(static_cast<int64_t>(p_coefficient_pct) * p_rules.star_skill_pct[star - MIN_STAR] / PERCENT);
+}
+
 bool validate_rules(const Rules &p_rules, std::string *r_error) {
 	const auto check = [&](const char *p_field, int p_value, int p_min, int p_max) {
 		if (p_value >= p_min && p_value <= p_max) {
@@ -38,6 +45,11 @@ bool validate_rules(const Rules &p_rules, std::string *r_error) {
 	};
 	for (int multiplier : p_rules.cost_multipliers_pct) {
 		if (!check("cost_multipliers_pct", multiplier, 1, MAX_COST_MULTIPLIER_PCT)) {
+			return false;
+		}
+	}
+	for (int pct : p_rules.star_skill_pct) {
+		if (!check("star_skill_pct", pct, 1, MAX_STAR_SKILL_PCT)) {
 			return false;
 		}
 	}
@@ -52,7 +64,11 @@ bool validate_rules(const Rules &p_rules, std::string *r_error) {
 			&& check("repath_ticks", p_rules.repath_ticks, 1, MAX_RULE_TICKS)
 			&& check("hold_line_max_ticks", p_rules.hold_line_max_ticks, 0, MAX_RULE_TICKS)
 			&& check("hold_line_grace_ticks", p_rules.hold_line_grace_ticks, 0, MAX_RULE_TICKS)
-			&& check("max_units_per_side", p_rules.max_units_per_side, 1, BOARD_COLS * SIDE_RANKS);
+			&& check("max_units_per_side", p_rules.max_units_per_side, 1, BOARD_COLS * SIDE_RANKS)
+			&& check("qi_per_attack", p_rules.qi_per_attack, 0, MAX_QI_GAIN)
+			&& check("qi_per_hit_taken", p_rules.qi_per_hit_taken, 0, MAX_QI_GAIN)
+			&& check("cast_ticks", p_rules.cast_ticks, 1, MAX_CAST_TICKS)
+			&& check("crit_multiplier_pct", p_rules.crit_multiplier_pct, MIN_CRIT_MULTIPLIER_PCT, MAX_CRIT_MULTIPLIER_PCT);
 }
 
 } // namespace battle

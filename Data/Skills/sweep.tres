@@ -1,0 +1,20 @@
+[gd_resource type="SkillData" format=3]
+
+[sub_resource type="SkillEffectData" id="slash"]
+id = &"effect.damage"
+target = 0
+value = 180
+damage_kind = 0
+
+[resource]
+id = &"skill.sweep"
+name_key = "SKILL_SWEEP"
+description_key = "SKILL_SWEEP_DESC"
+qi_cost = 100
+selector = &"select.self"
+selector_range = 0
+area = &"area.front3"
+area_size = 1
+effects = Array[SkillEffectData]([SubResource("slash")])
+has_after_skill = true
+after_delay_ticks = 5

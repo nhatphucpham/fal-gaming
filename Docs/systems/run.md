@@ -252,18 +252,21 @@ each run's first battle at that stage; stage 12 is retried after a loss.
 
 | Stage | First try win % | Avg morale after |
 | --- | --- | --- |
-| 1-4 | 99-100 | 60 |
-| 5 | 96 | 59.5 |
-| 6 | 82 | 57.6 |
-| 7 | 73 | 54.9 |
-| 8 | 72 | 52.8 |
-| 9 | 54 | 49.5 |
-| 10 | 55 | 46.4 |
-| 11 | 49 | 43.6 |
-| 12 | 31 (9 per attempt over 954 attempts) | 20.9 |
+| 1 | 97 | 59.7 |
+| 2-4 | 100 | 59.7 |
+| 5 | 84 | 58.1 |
+| 6 | 72 | 55.4 |
+| 7 | 63 | 51.7 |
+| 8 | 85 | 52.0 |
+| 9 | 68 | 50.2 |
+| 10 | 81 | 50.7 |
+| 11 | 64 | 48.4 |
+| 12 | 38 (12 per attempt over 937 attempts) | 22.8 |
 
-Run win rate 30.0% (90 of 300), 9.1 stages cleared on average. A person who reads the
-enemy line-up and places units against it does better than the bot.
+Run win rate 37.7% (113 of 300), 9.5 stages cleared on average, with
+skills. With skills the bot's run win rate first fell to 17.3% (the stages'
+2-star enemies cast stronger skills sooner), so one 2-star enemy in each of
+stages 7 to 12 became 1-star. A person who reads the enemy line-up and places units against it does better than the bot.
 
 ## Log events
 

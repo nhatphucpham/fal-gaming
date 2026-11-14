@@ -1,0 +1,19 @@
+[gd_resource type="PassiveData" format=3]
+
+[sub_resource type="SkillEffectData" id="effect"]
+id = &"effect.damage"
+target = 2
+value = 100
+damage_kind = 0
+
+[resource]
+id = &"passive.riposte"
+name_key = "PASSIVE_RIPOSTE"
+description_key = "PASSIVE_RIPOSTE_DESC"
+trigger = &"trigger.melee_hit_taken"
+condition = &""
+condition_radius = 0
+every_nth = 3
+limit_per_battle = 0
+once_per_source = false
+effect = SubResource("effect")

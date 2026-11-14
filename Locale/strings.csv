@@ -95,3 +95,32 @@ END_LOSS,Thất bại,Defeat
 END_STAGES_FORMAT,Đã qua %d/%d chặng,Cleared %d/%d stages
 PREP_TIME_FORMAT,Thời gian xếp quân: %s,Preparation time: %s
 PREP_UNLIMITED,không giới hạn,unlimited
+INFO_SKILL,Chiêu,Skill
+INFO_PASSIVE,Nội tại,Passive
+INFO_QI,Khí,Qi
+INFO_QI_COST,%d Khí,%d qi
+INFO_QI_VALUE,%d/%d,%d/%d
+SKILL_HOLD_GROUND,Trấn Thủ,Hold Ground
+SKILL_HOLD_GROUND_DESC,"Khiêu khích địch quanh mình, nhận ít hơn 40% sát thương","Taunts nearby enemies, takes 40% less damage"
+SKILL_SWEEP,Hoành Tảo,Sweep
+SKILL_SWEEP_DESC,"Chém vòng 3 ô phía trước, 180% sát thương","Slashes the 3 cells in front for 180% damage"
+SKILL_HEART_PIERCE,Xuyên Tâm,Heart Pierce
+SKILL_HEART_PIERCE_DESC,"Đâm thẳng theo cột 200% sát thương, phá giáp","Thrusts down the column for 200% damage, breaks armor"
+SKILL_BREAKTHROUGH,Đột Trận,Breakthrough
+SKILL_BREAKTHROUGH_DESC,"Xung phong lại theo cột đông địch nhất, đòn chạm 150%","Charges again down the most crowded column, 150% impact"
+SKILL_ARROW_RAIN,Tiễn Vũ,Arrow Rain
+SKILL_ARROW_RAIN_DESC,Rải 5 mũi tên vào cột đông địch nhất,Rains 5 arrows on the most crowded column
+SKILL_ARCANE_CIRCLE,Pháp Trận,Arcane Circle
+SKILL_ARCANE_CIRCLE_DESC,"Vùng chữ thập vào chỗ đông địch nhất, 220% sát thương phép","A cross of magic on the densest spot, 220% damage"
+PASSIVE_BEDROCK,Bàn Thạch,Bedrock
+PASSIVE_BEDROCK_DESC,"Không bị đẩy lùi; khi chặn tên cho đồng đội thì +10 Khí","Cannot be pushed; blocking an arrow for an ally gives 10 qi"
+PASSIVE_RIPOSTE,Phản Kiếm,Riposte
+PASSIVE_RIPOSTE_DESC,Khi bị đánh cận chiến lần thứ ba thì chém trả 100%,Every third melee hit taken strikes back for 100%
+PASSIVE_BRACE,Nghênh Chiến,Brace
+PASSIVE_BRACE_DESC,Khi địch xung phong vào tầm thì đâm trước 100%,Strikes a charging enemy first for 100%
+PASSIVE_MOMENTUM,Đà Ngựa,Momentum
+PASSIVE_MOMENTUM_DESC,Khi xung phong chạm địch thì +15% sát thương mỗi ô đã chạy,Charge impact deals 15% more per cell run
+PASSIVE_STEADY_AIM,Ngắm Kỹ,Steady Aim
+PASSIVE_STEADY_AIM_DESC,Khi bắn đòn thứ tư thì luôn chí mạng,Every fourth attack is a critical hit
+PASSIVE_SPIRIT_DRAW,Hút Linh,Spirit Draw
+PASSIVE_SPIRIT_DRAW_DESC,Khi có phản ứng nguyên tố trong 2 ô thì +15 Khí,An elemental reaction within 2 cells gives 15 qi
