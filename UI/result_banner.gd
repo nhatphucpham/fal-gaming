@@ -24,7 +24,7 @@ var _title: Label
 var _reason: Label
 var _button: PressButton
 var _deltas_row: HBoxContainer
-var _extras_row: HBoxContainer
+var _extras_row: VBoxContainer
 var _win_box: StyleBoxFlat
 var _loss_box: StyleBoxFlat
 var _tween: Tween
@@ -68,9 +68,9 @@ func _init() -> void:
 	_deltas_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	_deltas_row.add_theme_constant_override(&"separation", 16)
 	rows.add_child(_deltas_row)
-	_extras_row = HBoxContainer.new()
-	_extras_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	_extras_row.add_theme_constant_override(&"separation", 12)
+	# One chip per line: two side by side are wider than a phone screen.
+	_extras_row = VBoxContainer.new()
+	_extras_row.add_theme_constant_override(&"separation", 8)
 	rows.add_child(_extras_row)
 	_button = PressButton.new()
 	_button.text = "BUTTON_REARRANGE"
@@ -97,7 +97,7 @@ func present(is_win: bool, reason_text: String, deltas: Array = [], button_key: 
 	_panel.size = Vector2(PANEL_WIDTH_PX, 0)
 	_panel.reset_size()
 	_panel.size.x = PANEL_WIDTH_PX
-	var target := Vector2((size.x - PANEL_WIDTH_PX) / 2.0, size.y * 0.36 - _panel.get_combined_minimum_size().y / 2.0)
+	var target := Vector2((size.x - _panel.size.x) / 2.0, size.y * 0.36 - _panel.get_combined_minimum_size().y / 2.0)
 	_panel.position = target - Vector2(0, SLIDE_PX)
 	_panel.modulate.a = 0.0
 	_shade.modulate.a = 0.0
@@ -150,6 +150,7 @@ func _show_extras(extras: Array, start_sec: float) -> void:
 		chip.setup(&"coin", " " + String(extra[0]))
 		chip.is_signed = true
 		chip.custom_minimum_size = EXTRA_SIZE
+		chip.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		_extras_row.add_child(chip)
 		chip.set_value(extra[1], false)
 		chip.pivot_offset = EXTRA_SIZE / 2.0
