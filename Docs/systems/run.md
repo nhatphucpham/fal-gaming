@@ -333,16 +333,16 @@ each run's first battle at that stage; stage 12 is retried after a loss.
 | 8 | 80 | 54.7 |
 | 9 | 89 | 54.8 |
 | 10 | 65 | 50.3 |
-| 11 | 51 | 45.7 |
-| 12 | 36 (13 per attempt over 833 attempts) | 22.2 |
+| 11 | 51 | 45.8 |
+| 12 | 37 (13 per attempt over 828 attempts) | 22.2 |
 
-Run win rate 36.0% (108 of 300), 9.9 stages cleared on average; the bot
+Run win rate 36.3% (109 of 300), 9.9 stages cleared on average; the bot
 takes 3.9 Kỳ Ngộ per run, and in the boss fights the player side casts
 about 11 skills and the boss turns to stone 2.1 times per fight. History:
 32.7% before milestone 6 (stage 12 with eight units and no boss); with the
 boss at 2600 hp and 70 attack and casts counted while it was stone, 22.7%;
 2100 hp and 60 attack gave 32.7%, and not counting casts while it is stone
-36.0%. 37.7% with skills (milestone 4). Turning synergies on for both sides
+36.3%. 37.7% with skills (milestone 4). Turning synergies on for both sides
 with the old stages and bot gave 48.0%; the formation stages with the old
 bot (no habits) 8.3%; with the habits 63.7%. A person who reads the enemy
 line-up and places units against it, and spaces their skills against the
