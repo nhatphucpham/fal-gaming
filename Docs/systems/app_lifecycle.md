@@ -51,7 +51,9 @@ idle screens save power; the service reads it at start into
   or its exit from the tree. `_apply_power_mode()` is the only code that
   sets `OS.low_processor_usage_mode`.
 - The autoload is not a tool script, so it does nothing in the editor; in
-  tests it does nothing until a test calls `set_hidden()`.
+  tests it does nothing until a test calls `set_hidden()` or sends it
+  `NOTIFICATION_APPLICATION_PAUSED`, which pauses the tree until
+  `NOTIFICATION_APPLICATION_RESUMED` and one more frame.
 
 ## Public API
 
