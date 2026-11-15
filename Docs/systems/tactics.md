@@ -56,7 +56,7 @@ the map, passable and not shared) and scenarios. Ids:
 | --- | --- | --- |
 | `hits_per_engagement` | 4 | hits by each side per engagement, 1..10 |
 | `anticipation_shift_cells` | 1 | forward shift of formation slots after 2 straight moves, 0..20 |
-| `help_radius_cells` | 4 | `free` soldiers help allies under attack within this Manhattan distance |
+| `help_radius_cells` | 4 | `free` soldiers answer an attack on an allied soldier within this Manhattan distance |
 | `max_leaders_per_side` | 5 | 1..8 |
 | `max_rounds` | 30 | after this many rounds side B wins (`time_limit`), 1..1000 |
 
@@ -92,7 +92,7 @@ catalog), `skill`, `default_order` (`order.follow`, `order.vanguard`,
 | `keyword.long_weapon` | strikes first when attacked in melee |
 | `keyword.charge` | +`amount`% (30) when it attacks after a straight run of `min_cells` (3) this phase; not on counters |
 | `keyword.armor_pierce` | ignores `amount`% (50) of armor |
-| `keyword.cover` | allies take `amount`% (30) less ranged damage (the best cover applies) |
+| `keyword.cover` | allies orthogonally next to it take `amount`% (30) less ranged damage (the best cover applies) |
 | `keyword.flying` | ignores move cost, impassable terrain and zones of control |
 | `keyword.heavy` | +`amount` (1) move cost on `terrain_ids` (forest, ford) |
 
@@ -110,7 +110,7 @@ phase); each handler states which side it affects. Samples: `zone.wind`
 | `passive.stat_bonus` | `stat`, `amount`, `condition_terrain_id` or `condition_adjacent_allies` | `iron_will` (armor +15 on a fort), `pack_fury` (+20% attack with 2 adjacent allies), `forest_ambush` |
 | `passive.squad_bonus` | `stat`, `amount`, `keyword`, `extra_capacity` | `drilled_ranks` (soldiers +10% attack, cover, capacity +1) |
 | `passive.trail_zone` | `zone`, `radius_cells`, `duration_rounds` | `wind_trail` (wind, radius 1, 1 round, where the leader stops) |
-| `passive.pull_strike` | `amount` | `hook_spear` (pulls the target 1 cell after an engagement) |
+| `passive.pull_strike` | `amount` | `hook_spear` (pulls the target 1 cell after the leader's own attack, not after counters) |
 | `passive.skill_growth` | `amount` | `warlord_growth` (skill area +1 per enemy leader killed) |
 
 Stats: `stat.attack_pct`, `stat.armor`, `stat.magic_resist`,
@@ -167,7 +167,9 @@ placed on the spawn cells in order. Sample: `scenario.river_crossing`.
   `anticipation_shift_cells`. Soldiers step after their leader moves (or
   acts, or at the end of the phase), then attack: first an enemy that
   threatens their leader, then the lowest hp. `order.hold` stays put;
-  `order.free` helps allies under attack, else goes for the nearest enemy.
+  `order.free` goes for the enemy that attacked the nearest allied soldier
+  within `help_radius_cells` since that soldier's last squad step, else for
+  the nearest enemy by path.
   A squad whose leader died acts as `free`. `preview_squad()` shows where
   soldiers would go if the leader moved to a cell.
 - Buffs and zones made in round r for d rounds end at the start of their
@@ -175,8 +177,9 @@ placed on the spawn cells in order. Sample: `scenario.river_crossing`.
   length: a 1-round zone made by side B still works in side A's next phase.
   d = 0 ends at the start of the next phase.
 - AI: each leader goes for the nearest enemy by path, moves to the
-  reachable cell closest to it, then casts when ready and in range, else
-  attacks, else waits. When the other side is human, the AI's intents are
+  reachable cell closest to a cell it could attack it from, then casts
+  when ready and in range, else attacks it, else attacks the enemy in
+  range with the lowest hp, else waits. When the other side is human, the AI's intents are
   declared at the start of the human phase (`get_enemy_intents()`) and
   followed as closely as the board allows.
 - Victory: all enemy leaders dead (`rout`); a leader of `objective_side`
