@@ -104,7 +104,11 @@ int compute_hit_damage(const TacticsSim &p_sim, int p_attacker, int p_defender, 
 	return battle::compute_damage(request).amount;
 }
 
-EngagementResult resolve_engagement(TacticsSim &p_sim, int p_attacker, int p_defender, int p_cause) {
+namespace {
+
+// Who strikes, whether a counter comes and the damage of each hit, fixed
+// before the first hit.
+EngagementResult plan_engagement(const TacticsSim &p_sim, int p_attacker, int p_defender) {
 	const UnitState &attacker = p_sim.get_units()[p_attacker];
 	const UnitState &defender = p_sim.get_units()[p_defender];
 	EngagementResult result;
@@ -118,7 +122,55 @@ EngagementResult resolve_engagement(TacticsSim &p_sim, int p_attacker, int p_def
 	if (result.can_counter) {
 		result.defender_damage_per_hit = compute_hit_damage(p_sim, p_defender, p_attacker, get_attack_kind(defender), true, BASIC_COEFFICIENT_PCT, defender.def.damage_kind);
 	}
+	return result;
+}
 
+void land_engagement_hits(TacticsSim &p_sim, EngagementResult &r_result) {
+	const int hits = p_sim.get_rules().hits_per_engagement;
+	const int attacker = r_result.attacker;
+	const int defender = r_result.defender;
+	if (r_result.is_first_strike) {
+		r_result.defender_hits = land_hits(p_sim, defender, attacker, hits, r_result.defender_damage_per_hit, true, r_result.event_id);
+		r_result.attacker_hits = land_hits(p_sim, attacker, defender, hits, r_result.attacker_damage_per_hit, false, r_result.event_id);
+	} else {
+		r_result.attacker_hits = land_hits(p_sim, attacker, defender, hits, r_result.attacker_damage_per_hit, false, r_result.event_id);
+		if (r_result.can_counter) {
+			r_result.defender_hits = land_hits(p_sim, defender, attacker, hits, r_result.defender_damage_per_hit, true, r_result.event_id);
+		}
+	}
+	r_result.attacker_hp_after = p_sim.get_units()[attacker].hp;
+	r_result.defender_hp_after = p_sim.get_units()[defender].hp;
+	r_result.is_attacker_dead = !p_sim.get_units()[attacker].is_alive;
+	r_result.is_defender_dead = !p_sim.get_units()[defender].is_alive;
+}
+
+// What the engagement leaves behind: the attacked soldier remembers its
+// attacker, leaders gain charge, and engagement_ended closes it.
+void close_engagement(TacticsSim &p_sim, const EngagementResult &p_result) {
+	if (!p_sim.is_leader(p_result.defender)) {
+		UnitState &soldier = p_sim.edit_unit(p_result.defender);
+		soldier.was_attacked_since_move = true;
+		soldier.last_attacker = p_result.attacker;
+	}
+	for (int unit : { p_result.attacker, p_result.defender }) {
+		if (p_sim.is_leader(unit) && p_sim.get_units()[unit].is_alive) {
+			trigger_skill_charge(p_sim, unit, ChargeTrigger::ENGAGEMENT, 1, p_result.event_id);
+		}
+	}
+	Event ended;
+	ended.type = EventType::ENGAGEMENT_ENDED;
+	ended.unit = p_result.attacker;
+	ended.target = p_result.defender;
+	ended.amount = p_result.attacker_hits * p_result.attacker_damage_per_hit;
+	ended.value = p_result.defender_hits * p_result.defender_damage_per_hit;
+	ended.cause = p_result.event_id;
+	p_sim.emit(ended);
+}
+
+} // namespace
+
+EngagementResult resolve_engagement(TacticsSim &p_sim, int p_attacker, int p_defender, int p_cause) {
+	EngagementResult result = plan_engagement(p_sim, p_attacker, p_defender);
 	Event started;
 	started.type = EventType::ENGAGEMENT_STARTED;
 	started.unit = p_attacker;
@@ -126,47 +178,12 @@ EngagementResult resolve_engagement(TacticsSim &p_sim, int p_attacker, int p_def
 	started.kind = result.kind == AttackKind::RANGED ? "ranged" : "melee";
 	started.is_first_strike = result.is_first_strike;
 	started.cause = p_cause;
-	const int cause = p_sim.emit(started);
-	result.event_id = cause;
-
-	const int hits = p_sim.get_rules().hits_per_engagement;
-	if (result.is_first_strike) {
-		result.defender_hits = land_hits(p_sim, p_defender, p_attacker, hits, result.defender_damage_per_hit, true, cause);
-		result.attacker_hits = land_hits(p_sim, p_attacker, p_defender, hits, result.attacker_damage_per_hit, false, cause);
-	} else {
-		result.attacker_hits = land_hits(p_sim, p_attacker, p_defender, hits, result.attacker_damage_per_hit, false, cause);
-		if (result.can_counter) {
-			result.defender_hits = land_hits(p_sim, p_defender, p_attacker, hits, result.defender_damage_per_hit, true, cause);
-		}
-	}
-	result.attacker_hp_after = attacker.hp;
-	result.defender_hp_after = defender.hp;
-	result.is_attacker_dead = !attacker.is_alive;
-	result.is_defender_dead = !defender.is_alive;
+	result.event_id = p_sim.emit(started);
+	land_engagement_hits(p_sim, result);
 	// A death that ended the battle ends the events too: battle_ended is last.
-	if (p_sim.is_finished()) {
-		return result;
+	if (!p_sim.is_finished()) {
+		close_engagement(p_sim, result);
 	}
-
-	if (!p_sim.is_leader(p_defender)) {
-		UnitState &soldier = p_sim.edit_unit(p_defender);
-		soldier.was_attacked_since_move = true;
-		soldier.last_attacker = p_attacker;
-	}
-	for (int unit : { p_attacker, p_defender }) {
-		if (p_sim.is_leader(unit) && p_sim.get_units()[unit].is_alive) {
-			trigger_skill_charge(p_sim, unit, ChargeTrigger::ENGAGEMENT, 1, cause);
-		}
-	}
-
-	Event ended;
-	ended.type = EventType::ENGAGEMENT_ENDED;
-	ended.unit = p_attacker;
-	ended.target = p_defender;
-	ended.amount = result.attacker_hits * result.attacker_damage_per_hit;
-	ended.value = result.defender_hits * result.defender_damage_per_hit;
-	ended.cause = cause;
-	p_sim.emit(ended);
 	return result;
 }
 

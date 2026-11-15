@@ -122,6 +122,7 @@ private:
 	int active_side = SIDE_A;
 	int next_event_id = 1;
 
+	bool check_new_leader(int p_side, const UnitDef &p_leader, const std::vector<UnitDef> &p_squad, std::string *r_error) const;
 	bool check_command(int p_unit, std::string *r_error) const;
 	bool check_leader_can_act(int p_unit, std::string *r_error) const;
 	bool check_leader_move(int p_unit, const Cell &p_cell, std::string *r_error) const;

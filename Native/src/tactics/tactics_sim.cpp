@@ -37,14 +37,16 @@ bool TacticsSim::setup(const Rules &p_rules, const MapDef &p_map, std::string *r
 	return true;
 }
 
-int TacticsSim::add_leader(int p_side, const UnitDef &p_leader, const Cell &p_cell, const std::vector<UnitDef> &p_squad, std::string *r_error) {
+// The leader and its squad may join side p_side: setup done, room on the
+// side, valid definitions. Cell and capacity are checked once it exists.
+bool TacticsSim::check_new_leader(int p_side, const UnitDef &p_leader, const std::vector<UnitDef> &p_squad, std::string *r_error) const {
 	if (!is_ready || started) {
 		*r_error = "add_leader() needs setup() first and a battle that has not started";
-		return NO_UNIT;
+		return false;
 	}
 	if (p_side != SIDE_A && p_side != SIDE_B) {
 		*r_error = "add_leader() got side " + std::to_string(p_side) + ", expected 0 or 1";
-		return NO_UNIT;
+		return false;
 	}
 	int leaders_on_side = 0;
 	for (const UnitState &unit : units) {
@@ -52,17 +54,24 @@ int TacticsSim::add_leader(int p_side, const UnitDef &p_leader, const Cell &p_ce
 	}
 	if (leaders_on_side >= rules.max_leaders_per_side) {
 		*r_error = "side " + std::to_string(p_side) + " already has " + std::to_string(leaders_on_side) + " leaders";
-		return NO_UNIT;
+		return false;
 	}
 	if (p_leader.role != UnitRole::LEADER || !validate_unit_def(p_leader, r_error)) {
 		*r_error = p_leader.role != UnitRole::LEADER ? p_leader.id + " is not a leader" : *r_error;
-		return NO_UNIT;
+		return false;
 	}
 	for (const UnitDef &soldier : p_squad) {
 		if (soldier.role != UnitRole::SOLDIER || !validate_unit_def(soldier, r_error)) {
 			*r_error = soldier.role != UnitRole::SOLDIER ? soldier.id + " is not a soldier type" : *r_error;
-			return NO_UNIT;
+			return false;
 		}
+	}
+	return true;
+}
+
+int TacticsSim::add_leader(int p_side, const UnitDef &p_leader, const Cell &p_cell, const std::vector<UnitDef> &p_squad, std::string *r_error) {
+	if (!check_new_leader(p_side, p_leader, p_squad, r_error)) {
+		return NO_UNIT;
 	}
 	UnitState leader;
 	leader.index = static_cast<int>(units.size());
@@ -89,8 +98,8 @@ int TacticsSim::add_leader(int p_side, const UnitDef &p_leader, const Cell &p_ce
 		soldier.def = soldier_def;
 		soldier.hp = soldier_def.max_hp;
 		soldier.leader = leader.index;
+		soldier.cell = NO_CELL;
 		units[leader.index].soldiers.push_back(soldier.index);
-		soldier.cell = { -1, -1 };
 		units.push_back(soldier);
 	}
 	place_soldiers(leader.index);
