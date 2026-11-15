@@ -162,12 +162,16 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Changed
 
-- Units are drawn as posed figures with arms, legs and class gear
-  (helmets, hats, bow, staff, shield, lance on a horse). They turn toward
-  their target, swing, thrust, shoot or cast, raise their weapon through a
-  skill's wind-up, flinch and look hurt when hit (shields raise their
-  guard), go limp and fall when they die, cheer after a win, sway and
-  blink while idle, and freeze in place when turned to stone. Every pose
+- Units are drawn as jointed chibi figures with class gear (plumed,
+  iron and feathered helmets, war hat, hood, wizard hat; sword, shield,
+  spear, bow and quiver, staff, lance on a horse). Your units are seen
+  three-quarters from behind facing up the board, enemies from the front
+  facing down; wolf folk have fur, ears and a muzzle. Legs stay straight
+  and close: units run with the stride toward and away from you, step into
+  slashes, thrusts and shots aimed at the enemy, wind up and release
+  skills with a glow, flinch when hit (shields brace), fall and stay down,
+  cheer with a hop, breathe and blink while idle (plumes, scarves and
+  pennants sway), and freeze in place when turned to stone. Every pose
   follows the battle speed.
 - Every button keeps at least 24 px from the top and bottom of the
   screen.

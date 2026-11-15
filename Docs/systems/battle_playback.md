@@ -47,18 +47,18 @@ a unit already playing its death shows nothing.
 | Event | Animation |
 | --- | --- |
 | `battle_started` | none (the screen has already slid to the battle layout) |
-| `unit_moved` `walk` | glide over `duration_ticks`, with a small step bob; the legs walk and the unit drops its combat stance |
-| `unit_moved` `charge` | faster gallop bob, stretched figure, dust puffs along the path; the horse gallops with the lance levelled (a rider still winding up keeps the glow, and Breakthrough's resolve in the same tick lands the strike mid-gallop) |
+| `unit_moved` `walk` | glide over `duration_ticks`; the unit runs (the rider gallops) and drops its combat stance |
+| `unit_moved` `charge` | dust puffs along the path; the horse gallops faster (a rider still winding up keeps the glow, and Breakthrough's resolve in the same tick lands the strike mid-gallop) |
 | `unit_moved` `knockback` | quick skidding slide with a tilt and a dust puff, after the hit lands; the figure flinches back while it slides |
-| `unit_attacked` `melee` | the attacker turns to the target, swings or thrusts at it (a white smear) and lunges; a slash arc on the target cell |
-| `unit_attacked` `ranged` | the archer turns to the target, looses and draws a new arrow, with a recoil; an arrow flies in an arc to the target cell |
-| `unit_attacked` `magic` | the mage turns to the target and thrusts the staff (the orb flashes), with a recoil; a bolt, then the three cells of the row flash |
-| `damage_dealt` | target flashes white and flinches with hurt eyes (a shield raises its shield), a damage number pops and floats (bigger and gold when `is_counter`; gold with "!" when `is_crit`), the hp bar slides down with a pale trail; with `blocked_by`, a shield flash at the blocker. Skill damage may add its own look (below) |
-| `unit_died` | the unit collapses limp with dead eyes, falls over backwards and fades out; a boss instead cracks all over and crumbles (`UnitView.crumble()`, see [Boss](boss.md)) |
+| `unit_attacked` `melee` | the attacker turns to the target and steps into a slash or thrust at it (a white smear); a slash arc on the target cell |
+| `unit_attacked` `ranged` | the archer turns its bow to the target, draws and looses; an arrow flies in an arc to the target cell |
+| `unit_attacked` `magic` | the mage turns to the target and points the staff (the orb glows); a bolt, then the three cells of the row flash |
+| `damage_dealt` | target flashes white and flinches with shut eyes (a shield braces behind its shield), a damage number pops and floats (bigger and gold when `is_counter`; gold with "!" when `is_crit`), the hp bar slides down with a pale trail; with `blocked_by`, a shield flash at the blocker. Skill damage may add its own look (below) |
+| `unit_died` | the unit staggers, falls over backwards with shut eyes, lies still and fades out; a boss instead cracks all over and crumbles (`UnitView.crumble()`, see [Boss](boss.md)) |
 | `charge_ended` | when the charge hit someone, three dust puffs where rider and target meet, just after the impact (the charge's moves and hit already show the rest) |
 | `battle_ended` | after 0.6 s the winners raise their weapons with happy eyes and hop twice, then `battle_finished` fires and the screen shows the result banner |
 | `qi_changed` | the thin blue Khí bar under the hp bar fills; when full its frame glows and pulses |
-| `skill_cast_started` | a wind-up over the whole cast (`UnitView.wind_up(seconds)`): the caster crouches with its weapon raised and glowing in its class colour (a horse rears), a glow at the caster's feet in its class colour until it resolves, the skill's cells lit in that colour with one outline around the area for the cast, and the skill name rising over the caster for 0.6 s |
+| `skill_cast_started` | a wind-up over the whole cast (`UnitView.wind_up(seconds)`): the caster gathers into its skill's wind-up with its weapon glowing, a glow at the caster's feet in its class colour until it resolves, the skill's cells lit in that colour with one outline around the area for the cast, and the skill name rising over the caster for 0.6 s |
 | `skill_resolved` | the caster's recoil releases the wound-up strike, a 2.5 px shake of the pieces and effects for 0.15 s and the skill's effect (table below) |
 | `passive_triggered` | the passive icon (a diamond left of the hp bar) blinks once; no text |
 | `status_applied`, `status_ended` | a small icon right of the hp bar while it lasts: red "!" taunted, indigo shield guard, cracked ochre shield armor break, gold star stun; a taunt also bounces a "!" over the taunted unit |

@@ -11,11 +11,19 @@ cell signals, and keeps the player's formation. It does not run battles
 - Layer: presentation, plus one pure-data bridge class (`Lineup`).
 - `Scenes/Board/`: `board_view.gd` and `board_view.tscn` (`BoardView`),
   `unit_view.gd` (`UnitView`), `unit_figure.gd` (`UnitFigure`),
-  `unit_painter.gd` (`UnitPainter`, the entry point and registries),
-  `figure_brush.gd` (`FigureBrush`, outlined shapes and a transform stack),
-  `figure_parts.gd` (`FigureParts`, body parts, heads and headgear),
-  `class_figures.gd` (`ClassFigures`, the six class figures),
-  `unit_pose.gd` (`UnitPose`), `pose_animator.gd` (`PoseAnimator`),
+  `unit_painter.gd` (`UnitPainter`, the entry point and race looks), the
+  bone rig ported from [the approved sketch](../sketches/unit-rig/README.md):
+  `unit_pose.gd` (`UnitPose`), `rig_solver.gd` (`RigSolver`),
+  `rig_clips.gd` (`RigClips`), `rig_kit.gd` (`RigKit`) with one
+  `kit_<class>.gd` per class (`KitSword`, `KitShield`, `KitSpear`,
+  `KitArcher`, `KitMage`, `KitCavalry`), the pieces (`rig_piece.gd`
+  `RigPiece`, `rig_body.gd` `RigBody`, `rig_torso.gd` `RigTorso`,
+  `rig_heads.gd` `RigHeads`, `rig_weapons.gd` `RigWeapons`, `rig_bow.gd`
+  `RigBow`, `rig_horse.gd` `RigHorse`), the drawing (`rig_path.gd`
+  `RigPath`, `rig_mesh.gd` `RigMesh`, `rig_palette.gd` `RigPalette`,
+  `rig_painter.gd` `RigPainter`) and `pose_animator.gd` (`PoseAnimator`);
+  `figure_brush.gd` (`FigureBrush`, outlined shapes for the figures outside
+  the rig),
   `lineup_views.gd` (`LineupViews`),
   `piece_drag.gd` (`PieceDrag`), `formation_outlines.gd`
   (`FormationOutlines`) and `outline_geometry.gd` (`OutlineGeometry`), see
@@ -123,91 +131,93 @@ running (a battle slowed mid-cast keeps the wind-up in step with the cast).
 `is_idle_calm` holds the idle sway still so the figure only redraws to
 blink: `set_dim()` sets it for the waiting enemy line-up and `PieceViews`
 for units on the bench. Side 0 faces up and right with a blue ring, side 1 faces down and
-left with a red ring. Idle units breathe (a slow 3.5% scale bob, phase per
-unit), sway and blink. `get_pose()` and `get_flip()` are for tests.
+left with a red ring. Rigged figures breathe and blink in their pose; the
+boss and the sage bob their scale (3.5%, phase per unit). `get_pose()`,
+`get_animator()` and `get_flip()` are for tests and tools.
 
-Each view owns a `PoseAnimator` that moves the figure's limbs and weapon;
-the view's existing methods drive it, so callers need nothing new:
+Each view owns a `PoseAnimator` that plays the class's key-pose clips;
+the view's existing methods drive it, so callers need nothing new. Player
+units (side 0) are seen three-quarters from behind (`RigSolver.VIEW_BACK`)
+and play the `Up` clips; enemies are seen from the front (`VIEW_FRONT`)
+and play the `Down` clips. Every clip eases from the pose it starts at and
+ends by settling to the rest pose: the class's stance in a fight, its idle
+pose otherwise.
 
-| Method | Whole body (view) | Pose (limbs, weapon, eyes) |
+| View method | Animator call | Clip |
 | --- | --- | --- |
-| `lunge(direction)` | short lunge toward the target | turns to the target, swings at it with a smear |
-| `recoil(direction)` | small squash and recoil | turns to the target; archers loose and draw again, mages thrust the staff with a flash; releases a wound-up skill |
-| `glide_to(..., &"walk")` | glide with a step bob | legs and arms walk; drops the combat stance |
-| `glide_to(..., &"charge")` | gallop bob, stretched | horse gallops, lance levelled |
-| `glide_to(..., &"knockback")` | skid with a tilt | flinches back for the slide |
-| `wind_up(seconds)` | crouch and rise | crouches, weapon raised and glowing in the class colour, a horse rears; held until the next `lunge`/`recoil` releases the strike (or just after `seconds`). A walk cancels it (the skill pose eases away, no strike); a charge keeps it with the weapon levelled and still glowing, so Breakthrough's resolve, sent in the same tick as the charge, lands the strike mid-gallop |
-| `hit_flash()` | white flash, squash | flinches with hurt eyes; a shield raises its shield instead |
-| `die()` | after the collapse, falls over backwards and fades | collapses limp, weapon sinks, dead eyes; no more idle |
-| `cheer()` | two hops | weapon raised, happy eyes; a horse rears; ends a wind-up without its strike |
-| `set_petrified(true)` | grey stone | the pose freezes exactly as it is (no tween, sway or blink) |
+| `lunge(direction)`, `recoil(direction)` | `attack(aim)` | `attackUp` from behind, `attackDown` from the front; during a wind-up it is `release()` |
+| `wind_up(seconds)` | `wind_up(seconds)` | the first `RigKit.skill_wind_keys` keys of `skillUp`/`skillDown`, stretched over the cast and held; released by the next attack, or by itself `RELEASE_GRACE_SEC` after the cast |
+| (next attack) | `release()` | the rest of the skill clip (the strike) |
+| `hit_flash()` | `hit()` | `hit` (a shield braces); ignored while winding up or running |
+| `glide_to(..., &"walk")` | `walk(seconds, false)` | the run cycle (a gallop for the rider), blended in and settled out; drops the fight stance and cancels a wind-up |
+| `glide_to(..., &"charge")` | `walk(seconds, true)` | the run 1.5 times faster; keeps a wind-up glowing, so Breakthrough's resolve (same tick) strikes while the horse gallops on |
+| `glide_to(..., &"knockback")` | `flinch_for(seconds)` | the first `hit` pose without the flash, held for the slide, then a settle |
+| `die()` | `die()` | `fall` (the first keys of `die`), held: the unit stays down, no idle |
+| `cheer()` | `cheer()` | `cheer` (weapon raised, happy eyes, a hop); ends a wind-up without its strike |
+| `set_petrified(bool)` | `set_frozen(bool)` | none: the pose and its redraws freeze exactly as they are |
+| `setup()` | `set_class()`, `set_view()` | the idle pose |
 
-Turning: the figure (only the figure: never the ring, bars, pips, stone or
-skill marks) is mirrored to face the target when the target is more than
-6 px to the side; the weapon aims along `atan2(abs(dx), -dy)` in the
-figure's own space (0 up, PI / 2 straight ahead). After a unit's first
-attack it holds its weapon half wound up (the bow drawn) until it walks or
-cheers.
+A pose's step toward the target (`dx`) moves the whole figure along the
+attack direction (`PUSH_PER_STEP` forward, `PULL_PER_STEP` back, like the
+sketch's board) instead of shifting the body inside it. Turning: the
+figure (only the figure: never the ring, bars, pips, stone or skill marks)
+is mirrored to face the target when the target is more than 6 px to the
+side; archers turn their bow hand toward it. Whole-body squashes, lunges
+and hops stay for the boss and the sage only.
 
-Redraws: a figure redraws only when its pose changed. While idle the sway
-and blink advance about 10 times a second, at a phase offset per unit, so
-16 units do not redraw on the same frame; a calm figure (bench, dimmed
-line-up) only redraws when it blinks. Breathing is a node scale and costs
-no redraw. While a pose animation runs, the legs walk or the hit flash
-fades, it redraws at most 30 times a second, and once more when it ends. A
-petrified figure, a dead one after its fall, a boss and the sage (they
-ignore poses, `UnitPainter.is_posable()`) never redraw on their own.
+Redraws: a figure redraws only when its pose changed. While idle it
+breathes and blinks about 10 times a second, at a phase offset per unit,
+so 16 units do not redraw on the same frame; a calm figure (bench, dimmed
+line-up) only redraws when it blinks. While a clip, the run or a weapon
+trail plays it redraws at most 30 times a second, and once more when it
+ends. A petrified figure, a dead one after its fall, a boss and the sage
+(they ignore poses, `UnitPainter.is_posable()`) never redraw on their own.
 
-`UnitPose` (RefCounted): the figure's posable fields, all tweenable
-floats (`step`, `stride`, `strike` -1 wound up .. +1 struck, `raise`,
-`guard`, `flinch`, `limp`, `crouch`, `sway`, `aim`, `trail`, `glow`,
-`gallop`, `rear`, `arrow`) plus `eyes` (`OPEN`, `BLINK`, `HURT`, `HAPPY`,
-`DEAD`). `UnitPose.get_rest()` is the shared rest pose.
+`UnitPose` (RefCounted): the sketch's 48 pose fields in one
+`PackedFloat32Array` (`values`, indexed by constants such as
+`UnitPose.BLADE`): bone angles in degrees, the hips and feet (`hip`, `fF`,
+`fB`, lifts, steps, heels), leg IK, the step `dx`, `jump`, `glow`,
+`trail`, `flash`, `eyes` (0 open, 1 shut or hurt, 2 happy), the weapon's
+length, slide and two-hand grip, the bow (`draw`, `nock`, `bowUp`), the
+seat and the horse's gallop. `make(fields)` and `with_fields(fields)` are
+the sketch's `P()` and `with_()` (the feet narrowed toward the centre
+line, steps added for a lunge or a crouch); `merged()` lays fields over
+without that; `blend(from, to, t)`.
 
-`PoseAnimator` (Node, one per view): `walk(seconds, is_charge)`,
-`attack(aim)`, `wind_up(seconds)`, `release()`, `hit()`,
-`flinch_for(seconds)`, `die()`, `cheer()`, `reset()`, `set_frozen(bool)`,
-`get_stance()`; `playback_speed`, `is_swaying`. Differences between
-classes (how they attack, the stance they hold, who guards, who rears, the
-step rate) are data in its `CLASS_MOTION` registry, not branches. Every
-pose field has its own track (one tween): an animation restarts only the
-fields it moves and every track ends at that field's rest, so no animation
-can strand a field another one was moving (a glow, a raised weapon). When
-the strike's track ends it eases to the stance that holds by then (levelled
-while charging, half wound up in a fight, lowered outside one).
+`RigSolver.solve(pose, view)` returns a `Frame`: a `Transform2D` per bone
+(15 bones, figure units, feet on y = 0), the on-screen length scale of
+each bone and the heel lifts. Seen from the front or the back a leg never
+bends sideways: a bent knee shortens the thigh and shin on screen. An off
+hand on a two-handed weapon reaches for the grip by IK.
+
+`RigKit.get_kit(class_id)` (built once per class by the builder in
+`RigKit.BUILDERS`; an unknown class gets the plain body with empty hands):
+the pieces, the idle and stance poses per view, the class's own clips
+(others come from `RigClips`, laid over by the kit's `fit`), its run, the
+weapon tip for the trail, where the glow sits, how many skill keys are the
+wind-up, `is_mounted` and `aims_off_hand`.
 
 `UnitPainter` (static): `draw_figure(canvas, unit, facing, flash, origin,
-scale, pose = null)`, `draw_bust(canvas, unit, center, scale)` and
-`draw_star_pips(canvas, center, count, radius)`. Without a pose a figure
-stands in the rest pose (shop cards, the roster, the drag ghost, the info
-panel, the end screen). Stars are always drawn this way, never typed: the
-default font has no star glyph. The class picks the figure from a registry
-of drawers by class id (`ClassFigures`: shield, sword, spear, cavalry,
-archer, mage; an unknown class gets a plain figure with empty hands) and
-the headgear from a second registry (helmet, red headband, war hat, plumed
-helmet, feather band, pointed hat); the race picks the head and palette
-from `RACE_LOOKS` (human, wolf folk with ears, snout and a fur collar;
-unknown races look human); the cost picks the trim colour
-(`Palette.COST_COLORS`, the same as the roster cards), pauldrons from cost
-3 (gold from 4), a cape from 4 and a crown at 5. Mages carry an orb in
-their element's colour; weapons glow in `Palette.CLASS_COLORS`. The visual
-reference is [the figure page](../concept-page/unit-figures.html) (the
-prototype these figures are ported from).
+scale, pose = null, animator = null)`, `draw_bust(canvas, unit, center,
+scale)` (front view) and `draw_star_pips(canvas, center, count, radius)`.
+Without a pose a figure stands in its class's idle pose (shop cards, the
+roster, the drag ghost, the info panel, the end screen, the cutscene).
+`FACING_UP` draws the back view, `FACING_DOWN` the front. The race picks
+the colours from `RACE_LOOKS` (human; wolf folk with fur, ears and a
+muzzle; unknown races look human). Classes in `ExtraFigures.DRAWERS` (the
+boss and the sage) keep their own `FigureBrush` drawers.
 
-`FigureBrush` does not draw shape by shape: it turns each shape into
-triangles already in canvas space (one native transform of a cached unit
-disc, segment or the polygon's triangulation) and `finish()` draws the
-whole figure as one triangle array, one draw call per figure, with no
-per-shape canvas calls (those are what GDScript time went into). Outlined
-shapes are an ink shape under the fill. Lines thinner than 2 units are
-antialiased the way Godot does it, with a feather quad on each side fading
-to transparent; thick ones need no antialiasing at board size. It keeps
-`poly`, `outline`, `circle`, `stick` and `canvas` for `ExtraFigures` and
-adds a transform stack (`push(origin, rotation, scale)`, `pop()`),
-`stick_path` (bent sticks with round ends), `limb` (two bones),
-`fill_ellipse`, `dot`, `line`, `arc` and `glow` (concentric translucent
-discs, no gradients). Draw with the brush only: a direct canvas call would
-land under the triangles collected so far.
+`RigPainter.paint()` turns a pose into one triangle list: the weapon
+trail, the glow (four translucent discs, no gradients), then the pieces in
+the view's draw order, the ink outlines of all pieces of one draw order
+before their fills so touching pieces read as one shape. Curves become
+polygons once: each piece's mesh is cached by class, race, the inputs it
+uses (rounded: limb scale, heel, weapon length, eyes, sway, glow, view)
+and the line softness for the on-screen scale, so a frame only transforms
+cached triangles. The bow and the horse are built per frame from cached
+parts. `UnitPainter` submits the list as one triangle array: one draw
+call per figure. Every line gets a feather on each side fading to
+transparent (about 0.75 px on screen), which stands in for antialiasing.
 
 `Lineup` (RefCounted, the only owner of a side's formation):
 
@@ -267,21 +277,20 @@ None. Data problems are reported with `push_error` (`Sandbox: ...`,
 
 ## How to extend
 
-- **New class look:** add a drawer to `ClassFigures` that builds the body
-  with `FigureParts.begin_humanoid`, `draw_trunk` and `end_humanoid` (or
-  its own body, like the mage and the rider) and places its weapon from
-  four key poses (grips: `Vector4` hand x, y, angle, slide; constants
-  where they do not depend on the aim) for ready, wind, strike and raise,
-  blended by `FigureParts.weapon_grip`. Keep drawers free of lambdas and
-  objects: they run on every redraw. Register it
-  by class id in `UnitPainter._get_drawers()` and its headgear in
-  `_get_headgear()`. If it moves differently (attack style, stance,
-  guarding, rearing), add an entry to `PoseAnimator.CLASS_MOTION`. Check it
-  in every pose of the reference sheet. Units of an unknown class get a
-  plain figure.
-- **New race look:** add an entry to `UnitPainter.RACE_LOOKS` with a head
-  function in `FigureParts` and `has_fur`. Add `RACE_<NAME>` to
-  `Locale/strings.csv`.
+- **New class look:** write `kit_<class>.gd` with a `static func build()
+  -> RigKit` and register it by class id in `RigKit.BUILDERS`. Start from
+  `RigBody.base_pieces()` and swap, drop or add pieces with
+  `RigKit.remix()` (headgear in `RigHeads`, torso dressing in `RigTorso`,
+  weapons in `RigWeapons`); set the rest poses, any clips of its own (per
+  view when they differ), a `fit` laid over the generic clips, the run,
+  the weapon tip and glow point. Use static functions bound with
+  `Callable(...).bind()`, never lambdas: kits live in a static cache and a
+  lambda outliving its script crashes Godot at exit. Draw it on a pose
+  sheet laid out like the sketch's in both views before shipping. Units of
+  an unknown class get the plain body.
+- **New race look:** add an entry to `UnitPainter.RACE_LOOKS` (skin, tunic,
+  mount and hair colours, `has_fur` for ears and a muzzle) and
+  `RACE_<NAME>` to `Locale/strings.csv`.
 - **New sandbox enemy:** add a `LineupPreset` to `Data/Sandbox/sandbox.tres`
   and its `name_key` to `Locale/strings.csv`.
 - **Another screen** reuses `BoardView`, `UnitView`, `Lineup`,
@@ -306,37 +315,41 @@ plays the battle to its end at x4, checks that "Xếp lại" restores the
 line-up and its views, and that the speed button afterwards does not touch
 the freed battle views. The look is checked by eye from screenshots.
 
-`Tests/unit_pose_test.gd` (headless, in CI) draws every class (and an
-unknown one) x race (and an unknown one) x cost 1..5 in the rest pose and
-in each extreme pose inside a real draw notification (the headless
-renderer still runs `_draw`) and fails on any logged error; it also draws
-without a pose and as a bust. It then checks the animator through
-`UnitView`: an attack turns the figure and settles at the combat stance
-(the bow drawn for archers), walking drops the stance, a wind-up holds
-until the next recoil releases it, death ends limp and dead-eyed with no
-more sway or redraws, stone freezes the pose and its redraws, idle redraws
-stay near 10 a second, a calm (dimmed) figure only blinks, x4 speed plays
-the swing four times as fast, and slowing from x4 to x1 mid-cast keeps the
-wind-up held. Last it replays event orders from real battles and checks
-that no skill or hit pose is left behind (every field back at rest, the
-figure unsquashed): cavalry Breakthrough (wind-up, then the charge and the
-resolve in one tick; the strike lands with the resolve and the lance is
-level for the rest of the run), a resolve followed one tick later by a
-walk or an attack, a cast followed by a cheer, and the automatic release.
+`Tests/unit_pose_test.gd` (headless, in CI) draws every class (with the
+boss, the sage and an unknown one) x race (and an unknown one) x cost 1..5
+in several poses, unposed and as a bust inside a real draw notification
+(the headless renderer still runs `_draw`) and fails on any logged error.
+It solves every class, view and clip at sampled times (keys and the blends
+between them, rests and the run) and fails on a NaN bone, and checks that
+every standing pose plants each foot its leg can reach where the sketch
+puts it. Through `UnitView`, for every class from both sides, it checks
+that each action (attack, skill, hit, knockback, walk, cheer, and the
+event orders of real battles: a resolve followed one tick later by a walk
+or an attack, a cast then a cheer) ends at the rest pose with no clip,
+trail, glow, flash or step left and the figure unsquashed. It also checks
+that a wind-up holds and then releases by itself, a dead unit stays in its
+last fall pose with no redraws whatever comes next, stone freezes the
+pose, the trail and the redraws, the boss and the sage never pose or
+redraw, idle redraws stay near 10 a second, a calm figure only blinks, x4
+speed plays the clip four times as fast, slowing from x4 to x1 mid-cast
+keeps the wind-up held, Breakthrough releases with the resolve while the
+horse gallops on, and a glide or hop clears a knockback's lean.
 
 ## Known limits
 
 - Stars are always 1 in the sandbox; the run uses 1 to 3. Star pips are
   drawn in code (the default font has no star glyph).
 - Long-press info during a battle finds the unit by its current cell.
-- A posed figure still costs several times the GDScript time of the old
-  static one to redraw: about 0.19 ms per figure in the debug build on a
-  desktop CPU (0.04 to 0.06 ms before poses), most of it building the
-  triangles. Fewer redraws keep it in hand: measured CPU per frame with 24
-  waiting figures (board, bench, dimmed enemies) 0.42 ms (0.13 ms before
-  poses) and with 16 figures in a busy fight 1.6 ms (0.56 ms). Draw calls
-  went down: one per figure, about 550 instead of 1200 for a 16-unit
-  battle screen. Not measured on a phone or in a release build. Thick
-  lines are not antialiased (see above).
+- A rigged figure costs about 0.2 ms of GDScript to redraw in the debug
+  build on a desktop CPU once its meshes are cached (0.3 ms for the archer,
+  whose bow is built per frame, 0.5 ms for the rider and horse), about
+  3,300 to 5,000 triangles in one draw call. Throttled redraws keep it in
+  hand. Not measured on a phone or in a release build.
+- Differences from the sketch: the pose's `alpha` is not drawn (the view
+  fades instead); `dx` pushes the whole figure (see above) instead of the
+  body; a hit is ignored during a wind-up or a run; cost tiers (trim,
+  cape, crown) are gone; the mage's orb is one colour, not its element's;
+  curves are flattened and cached, so sways and limb scales move in small
+  steps; the sketch's own ground shadow is left to the board's ring.
 - No safe-area insets for phone notches yet; Safari's own bars keep the
   canvas clear of them in a browser tab.
