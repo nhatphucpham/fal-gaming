@@ -41,13 +41,16 @@ class Look:
 
 
 ## Adds the figure of `kit` in `pose` seen from `view` to `points` and
-## `colors`, placed by `base` (feet at its origin).
-static func paint(points: PackedVector2Array, colors: PackedColorArray, kit: RigKit, pose: UnitPose, view: StringName, look: Look, base: Transform2D) -> void:
+## `colors`, placed by `base` (feet at its origin). Returns how many points
+## were there before the pieces: the ones before plus the weapon trail and
+## the glow, which come first and which the hit flash leaves alone.
+static func paint(points: PackedVector2Array, colors: PackedColorArray, kit: RigKit, pose: UnitPose, view: StringName, look: Look, base: Transform2D) -> int:
 	var frame := RigSolver.solve(pose, view)
 	_paint_trail(points, colors, look, base)
 	var glow := pose.values[UnitPose.GLOW]
 	if glow > 0.02:
 		_paint_glow(points, colors, base * kit.get_glow_point(frame, pose), base.get_scale().x, glow)
+	var lights := points.size()
 	var level := RigMesh.feather_level(look.pixels_per_unit if look.pixels_per_unit > 0.0 else absf(base.get_scale().y))
 	var args := _make_args(pose, view, frame, look)
 	# Reused between calls: one figure paints at a time.
@@ -66,7 +69,7 @@ static func paint(points: PackedVector2Array, colors: PackedColorArray, kit: Rig
 				body.feather = RigMesh.feather_for(level)
 				piece.paint.call(body, args)
 			else:
-				var meshes := _get_meshes(kit, piece, args, look, level)
+				var meshes := _get_meshes(piece, args, look, level)
 				if piece.path.is_valid():
 					var stroke: RigMesh = meshes[0]
 					points.append_array(placed * stroke.points)
@@ -78,6 +81,7 @@ static func paint(points: PackedVector2Array, colors: PackedColorArray, kit: Rig
 			points.append_array(places[index] * bodies[index].points)
 			colors.append_array(bodies[index].colors)
 	bodies.clear()
+	return lights
 
 
 # The inputs every piece of this pose shares.
@@ -104,7 +108,7 @@ static func _set_piece_args(piece: RigPiece, args: RigPiece.Args, frame: RigSolv
 
 # [stroke, body] meshes of a cached piece, lines feathered for `level`,
 # built from `args` rounded to the cache steps on a miss.
-static func _get_meshes(kit: RigKit, piece: RigPiece, raw_args: RigPiece.Args, look: Look, level: int) -> Array:
+static func _get_meshes(piece: RigPiece, raw_args: RigPiece.Args, look: Look, level: int) -> Array:
 	var key := "%d|%s" % [level, piece.key_of(raw_args, look.race_id)]
 	var cached: Array = _meshes.get(key, [])
 	if not cached.is_empty():

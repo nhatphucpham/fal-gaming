@@ -21,8 +21,9 @@ var is_hp_bar_shown: bool = true:
 	set(value):
 		is_hp_bar_shown = value
 		queue_redraw()
-## 0 for the player's side (green hp), 1 for the enemy's (red hp).
-var side: int = 0
+## The hp fill: the side's colour.
+var hp_color: Color = Palette.PLAYER_HP
+## Star pips shown.
 var star: int = 1
 ## A boss shows its hp in the wide boss bar: this draws nothing.
 var is_boss: bool = false
@@ -89,8 +90,7 @@ func _draw() -> void:
 		var frame := BAR_SIZE + Vector2(4, 4 + (QI_BAR_HEIGHT + 1.0 if has_qi else 0.0))
 		draw_rect(Rect2(origin - Vector2(2, 2), frame), Palette.INK)
 		draw_rect(Rect2(origin, Vector2(BAR_SIZE.x * _hp_trail, BAR_SIZE.y)), Palette.CREAM)
-		var fill := Palette.PLAYER_HP if side == 0 else Palette.ENEMY_HP
-		draw_rect(Rect2(origin, Vector2(BAR_SIZE.x * _hp_ratio, BAR_SIZE.y)), fill)
+		draw_rect(Rect2(origin, Vector2(BAR_SIZE.x * _hp_ratio, BAR_SIZE.y)), hp_color)
 	if has_qi:
 		_draw_qi_bar(origin + Vector2(0, BAR_SIZE.y + 1.0))
 	var pips_y := origin.y - 6.0 if is_hp_bar_shown else BAR_Y

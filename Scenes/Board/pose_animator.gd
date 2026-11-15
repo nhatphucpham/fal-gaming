@@ -77,16 +77,16 @@ var _slot_offset: float = 0.0
 var _idle_slot: int = -1
 var _action_slot: int = -1
 var _was_active: bool = false
-## The last wind-up key's pose: held until the release, also after a charge.
-var _wind_pose: UnitPose
-var _trail_slot: int = -1
 var _eyes_shown: int = 0
+# Where this figure's blinks fall in BLINK_PERIOD_SEC, so units blink apart.
+var _blink_offset: float = 0.0
 
 
 func _init(figure: CanvasItem) -> void:
 	_figure = figure
 	_slot_offset = randf()
 	_clock = randf() * 5.0
+	_blink_offset = randf() * BLINK_PERIOD_SEC
 
 
 ## Picks the class kit from its class id; figures outside the rig (the
@@ -204,7 +204,6 @@ func wind_up(seconds: float) -> void:
 	var wind: Array[RigClips.ClipKey] = []
 	for index: int in _kit.skill_wind_keys:
 		wind.append(RigClips.ClipKey.new(keys[index].seconds * stretch, keys[index].easing, keys[index].pose))
-	_wind_pose = wind.back().pose
 	_start(wind)
 	_is_holding = true
 	_release_left = seconds + RELEASE_GRACE_SEC
@@ -224,6 +223,13 @@ func release() -> void:
 	_start(keys.slice(_kit.skill_wind_keys))
 
 
+## Drops a wind-up without its strike (the cast was cancelled: stun,
+## stone) and settles from where it shows to the rest pose; a run goes on.
+func cancel_wind_up() -> void:
+	if is_winding:
+		_cancel_wind_up()
+
+
 ## Flinches back with hurt eyes (a shield braces its shield). A wind-up or
 ## a charge holds; only the view's flash shows the hit.
 func hit() -> void:
@@ -237,6 +243,7 @@ func flinch_for(seconds: float) -> void:
 	if is_dead or _kit == null or is_winding:
 		return
 	_walk_left = 0.0
+	_is_charging = false
 	var lean := _kit.get_clip(&"hit", view)[0].pose.merged({"flash": 0})
 	_start([
 		RigClips.ClipKey.new(KNOCKBACK_LEAN_SEC, RigClips.Easing.OUT, lean),
@@ -273,11 +280,15 @@ func cheer() -> void:
 
 
 ## Freezes the pose as it is (no clip, breathing or blink), or thaws it. A
-## hit flash and the weapon trail do not turn to stone with it.
+## hit flash, the weapon trail and a wind-up's glow do not turn to stone
+## with it, and the wind-up is cancelled (the cast is): after the thaw the
+## figure settles to its rest pose without a strike.
 func set_frozen(frozen: bool) -> void:
 	is_frozen = frozen
 	if frozen and pose != null:
-		pose = pose.merged({"flash": 0, "trail": 0})
+		cancel_wind_up()
+		pose = pose.merged({"flash": 0, "trail": 0, "glow": 0})
+		_from = pose
 		trail.clear()
 		trail_weights.clear()
 		if _figure != null:
@@ -309,6 +320,9 @@ func _cancel_wind_up() -> void:
 	_release_left = 0.0
 	_is_holding = false
 	_queue.clear()
+	# The settle (or the run) starts from what shows.
+	_from = pose
+	_walk_time = 0.0
 
 
 # One step of the sketch's update(); true while a clip, the run or a
@@ -334,11 +348,7 @@ func _advance(dt: float) -> bool:
 			target = target.merged({"glow": 1})
 		pose = UnitPose.blend(_from, target, RigClips.eased(RigClips.Easing.IN_OUT, minf(1.0, _walk_time / WALK_BLEND_SEC)))
 		if _walk_left <= 0.0:
-			_is_charging = false
-			# A wind-up carried through a charge settles back to its held pose.
-			var settle := _wind_pose.merged({"glow": 1}) if is_winding else get_stance()
-			_start([RigClips.ClipKey.new(WALK_SETTLE_SEC, RigClips.Easing.IN_OUT, settle)])
-			_is_holding = is_winding
+			_start([RigClips.ClipKey.new(WALK_SETTLE_SEC, RigClips.Easing.IN_OUT, get_stance())])
 		return true
 	if _is_holding:
 		return false
@@ -370,6 +380,8 @@ func _run_on(dt: float) -> void:
 	if _walk_left <= 0.0:
 		return
 	_walk_left -= dt
+	if _walk_left <= 0.0:
+		_is_charging = false
 	var strides := RIDE_STRIDES_PER_SEC if _kit.is_mounted else RUN_STRIDES_PER_SEC
 	_walk_phase += dt * strides * (CHARGE_STRIDE_FACTOR if _is_charging else 1.0)
 
@@ -403,8 +415,10 @@ func _breathe() -> void:
 	})
 
 
+# Shut eyes for BLINK_SEC of real time every BLINK_PERIOD_SEC: at x4 a blink
+# still lasts longer than the 10-a-second idle sampling.
 func _get_blink() -> int:
-	return 1 if fmod(_clock, BLINK_PERIOD_SEC) < BLINK_SEC else 0
+	return 1 if fmod(Time.get_ticks_msec() * 0.001 + _blink_offset, BLINK_PERIOD_SEC) < BLINK_SEC else 0
 
 
 func _rest_now() -> void:
@@ -421,11 +435,6 @@ func _rest_now() -> void:
 # Samples the weapon tip while the pose swings (trail > 0), else fades.
 func _update_trail(dt: float) -> void:
 	if pose.values[UnitPose.TRAIL] > TRAIL_MIN:
-		# One sample per redraw slot: solving the rig every frame is wasted.
-		var slot := floori(Time.get_ticks_msec() * 0.001 * ACTION_REDRAWS_PER_SEC)
-		if slot == _trail_slot:
-			return
-		_trail_slot = slot
 		var still := pose.merged({"dx": 0}) if pose.values[UnitPose.DX] != 0.0 else pose
 		trail.append_array(_kit.get_trail_points(RigSolver.solve(still, view), still))
 		trail_weights.append(1.0)

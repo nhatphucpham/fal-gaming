@@ -77,12 +77,20 @@ static func draw_figure(canvas: CanvasItem, unit: UnitData, facing: int, flash: 
 		shown = shown.merged({"dx": 0})
 	var points := PackedVector2Array()
 	var colors := PackedColorArray()
-	RigPainter.paint(points, colors, kit, shown, view, look, base)
+	var lights := RigPainter.paint(points, colors, kit, shown, view, look, base)
 	if points.is_empty():
 		return
+	# UV.x marks what a hit flash whitens (UnitFigure's shader): the pieces
+	# (1), not the weapon trail and the glow before them (0).
+	var marks := PackedVector2Array()
+	marks.resize(lights)
+	var pieces := PackedVector2Array()
+	pieces.resize(points.size() - lights)
+	pieces.fill(Vector2.RIGHT)
+	marks.append_array(pieces)
 	# The points are already in canvas space.
 	canvas.draw_set_transform_matrix(Transform2D.IDENTITY)
-	RenderingServer.canvas_item_add_triangle_array(canvas.get_canvas_item(), _no_indices, points, colors)
+	RenderingServer.canvas_item_add_triangle_array(canvas.get_canvas_item(), _no_indices, points, colors, marks)
 
 
 ## True when the class's figure is the bone rig and follows a UnitPose (not

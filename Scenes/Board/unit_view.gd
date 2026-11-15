@@ -46,7 +46,7 @@ var playback_speed: float = 1.0:
 		playback_speed = value
 		_animator.playback_speed = value
 		_bar.playback_speed = value
-		for tween: Tween in [_motion_tween, _figure_tween, _fade_tween]:
+		for tween: Tween in [_motion_tween, _figure_tween, _fade_tween, _flash_tween]:
 			if tween != null and tween.is_valid():
 				tween.set_speed_scale(value)
 ## Offset of the figure from its feet position, for lunges, hops and shakes.
@@ -62,9 +62,10 @@ var is_dead: bool = false
 var is_petrified: bool = false
 ## False hides the hp bar but keeps the star pips (bench and preparation:
 ## full health says nothing).
-var is_hp_bar_shown: bool = true:
+var is_hp_bar_shown: bool:
+	get:
+		return _bar.is_hp_bar_shown
 	set(value):
-		is_hp_bar_shown = value
 		_bar.is_hp_bar_shown = value
 ## True holds the idle sway still (only blinks redraw): for figures that
 ## only wait, on the bench or in the dimmed enemy line-up.
@@ -75,7 +76,10 @@ var is_idle_calm: bool = false:
 
 var unit: UnitData
 var side: int = 0
-var star: int = 1
+## Stars shown under the bar (kept by the bar).
+var star: int:
+	get:
+		return _bar.star
 ## Cast glow, status icons and passive blink, drawn over the figure.
 var skill_overlay: SkillOverlay
 
@@ -93,6 +97,7 @@ var _time: float = 0.0
 var _motion_tween: Tween
 var _figure_tween: Tween
 var _fade_tween: Tween
+var _flash_tween: Tween
 var _size_scale: float = 1.0
 var _stone: StoneLayer
 
@@ -117,13 +122,12 @@ func _init() -> void:
 func setup(unit_data: UnitData, unit_side: int, star_level: int) -> void:
 	unit = unit_data
 	side = unit_side
-	star = star_level
-	_bar.side = unit_side
+	_bar.hp_color = Palette.PLAYER_HP if unit_side == 0 else Palette.ENEMY_HP
 	_bar.star = star_level
 	_bar.is_boss = unit_data.is_boss
 	_figure.unit = unit_data
 	_figure.facing = UnitPainter.FACING_UP if unit_side == 0 else UnitPainter.FACING_DOWN
-	_flip = _side_flip()
+	_flip = 1.0 if unit_side == 0 else -1.0
 	_aim_direction = Vector2.UP if unit_side == 0 else Vector2.DOWN
 	_animator.set_class(unit_data.class_id)
 	_animator.set_view(UnitPainter.view_of(_figure.facing))
@@ -193,7 +197,6 @@ func drop_in() -> void:
 
 ## Shows `star_level` stars, stamping them on one at a time.
 func stamp_stars(star_level: int, delay_sec: float = 0.0) -> void:
-	star = star_level
 	_bar.stamp_stars(star_level, delay_sec)
 
 
@@ -282,11 +285,20 @@ func recoil(direction: Vector2) -> void:
 ## Flashes white and flinches with hurt eyes (a shield raises its shield).
 func hit_flash() -> void:
 	_animator.hit()
-	var tween := _new_tween()
+	_reset_tween(_flash_tween)
+	_flash_tween = _new_tween()
 	_figure.flash = 1.0
-	tween.tween_property(_figure, ^"flash", 0.0, 0.2)
+	_flash_tween.tween_property(_figure, ^"flash", 0.0, 0.2)
 	if not _is_rigged:
-		FigureTweens.flinch(tween, self)
+		FigureTweens.flinch(_flash_tween, self)
+
+
+## Drops a wind-up whose cast was cancelled (stun, stone): no strike
+## follows, the glow goes and the figure settles to its rest pose.
+func cancel_wind_up() -> void:
+	_animator.cancel_wind_up()
+	if not _is_rigged:
+		FigureTweens.unsquash(_new_figure_tween(), self)
 
 
 ## Falls (the rig lies down; the boss tips over) and fades out; stays in
@@ -309,11 +321,14 @@ func die() -> void:
 
 
 ## Turns the figure to grey stone (Hóa Đá), its pose frozen as it is, or
-## back to life.
+## back to life. Stone cancels a wind-up and keeps no hit flash.
 func set_petrified(petrified: bool) -> void:
 	is_petrified = petrified
 	_stone.is_stone = petrified
 	_animator.set_frozen(petrified)
+	if petrified:
+		_reset_tween(_flash_tween)
+		_figure.flash = 0.0
 	var tween := _new_tween()
 	tween.tween_property(_figure, ^"modulate", STONE_TINT if petrified else Color.WHITE, 0.15)
 	if petrified:
@@ -357,16 +372,16 @@ func set_dim(amount: float) -> void:
 
 
 # Turns the figure toward `direction` (board pixels) and attacks along it.
-# Archers turn the bow (off) hand toward the target; one shooting straight
-# ahead turns as the sketch does (its tie counts as "to the right" of the
-# side's own facing), so the bow hand stays on the same side for every
-# straight shot. Other figures keep their facing for a straight target.
+# Archers turn the bow (off) hand toward the target. One shooting straight
+# ahead turns as the sketch does, which counts a straight target as "to the
+# right" on both sides: flip -1 for archers of either side. Other figures
+# keep their facing for a straight target.
 func _attack_toward(direction: Vector2) -> void:
 	var off_hand := _animator.aims_off_hand()
 	if absf(direction.x) > TURN_MIN_PX:
 		_flip = signf(direction.x) * (-1.0 if off_hand else 1.0)
 	elif off_hand:
-		_flip = -_side_flip()
+		_flip = -1.0
 	if direction.length() > 0.001:
 		_aim_direction = direction.normalized()
 	# The aim in the figure's own space: 0 up, PI / 2 straight ahead.
@@ -393,11 +408,6 @@ func _get_push() -> Vector2:
 	var step := _animator.pose.values[UnitPose.DX]
 	var per_step := PUSH_PER_STEP if step > 0.0 else PULL_PER_STEP
 	return _aim_direction * step * per_step * FIGURE_SCALE * _size_scale
-
-
-# The side's own facing: 1 (right) for side 0, -1 for side 1.
-func _side_flip() -> float:
-	return 1.0 if side == 0 else -1.0
 
 
 func _set_dust(value: float) -> void:

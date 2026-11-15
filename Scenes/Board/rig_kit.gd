@@ -22,7 +22,6 @@ const BUILDERS: Dictionary[StringName, String] = {
 }
 const PLAIN_ID: StringName = &"class.plain"
 
-var class_id: StringName
 var pieces: Array[RigPiece] = []
 ## func(pose: UnitPose) -> Dictionary: class constants laid over the
 ## generic clips' poses (a two-handed grip, a seat on the horse). Optional.
@@ -66,7 +65,6 @@ static func get_kit(class_id: StringName) -> RigKit:
 			kit.pieces = remix(RigBody.base_pieces(), {}, [&"sword"], [])
 		else:
 			kit = load(BUILDERS[id]).build()
-		kit.class_id = id
 		kit.fill_rests()
 		_kits[id] = kit
 	return _kits[id]

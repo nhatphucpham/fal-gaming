@@ -129,10 +129,13 @@ func _on_status_applied(event: Dictionary) -> void:
 	var status: StringName = event["status"]
 	view.skill_overlay.add_status(status)
 	if status == &"status.stun":
+		# A stun cancels the cast: no resolve follows, so no strike either.
 		view.skill_overlay.set_casting(false)
+		view.cancel_wind_up()
 	elif status == &"status.taunted":
 		_playback.spawn_fx(SkillFx.taunt_mark(view.position + Vector2(0, -66)))
 	elif status == &"status.petrified":
+		# Stone cancels the cast too (set_petrified drops the wind-up).
 		view.skill_overlay.set_casting(false)
 		view.set_petrified(true)
 		_playback.spawn_fx(SkillFx.name_popup(view.position + Vector2(0, -96), view.tr("STATUS_PETRIFIED"), Palette.STEEL))

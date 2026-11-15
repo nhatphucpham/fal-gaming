@@ -4,11 +4,18 @@ extends Node2D
 ## redrawn only when its look, the hit flash or its pose changes (a
 ## PoseAnimator calls queue_redraw). The view moves, scales, flips and
 ## rotates it for whole-body animation. A rigged figure's hit flash is a
-## shader on the figure (no redraw, no tinted copies of its meshes).
+## shader on the figure (no redraw, no tinted copies of its meshes) that
+## leaves the weapon trail and the glow their colours.
+
+## Whitens the pieces UnitPainter marks (UV.x 1) by its `flash`.
+const FLASH_SHADER: Shader = preload("res://Scenes/Board/unit_flash.gdshader")
 
 var unit: UnitData:
 	set(value):
 		unit = value
+		# The flash material is set up now, so its shader compiles before
+		# the first hit rather than on it.
+		material = _make_flash_material() if _is_rigged() else null
 		queue_redraw()
 var facing: int = UnitPainter.FACING_UP:
 	set(value):
@@ -40,9 +47,6 @@ var animator: PoseAnimator
 ## the figure set it, so a squash does not build another set of meshes.
 var pixels_per_unit: float = 0.0
 
-static var _flash_shader: Shader
-
-
 var _flash_slot: int = -1
 
 
@@ -56,6 +60,13 @@ func _draw() -> void:
 	UnitPainter.draw_figure(self, unit, facing, flash, Vector2.ZERO, 1.0, shown, animator, pixels)
 
 
+# One per figure: each flashes on its own.
+static func _make_flash_material() -> ShaderMaterial:
+	var flash_material := ShaderMaterial.new()
+	flash_material.shader = FLASH_SHADER
+	return flash_material
+
+
 func _is_rigged() -> bool:
 	return unit != null and UnitPainter.is_posable(unit.class_id)
 
@@ -64,13 +75,7 @@ func _is_rigged() -> bool:
 func _update_flash() -> void:
 	var shown := animator.pose if animator != null else pose
 	var amount := maxf(flash, shown.values[UnitPose.FLASH] if shown != null else 0.0)
-	if amount <= 0.0 and material == null:
+	var flash_material := material as ShaderMaterial
+	if flash_material == null:
 		return
-	if material == null:
-		if _flash_shader == null:
-			_flash_shader = Shader.new()
-			_flash_shader.code = "shader_type canvas_item;\nuniform float flash = 0.0;\nvoid fragment() {\n\tCOLOR.rgb = mix(COLOR.rgb, vec3(1.0), flash);\n}\n"
-		var flash_material := ShaderMaterial.new()
-		flash_material.shader = _flash_shader
-		material = flash_material
-	(material as ShaderMaterial).set_shader_parameter(&"flash", clampf(amount, 0.0, 1.0) * UnitPainter.FLASH_WHITE)
+	flash_material.set_shader_parameter(&"flash", clampf(amount, 0.0, 1.0) * UnitPainter.FLASH_WHITE)
