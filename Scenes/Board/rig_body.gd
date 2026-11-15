@@ -7,7 +7,6 @@ extends RefCounted
 ## add pieces in their RigKit.
 
 
-
 ## The Kiếm pieces in draw order (heads and the sword come from RigHeads
 ## and RigWeapons).
 static func base_pieces() -> Array[RigPiece]:
@@ -24,7 +23,9 @@ static func base_pieces() -> Array[RigPiece]:
 		_piece(&"ftF", RigSolver.FT_F, 1, 2, RigPalette.BOOT, &"foot_path", &"foot_detail", RigPiece.USES_HEEL | RigPiece.USES_VIEW),
 		_piece(&"skirt", RigSolver.ROOT, 2, 5, RigPalette.TUNIC_DARK, &"skirt_path", &"skirt_detail", 0),
 		torso_piece({"armor": &"plate", "strap": true, "scarf": true}),
+		scarf_piece(),
 		RigHeads.head_piece(Callable(RigHeads, &"helm").bind({"plume": true}), 0),
+		RigHeads.face_piece(true),
 		RigWeapons.sword_piece(),
 		_piece(&"uaF", RigSolver.UA_F, 6, 4, RigPalette.TUNIC, &"arm_path", &"", limb),
 		_piece(&"laF", RigSolver.LA_F, 6, 4, RigPalette.SKIN, &"forearm_path", &"bracer_detail", limb),
@@ -36,13 +37,21 @@ static func base_pieces() -> Array[RigPiece]:
 
 
 ## The torso with its dressing: `armor` plate (Kiếm, Kỵ), lamellar (Khiên),
-## quilt (Thương), vest (Cung) or robe (Pháp); `strap`, `scarf`, `belt2`.
+## quilt (Thương), vest (Cung) or robe (Pháp); `strap`, `scarf` (its knot
+## in front; scarf_piece draws it from behind), `belt2`.
 static func torso_piece(options: Dictionary) -> RigPiece:
 	var piece := _piece(&"torso", RigSolver.TORSO, 2, 5, RigPalette.TUNIC, &"torso_path", &"", RigPiece.USES_VIEW)
 	piece.detail = Callable(RigTorso, &"dress").bind(options)
-	if options.get("scarf", false):
-		piece.depends |= RigPiece.USES_SWAY
-		piece.sway_period_sec = 0.42
+	return piece
+
+
+## The scarf's swaying tails and knot over the back (from the front its knot
+## is part of the torso's dressing).
+static func scarf_piece() -> RigPiece:
+	var piece := RigPiece.make(&"scarf", RigSolver.TORSO, NAN, 5)
+	piece.paint = Callable(RigTorso, &"paint_scarf_back")
+	piece.depends = RigPiece.USES_SWAY
+	piece.sway_period_sec = 0.42
 	return piece
 
 

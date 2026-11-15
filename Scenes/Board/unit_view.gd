@@ -21,9 +21,8 @@ extends Node2D
 const FEET := Vector2(0.0, 33.0)
 const FIGURE_SCALE: float = 1.08
 const RING_RADIUS := Vector2(28.0, 9.0)
-const BAR_SIZE := Vector2(54.0, 6.0)
-const BAR_Y: float = -40.0
-const QI_BAR_HEIGHT: float = 3.0
+const BAR_SIZE := UnitBar.BAR_SIZE
+const BAR_Y: float = UnitBar.BAR_Y
 const BREATH_AMOUNT: float = 0.035
 const BREATH_SPEED: float = 2.4
 ## A boss is drawn this much bigger; its feet stay in its cell and its
@@ -46,7 +45,8 @@ var playback_speed: float = 1.0:
 	set(value):
 		playback_speed = value
 		_animator.playback_speed = value
-		for tween: Tween in [_motion_tween, _figure_tween, _hp_tween, _fade_tween]:
+		_bar.playback_speed = value
+		for tween: Tween in [_motion_tween, _figure_tween, _fade_tween]:
 			if tween != null and tween.is_valid():
 				tween.set_speed_scale(value)
 ## Offset of the figure from its feet position, for lunges, hops and shakes.
@@ -65,7 +65,7 @@ var is_petrified: bool = false
 var is_hp_bar_shown: bool = true:
 	set(value):
 		is_hp_bar_shown = value
-		_bar.queue_redraw()
+		_bar.is_hp_bar_shown = value
 ## True holds the idle sway still (only blinks redraw): for figures that
 ## only wait, on the bench or in the dimmed enemy line-up.
 var is_idle_calm: bool = false:
@@ -86,20 +86,13 @@ var _flip: float = 1.0
 # Toward the target (unit vector): where a step of the pose pushes.
 var _aim_direction := Vector2.UP
 var _is_rigged: bool = false
-var _bar: Node2D
-var _hp_ratio: float = 1.0
-var _hp_trail: float = 1.0
-# Share of full Khí, or below 0 for a unit without a skill (no bar).
-var _qi_ratio: float = -1.0
+var _bar: UnitBar
 var _dust: float = 0.0
 var _breath_phase: float = 0.0
 var _time: float = 0.0
 var _motion_tween: Tween
 var _figure_tween: Tween
-var _hp_tween: Tween
 var _fade_tween: Tween
-# Scale of each star pip, for the stamping animation.
-var _star_scales: Array[float] = [1.0, 1.0, 1.0]
 var _size_scale: float = 1.0
 var _stone: StoneLayer
 
@@ -113,10 +106,7 @@ func _init() -> void:
 	add_child(_animator)
 	_stone = StoneLayer.new()
 	add_child(_stone)
-	# The bar is drawn behind the figure so hats, crowns and blades stay whole.
-	_bar = Node2D.new()
-	_bar.show_behind_parent = true
-	_bar.draw.connect(_draw_bar)
+	_bar = UnitBar.new()
 	add_child(_bar)
 	skill_overlay = SkillOverlay.new(self)
 	add_child(skill_overlay)
@@ -128,16 +118,20 @@ func setup(unit_data: UnitData, unit_side: int, star_level: int) -> void:
 	unit = unit_data
 	side = unit_side
 	star = star_level
+	_bar.side = unit_side
+	_bar.star = star_level
+	_bar.is_boss = unit_data.is_boss
 	_figure.unit = unit_data
 	_figure.facing = UnitPainter.FACING_UP if unit_side == 0 else UnitPainter.FACING_DOWN
-	_flip = 1.0 if unit_side == 0 else -1.0
+	_flip = _side_flip()
 	_aim_direction = Vector2.UP if unit_side == 0 else Vector2.DOWN
 	_animator.set_class(unit_data.class_id)
 	_animator.set_view(UnitPainter.view_of(_figure.facing))
-	# Bosses and the sage stand still: no pose, no idle redraws.
+	# Bosses and the sage stand still: their animator has no kit, so no
+	# pose and no idle redraws.
 	_is_rigged = UnitPainter.is_posable(unit_data.class_id)
-	_animator.is_posed = _is_rigged
 	_size_scale = BOSS_SCALE if unit_data.is_boss else 1.0
+	_figure.pixels_per_unit = FIGURE_SCALE * _size_scale
 	_stone.size_scale = _size_scale
 	_breath_phase = float(hash(unit_data.id) % 628) / 100.0 + randf() * 0.5
 	queue_redraw()
@@ -151,61 +145,21 @@ func _process(delta: float) -> void:
 	_figure.scale = squash * Vector2((1.0 - breath * 0.4) * _flip, 1.0 + breath) * FIGURE_SCALE * _size_scale
 	_figure.position = FEET + anim_offset + Vector2(0.0, -bob) + _get_push()
 	_figure.rotation = lean
-	if _qi_ratio >= 1.0 and is_hp_bar_shown:
-		_bar.queue_redraw()
 
 
 func _draw() -> void:
 	var ring_color := Palette.PLAYER_RING if side == 0 else Palette.ENEMY_RING
-	var ring := FigureBrush.ellipse(FEET, RING_RADIUS.x * _size_scale, RING_RADIUS.y * _size_scale, 20)
-	draw_colored_polygon(ring, Color(ring_color, 0.35))
-	ring.append(ring[0])
-	draw_polyline(ring, ring_color, 2.5, true)
-	if _dust > 0.0 and _dust < 1.0:
-		var alpha := 1.0 - _dust
-		for index: int in 6:
-			var angle := TAU * index / 6.0 + 0.4
-			var offset := Vector2(cos(angle) * (10.0 + 26.0 * _dust), sin(angle) * (4.0 + 8.0 * _dust))
-			draw_circle(FEET + offset, 5.0 * (1.0 - _dust * 0.5), Color(Palette.PAPER_DARK, alpha * 0.9))
-
-
-func _draw_bar() -> void:
-	if unit != null and unit.is_boss:
-		return
-	var has_qi := is_hp_bar_shown and _qi_ratio >= 0.0
-	# With a Khí bar the hp bar moves up so the pair keeps clear of the head.
-	var origin := Vector2(-BAR_SIZE.x / 2.0, BAR_Y - (QI_BAR_HEIGHT if has_qi else 0.0))
-	if is_hp_bar_shown:
-		var frame := BAR_SIZE + Vector2(4, 4 + (QI_BAR_HEIGHT + 1.0 if has_qi else 0.0))
-		_bar.draw_rect(Rect2(origin - Vector2(2, 2), frame), Palette.INK)
-		_bar.draw_rect(Rect2(origin, Vector2(BAR_SIZE.x * _hp_trail, BAR_SIZE.y)), Palette.CREAM)
-		var fill := Palette.PLAYER_HP if side == 0 else Palette.ENEMY_HP
-		_bar.draw_rect(Rect2(origin, Vector2(BAR_SIZE.x * _hp_ratio, BAR_SIZE.y)), fill)
-	if has_qi:
-		_draw_qi_bar(origin + Vector2(0, BAR_SIZE.y + 1.0))
-	var pips_y := origin.y - 6.0 if is_hp_bar_shown else BAR_Y
-	var spacing := 4.5 * 2.2
-	for index: int in star:
-		var pip_scale: float = _star_scales[mini(index, _star_scales.size() - 1)]
-		if pip_scale > 0.01:
-			var center := Vector2((index - (star - 1) / 2.0) * spacing, pips_y)
-			UnitPainter.draw_star_pips(_bar, center, 1, 4.5 * pip_scale)
+	UnitPainter.draw_ring(self, FEET, RING_RADIUS * _size_scale, ring_color, _dust)
 
 
 ## Shows hp as a share of max, 0..1; the bar slides down with a pale trail.
 func set_hp_ratio(ratio: float) -> void:
-	ratio = clampf(ratio, 0.0, 1.0)
-	_reset_tween(_hp_tween)
-	_hp_tween = _new_tween()
-	_hp_tween.tween_method(_set_shown_hp, _hp_ratio, ratio, 0.15)
-	_hp_tween.tween_interval(0.15)
-	_hp_tween.tween_method(_set_hp_trail, _hp_trail, ratio, 0.25)
+	_bar.set_hp_ratio(ratio)
 
 
 ## Shows Khí as `qi` of `qi_max`; a qi_max of 0 hides the Khí bar.
 func set_qi(qi: int, qi_max: int) -> void:
-	_qi_ratio = clampf(float(qi) / qi_max, 0.0, 1.0) if qi_max > 0 else -1.0
-	_bar.queue_redraw()
+	_bar.set_qi(qi, qi_max)
 
 
 ## The figure's pose, for tests and tools; never change it from outside.
@@ -228,53 +182,24 @@ func get_flip() -> float:
 ## itself just after `seconds`).
 func wind_up(seconds: float) -> void:
 	_animator.wind_up(seconds)
-	if _is_rigged:
-		return
-	var tween := _new_figure_tween()
-	tween.tween_property(self, ^"squash", Vector2(1.18, 0.82), seconds * 0.6).set_ease(Tween.EASE_OUT)
-	tween.parallel().tween_property(self, ^"anim_offset", Vector2(0, 3), seconds * 0.6)
-	tween.tween_property(self, ^"squash", Vector2(0.9, 1.14), seconds * 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.parallel().tween_property(self, ^"anim_offset", Vector2(0, -6), seconds * 0.4)
-	tween.tween_property(self, ^"squash", Vector2.ONE, 0.12)
-	tween.parallel().tween_property(self, ^"anim_offset", Vector2.ZERO, 0.12)
+	if not _is_rigged:
+		FigureTweens.wind_up(_new_figure_tween(), self, seconds)
 
 
 ## Falls into the cell with a squash and a puff of dust.
 func drop_in() -> void:
-	modulate.a = 0.0
-	anim_offset = Vector2(0, -70)
-	squash = Vector2(0.8, 1.2)
-	var tween := _new_figure_tween()
-	tween.tween_property(self, ^"modulate:a", 1.0, 0.08)
-	tween.parallel().tween_property(self, ^"anim_offset", Vector2.ZERO, 0.16).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-	tween.tween_property(self, ^"squash", Vector2(1.3, 0.7), 0.05)
-	tween.parallel().tween_method(_set_dust, 0.0, 1.0, 0.35)
-	tween.tween_property(self, ^"squash", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	FigureTweens.drop_in(_new_figure_tween(), self, _set_dust)
 
 
 ## Shows `star_level` stars, stamping them on one at a time.
 func stamp_stars(star_level: int, delay_sec: float = 0.0) -> void:
 	star = star_level
-	_star_scales = [0.0, 0.0, 0.0]
-	_bar.queue_redraw()
-	var tween := _new_tween()
-	tween.tween_interval(delay_sec)
-	for index: int in star_level:
-		tween.tween_method(_set_star_scale.bind(index), 2.2, 1.0, 0.14).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	_bar.stamp_stars(star_level, delay_sec)
 
 
 ## The merge result: shrinks, then grows past full size and bounces.
 func grow_in() -> void:
-	# It may replace a drop_in() started in the same frame (a gifted piece
-	# after a rebuild): finish what that would have restored.
-	modulate.a = 1.0
-	anim_offset = Vector2.ZERO
-	squash = Vector2(0.3, 0.3)
-	var tween := _new_figure_tween()
-	tween.tween_property(self, ^"squash", Vector2(1.45, 1.45), 0.18).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.parallel().tween_property(self, ^"anim_offset", Vector2.ZERO, 0.1)
-	tween.tween_property(self, ^"squash", Vector2(0.9, 1.1), 0.08)
-	tween.tween_property(self, ^"squash", Vector2.ONE, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	FigureTweens.grow_in(_new_figure_tween(), self)
 
 
 ## Jumps in an arc to `target` (local position) over `seconds`.
@@ -299,20 +224,12 @@ func shrink_to(target: Vector2, seconds: float) -> void:
 ## Pops up and vanishes, then frees itself.
 func pop_out() -> void:
 	is_dead = true
-	var tween := _new_figure_tween()
-	tween.tween_property(self, ^"squash", Vector2(1.25, 1.25), 0.08)
-	tween.tween_property(self, ^"squash", Vector2(0.1, 0.1), 0.12).set_ease(Tween.EASE_IN)
-	tween.parallel().tween_property(self, ^"modulate:a", 0.0, 0.12)
-	tween.tween_callback(queue_free)
+	FigureTweens.pop_out(_new_figure_tween(), self)
 
 
 ## A short side-to-side shake: "that did not work".
 func shake() -> void:
-	var tween := _new_figure_tween()
-	tween.tween_property(self, ^"anim_offset", Vector2(-7, 0), 0.05)
-	tween.parallel().tween_property(self, ^"squash", Vector2.ONE, 0.05)
-	for offset_x: float in [6.0, -4.0, 2.0, 0.0]:
-		tween.tween_property(self, ^"anim_offset", Vector2(offset_x, 0), 0.05)
+	FigureTweens.shake(_new_figure_tween(), self)
 
 
 ## Slides to `target` (local position) over `duration_sec` of battle time.
@@ -330,7 +247,7 @@ func glide_to(target: Vector2, duration_sec: float, kind: StringName) -> void:
 			_animator.walk(duration_sec, true)
 			if not _is_rigged:
 				squash = Vector2(0.9, 1.1)
-			_motion_tween.tween_method(_gallop_step.bind(from, target), 0.0, 1.0, duration_sec)
+			_motion_tween.tween_method(_run_step.bind(from, target, 2.0, 6.0), 0.0, 1.0, duration_sec)
 			_motion_tween.tween_property(self, ^"squash", Vector2.ONE, 0.1)
 		&"knockback":
 			_animator.flinch_for(duration_sec)
@@ -339,38 +256,27 @@ func glide_to(target: Vector2, duration_sec: float, kind: StringName) -> void:
 			_motion_tween.tween_property(self, ^"lean", 0.0, 0.12)
 		_:
 			_animator.walk(duration_sec, false)
-			_motion_tween.tween_method(_walk_step.bind(from, target, cells), 0.0, 1.0, duration_sec)
+			_motion_tween.tween_method(_run_step.bind(from, target, cells, 4.0), 0.0, 1.0, duration_sec)
 
 
 ## A quick lunge toward `direction` and back, for melee swings: the figure
 ## turns to the target and strikes at it (a rigged figure's clip steps in).
 func lunge(direction: Vector2) -> void:
 	_attack_toward(direction)
-	var tween := _new_figure_tween()
 	if _is_rigged:
-		# A recoil or wind-up cut short may have left the figure squashed.
-		tween.tween_property(self, ^"squash", Vector2.ONE, 0.08)
-		tween.parallel().tween_property(self, ^"anim_offset", Vector2.ZERO, 0.08)
-		return
-	tween.tween_property(self, ^"anim_offset", direction.normalized() * 14.0, 0.08).set_ease(Tween.EASE_OUT)
-	# A recoil or wind-up cut short may have left the figure squashed.
-	tween.parallel().tween_property(self, ^"squash", Vector2.ONE, 0.08)
-	tween.tween_property(self, ^"anim_offset", Vector2.ZERO, 0.14).set_ease(Tween.EASE_IN_OUT)
+		FigureTweens.unsquash(_new_figure_tween(), self)
+	else:
+		FigureTweens.lunge(_new_figure_tween(), self, direction)
 
 
 ## A small recoil, for shooting and casting: the figure turns to the target
 ## and looses or casts at it (or releases a wound-up skill).
 func recoil(direction: Vector2) -> void:
 	_attack_toward(direction)
-	var tween := _new_figure_tween()
 	if _is_rigged:
-		tween.tween_property(self, ^"squash", Vector2.ONE, 0.08)
-		tween.parallel().tween_property(self, ^"anim_offset", Vector2.ZERO, 0.08)
-		return
-	tween.tween_property(self, ^"squash", Vector2(1.12, 0.9), 0.06)
-	tween.parallel().tween_property(self, ^"anim_offset", -direction.normalized() * 4.0, 0.06)
-	tween.tween_property(self, ^"squash", Vector2.ONE, 0.12)
-	tween.parallel().tween_property(self, ^"anim_offset", Vector2.ZERO, 0.12)
+		FigureTweens.unsquash(_new_figure_tween(), self)
+	else:
+		FigureTweens.recoil(_new_figure_tween(), self, direction)
 
 
 ## Flashes white and flinches with hurt eyes (a shield raises its shield).
@@ -379,10 +285,8 @@ func hit_flash() -> void:
 	var tween := _new_tween()
 	_figure.flash = 1.0
 	tween.tween_property(_figure, ^"flash", 0.0, 0.2)
-	if _is_rigged:
-		return
-	tween.parallel().tween_property(self, ^"squash", Vector2(0.92, 1.06), 0.05)
-	tween.tween_property(self, ^"squash", Vector2.ONE, 0.1)
+	if not _is_rigged:
+		FigureTweens.flinch(tween, self)
 
 
 ## Falls (the rig lies down; the boss tips over) and fades out; stays in
@@ -423,31 +327,16 @@ func crumble() -> void:
 	is_dead = true
 	skill_overlay.clear()
 	_reset_tween(_motion_tween)
-	var tween := _new_figure_tween()
-	for offset_x: float in [-5.0, 5.0, -4.0, 4.0, -2.0, 0.0]:
-		tween.tween_property(self, ^"anim_offset", Vector2(offset_x, 0), 0.06)
 	_stone.is_stone = false
-	tween.parallel().tween_property(_stone, ^"cracks", 1.0, 0.36)
-	tween.tween_property(self, ^"squash", Vector2(1.25, 0.15), 0.45).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-	tween.parallel().tween_method(_set_dust, 0.0, 1.0, 0.6)
-	tween.tween_property(self, ^"modulate:a", 0.0, 0.3)
-	tween.tween_callback(hide)
+	FigureTweens.crumble(_new_figure_tween(), self, _stone, _set_dust)
 
 
 ## Two happy hops with the weapon raised, for the winners (a rigged
 ## figure hops in its cheer clip).
 func cheer() -> void:
 	_animator.cheer()
-	if _is_rigged:
-		return
-	var tween := _new_figure_tween()
-	tween.tween_interval(randf() * 0.15)
-	for hop: int in 2:
-		tween.tween_property(self, ^"anim_offset", Vector2(0, -16), 0.14).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-		tween.parallel().tween_property(self, ^"squash", Vector2(0.9, 1.12), 0.14)
-		tween.tween_property(self, ^"anim_offset", Vector2.ZERO, 0.12).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
-		tween.tween_property(self, ^"squash", Vector2(1.15, 0.85), 0.05)
-		tween.tween_property(self, ^"squash", Vector2.ONE, 0.08)
+	if not _is_rigged:
+		FigureTweens.cheer(_new_figure_tween(), self)
 
 
 ## Fades to `alpha` (0..1) over `duration_sec`; used to dim and cross-fade.
@@ -467,48 +356,33 @@ func set_dim(amount: float) -> void:
 		tween.parallel().tween_property(self, channel, value, 0.2)
 
 
-func _draw_qi_bar(origin: Vector2) -> void:
-	var width := BAR_SIZE.x
-	_bar.draw_rect(Rect2(origin, Vector2(width, QI_BAR_HEIGHT)), Palette.INDIGO_DARK)
-	_bar.draw_rect(Rect2(origin, Vector2(width * _qi_ratio, QI_BAR_HEIGHT)), Palette.QI)
-	if _qi_ratio >= 1.0:
-		# Full: the whole frame glows, pulsing.
-		var pulse := 0.55 + 0.45 * sin(_time * 8.0)
-		var frame_origin := origin - Vector2(3, BAR_SIZE.y + 4.0)
-		var frame_size := Vector2(width + 6.0, BAR_SIZE.y + QI_BAR_HEIGHT + 7.0)
-		_bar.draw_rect(Rect2(frame_origin, frame_size), Color(Palette.QI_GLOW, pulse), false, 2.0)
-
-
 # Turns the figure toward `direction` (board pixels) and attacks along it.
-# Archers turn the bow (off) hand toward the target.
+# Archers turn the bow (off) hand toward the target; one shooting straight
+# ahead turns as the sketch does (its tie counts as "to the right" of the
+# side's own facing), so the bow hand stays on the same side for every
+# straight shot. Other figures keep their facing for a straight target.
 func _attack_toward(direction: Vector2) -> void:
+	var off_hand := _animator.aims_off_hand()
 	if absf(direction.x) > TURN_MIN_PX:
-		_flip = signf(direction.x) * (-1.0 if _animator.aims_off_hand() else 1.0)
+		_flip = signf(direction.x) * (-1.0 if off_hand else 1.0)
+	elif off_hand:
+		_flip = -_side_flip()
 	if direction.length() > 0.001:
 		_aim_direction = direction.normalized()
 	# The aim in the figure's own space: 0 up, PI / 2 straight ahead.
 	_animator.attack(atan2(absf(direction.x), -direction.y))
 
 
-func _walk_step(progress: float, from: Vector2, target: Vector2, cells: float) -> void:
+# A glide's step: `bobs` hops of `height` px on the way (a rigged figure
+# bobs in its run cycle instead).
+func _run_step(progress: float, from: Vector2, target: Vector2, bobs: float, height: float) -> void:
 	position = from.lerp(target, progress)
-	# A rigged figure bobs in its run cycle.
-	bob = 0.0 if _is_rigged else absf(sin(progress * PI * cells)) * 4.0
+	bob = 0.0 if _is_rigged else absf(sin(progress * PI * bobs)) * height
 
 
 func _hop_step(progress: float, from: Vector2, target: Vector2) -> void:
 	position = from.lerp(target, progress)
 	bob = sin(progress * PI) * minf(40.0, 12.0 + from.distance_to(target) * 0.12)
-
-
-func _set_star_scale(value: float, index: int) -> void:
-	_star_scales[index] = value
-	_bar.queue_redraw()
-
-
-func _gallop_step(progress: float, from: Vector2, target: Vector2) -> void:
-	position = from.lerp(target, progress)
-	bob = 0.0 if _is_rigged else absf(sin(progress * PI * 2.0)) * 6.0
 
 
 # The pose's step toward the target (dx) as a push of the whole figure
@@ -521,14 +395,9 @@ func _get_push() -> Vector2:
 	return _aim_direction * step * per_step * FIGURE_SCALE * _size_scale
 
 
-func _set_shown_hp(value: float) -> void:
-	_hp_ratio = value
-	_bar.queue_redraw()
-
-
-func _set_hp_trail(value: float) -> void:
-	_hp_trail = value
-	_bar.queue_redraw()
+# The side's own facing: 1 (right) for side 0, -1 for side 1.
+func _side_flip() -> float:
+	return 1.0 if side == 0 else -1.0
 
 
 func _set_dust(value: float) -> void:

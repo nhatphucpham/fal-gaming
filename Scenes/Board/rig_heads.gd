@@ -14,16 +14,32 @@ const NOSE := Color("2b2320")
 
 
 ## The head piece wearing `headgear` (func(mesh, args) -> void); `depends`
-## adds the inputs the headgear reads besides the view and the eyes.
+## adds the inputs the headgear reads besides the view. The eyes are a
+## piece of their own (face_piece), so a blink does not rebuild the head.
 static func head_piece(headgear: Callable, depends: int) -> RigPiece:
 	var piece := RigPiece.make(&"head", RigSolver.HEAD, 3, 6)
 	piece.color = RigPalette.SKIN
 	piece.path = Callable(RigHeads, &"skull_path")
 	piece.detail = Callable(RigHeads, &"dress_head").bind(headgear)
-	piece.depends = RigPiece.USES_VIEW | RigPiece.USES_EYES | depends
+	piece.depends = RigPiece.USES_VIEW | depends
 	if depends & RigPiece.USES_SWAY:
 		piece.sway_period_sec = 0.38
 	return piece
+
+
+## The eyes and mouth over the head, seen from the front only, and a wolf's
+## muzzle over them; `has_mouth` false under a beard.
+static func face_piece(has_mouth: bool) -> RigPiece:
+	var piece := RigPiece.make(&"face", RigSolver.HEAD, 3, NAN)
+	piece.paint = Callable(RigHeads, &"paint_face").bind(has_mouth)
+	piece.depends = RigPiece.USES_EYES
+	return piece
+
+
+static func paint_face(mesh: RigMesh, args: RigPiece.Args, has_mouth: bool) -> void:
+	face(mesh, args.eyes, has_mouth)
+	if args.has_fur:
+		_wolf_muzzle(mesh)
 
 
 static func skull_path(path: RigPath, _args: RigPiece.Args) -> void:
@@ -34,8 +50,6 @@ static func dress_head(mesh: RigMesh, args: RigPiece.Args, headgear: Callable) -
 	if args.has_fur:
 		_wolf_ears(mesh)
 	headgear.call(mesh, args)
-	if args.has_fur and args.view != RigSolver.VIEW_BACK:
-		_wolf_muzzle(mesh)
 
 
 ## Helmet: `plume` (Kiếm), `feathers` (Kỵ), `iron` with `cheeks` (Khiên).
@@ -64,7 +78,6 @@ static func helm(mesh: RigMesh, args: RigPiece.Args, options: Dictionary) -> voi
 	else:
 		mesh.fill_stroke(RigPath.new().move_to(1.4, -8.4).line_to(3, -8.4).line_to(2.6, -4.6).line_to(1.8, -4.6).close(), RigPalette.STEEL, THIN)
 	_shine(mesh, Vector2(3, -13))
-	face(mesh, args.eyes, true)
 
 
 ## The nón trận (Thương): a conical war hat, gold knob, red chin strap.
@@ -77,7 +90,6 @@ static func war_hat(mesh: RigMesh, args: RigPiece.Args) -> void:
 		mesh.fill_rect(-2.2, -6.2, 4.4, 1, RigPalette.VERMILION)
 	else:
 		hair_front(mesh, RigPalette.HAIR)
-		face(mesh, args.eyes, true)
 		mesh.stroke(RigPath.new().move_to(-6.4, -9).quad_to(-5.4, -0.6, 1.8, -0.8).quad_to(6.6, -1, 7.2, -9), RigPalette.VERMILION, 0.9)
 	mesh.shape(RigPath.new().move_to(-12.6, -9.6).line_to(0, -23).line_to(12.6, -9.6).ellipse(0, -9.6, 12.6, 2.6, 0, 0, PI).close(), RigPalette.STRAW, 1.8)
 	var ribs := RigPath.new()
@@ -99,7 +111,6 @@ static func hood(mesh: RigMesh, args: RigPiece.Args) -> void:
 		return
 	mesh.shape(RigPath.new().ellipse(2.1, -6.4, 5.4, 5.6, 0, 0, 7), RigPalette.SKIN, 1.2)
 	mesh.fill(RigPath.new().ellipse(1.4, -10.6, 4.6, 1.7, 0, PI, 0), RigPalette.HAIR)
-	face(mesh, args.eyes, true)
 
 
 ## The mage's pointed drooping hat and white beard (Pháp).
@@ -113,7 +124,6 @@ static func mage_hat(mesh: RigMesh, args: RigPiece.Args) -> void:
 		mesh.stroke(strands, RigPalette.BEARD_LINE, 0.6)
 	else:
 		hair_front(mesh, RigPalette.BEARD)
-		face(mesh, args.eyes, false)
 		mesh.shape(RigPath.new().move_to(-2.6, -3.6).quad_to(-2.4, 1.6, 2.6, 4.2).quad_to(7.6, 1.2, 7, -3.6).quad_to(4.6, -2.2, 2.2, -3)
 			.quad_to(0, -2.2, -2.6, -3.6).close(), RigPalette.BEARD, 1.2)
 	mesh.shape(RigPath.new().ellipse(0.4, -10.2, 12.6, 2.8, 0, 0, 7), RigPalette.PLUM_DARK, 1.8)

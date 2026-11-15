@@ -7,7 +7,6 @@ extends RefCounted
 ## a hit braces the shield. Iron helmet with cheek guards, lamellar armour.
 
 
-
 static func build() -> RigKit:
 	var hold_front := _shield_arm(Vector2(-9, -6.5), Vector2(-3, 0), {})
 	var hold_back := _shield_arm(Vector2(-9.5, -9), Vector2(-3.5, -5), {})
@@ -28,7 +27,7 @@ static func build() -> RigKit:
 		&"pauldron": {"color": RigPalette.IRON},
 		&"pauldronB": {"color": RigPalette.IRON},
 	}
-	kit.pieces = RigKit.remix(RigBody.base_pieces(), changes, [], [RigWeapons.shield_piece()])
+	kit.pieces = RigKit.remix(RigBody.base_pieces(), changes, [&"scarf"], [RigWeapons.shield_piece()])
 	kit.stance = {RigSolver.VIEW_BACK: stance_back, RigSolver.VIEW_FRONT: stance_front}
 	var arms := {"uaF": -9, "laF": -6, "blade": 56}
 	kit.idle = {RigSolver.VIEW_BACK: UnitPose.make(_joined(arms, hold_back)), RigSolver.VIEW_FRONT: UnitPose.make(_joined(arms, hold_front))}

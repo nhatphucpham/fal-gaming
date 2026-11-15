@@ -18,7 +18,6 @@ const FEATHER_PX: float = 0.75
 ## Feather sizes are kept for whole pixels-per-unit from 1 to this.
 const FEATHER_LEVELS: int = 5
 const OUTLINE_WIDTH: float = 2.2
-const FLASH_LEVELS: int = 8
 const DISC_SIDES: int = 10
 
 var points := PackedVector2Array()
@@ -34,7 +33,6 @@ var feather: float = FEATHER_PX
 var transform := Transform2D.IDENTITY
 
 var _stack: Array[Transform2D] = []
-var _tinted: Dictionary[int, PackedColorArray] = {}
 
 static var _disc := PackedVector2Array()
 
@@ -143,22 +141,6 @@ func disc(center: Vector2, radius: float, color: Color) -> void:
 func append_mesh(other: RigMesh, local: Transform2D = Transform2D.IDENTITY) -> void:
 	points.append_array((transform * local) * other.points)
 	colors.append_array(other.colors)
-
-
-## The colours blended toward white by `flash` 0..1 like the sketch's hit
-## flash (80% at most), in a few cached steps.
-func get_colors(flash: float) -> PackedColorArray:
-	var level := roundi(clampf(flash, 0.0, 1.0) * FLASH_LEVELS)
-	if level == 0:
-		return colors
-	if not _tinted.has(level):
-		var amount := 0.8 * level / FLASH_LEVELS
-		var tinted := colors.duplicate()
-		for index: int in tinted.size():
-			var color := tinted[index]
-			tinted[index] = Color(color.lerp(Color.WHITE, amount), color.a)
-		_tinted[level] = tinted
-	return _tinted[level]
 
 
 func _add_polygon(polygon: PackedVector2Array, color: Color) -> void:

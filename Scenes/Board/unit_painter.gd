@@ -20,6 +20,8 @@ const FACING_DOWN: int = 1
 ## The chest, where a bust portrait is centred.
 const BUST_FOCUS := Vector2(0.0, -38.0)
 const OUTLINE_PX: float = 2.0
+## How white a rigged figure gets at full flash (the sketch's 80%).
+const FLASH_WHITE: float = 0.8
 
 const FUR := Color("8f7f6e")
 const FUR_DARK := Color("6b5d50")
@@ -44,10 +46,12 @@ static var _no_indices := PackedInt32Array()
 
 
 ## Draws the whole figure on `canvas` around `origin` (the feet), scaled, in
-## `pose` (the class's idle pose when null). `flash` 0..1 blends every fill
-## toward white (hit flash). `animator`, when given, adds the weapon trail
-## and the idle sway clock.
-static func draw_figure(canvas: CanvasItem, unit: UnitData, facing: int, flash: float, origin: Vector2 = Vector2.ZERO, figure_scale: float = 1.0, pose: UnitPose = null, animator: PoseAnimator = null) -> void:
+## `pose` (the class's idle pose when null). `flash` 0..1 blends the fills
+## of a figure outside the rig toward white; a rigged figure flashes through
+## UnitFigure's shader instead. `animator`, when given, adds the weapon trail
+## and the idle sway clock. `pixels_per_unit` (0: `figure_scale`) is the
+## on-screen size of a figure unit, which sets how soft lines are.
+static func draw_figure(canvas: CanvasItem, unit: UnitData, facing: int, flash: float, origin: Vector2 = Vector2.ZERO, figure_scale: float = 1.0, pose: UnitPose = null, animator: PoseAnimator = null, pixels_per_unit: float = 0.0) -> void:
 	var base := Transform2D(0.0, Vector2(figure_scale, figure_scale), 0.0, origin)
 	if not is_posable(unit.class_id):
 		var brush := FigureBrush.new(canvas, unit, facing, flash, base)
@@ -61,8 +65,7 @@ static func draw_figure(canvas: CanvasItem, unit: UnitData, facing: int, flash: 
 	look.race_id = race_id
 	look.palette = RigPalette.get_palette(race_id, RACE_LOOKS[race_id])
 	look.has_fur = RACE_LOOKS[race_id]["has_fur"]
-	look.flash = clampf(flash, 0.0, 1.0)
-	look.pixels_per_unit = absf(canvas.get_global_transform_with_canvas().get_scale().y) * figure_scale
+	look.pixels_per_unit = pixels_per_unit if pixels_per_unit > 0.0 else figure_scale
 	if animator != null:
 		look.clock = animator.get_clock()
 		look.trail = animator.trail
@@ -106,6 +109,22 @@ static func draw_star_pips(canvas: CanvasItem, center: Vector2, count: int, radi
 		canvas.draw_colored_polygon(pip, Palette.GOLD)
 		pip.append(pip[0])
 		canvas.draw_polyline(pip, Palette.INK, maxf(1.5, radius / 3.0), true)
+
+
+## Draws the base ring under a unit's feet at `center` (`radius` for its
+## two half axes), and a puff of dust spreading out with `dust` in 0..1
+## (none at 0 or 1).
+static func draw_ring(canvas: CanvasItem, center: Vector2, radius: Vector2, color: Color, dust: float) -> void:
+	var ring := FigureBrush.ellipse(center, radius.x, radius.y, 20)
+	canvas.draw_colored_polygon(ring, Color(color, 0.35))
+	ring.append(ring[0])
+	canvas.draw_polyline(ring, color, 2.5, true)
+	if dust <= 0.0 or dust >= 1.0:
+		return
+	for index: int in 6:
+		var angle := TAU * index / 6.0 + 0.4
+		var offset := Vector2(cos(angle) * (10.0 + 26.0 * dust), sin(angle) * (4.0 + 8.0 * dust))
+		canvas.draw_circle(center + offset, 5.0 * (1.0 - dust * 0.5), Color(Palette.PAPER_DARK, (1.0 - dust) * 0.9))
 
 
 ## Draws the upper body centred on `center`, seen from the front, for portraits.

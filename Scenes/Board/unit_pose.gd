@@ -123,10 +123,6 @@ func apply(fields: Dictionary) -> void:
 		values[at] = float(fields[key])
 
 
-func get_value(key: StringName) -> float:
-	return values[_get_index()[key]]
-
-
 ## The pose between `from` and `to` at `t` 0..1; the eyes switch at 0.3.
 static func blend(from: UnitPose, to: UnitPose, t: float) -> UnitPose:
 	var pose := UnitPose.new()

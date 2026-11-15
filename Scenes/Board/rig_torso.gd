@@ -27,12 +27,12 @@ static func dress(mesh: RigMesh, args: RigPiece.Args, options: Dictionary) -> vo
 			return
 	mesh.fill_rect(-6.1, -1.6, 12.2, 2.6, RigPalette.LEATHER)
 	if args.view == RigSolver.VIEW_BACK:
-		_dress_back(mesh, args, options)
+		_dress_back(mesh, options)
 	else:
 		_dress_front(mesh, options)
 
 
-static func _dress_back(mesh: RigMesh, args: RigPiece.Args, options: Dictionary) -> void:
+static func _dress_back(mesh: RigMesh, options: Dictionary) -> void:
 	if options.get("armor") == &"plate":
 		mesh.stroke(RigPath.new().move_to(0, -16.6).line_to(0, -5.2).move_to(-5.4, -10.5).quad_to(0, -8.6, 5.4, -10.5), RigPalette.STEEL_DARK, THIN)
 	if options.get("strap", false):
@@ -40,22 +40,26 @@ static func _dress_back(mesh: RigMesh, args: RigPiece.Args, options: Dictionary)
 		mesh.stroke(strap, RigPalette.INK, 3.4, true)
 		mesh.stroke(strap, RigPalette.WOOD, 2.2, true)
 		mesh.fill(RigPath.new().arc(7.4, 2.6, 1.3, 0, 7), RigPalette.GOLD)
-	if options.get("scarf", false):
-		var sway := args.sway * 0.8
-		for tail: Array in [[-1.6, 2.6, 12.0, 1.0], [1.4, 2.4, 9.5, -0.7]]:
-			var x: float = tail[0]
-			var half: float = tail[1] / 2.0
-			var length: float = tail[2]
-			var bend: float = tail[3]
-			var path := RigPath.new().move_to(x - half, -16.6)
-			path.quad_to(x - half + sway * bend, -16.6 + length / 2.0, x - half + sway * 1.8 * bend - 0.6, -16.6 + length)
-			path.line_to(x + half + sway * 1.8 * bend + 0.4, -16.6 + length - 1.2)
-			path.quad_to(x + half + sway * bend, -16.6 + length / 2.0, x + half, -16.6).close()
-			mesh.fill(path, RigPalette.VERMILION)
-			mesh.stroke(path, RigPalette.INK, THIN)
-		var knot := RigPath.new().ellipse(0, -17.2, 4.6, 2, 0, 0, 7)
-		mesh.fill(knot, RigPalette.VERMILION)
-		mesh.stroke(knot, RigPalette.INK, THIN)
+
+
+## The red scarf seen from behind: two tails swaying under the knot. Its
+## own piece (see RigBody.scarf_piece) so the torso is not rebuilt per sway.
+static func paint_scarf_back(mesh: RigMesh, args: RigPiece.Args) -> void:
+	var sway := args.sway * 0.8
+	for tail: Array in [[-1.6, 2.6, 12.0, 1.0], [1.4, 2.4, 9.5, -0.7]]:
+		var x: float = tail[0]
+		var half: float = tail[1] / 2.0
+		var length: float = tail[2]
+		var bend: float = tail[3]
+		var path := RigPath.new().move_to(x - half, -16.6)
+		path.quad_to(x - half + sway * bend, -16.6 + length / 2.0, x - half + sway * 1.8 * bend - 0.6, -16.6 + length)
+		path.line_to(x + half + sway * 1.8 * bend + 0.4, -16.6 + length - 1.2)
+		path.quad_to(x + half + sway * bend, -16.6 + length / 2.0, x + half, -16.6).close()
+		mesh.fill(path, RigPalette.VERMILION)
+		mesh.stroke(path, RigPalette.INK, THIN)
+	var knot := RigPath.new().ellipse(0, -17.2, 4.6, 2, 0, 0, 7)
+	mesh.fill(knot, RigPalette.VERMILION)
+	mesh.stroke(knot, RigPalette.INK, THIN)
 
 
 static func _dress_front(mesh: RigMesh, options: Dictionary) -> void:

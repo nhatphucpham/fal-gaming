@@ -24,7 +24,7 @@ static func build() -> RigKit:
 		&"head": {"detail": Callable(RigHeads, &"dress_head").bind(Callable(RigHeads, &"war_hat"))},
 		&"torso": {"detail": Callable(RigTorso, &"dress").bind({"armor": &"quilt"}), "depends": RigPiece.USES_VIEW},
 	}
-	kit.pieces = RigKit.remix(RigBody.base_pieces(), changes, [&"sword", &"pauldron", &"pauldronB"], [RigWeapons.spear_piece()])
+	kit.pieces = RigKit.remix(RigBody.base_pieces(), changes, [&"sword", &"pauldron", &"pauldronB", &"scarf"], RigWeapons.spear_pieces())
 	kit.fit = Callable(KitSpear, &"fit")
 	kit.stance = {RigSolver.VIEW_BACK: stance_back, RigSolver.VIEW_FRONT: stance_front}
 	var idle_fields := CARRY.duplicate()

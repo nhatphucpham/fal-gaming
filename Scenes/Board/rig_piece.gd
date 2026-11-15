@@ -21,8 +21,7 @@ const USES_VIEW: int = 64
 const SCALE_STEP: float = 0.02
 const HEEL_STEP: float = 0.05
 const WEAPON_LENGTH_STEP: float = 0.02
-const WEAPON_SLIDE_STEP: float = 0.25
-const SWAY_STEPS: float = 6.0
+const SWAY_STEPS: float = 4.0
 const GLOW_STEP: float = 0.1
 
 
@@ -33,7 +32,6 @@ class Args:
 	var scale: float = 1.0
 	var heel: float = 0.0
 	var weapon_length: float = 1.0
-	var weapon_slide: float = 0.0
 	var eyes: int = 0
 	var sway: float = 0.0
 	var glow: float = 0.0
@@ -45,6 +43,10 @@ class Args:
 
 
 var id: StringName
+## The mesh cache's name for the piece: its id, made unique when a class
+## changes a shared piece (with_members), so unchanged pieces share meshes
+## across classes.
+var cache_id: String
 var bone: int = RigSolver.ROOT
 ## Draw order seen from the front and from the back; NAN: not drawn.
 var z_front: float = NAN
@@ -63,11 +65,14 @@ var depends: int = 0
 ## The period of the piece's idle sway (cloth, plume), in seconds.
 var sway_period_sec: float = 0.0
 var is_live: bool = false
+## The step the weapon length is rounded to for this piece's meshes.
+var weapon_length_step: float = WEAPON_LENGTH_STEP
 
 
 static func make(piece_id: StringName, piece_bone: int, front: float, back: float) -> RigPiece:
 	var piece := RigPiece.new()
 	piece.id = piece_id
+	piece.cache_id = piece_id
 	piece.bone = piece_bone
 	piece.z_front = front
 	piece.z_back = back
@@ -81,14 +86,15 @@ func z_of(view: StringName) -> float:
 ## A copy with some members replaced, for a class's version of a piece.
 func with_members(members: Dictionary) -> RigPiece:
 	var piece := RigPiece.new()
-	for member: String in ["id", "bone", "z_front", "z_back", "color", "path", "detail", "paint", "place", "depends", "sway_period_sec", "is_live"]:
+	for member: String in ["id", "bone", "z_front", "z_back", "color", "path", "detail", "paint", "place", "depends", "sway_period_sec", "weapon_length_step", "is_live"]:
 		piece.set(member, members.get(member, get(member)))
+	piece.cache_id = "%s#%d" % [piece.id, piece.get_instance_id()]
 	return piece
 
 
 ## The cache key of `args` for this piece (only the inputs it uses).
 func key_of(args: Args, race_id: StringName) -> String:
-	var key := "%s|%s" % [id, race_id]
+	var key := "%s|%s" % [cache_id, race_id]
 	if depends & USES_VIEW:
 		key += "|" + args.view
 	if depends & USES_SCALE:
@@ -96,7 +102,7 @@ func key_of(args: Args, race_id: StringName) -> String:
 	if depends & USES_HEEL:
 		key += "|h%d" % roundi(args.heel / HEEL_STEP)
 	if depends & USES_WEAPON:
-		key += "|w%d,%d" % [roundi(args.weapon_length / WEAPON_LENGTH_STEP), roundi(args.weapon_slide / WEAPON_SLIDE_STEP)]
+		key += "|w%d" % roundi(args.weapon_length / weapon_length_step)
 	if depends & USES_EYES:
 		key += "|e%d" % args.eyes
 	if depends & USES_SWAY:
@@ -113,8 +119,7 @@ func quantize(args: Args) -> Args:
 	out.view = args.view
 	out.scale = roundi(args.scale / SCALE_STEP) * SCALE_STEP
 	out.heel = roundi(args.heel / HEEL_STEP) * HEEL_STEP
-	out.weapon_length = roundi(args.weapon_length / WEAPON_LENGTH_STEP) * WEAPON_LENGTH_STEP
-	out.weapon_slide = roundi(args.weapon_slide / WEAPON_SLIDE_STEP) * WEAPON_SLIDE_STEP
+	out.weapon_length = roundi(args.weapon_length / weapon_length_step) * weapon_length_step
 	out.eyes = args.eyes
 	out.sway = roundi(args.sway * SWAY_STEPS) / SWAY_STEPS
 	out.glow = roundi(args.glow / GLOW_STEP) * GLOW_STEP

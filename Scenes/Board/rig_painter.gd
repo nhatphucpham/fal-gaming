@@ -13,18 +13,22 @@ const GLOW_RINGS: int = 4
 const GLOW_PEAK: float = 0.75
 const TRAIL_PEAK: float = 0.75
 
+## Most piece meshes kept; past it the oldest quarter is dropped (a
+## backstop: normal play stays well under it, see Docs/systems/board.md).
+const MAX_MESHES: int = 1500
+
 static var _meshes: Dictionary[String, Array] = {}
+static var _bodies: Array[RigMesh] = []
+static var _places: Array[Transform2D] = []
 
 
-## What to paint besides the pose: race colours, flash and idle clock, and
+## What to paint besides the pose: race colours, the idle clock, and
 ## the weapon trail in figure space.
 class Look:
 	extends RefCounted
 	var race_id: StringName = &"race.human"
 	var palette: Dictionary = {}
 	var has_fur: bool = false
-	## 0..1, the hit flash on top of the pose's own.
-	var flash: float = 0.0
 	## Seconds, drives the idle sway of cloth, plumes and tails.
 	var clock: float = 0.0
 	## Pairs of points (tip, inner edge) per sample, oldest first.
@@ -40,24 +44,15 @@ class Look:
 ## `colors`, placed by `base` (feet at its origin).
 static func paint(points: PackedVector2Array, colors: PackedColorArray, kit: RigKit, pose: UnitPose, view: StringName, look: Look, base: Transform2D) -> void:
 	var frame := RigSolver.solve(pose, view)
-	var flash := maxf(look.flash, pose.values[UnitPose.FLASH])
 	_paint_trail(points, colors, look, base)
 	var glow := pose.values[UnitPose.GLOW]
 	if glow > 0.02:
 		_paint_glow(points, colors, base * kit.get_glow_point(frame, pose), base.get_scale().x, glow)
 	var level := RigMesh.feather_level(look.pixels_per_unit if look.pixels_per_unit > 0.0 else absf(base.get_scale().y))
-	var args := RigPiece.Args.new()
-	args.view = view
-	args.weapon_length = pose.values[UnitPose.WL]
-	args.weapon_slide = pose.values[UnitPose.WO]
-	args.glow = glow
-	args.has_fur = look.has_fur
-	var eyes := pose.values[UnitPose.EYES]
-	args.eyes = 0 if eyes < 0.5 else (1 if eyes < 1.5 else 2)
-	args.pose = pose
-	args.frame = frame
-	var bodies: Array[RigMesh] = []
-	var places: Array[Transform2D] = []
+	var args := _make_args(pose, view, frame, look)
+	# Reused between calls: one figure paints at a time.
+	var bodies := _bodies
+	var places := _places
 	for group: Array in kit.get_z_sets(view):
 		bodies.clear()
 		places.clear()
@@ -75,13 +70,28 @@ static func paint(points: PackedVector2Array, colors: PackedColorArray, kit: Rig
 				if piece.path.is_valid():
 					var stroke: RigMesh = meshes[0]
 					points.append_array(placed * stroke.points)
-					colors.append_array(stroke.get_colors(flash))
+					colors.append_array(stroke.colors)
 				body = meshes[1]
 			bodies.append(body)
 			places.append(placed)
 		for index: int in bodies.size():
 			points.append_array(places[index] * bodies[index].points)
-			colors.append_array(bodies[index].get_colors(flash))
+			colors.append_array(bodies[index].colors)
+	bodies.clear()
+
+
+# The inputs every piece of this pose shares.
+static func _make_args(pose: UnitPose, view: StringName, frame: RigSolver.Frame, look: Look) -> RigPiece.Args:
+	var args := RigPiece.Args.new()
+	args.view = view
+	args.weapon_length = pose.values[UnitPose.WL]
+	args.glow = pose.values[UnitPose.GLOW]
+	args.has_fur = look.has_fur
+	var eyes := pose.values[UnitPose.EYES]
+	args.eyes = 0 if eyes < 0.5 else (1 if eyes < 1.5 else 2)
+	args.pose = pose
+	args.frame = frame
+	return args
 
 
 # Sets the piece's own inputs from the solved frame into `args`.
@@ -95,7 +105,7 @@ static func _set_piece_args(piece: RigPiece, args: RigPiece.Args, frame: RigSolv
 # [stroke, body] meshes of a cached piece, lines feathered for `level`,
 # built from `args` rounded to the cache steps on a miss.
 static func _get_meshes(kit: RigKit, piece: RigPiece, raw_args: RigPiece.Args, look: Look, level: int) -> Array:
-	var key := "%s|%d|%s" % [kit.class_id, level, piece.key_of(raw_args, look.race_id)]
+	var key := "%d|%s" % [level, piece.key_of(raw_args, look.race_id)]
 	var cached: Array = _meshes.get(key, [])
 	if not cached.is_empty():
 		return cached
@@ -117,8 +127,22 @@ static func _get_meshes(kit: RigKit, piece: RigPiece, raw_args: RigPiece.Args, l
 			piece.detail.call(body, args)
 	else:
 		piece.paint.call(body, args)
+	if _meshes.size() >= MAX_MESHES:
+		_evict_oldest()
 	_meshes[key] = [stroke, body]
 	return _meshes[key]
+
+
+## How many piece meshes are cached (for tests and tools).
+static func get_cached_mesh_count() -> int:
+	return _meshes.size()
+
+
+# Drops the oldest quarter of the cache (dictionaries keep insertion order).
+static func _evict_oldest() -> void:
+	var keys := _meshes.keys()
+	for index: int in keys.size() / 4:
+		_meshes.erase(keys[index])
 
 
 static func _place(piece: RigPiece, frame: RigSolver.Frame, pose: UnitPose, view: StringName, base: Transform2D) -> Transform2D:

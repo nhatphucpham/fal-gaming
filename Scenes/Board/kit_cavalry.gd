@@ -17,25 +17,12 @@ static func build() -> RigKit:
 	var thrust_back := stance_back.with_fields({"torso": -6, "head": -3, "uaF": -160, "laF": -12, "blade": -88, "wl": 0.9, "wo": 9, "dx": 7, "trail": 1})
 	var thrust_front := stance_front.with_fields({"torso": -8, "head": 4, "uaF": -56, "laF": -22, "blade": 50, "wl": 0.72, "wo": 9, "dx": 7, "trail": 1})
 	var kit := RigKit.new()
-	var changes := {
-		&"head": {"detail": Callable(RigHeads, &"dress_head").bind(Callable(RigHeads, &"helm").bind({"feathers": true})), "depends": RigPiece.USES_VIEW | RigPiece.USES_EYES | RigPiece.USES_SWAY, "sway_period_sec": 0.38},
-		&"torso": {"detail": Callable(RigTorso, &"dress").bind({"armor": &"plate", "scarf": true})},
-	}
-	var extra: Array[RigPiece] = [RigWeapons.lance_piece()]
-	extra.append_array(RigHorse.pieces())
-	kit.pieces = RigKit.remix(RigBody.base_pieces(), changes, [&"sword"], extra)
+	kit.pieces = _pieces()
 	kit.fit = Callable(KitCavalry, &"fit")
 	kit.is_mounted = true
 	kit.stance = {RigSolver.VIEW_BACK: stance_back, RigSolver.VIEW_FRONT: stance_front}
 	kit.idle = RigKit.both_views(seated(IDLE_ARMS))
-	var slump := seated({"torso": 16, "head": 18, "uaF": -14, "laF": -30, "blade": 20, "uaB": 10, "laB": -20, "hip": 29, "eyes": 1, "flash": 0.6})
-	var down := seated({"torso": 30, "head": 24, "uaF": -6, "laF": -10, "blade": 40, "uaB": 6, "laB": -6, "hip": 22, "eyes": 1})
-	var die: Array[RigClips.ClipKey] = [
-		RigClips.ClipKey.new(0.26, RigClips.Easing.OUT, slump), RigClips.ClipKey.new(0.4, RigClips.Easing.IN, down), RigClips.ClipKey.new(0.5, RigClips.Easing.LINEAR, down),
-		RigClips.ClipKey.new(0.5, RigClips.Easing.LINEAR, down.with_fields({"alpha": 0})),
-		RigClips.ClipKey.new(0.6, RigClips.Easing.LINEAR, down.with_fields({"alpha": 0, "hip": 31, "torso": 0, "head": 0})),
-		RigClips.ClipKey.new(0.3, RigClips.Easing.LINEAR, seated(IDLE_ARMS)),
-	]
+	var die := _die()
 	kit.clips = {
 		&"attackUp": _attack(stance_back, pull_back, thrust_back),
 		&"attackDown": _attack(stance_front, pull_front, thrust_front),
@@ -76,6 +63,30 @@ static func seated(fields: Dictionary) -> UnitPose:
 	all["hip"] = 31
 	all.merge(fields, true)
 	return UnitPose.make(all)
+
+
+# The base body with the plumed helm, plate and scarf, the lance and the horse.
+static func _pieces() -> Array[RigPiece]:
+	var changes := {
+		&"head": {"detail": Callable(RigHeads, &"dress_head").bind(Callable(RigHeads, &"helm").bind({"feathers": true})), "depends": RigPiece.USES_VIEW | RigPiece.USES_SWAY, "sway_period_sec": 0.38},
+		&"torso": {"detail": Callable(RigTorso, &"dress").bind({"armor": &"plate", "scarf": true})},
+	}
+	var extra: Array[RigPiece] = RigWeapons.lance_pieces()
+	extra.append_array(RigHorse.pieces())
+	return RigKit.remix(RigBody.base_pieces(), changes, [&"sword"], extra)
+
+
+# The rider slumps over the horse, lies there, fades, and sits up again
+# unseen (the first 4 keys are the battle's fall).
+static func _die() -> Array[RigClips.ClipKey]:
+	var slump := seated({"torso": 16, "head": 18, "uaF": -14, "laF": -30, "blade": 20, "uaB": 10, "laB": -20, "hip": 29, "eyes": 1, "flash": 0.6})
+	var down := seated({"torso": 30, "head": 24, "uaF": -6, "laF": -10, "blade": 40, "uaB": 6, "laB": -6, "hip": 22, "eyes": 1})
+	return [
+		RigClips.ClipKey.new(0.26, RigClips.Easing.OUT, slump), RigClips.ClipKey.new(0.4, RigClips.Easing.IN, down), RigClips.ClipKey.new(0.5, RigClips.Easing.LINEAR, down),
+		RigClips.ClipKey.new(0.5, RigClips.Easing.LINEAR, down.with_fields({"alpha": 0})),
+		RigClips.ClipKey.new(0.6, RigClips.Easing.LINEAR, down.with_fields({"alpha": 0, "hip": 31, "torso": 0, "head": 0})),
+		RigClips.ClipKey.new(0.3, RigClips.Easing.LINEAR, seated(IDLE_ARMS)),
+	]
 
 
 static func _attack(stance: UnitPose, pull: UnitPose, thrust: UnitPose) -> Array[RigClips.ClipKey]:

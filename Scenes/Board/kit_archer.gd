@@ -24,7 +24,7 @@ static func build() -> RigKit:
 		&"head": {"detail": Callable(RigHeads, &"dress_head").bind(Callable(RigHeads, &"hood"))},
 		&"torso": {"detail": Callable(RigTorso, &"dress").bind({"armor": &"vest", "belt2": true}), "depends": RigPiece.USES_VIEW},
 	}
-	kit.pieces = RigKit.remix(RigBody.base_pieces(), changes, [&"sword", &"pauldron", &"pauldronB"], [RigBow.quiver_piece(), RigBow.bow_piece()])
+	kit.pieces = RigKit.remix(RigBody.base_pieces(), changes, [&"sword", &"pauldron", &"pauldronB", &"scarf"], [RigBow.quiver_piece(), RigBow.bow_piece()])
 	# Generic hit and death keep the arms in close; the cheer still raises them.
 	kit.fit = Callable(KitArcher, &"fit")
 	kit.stance = {RigSolver.VIEW_BACK: stance_back, RigSolver.VIEW_FRONT: stance_front}

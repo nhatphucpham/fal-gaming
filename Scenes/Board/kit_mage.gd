@@ -5,7 +5,6 @@ extends RefCounted
 ## staff, the orb flares, then the staff thrusts toward the enemy.
 
 
-
 static func build() -> RigKit:
 	var stance := UnitPose.make({"torso": 2, "head": -2, "uaF": -22, "laF": -74, "blade": -96, "uaB": 20, "laB": -38, "hip": 26, "fF": 5.6, "fB": -5.6})
 	var raised := stance.with_fields({"uaF": -168, "laF": -6, "blade": -94, "head": -4, "glow": 0.8, "hip": 26.8})
@@ -14,13 +13,14 @@ static func build() -> RigKit:
 	var kit := RigKit.new()
 	var robe := Callable(KitMage, &"robe_path")
 	var changes := {
-		&"head": {"detail": Callable(RigHeads, &"dress_head").bind(Callable(RigHeads, &"mage_hat")), "depends": RigPiece.USES_VIEW | RigPiece.USES_EYES | RigPiece.USES_SWAY, "sway_period_sec": 0.5},
+		&"head": {"detail": Callable(RigHeads, &"dress_head").bind(Callable(RigHeads, &"mage_hat")), "depends": RigPiece.USES_VIEW | RigPiece.USES_SWAY, "sway_period_sec": 0.5},
 		&"torso": {"color": RigPalette.PLUM, "detail": Callable(RigTorso, &"dress").bind({"armor": &"robe"}), "depends": RigPiece.USES_VIEW},
+		&"face": {"paint": Callable(RigHeads, &"paint_face").bind(false)},
 		&"skirt": {"color": RigPalette.PLUM, "path": robe, "detail": Callable(KitMage, &"robe_detail")},
 		&"uaF": {"color": RigPalette.PLUM},
 		&"uaB": {"color": RigPalette.dark(RigPalette.PLUM)},
 	}
-	kit.pieces = RigKit.remix(RigBody.base_pieces(), changes, [&"sword", &"pauldron", &"pauldronB"], [RigWeapons.staff_piece()])
+	kit.pieces = RigKit.remix(RigBody.base_pieces(), changes, [&"sword", &"pauldron", &"pauldronB", &"scarf"], RigWeapons.staff_pieces())
 	kit.stance = RigKit.both_views(stance)
 	kit.idle = RigKit.both_views(UnitPose.make({"uaF": -10, "laF": -40, "blade": -94, "uaB": 12, "laB": -12}))
 	kit.clips = {

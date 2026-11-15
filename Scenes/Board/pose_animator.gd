@@ -54,10 +54,6 @@ var is_winding: bool = false
 ## False holds the idle breathing still: only blinks redraw (bench, the
 ## dimmed waiting line-up).
 var is_swaying: bool = true
-## False for figures that ignore poses (bosses, the sage): they never redraw
-## while idle. A flag, because Godot re-enables processing on ready, so
-## set_process(false) before the node enters the tree does not stick.
-var is_posed: bool = true
 ## RigSolver.VIEW_BACK (player) or VIEW_FRONT (enemy): picks the clips.
 var view: StringName = RigSolver.VIEW_BACK
 ## The weapon trail in figure space: (tip, inner edge) per sample, oldest
@@ -81,6 +77,9 @@ var _slot_offset: float = 0.0
 var _idle_slot: int = -1
 var _action_slot: int = -1
 var _was_active: bool = false
+## The last wind-up key's pose: held until the release, also after a charge.
+var _wind_pose: UnitPose
+var _trail_slot: int = -1
 var _eyes_shown: int = 0
 
 
@@ -140,10 +139,12 @@ func _process(delta: float) -> void:
 	if is_active or _was_active:
 		_redraw_while(is_active)
 		return
-	if not is_posed:
+	if _is_holding:
+		# A held wind-up keeps its pose: no breathing over it.
 		return
 	if is_swaying:
-		var slot := floori(_clock * IDLE_REDRAWS_PER_SEC + _slot_offset)
+		# Real time, not battle time: idle redraws stay about 10 a second at x4.
+		var slot := floori(Time.get_ticks_msec() * 0.001 * IDLE_REDRAWS_PER_SEC + _slot_offset)
 		if slot != _idle_slot:
 			_idle_slot = slot
 			_breathe()
@@ -151,23 +152,6 @@ func _process(delta: float) -> void:
 	elif _get_blink() != _eyes_shown:
 		_breathe()
 		_figure.queue_redraw()
-
-
-## Back at the idle pose, out of a fight, alive and moving.
-func reset() -> void:
-	_queue.clear()
-	_walk_left = 0.0
-	_is_holding = false
-	_release_left = 0.0
-	is_in_combat = false
-	is_dead = false
-	is_winding = false
-	_is_charging = false
-	trail.clear()
-	trail_weights.clear()
-	set_frozen(false)
-	set_process(true)
-	_rest_now()
 
 
 ## Runs for `seconds` (the run cycle), dropping the fight stance; a charge
@@ -217,8 +201,11 @@ func wind_up(seconds: float) -> void:
 	for index: int in _kit.skill_wind_keys:
 		wind_seconds += keys[index].seconds
 	var stretch := seconds / wind_seconds if seconds > 0.0 else 1.0
-	_start(keys.slice(0, _kit.skill_wind_keys).map(func(key: RigClips.ClipKey) -> RigClips.ClipKey:
-		return RigClips.ClipKey.new(key.seconds * stretch, key.easing, key.pose)))
+	var wind: Array[RigClips.ClipKey] = []
+	for index: int in _kit.skill_wind_keys:
+		wind.append(RigClips.ClipKey.new(keys[index].seconds * stretch, keys[index].easing, keys[index].pose))
+	_wind_pose = wind.back().pose
+	_start(wind)
 	_is_holding = true
 	_release_left = seconds + RELEASE_GRACE_SEC
 	if not _is_charging:
@@ -285,9 +272,16 @@ func cheer() -> void:
 	_play(&"cheer")
 
 
-## Freezes the pose exactly as it is (no clip, breathing or blink), or thaws it.
+## Freezes the pose as it is (no clip, breathing or blink), or thaws it. A
+## hit flash and the weapon trail do not turn to stone with it.
 func set_frozen(frozen: bool) -> void:
 	is_frozen = frozen
+	if frozen and pose != null:
+		pose = pose.merged({"flash": 0, "trail": 0})
+		trail.clear()
+		trail_weights.clear()
+		if _figure != null:
+			_figure.queue_redraw()
 	# The node stops processing, so nothing moves.
 	process_mode = Node.PROCESS_MODE_DISABLED if frozen else Node.PROCESS_MODE_INHERIT
 
@@ -326,11 +320,11 @@ func _advance(dt: float) -> bool:
 		if _release_left <= 0.0 and is_winding:
 			release()
 	if not _queue.is_empty():
+		var gallop := pose.values[UnitPose.HG]
 		_run_on(dt)
 		_play_key(dt)
-		if _walk_left > 0.0 and _kit.is_mounted:
-			# The horse keeps galloping under a strike made on the run.
-			pose = pose.merged({"hg": 1, "hph": _walk_phase})
+		if _kit.is_mounted:
+			_gallop_under_clip(dt, gallop)
 		return true
 	if _walk_left > 0.0:
 		_walk_time += dt
@@ -341,7 +335,9 @@ func _advance(dt: float) -> bool:
 		pose = UnitPose.blend(_from, target, RigClips.eased(RigClips.Easing.IN_OUT, minf(1.0, _walk_time / WALK_BLEND_SEC)))
 		if _walk_left <= 0.0:
 			_is_charging = false
-			_start([RigClips.ClipKey.new(WALK_SETTLE_SEC, RigClips.Easing.IN_OUT, get_stance())])
+			# A wind-up carried through a charge settles back to its held pose.
+			var settle := _wind_pose.merged({"glow": 1}) if is_winding else get_stance()
+			_start([RigClips.ClipKey.new(WALK_SETTLE_SEC, RigClips.Easing.IN_OUT, settle)])
 			_is_holding = is_winding
 		return true
 	if _is_holding:
@@ -350,6 +346,24 @@ func _advance(dt: float) -> bool:
 		_start([RigClips.ClipKey.new(REST_SETTLE_SEC, RigClips.Easing.IN_OUT, get_stance())])
 		return true
 	return false
+
+
+# The horse keeps galloping under a strike made on the run: from the
+# amount `shown` before this frame its gallop rises over WALK_BLEND_SEC
+# while the run goes on and slows over WALK_SETTLE_SEC once it ends, never
+# below the clip's own amount.
+func _gallop_under_clip(dt: float, shown: float) -> void:
+	var own := pose.values[UnitPose.HG]
+	var gallop := own
+	if _walk_left > 0.0:
+		gallop = clampf(shown + dt / WALK_BLEND_SEC, own, 1.0)
+	elif shown > own:
+		gallop = maxf(own, shown - dt / WALK_SETTLE_SEC)
+	if gallop != own:
+		pose = pose.merged({"hg": gallop, "hph": _walk_phase})
+	if _queue.is_empty():
+		# The clip just ended: the run or the settle goes on from what shows.
+		_from = pose
 
 
 func _run_on(dt: float) -> void:
@@ -407,6 +421,11 @@ func _rest_now() -> void:
 # Samples the weapon tip while the pose swings (trail > 0), else fades.
 func _update_trail(dt: float) -> void:
 	if pose.values[UnitPose.TRAIL] > TRAIL_MIN:
+		# One sample per redraw slot: solving the rig every frame is wasted.
+		var slot := floori(Time.get_ticks_msec() * 0.001 * ACTION_REDRAWS_PER_SEC)
+		if slot == _trail_slot:
+			return
+		_trail_slot = slot
 		var still := pose.merged({"dx": 0}) if pose.values[UnitPose.DX] != 0.0 else pose
 		trail.append_array(_kit.get_trail_points(RigSolver.solve(still, view), still))
 		trail_weights.append(1.0)

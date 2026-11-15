@@ -56,20 +56,28 @@ func _build_lineup() -> Control:
 		portrait.custom_minimum_size = Vector2(PORTRAIT_PX, PORTRAIT_PX + 16)
 		var unit := run.catalog.get_unit(piece.unit_id)
 		var star := piece.star
-		portrait.draw.connect(func() -> void: _draw_portrait(portrait, unit, star))
+		portrait.draw.connect(func() -> void:
+			UnitPainter.draw_star_pips(portrait, Vector2(PORTRAIT_PX / 2.0, PORTRAIT_PX + 8.0), star, 7.0))
+		# The figure is cut off at the panel's lower edge (a bust), so its
+		# legs never run behind the star pips under it.
+		var frame := Control.new()
+		frame.size = Vector2(PORTRAIT_PX, PORTRAIT_PX)
+		frame.clip_contents = true
+		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		frame.draw.connect(func() -> void: _draw_portrait(frame, unit))
+		portrait.add_child(frame)
 		grid.add_child(portrait)
 		portrait.modulate.a = 0.0
 		portrait.create_tween().tween_property(portrait, ^"modulate:a", 1.0, 0.25).set_delay(0.4 + index * 0.07)
 	return grid
 
 
-func _draw_portrait(canvas: Control, unit: UnitData, star: int) -> void:
+func _draw_portrait(canvas: Control, unit: UnitData) -> void:
 	var rect := Rect2(Vector2.ZERO, Vector2(PORTRAIT_PX, PORTRAIT_PX))
 	var fill := Palette.cost_color(unit.cost)
 	GameTheme.make_panel(fill, 16, 4).draw(canvas.get_canvas_item(), rect)
 	canvas.draw_circle(rect.get_center() + Vector2(0, -6), 32.0, Color(fill.lightened(0.3), 0.9))
 	UnitPainter.draw_bust(canvas, unit, rect.get_center() + Vector2(0, 14), 1.5)
-	UnitPainter.draw_star_pips(canvas, Vector2(PORTRAIT_PX / 2.0, PORTRAIT_PX + 8.0), star, 7.0)
 
 
 func _label(text: String, font_size: int) -> Label:
