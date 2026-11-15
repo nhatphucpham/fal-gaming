@@ -185,13 +185,18 @@ so an archer turns only when it shoots. Whole-body squashes, lunges and
 hops stay for the boss and the sage only.
 
 Redraws: a figure redraws only when its pose changed. While idle it
-breathes about 10 times a second of real time (so also at x4),
-at a phase offset per unit, so 16 units do not redraw on the same frame; a
-calm figure (bench, dimmed line-up) only redraws when it blinks, and a
+breathes 10 times a second of real time (so also at x4), on one of the
+three phases of the shared idle tick (`IdleTicks`, `UI/idle_ticks.gd`:
+every 100 ms tick is split into three 33 ms steps and each figure takes
+one), so a board of idle figures redraws on at most 30 distinct frames a
+second and low processor mode can skip the others; a
+calm figure (bench, dimmed line-up) only redraws when it blinks (checked on
+its idle ticks too), and a
 held wind-up does not breathe at all. Blinks last 0.12 s of real time
 every 3.4 s, so the idle sampling sees them at any battle speed. While a
 clip, the run or a weapon trail plays it redraws at most 30 times a second
-of real time, and once more when it ends. The weapon trail holds a fixed
+of real time, on the same shared steps, and once more when it ends. The
+shop cards' glow and merge stars pulse on those steps too. The weapon trail holds a fixed
 number of samples (`WeaponTrail.SAMPLES`, 14), one taken every frame,
 so its length is in frames, as in the sketch. Each frame steps the clips by
 its time times the battle speed, so the poses keep up with the board's

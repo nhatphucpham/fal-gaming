@@ -5,15 +5,18 @@ extends SceneTree
 # "changes" when RenderingServer.has_changed() says it would have to be
 # drawn: the test draws by hand (force_draw) before each frame and asks
 # after it. Checks: an idle unit view writes no transform, a full Khí bar
-# and a cast glow process only while they show.
+# and a cast glow process only while they show; idle figures and card
+# pulses share the IdleTicks steps, so a board of them changes at most
+# IdleTicks.STEPS_PER_SEC frames a second.
 
 const Kit := preload("res://Tests/pose_test_kit.gd")
 const SETTLE_SEC: float = 0.4
+const IDLE_FIGURES: int = 12
 
 
 func _initialize() -> void:
 	var ok := true
-	var checks: Array[Callable] = [_check_still_view, _check_bar_and_overlay_processing]
+	var checks: Array[Callable] = [_check_still_view, _check_bar_and_overlay_processing, _check_shared_idle_frames]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Idle frames test failed in %s" % check.get_method())
@@ -84,5 +87,32 @@ func _check_bar_and_overlay_processing() -> bool:
 func _expect_processing(label: String, node: Node, expected: bool) -> bool:
 	if node == null or node.is_processing() != expected:
 		push_error("The %s should %sprocess" % [label, "" if expected else "not "])
+		return false
+	return true
+
+
+# Twelve breathing figures (each 10 redraws a second) and a glowing shop
+# card with a merge hint redraw on the shared steps only: before, each
+# figure had a phase of its own and nearly every frame redrew something.
+func _check_shared_idle_frames() -> bool:
+	var nodes: Array[Node] = []
+	for index: int in IDLE_FIGURES:
+		nodes.append(Kit.make_view(root, Kit.RIG_CLASS_IDS[index % 6], index % 2))
+	var card := ShopCard.new()
+	root.add_child(card)
+	card.set_unit(Kit.make_unit(&"class.mage", &"race.human", 5))
+	card.set_merge_hint(true)
+	nodes.append(card)
+	await create_timer(SETTLE_SEC).timeout
+	var counts := await count_changed_frames(1.0)
+	for node: Node in nodes:
+		node.queue_free()
+	await process_frame
+	# One step more for a boundary at either end of the second.
+	if counts[0] > IdleTicks.STEPS_PER_SEC + 1:
+		push_error("Idle figures changed %d of %d frames in 1 s" % counts)
+		return false
+	if counts[0] < IdleTicks.PER_SEC:
+		push_error("Idle figures should still breathe; only %d of %d frames changed" % counts)
 		return false
 	return true
