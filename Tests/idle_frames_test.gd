@@ -9,16 +9,19 @@ extends SceneTree
 # pulses share the IdleTicks steps, so a board of them changes at most
 # IdleTicks.STEPS_PER_SEC frames a second; formation outlines redraw only
 # while a light, stamp, flash or shatter plays, and near-misses breathe on
-# the shared steps.
+# the shared steps; the run screen's slid-away panel is hidden and stops
+# processing, so a glowing shop card costs nothing during a battle.
 
 const Kit := preload("res://Tests/pose_test_kit.gd")
 const SETTLE_SEC: float = 0.4
 const IDLE_FIGURES: int = 12
+# Longer than either RunLayout slide.
+const SLIDE_WAIT_SEC: float = 0.7
 
 
 func _initialize() -> void:
 	var ok := true
-	var checks: Array[Callable] = [_check_still_view, _check_bar_and_overlay_processing, _check_shared_idle_frames, _check_still_outlines]
+	var checks: Array[Callable] = [_check_still_view, _check_bar_and_overlay_processing, _check_shared_idle_frames, _check_still_outlines, _check_layout_panels]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Idle frames test failed in %s" % check.get_method())
@@ -156,5 +159,41 @@ func _check_still_outlines() -> bool:
 		push_error("A near-miss outline should breathe on the shared steps; it changed %d of %d frames" % counts)
 		ok = false
 	outlines.queue_free()
+	await process_frame
+	return ok
+
+
+func _check_layout_panels() -> bool:
+	var layout := RunLayout.new()
+	root.add_child(layout)
+	layout.shop.setup(2)
+	var offers: Array[UnitData] = [Kit.make_unit(&"class.mage", &"race.human", 5), Kit.make_unit(&"class.sword", &"race.human", 4)]
+	layout.shop.show_offers(offers, false)
+	await process_frame
+	var ok := true
+	if not layout.is_prep_panel_active() or layout.is_battle_panel_active():
+		push_error("The preparation layout should show only the preparation panel")
+		ok = false
+	layout.show_battle_layout()
+	if not layout.is_battle_panel_active() or not layout.is_prep_panel_active():
+		push_error("Both panels should show while they slide")
+		ok = false
+	await create_timer(SLIDE_WAIT_SEC).timeout
+	if layout.is_prep_panel_active() or layout.shop.can_process():
+		push_error("The slid-away preparation panel should be hidden and stopped")
+		ok = false
+	var counts := await count_changed_frames(0.5)
+	if counts[0] > 0:
+		push_error("The battle layout with glowing shop cards changed %d of %d frames" % counts)
+		ok = false
+	layout.show_prep_layout()
+	if not layout.is_prep_panel_active() or not layout.shop.can_process():
+		push_error("The preparation panel should show before it slides back")
+		ok = false
+	await create_timer(SLIDE_WAIT_SEC).timeout
+	if layout.is_battle_panel_active():
+		push_error("The slid-away battle panel should be hidden and stopped")
+		ok = false
+	layout.queue_free()
 	await process_frame
 	return ok

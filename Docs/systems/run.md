@@ -247,6 +247,12 @@ cells here are global.
   and bottom edges of the 720 x 1280 base: the top bar's buttons start at
   y 28 and "Ra trận" ends 33 px above the bottom. The sandbox's top bar and
   the title follow the same rule.
+- Between the preparation and the battle `RunLayout` slides one panel away
+  (bench, shop, resource row and "Ra trận") and the other in (battle
+  status and speed button). Once its slide ends the panel that left is
+  hidden and stops processing, so its gestures and the shop cards' pulses
+  cost nothing; the panel coming in shows and processes again before it
+  moves. `is_prep_panel_active()` and `is_battle_panel_active()` tell tests.
 - The title screen's "Cách chơi" shows four tips; its first tap unlocks
   audio on the web.
 
