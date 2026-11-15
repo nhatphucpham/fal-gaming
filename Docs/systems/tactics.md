@@ -122,7 +122,8 @@ A squad passive's stat and keyword reach the soldiers only while their
 leader lives.
 Ranges: `amount` -1000..1000 (0..1000 for `pull_strike` and
 `skill_growth`, which count cells), `condition_adjacent_allies` 0..4,
-`extra_capacity` 0..8, `radius_cells` 0..64, `duration_rounds` 0..100.
+`extra_capacity` 0..8 (a leader still leads at most 8 soldiers),
+`radius_cells` 0..64, `duration_rounds` 0..100.
 Keyword `amount` is 0..1000 and `min_cells` 0..20.
 
 `TacticsSkillData` (`Data/Tactics/Skills/`): `charge` (a charge id) and
@@ -319,10 +320,15 @@ checks, side bounds, map legends, dead units in queries and intents) and
 leader, the five charge mechanisms, skills and zones, the AI casting a
 skill on an enemy and on its own side and a focus skill without moving,
 the five passive kinds, the side a zone affects, side B durations and
-event causes), sharing
-`Tests/tactics_test_kit.gd`. Run:
+event causes) and `Tests/tactics_fuzz_test.gd` (random maps, leaders
+and commands, legal and not, on 24 seeds: queries and refused commands
+leave the hash unchanged, a command is accepted exactly when its query
+said so, moves follow `get_path_to()` and `preview_squad()`, attacks land
+the forecast, the events account for every cell, hp, charge and zone
+change, one unit per cell, `battle_ended` last, and a replay gives the
+same hashes), sharing `Tests/tactics_test_kit.gd`. Run:
 `godot --headless --path . --script res://Tests/tactics_test.gd` (and the
-squad test). Both are in CI.
+squad and fuzz tests). All three are in CI.
 
 ## Known limits
 

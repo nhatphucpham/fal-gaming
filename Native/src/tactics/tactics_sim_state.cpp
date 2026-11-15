@@ -1,6 +1,7 @@
 #include "tactics_sim.h"
 
 #include "tactics_keywords.h"
+#include "tactics_orders.h"
 #include "tactics_passives.h"
 #include "tactics_skills.h"
 
@@ -108,7 +109,8 @@ int TacticsSim::get_squad_capacity(int p_leader) const {
 			capacity += passive.handler->get_extra_capacity(passive);
 		}
 	}
-	return capacity;
+	// Formations have MAX_SQUAD_SIZE slots, whatever the passives add.
+	return capacity < MAX_SQUAD_SIZE ? capacity : MAX_SQUAD_SIZE;
 }
 
 int TacticsSim::emit(Event &r_event) {

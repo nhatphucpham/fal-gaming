@@ -26,8 +26,9 @@
   `pose_animator_test.gd`, `pose_cast_test.gd` and `pose_stone_test.gd`
   (the unit figures' rig, mesh cache, animator, casts and stone, sharing
   `pose_test_kit.gd`). `voice_test.gd` tests the Voice autoload against a
-  fake server on localhost. `tactics_test.gd` and `tactics_squad_test.gd`
-  test the tactics simulation (sharing `tactics_test_kit.gd`).
+  fake server on localhost. `tactics_test.gd`, `tactics_squad_test.gd` and
+  `tactics_fuzz_test.gd` test the tactics simulation (sharing
+  `tactics_test_kit.gd`).
 - `Tools/` holds developer scripts that are not tests and not exported:
   `run_bot.gd`, the balance bot that plays whole runs (see
   [Run](systems/run.md)), and `make_sfx.gd`, which writes the sound files

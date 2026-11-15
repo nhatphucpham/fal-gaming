@@ -84,7 +84,7 @@ int TacticsSim::add_leader(int p_side, const UnitDef &p_leader, const Cell &p_ce
 	units.push_back(leader);
 	const int capacity = get_squad_capacity(leader.index);
 	const bool is_cell_free = can_stop_at(*this, leader.index, p_cell);
-	if (!is_cell_free || static_cast<int>(p_squad.size()) > capacity || p_squad.size() > static_cast<size_t>(MAX_SQUAD_SIZE)) {
+	if (!is_cell_free || static_cast<int>(p_squad.size()) > capacity) {
 		*r_error = !is_cell_free ? p_leader.id + " cannot stand on (" + std::to_string(p_cell.col) + ", " + std::to_string(p_cell.row) + ")"
 								 : p_leader.id + " leads at most " + std::to_string(capacity) + " soldiers, got " + std::to_string(p_squad.size());
 		units.pop_back();

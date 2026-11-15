@@ -1,5 +1,6 @@
 #include "tactics_catalog.h"
 
+#include "tactics_orders.h"
 #include "tactics_passives.h"
 #include "tactics_sim.h"
 #include "tactics_validation.h"
@@ -95,6 +96,7 @@ void TacticsCatalog::validate_units(PackedStringArray &r_problems) const {
 		for (const tactics::PassiveDef &passive : def.passives) {
 			capacity += passive.handler->get_extra_capacity != nullptr ? passive.handler->get_extra_capacity(passive) : 0;
 		}
+		capacity = capacity < tactics::MAX_SQUAD_SIZE ? capacity : tactics::MAX_SQUAD_SIZE;
 		if (squad.size() > capacity) {
 			r_problems.push_back(vformat("TacticsCatalog: %s has %d soldiers for a capacity of %d", where(leader), squad.size(), capacity));
 		}

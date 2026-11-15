@@ -530,8 +530,22 @@ func _check_catalog_references() -> bool:
 	var twice := _kit.keywords([&"keyword.charge", &"keyword.charge"])
 	var battle := _kit.new_battle(_kit.plain_rows())
 	print("Tactics test: the next error (keyword listed twice) is expected")
-	return Kit.expect_true("unlisted keyword reported: %s" % [problems], Array(problems).any(func(problem: String) -> bool: return problem.contains("keyword not listed"))) \
-		and Kit.expect("keyword twice refused", battle.add_leader_with_squad(A, _kit.leader(BA_KHAC, [], {"keywords": twice}), Vector2i(5, 5), []), -1)
+	if not (Kit.expect_true("unlisted keyword reported: %s" % [problems], Array(problems).any(func(problem: String) -> bool: return problem.contains("keyword not listed"))) \
+			and Kit.expect("keyword twice refused", battle.add_leader_with_squad(A, _kit.leader(BA_KHAC, [], {"keywords": twice}), Vector2i(5, 5), []), -1)):
+		return false
+	# Capacity 8 + 1 still leads at most 8 soldiers, so 9 is reported.
+	var drilled: Array[TacticsPassiveData] = [_kit.catalog.get_passive(&"tactics_passive.drilled_ranks")]
+	var crowded := _kit.leader(LAC_HONG, drilled, {"lead_capacity": 8})
+	var squad: Array[TacticsTroopData] = []
+	for index: int in 9:
+		squad.append(_kit.catalog.get_troop(&"troop.spearman"))
+	crowded.squad = squad
+	var crowded_catalog := _kit.catalog.duplicate() as TacticsCatalog
+	var leaders: Array[TacticsLeaderData] = [crowded]
+	crowded_catalog.leaders = leaders
+	var capacity_problems := Array(crowded_catalog.validate()).filter(func(problem: String) -> bool: return problem.contains("for a capacity of 8"))
+	return Kit.expect("nine soldiers reported", capacity_problems.size(), 1) \
+		and Kit.expect("capacity shown", battle.get_unit_state(_kit.add(battle, A, _kit.leader(LAC_HONG, drilled, {"lead_capacity": 8}), Vector2i(1, 1)))["capacity"], 8)
 
 
 # Only a leader's own move takes the objective: a leader pulled onto it, or
