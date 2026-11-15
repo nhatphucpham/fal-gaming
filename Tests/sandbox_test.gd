@@ -219,6 +219,12 @@ func _check_touch_indexes() -> bool:
 		if _setup.is_dragging():
 			push_error("Notification %d did not cancel the drag" % what)
 			return false
+		if what == Node.NOTIFICATION_APPLICATION_PAUSED:
+			# The app comes back (AppLifecycle paused the tree meanwhile and
+			# unpauses it a frame after the resume).
+			root.propagate_notification(Node.NOTIFICATION_APPLICATION_RESUMED)
+			for frame: int in 3:
+				await process_frame
 		_touch(42, false, board.cell_to_global(_free_player_cell()))
 		if _board_cell(entry) != cell:
 			push_error("A release after notification %d still moved the unit" % what)
