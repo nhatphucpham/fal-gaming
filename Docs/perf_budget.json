@@ -1,0 +1,47 @@
+{
+	"_comment": "Max per scene and metric for Tools/perf_probe.gd --budget. Lower it when a change makes things faster; never raise it without a written reason in the pull request. See Docs/systems/performance.md.",
+	"headless": {
+		"title": {
+			"cpu_ms_per_frame": 3.9,
+			"redraws_per_sec": 71,
+			"nodes": 65
+		},
+		"prep_full": {
+			"cpu_ms_per_frame": 5.8,
+			"redraws_per_sec": 516,
+			"nodes": 311
+		},
+		"battle_x1": {
+			"cpu_ms_per_frame": 15.2,
+			"redraws_per_sec": 2232,
+			"nodes": 313
+		},
+		"battle_x4": {
+			"cpu_ms_per_frame": 16.7,
+			"redraws_per_sec": 2601,
+			"nodes": 313
+		}
+	},
+	"rendered": {
+		"title": {
+			"draw_calls_max": 334,
+			"primitives_max": 24094,
+			"nodes": 65
+		},
+		"prep_full": {
+			"draw_calls_max": 953,
+			"primitives_max": 141884,
+			"nodes": 311
+		},
+		"battle_x1": {
+			"draw_calls_max": 1014,
+			"primitives_max": 141968,
+			"nodes": 313
+		},
+		"battle_x4": {
+			"draw_calls_max": 1043,
+			"primitives_max": 143093,
+			"nodes": 313
+		}
+	}
+}
