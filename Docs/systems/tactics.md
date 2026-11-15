@@ -250,9 +250,11 @@ Format `[info][Tactics][t=<turn>] <event> key=value`, when logging is on.
 
 `Tests/tactics_test.gd` (catalog, movement and zones of control,
 engagement and forecast, keywords, terrain, AI intent, victory, defeat and
-time limit, and a replay that must give the same state hash) and
-`Tests/tactics_squad_test.gd` (orders, anticipation, the five charge
-mechanisms, skills and zones, the five passive kinds), sharing
+time limit, a replay that must give the same state hash, what the hash
+covers, data range checks, map legends, dead units in queries and intents)
+and `Tests/tactics_squad_test.gd` (orders, anticipation, the five charge
+mechanisms, skills and zones, the five passive kinds, the side a zone
+affects, side B durations and event causes), sharing
 `Tests/tactics_test_kit.gd`. Run:
 `godot --headless --path . --script res://Tests/tactics_test.gd` (and the
 squad test). Both are in CI.

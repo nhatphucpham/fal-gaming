@@ -493,11 +493,14 @@ func _check_nothing_after_end() -> bool:
 	return Kit.expect("last event", events.back()["type"], &"battle_ended") and Kit.expect("no zone", battle.get_zones(), [])
 
 
-# A legend symbol listed twice is refused instead of mapping to one terrain.
+# A legend symbol listed twice is refused instead of mapping to one terrain;
+# a side other than 0 or 1 gets no spawn cells or leaders.
 func _check_map_legend() -> bool:
 	var map := _kit.make_map(_kit.plain_rows())
 	map.legend_symbols = ".fhrdbt."
 	var battle := TacticsBattle.new()
 	_kit._battles.append(battle)
-	print("Tactics test: the next error (repeated legend symbol) is expected")
-	return Kit.expect("repeated symbol refused", battle.setup(_kit.catalog.rules, map), false)
+	print("Tactics test: the next 3 errors (repeated legend symbol, side 2 twice) are expected")
+	return Kit.expect("repeated symbol refused", battle.setup(_kit.catalog.rules, map), false) \
+		and Kit.expect("no side 2 spawns", map.get_spawn_cells(2), []) \
+		and Kit.expect("no side 2 leaders", _kit.catalog.get_scenario(&"scenario.river_crossing").get_leaders(2), [])

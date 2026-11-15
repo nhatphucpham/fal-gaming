@@ -3,6 +3,7 @@
 #include "tactics_terrain_data.h"
 
 #include <godot_cpp/classes/resource.hpp>
+#include <godot_cpp/core/error_macros.hpp>
 #include <godot_cpp/variant/packed_string_array.hpp>
 #include <godot_cpp/variant/typed_array.hpp>
 #include <godot_cpp/variant/vector2i.hpp>
@@ -67,7 +68,11 @@ public:
 	void set_facing_b(const Vector2i &p_value) { facing_b = p_value; }
 	Vector2i get_facing_b() const { return facing_b; }
 	// The spawn cells of a side (0 or 1).
-	TypedArray<Vector2i> get_spawn_cells(int64_t p_side) const { return p_side == 0 ? spawn_cells_a : spawn_cells_b; }
+	// The spawn cells of a side (0 or 1); empty with an error for another side.
+	TypedArray<Vector2i> get_spawn_cells(int64_t p_side) const {
+		ERR_FAIL_COND_V_MSG(p_side != tactics::SIDE_A && p_side != tactics::SIDE_B, TypedArray<Vector2i>(), vformat("Tactics: get_spawn_cells() got side %d, expected 0 or 1", p_side));
+		return p_side == tactics::SIDE_A ? spawn_cells_a : spawn_cells_b;
+	}
 };
 
 } // namespace godot

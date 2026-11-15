@@ -5,6 +5,7 @@
 #include "tactics_unit_data.h"
 
 #include <godot_cpp/classes/resource.hpp>
+#include <godot_cpp/core/error_macros.hpp>
 #include <godot_cpp/variant/typed_array.hpp>
 
 namespace godot {
@@ -39,8 +40,11 @@ public:
 	TypedArray<TacticsLeaderData> get_leaders_a() const { return leaders_a; }
 	void set_leaders_b(const TypedArray<TacticsLeaderData> &p_value) { leaders_b = p_value; }
 	TypedArray<TacticsLeaderData> get_leaders_b() const { return leaders_b; }
-	// The leaders of a side (0 or 1).
-	TypedArray<TacticsLeaderData> get_leaders(int64_t p_side) const { return p_side == 0 ? leaders_a : leaders_b; }
+	// The leaders of a side (0 or 1); empty with an error for another side.
+	TypedArray<TacticsLeaderData> get_leaders(int64_t p_side) const {
+		ERR_FAIL_COND_V_MSG(p_side != tactics::SIDE_A && p_side != tactics::SIDE_B, TypedArray<TacticsLeaderData>(), vformat("Tactics: get_leaders() got side %d, expected 0 or 1", p_side));
+		return p_side == tactics::SIDE_A ? leaders_a : leaders_b;
+	}
 };
 
 } // namespace godot
