@@ -80,7 +80,6 @@ static func ahead(view: UnitView) -> float:
 	return 1.0 if view.side == 0 else -1.0
 
 
-
 ## The view's UnitFigure.
 static func figure_of(view: UnitView) -> UnitFigure:
 	for child: Node in view.get_children():
@@ -112,9 +111,13 @@ static func expect_no_strike(label: String, view: UnitView, stepper: Stepper, tr
 
 
 ## Drives the animators it takes by hand, a fixed FRAME at a time, with a
-## clock of its own (their redraw and blink timing): timing checks then
-## do not depend on how fast the machine runs. The tree still draws once
-## per step. A frozen animator (stone) is skipped, as the engine would.
+## clock of its own (their redraw and blink timing), so what an animator
+## does per step does not depend on how fast the machine runs. Only the
+## animators: the view's tweens (glides, the hit flash, squashes, the
+## boss's drop in) still run on the engine's real time, so a check on
+## those (a squash, the flash tween, the boss) waits real time instead.
+## The tree draws once per step. A frozen animator (stone) is skipped, as
+## the engine would.
 class Stepper extends RefCounted:
 	const FRAME: float = 1.0 / 60.0
 	var seconds: float = 100.0

@@ -6,7 +6,9 @@ extends SceneTree
 # trail; a hit landing on a statue (an arrow in flight) neither flashes it
 # nor makes it flinch, rigged or the boss; the thaw settles from the stone
 # pose without a jump, and a strike released in the frame the stone came
-# does not play after the thaw.
+# does not play after the thaw; a statue takes no knockback lean, and a run
+# cut by the stone does not go on after the thaw. The stone's squash and
+# the hit flash are view tweens on real time, which those checks wait for.
 
 const Kit := preload("res://Tests/pose_test_kit.gd")
 const FAST: float = 4.0
@@ -27,7 +29,7 @@ func _initialize() -> void:
 func _run() -> bool:
 	var checks: Array[Callable] = [
 		_check_stone_cancels_cast, _check_petrify, _check_petrify_after_hit, _check_statue_ignores_late_hit,
-		_check_thaw_mid_clip, _check_stone_on_release,
+		_check_thaw_mid_clip, _check_stone_on_release, _check_statue_knockback, _check_stone_mid_walk,
 	]
 	for check: Callable in checks:
 		if not await check.call():
@@ -175,6 +177,54 @@ func _check_stone_on_release() -> bool:
 	await stepper.run(self, 0.3)
 	view.set_petrified(false)
 	var ok := await Kit.expect_no_strike("Thawed after a strike cut by stone", view, stepper, self, 1.2)
+	view.queue_free()
+	return ok
+
+
+# A knockback on a statue (the battle allows it): the statue slides but
+# queues no lean, so after the thaw the figure stays near its rest pose.
+func _check_statue_knockback() -> bool:
+	var view := Kit.make_view(root, &"class.sword", 1)
+	var stepper := Kit.Stepper.new()
+	stepper.take(view)
+	await stepper.run(self, 0.2)
+	view.set_petrified(true)
+	view.glide_to(view.position + Vector2(0, -40), 0.3, &"knockback")
+	await stepper.run(self, 0.4)
+	view.set_petrified(false)
+	var rest := view.get_animator().get_stance().values
+	var worst := 0.0
+	var field := ""
+	for frame: int in roundi(SETTLE_SEC / Kit.Stepper.FRAME):
+		await stepper.step(self)
+		var values := view.get_pose().values
+		for index: int in values.size():
+			var gap := absf(values[index] - rest[index])
+			if index != UnitPose.EYES and gap > worst:
+				worst = gap
+				field = UnitPose.KEYS[index]
+	var ok := true
+	if worst > Kit.REST_TOLERANCE:
+		push_error("A statue knocked back should not lean after the thaw: %s was %.2f off" % [field, worst])
+		ok = false
+	ok = Kit.expect_rest("after a knockback on a statue", view) and ok
+	view.queue_free()
+	return ok
+
+
+# Stone mid-walk ends the run: after the thaw the figure settles to rest
+# instead of running in place for the rest of the walk.
+func _check_stone_mid_walk() -> bool:
+	var view := Kit.make_view(root, &"class.spear", 0)
+	var stepper := Kit.Stepper.new()
+	stepper.take(view)
+	view.glide_to(view.position + Vector2(0, -160), 1.5, &"walk")
+	await stepper.run(self, 0.3)
+	view.set_petrified(true)
+	await stepper.run(self, 0.2)
+	view.set_petrified(false)
+	await stepper.run(self, SETTLE_SEC)
+	var ok := Kit.expect_rest("after stone mid-walk", view)
 	view.queue_free()
 	return ok
 

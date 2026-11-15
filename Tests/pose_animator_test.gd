@@ -6,10 +6,11 @@ extends SceneTree
 # without redraws; figures outside the rig stay idle; idle redraws are
 # throttled at any battle speed, blinks still show at x4 and a calm figure
 # only blinks; the battle speed scales the clips; glides and hops clear
-# the lean; the trail takes a sample every frame; a long frame steps the
-# clips by at most MAX_STEP_SEC; an archer shooting straight ahead turns
-# its bow hand the way the sketch does. The timing checks step the
-# animators by hand (Kit.Stepper). Casts and stone have their own tests,
+# the lean; the trail takes a sample every frame; a frame steps the clips
+# by its time times the speed, up to MAX_BATTLE_STEP_SEC; an archer
+# shooting straight ahead turns its bow hand the way the sketch does. The
+# idle redraw, blink, trail and step checks step the animators by hand
+# (Kit.Stepper); the others run on the engine's frames and real time. Casts and stone have their own tests,
 # pose_cast_test.gd and pose_stone_test.gd.
 
 const Kit := preload("res://Tests/pose_test_kit.gd")
@@ -195,7 +196,7 @@ func _check_trail_every_frame() -> bool:
 	var animator := stepper.take(view)
 	view.lunge(Vector2(0, -80))
 	for frame: int in 120:
-		if view.get_pose().values[UnitPose.TRAIL] > WeaponTrail.MIN:
+		if view.get_pose().values[UnitPose.TRAIL] > WeaponTrail.SAMPLE_TRAIL_MIN:
 			break
 		await stepper.step(self)
 	var before := animator.trail.weights.size()
@@ -209,8 +210,9 @@ func _check_trail_every_frame() -> bool:
 	return true
 
 
-# A long frame (a hitch) steps the clips by at most MAX_STEP_SEC, times
-# the battle speed, so it does not skip a clip.
+# A frame steps the clips by its time times the battle speed, so the
+# poses keep up with the board at a low frame rate, up to the battle's own
+# catch-up limit (MAX_BATTLE_STEP_SEC) for a long frame (a hitch).
 func _check_step_cap() -> bool:
 	var view := Kit.make_view(root, &"class.sword", 0)
 	var stepper := Kit.Stepper.new()
@@ -218,12 +220,12 @@ func _check_step_cap() -> bool:
 	view.playback_speed = 2.0
 	view.lunge(Vector2(0, -80))
 	var before := animator.get_clock()
+	animator._process(0.1)
+	var ok := Kit.expect_near("Clock after a 0.1 s frame at x2", animator.get_clock() - before, 0.2, 0.0001)
+	before = animator.get_clock()
 	animator._process(1.0)
 	var stepped := animator.get_clock() - before
-	var ok := Kit.expect_near("Clock after a 1 s frame at x2", stepped, PoseAnimator.MAX_STEP_SEC * 2.0, 0.0001)
-	if not animator.is_animating():
-		push_error("A 1 s frame should not skip the attack clip")
-		ok = false
+	ok = Kit.expect_near("Clock after a 1 s frame at x2", stepped, PoseAnimator.MAX_BATTLE_STEP_SEC, 0.0001) and ok
 	view.queue_free()
 	return ok
 
