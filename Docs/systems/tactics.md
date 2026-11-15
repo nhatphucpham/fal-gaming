@@ -176,14 +176,22 @@ placed on the spawn cells in order. Sample: `scenario.river_crossing`.
   side's phase in round r + d (`end_round`), so both sides get the same
   length: a 1-round zone made by side B still works in side A's next phase.
   d = 0 ends at the start of the next phase.
-- AI: each leader goes for the nearest enemy by path, moves to the
-  reachable cell closest to a cell it could attack it from, then casts
-  when ready and in range, else attacks it, else attacks the enemy in
-  range with the lowest hp, else waits. When the other side is human, the AI's intents are
-  declared at the start of the human phase (`get_enemy_intents()`) and
-  followed as closely as the board allows.
+- AI: each leader goes for the nearest enemy by path and moves to the
+  reachable cell closest to a cell it could attack it from. Then, when its
+  skill is ready: a skill for its own side (no effect works against
+  enemies, such as `rally_banner`) is cast on the leader's own cell when
+  the target handler accepts that cell; any other skill is cast on the
+  enemy when it is in cast range. Otherwise it attacks that enemy, else
+  the enemy in range with the lowest hp, else waits. When the other side
+  is human, the AI's intents are declared at the start of the human phase
+  (`get_enemy_intents()`) and followed as closely as the board allows; a
+  declared skill that is no longer possible becomes an attack or a wait.
 - Victory: all enemy leaders dead (`rout`); a leader of `objective_side`
-  on the objective (`objective`); side B after `max_rounds` (`time_limit`).
+  ending its own move (`move_leader`, or the AI's move) on the objective
+  (`objective`); side B after `max_rounds` (`time_limit`). Being pulled or
+  otherwise moved onto the objective does not win, and neither does
+  starting the battle or a phase on it: such a leader must move off and
+  back on.
 
 ## Public API
 
@@ -207,7 +215,7 @@ error.
 | `get_formation_slots(leader)`, `preview_squad(leader, cell)` | method | Order queries (`[{unit, cell}]`) |
 | `forecast_engagement(attacker, defender) -> Dictionary` | method | Hits, damage per hit and hp after, without changing state; `is_valid` false when the attack is not possible or the battle ended |
 | `get_skill_charge(leader)` | method | `{skill, charge, value, threshold, is_ready, area_bonus}` |
-| `get_enemy_intents()` | method | `[{unit, to, action, target, target_cell}]`; a leader that died loses its intent |
+| `get_enemy_intents()` | method | `[{unit, to, action, target, target_cell}]` (`action` `wait`, `attack` or `skill`); `target` is the enemy aimed at (-1 and `target_cell` (-1, -1) when none), or the leader itself for a skill cast on its own cell; a leader that died loses its intent |
 | `get_state_hash() -> int` | method | FNV-1a 64 of the whole state |
 | `set_log_enabled(enabled)` | method | Prints the log events below |
 | `event_emitted(event)` | signal | Each event, in order |
@@ -247,18 +255,23 @@ Format `[info][Tactics][t=<turn>] <event> key=value`, when logging is on.
   `tactics_skills.cpp` or `tactics_skill_effects.cpp`; mark `needs_zone`
   when it reads a zone (and, for a passive, `needs_stat` when it reads
   `stat`) so validation checks it; a zone handler also says whether it
-  affects the allies or the enemies of the side that made the zone. Then
-  add data that uses it.
+  affects the allies or the enemies of the side that made the zone, and a
+  skill effect handler whether it works against enemies
+  (`affects_enemies`; the AI casts a skill without such an effect on its
+  own cell). A target handler's `select` gets the cell the caster casts
+  from, so the AI can test a cast before it moves. Then add data that
+  uses it.
 
 ## Tests
 
 `Tests/tactics_test.gd` (catalog, movement and zones of control,
 engagement and forecast, keywords, terrain, AI intent, victory, defeat and
-time limit, a replay that must give the same state hash, what the hash
+time limit, objective only by the leader's own move, a replay that must
+give the same state hash, what the hash
 covers, data range checks, map legends, dead units in queries and intents)
 and `Tests/tactics_squad_test.gd` (orders, anticipation, the five charge
 mechanisms, skills and zones, the five passive kinds, the side a zone
-affects, side B durations and event causes), sharing
+affects, the AI casting a skill for its own side, side B durations and event causes), sharing
 `Tests/tactics_test_kit.gd`. Run:
 `godot --headless --path . --script res://Tests/tactics_test.gd` (and the
 squad test). Both are in CI.

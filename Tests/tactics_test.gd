@@ -38,7 +38,7 @@ func _run() -> bool:
 		_check_ai_intent, _check_victory, _check_defeat, _check_time_limit, _check_determinism,
 		_check_hash_covers_setup, _check_forecast_after_end, _check_left_out_soldier, _check_data_ranges,
 		_check_dead_intent_dropped, _check_nothing_after_end, _check_map_legend,
-		_check_catalog_references,
+		_check_catalog_references, _check_objective_needs_own_move,
 	]
 	for check: Callable in checks:
 		if not check.call():
@@ -522,3 +522,36 @@ func _check_catalog_references() -> bool:
 	print("Tactics test: the next error (keyword listed twice) is expected")
 	return Kit.expect_true("unlisted keyword reported: %s" % [problems], Array(problems).any(func(problem: String) -> bool: return problem.contains("keyword not listed"))) \
 		and Kit.expect("keyword twice refused", battle.add_leader_with_squad(A, _kit.leader(BA_KHAC, [], {"keywords": twice}), Vector2i(5, 5), []), -1)
+
+
+# Only a leader's own move takes the objective: a leader pulled onto it, or
+# one that starts on it, does not win (not even when a death elsewhere is
+# checked for a rout); moving onto it later does.
+func _check_objective_needs_own_move() -> bool:
+	var objective := Vector2i(5, 7)
+	var battle := _kit.new_battle(_kit.plain_rows(), false, null, objective)
+	var target := _kit.add(battle, A, _kit.leader(THIET_NHA), Vector2i(5, 6))
+	var hook: Array[TacticsPassiveData] = [_kit.catalog.get_passive(&"tactics_passive.hook_spear")]
+	var hooker := _kit.add(battle, B, _kit.leader(MOON_SPEAR, hook, {"keywords": _kit.keywords([])}), Vector2i(5, 8))
+	battle.start()
+	battle.end_phase()
+	battle.attack(hooker, target)
+	if not Kit.expect("pulled onto the objective, no win", [Kit.cell_of(battle, target), battle.is_finished()], [objective, false]):
+		return false
+	battle.end_phase()
+	if not Kit.expect("starting a phase on it, no win", battle.is_finished(), false):
+		return false
+	battle.move_leader(target, Vector2i(4, 7))
+	battle.end_phase()
+	battle.end_phase()
+	battle.move_leader(target, objective)
+	if not Kit.expect("own move wins", [battle.is_finished(), battle.get_winner(), battle.get_end_reason()], [true, A, &"objective"]):
+		return false
+	var spawned := _kit.new_battle(_kit.plain_rows(), false, null, Vector2i(5, 5))
+	_kit.add(spawned, A, _kit.leader(THIET_NHA), Vector2i(5, 5))
+	var spear := _kit.add(spawned, A, _kit.leader(MOON_SPEAR, [], {"keywords": _kit.keywords([])}), Vector2i(2, 6))
+	var weak := _kit.add(spawned, B, _kit.leader(THIET_NHA, [], {"hp_pct": 5}), Vector2i(2, 5))
+	_kit.add(spawned, B, _kit.leader(THIET_NHA), Vector2i(11, 0))
+	spawned.start()
+	spawned.attack(spear, weak)
+	return Kit.expect("spawned on it, a death elsewhere, no win", [spawned.get_unit_state(weak)["alive"], spawned.is_finished()], [false, false])

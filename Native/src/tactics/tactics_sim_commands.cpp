@@ -86,6 +86,7 @@ int TacticsSim::apply_leader_move(int p_unit, const Cell &p_cell, int p_cause) {
 	units[p_unit].has_moved = true;
 	units[p_unit].straight_cells = get_trailing_straight_cells(path);
 	const int move_id = relocate_unit(p_unit, path, "move", p_cause);
+	check_objective_taken(p_unit, move_id);
 	// The move may have taken the objective: nothing happens after the end.
 	if (finished) {
 		return move_id;

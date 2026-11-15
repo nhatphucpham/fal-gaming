@@ -26,6 +26,9 @@ struct Cell {
 	int row = 0;
 };
 
+// "No cell", for an intent without a target.
+constexpr Cell NO_CELL = { -1, -1 };
+
 inline bool operator==(const Cell &p_a, const Cell &p_b) {
 	return p_a.col == p_b.col && p_a.row == p_b.row;
 }

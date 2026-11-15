@@ -17,9 +17,9 @@ Intent plan_intent(const TacticsSim &p_sim, int p_leader);
 // phase, otherwise the reachable cell nearest it (Manhattan, then path
 // cost, then cell index); the leader's own cell counts as reachable.
 Cell resolve_intent_destination(const TacticsSim &p_sim, int p_leader, const Intent &p_intent);
-// What the leader does after reaching its cell: the declared skill or
-// attack when still possible, otherwise an attack on the enemy in range
-// with the lowest hp, otherwise wait.
+// What the leader does after reaching its cell: the declared skill (on its
+// own cell for a skill of its own side) or attack when still possible,
+// otherwise an attack on the enemy in range with the lowest hp, otherwise wait.
 Intent resolve_intent_action(const TacticsSim &p_sim, int p_leader, const Intent &p_intent);
 
 } // namespace tactics

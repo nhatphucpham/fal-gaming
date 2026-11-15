@@ -330,24 +330,26 @@ void TacticsSim::apply_phase_start_effects(int p_cause) {
 	}
 }
 
-void TacticsSim::check_victory(int p_cause) {
+void TacticsSim::check_rout(int p_cause) {
 	if (finished || !started) {
 		return;
 	}
 	int leaders[SIDE_COUNT] = { 0, 0 };
-	bool is_objective_held = false;
 	for (const UnitState &unit : units) {
-		if (!unit.is_alive || !is_leader(unit.index)) {
-			continue;
-		}
-		leaders[unit.side]++;
-		is_objective_held = is_objective_held || (map.has_objective && unit.side == map.objective_side && unit.cell == map.objective);
+		leaders[unit.side] += unit.is_alive && is_leader(unit.index) ? 1 : 0;
 	}
 	if (leaders[SIDE_A] == 0) {
 		end_battle(SIDE_B, "rout", p_cause);
 	} else if (leaders[SIDE_B] == 0) {
 		end_battle(SIDE_A, "rout", p_cause);
-	} else if (is_objective_held) {
+	}
+}
+
+// Only the leader's own move takes the objective: a pull onto it, or
+// starting on it, does not (Docs/systems/tactics.md, Victory).
+void TacticsSim::check_objective_taken(int p_leader, int p_cause) {
+	const UnitState &leader = units[p_leader];
+	if (!finished && map.has_objective && leader.side == map.objective_side && leader.cell == map.objective) {
 		end_battle(map.objective_side, "objective", p_cause);
 	}
 }

@@ -30,8 +30,28 @@ int pick_ai_target(const TacticsSim &p_sim, int p_leader) {
 	return best;
 }
 
+// A ready skill against enemies that reaches p_target from p_from.
 bool can_skill_reach(const UnitState &p_leader, const Cell &p_from, const Cell &p_target) {
-	return is_skill_ready(p_leader) && get_manhattan(p_from, p_target) <= p_leader.def.skill.cast_range_cells;
+	return is_skill_ready(p_leader) && !is_skill_for_own_side(p_leader.def.skill) && get_manhattan(p_from, p_target) <= p_leader.def.skill.cast_range_cells;
+}
+
+// A ready skill for the leader's own side that it may cast on p_from, the
+// cell it stands on then.
+bool can_cast_on_own_cell(const TacticsSim &p_sim, int p_leader, const Cell &p_from) {
+	const UnitState &leader = p_sim.get_units()[p_leader];
+	if (!is_skill_ready(leader) || !is_skill_for_own_side(leader.def.skill)) {
+		return false;
+	}
+	SkillSelection selection;
+	std::string error;
+	return leader.def.skill.target->select(p_sim, p_leader, p_from, p_from, selection, &error);
+}
+
+Intent cast_on_own_cell(Intent p_intent, const Cell &p_cell) {
+	p_intent.action = IntentAction::SKILL;
+	p_intent.target = p_intent.leader;
+	p_intent.target_cell = p_cell;
+	return p_intent;
 }
 
 } // namespace
@@ -43,7 +63,7 @@ Intent plan_intent(const TacticsSim &p_sim, int p_leader) {
 	intent.destination = leader.cell;
 	intent.target = pick_ai_target(p_sim, p_leader);
 	if (intent.target == NO_UNIT) {
-		return intent;
+		return can_cast_on_own_cell(p_sim, p_leader, intent.destination) ? cast_on_own_cell(intent, intent.destination) : intent;
 	}
 	const Cell target_cell = p_sim.get_units()[intent.target].cell;
 	intent.target_cell = target_cell;
@@ -52,6 +72,9 @@ Intent plan_intent(const TacticsSim &p_sim, int p_leader) {
 	const std::vector<int> distance = find_goal_distances(p_sim, p_leader, attack_cells);
 	// Attack cells have distance 0, so a reachable one always wins.
 	intent.destination = pick_reachable_cell(p_sim, p_leader, field, [&](const Cell &p_cell) { return distance[p_sim.get_cell_index(p_cell)]; });
+	if (can_cast_on_own_cell(p_sim, p_leader, intent.destination)) {
+		return cast_on_own_cell(intent, intent.destination);
+	}
 	if (can_skill_reach(leader, intent.destination, target_cell)) {
 		intent.action = IntentAction::SKILL;
 	} else if (is_in_range_from(p_sim, p_leader, intent.destination, target_cell)) {
@@ -69,6 +92,9 @@ Cell resolve_intent_destination(const TacticsSim &p_sim, int p_leader, const Int
 Intent resolve_intent_action(const TacticsSim &p_sim, int p_leader, const Intent &p_intent) {
 	const UnitState &leader = p_sim.get_units()[p_leader];
 	Intent action = p_intent;
+	if (p_intent.action == IntentAction::SKILL && can_cast_on_own_cell(p_sim, p_leader, leader.cell)) {
+		return cast_on_own_cell(action, leader.cell);
+	}
 	const bool has_target = p_intent.target != NO_UNIT && p_sim.get_units()[p_intent.target].is_alive;
 	if (has_target) {
 		action.target_cell = p_sim.get_units()[p_intent.target].cell;
@@ -82,6 +108,7 @@ Intent resolve_intent_action(const TacticsSim &p_sim, int p_leader, const Intent
 	}
 	action.action = IntentAction::WAIT;
 	action.target = NO_UNIT;
+	action.target_cell = NO_CELL;
 	for (const UnitState &enemy : p_sim.get_units()) {
 		if (can_attack(p_sim, p_leader, enemy.index) && (action.target == NO_UNIT || enemy.hp < p_sim.get_units()[action.target].hp)) {
 			action.action = IntentAction::ATTACK;

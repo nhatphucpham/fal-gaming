@@ -71,7 +71,8 @@ struct Intent {
 	Cell destination;
 	IntentAction action = IntentAction::WAIT;
 	int target = NO_UNIT;
-	Cell target_cell;
+	// NO_CELL when there is no target.
+	Cell target_cell = NO_CELL;
 };
 
 enum class EventType {

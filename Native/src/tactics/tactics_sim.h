@@ -88,7 +88,8 @@ public:
 	// event id. Nothing happens to a unit that is already dead.
 	int deal_damage(int p_source, int p_target, int p_amount, const std::string &p_content_id, bool p_is_counter, int p_cause);
 	// Moves a unit and emits unit_moved; p_path includes both ends. Returns
-	// the event id, 0 when nothing moved.
+	// the event id, 0 when nothing moved. Never takes the objective: only a
+	// leader's own move does (move_leader).
 	int relocate_unit(int p_unit, const std::vector<Cell> &p_path, const std::string &p_kind, int p_cause);
 	// Both last p_duration_rounds rounds: until the start of the active
 	// side's phase that many rounds later (end_round and end_turn are set here).
@@ -138,7 +139,10 @@ private:
 	void apply_phase_start_effects(int p_cause);
 	void expire_timed_effects(int p_cause);
 	void handle_death(int p_unit, int p_killer, int p_cause);
-	void check_victory(int p_cause);
+	// Ends the battle when a side has no living leader.
+	void check_rout(int p_cause);
+	// Ends the battle when p_leader's own move ended on its side's objective.
+	void check_objective_taken(int p_leader, int p_cause);
 	void end_battle(int p_winner, const std::string &p_reason, int p_cause);
 	void declare_intents(int p_cause);
 	void hash_unit(uint64_t *r_hash, const UnitState &p_unit) const;

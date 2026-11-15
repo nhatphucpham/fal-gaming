@@ -175,7 +175,7 @@ void TacticsSim::handle_death(int p_unit, int p_killer, int p_cause) {
 			}
 		}
 	}
-	check_victory(death_id);
+	check_rout(death_id);
 }
 
 int TacticsSim::relocate_unit(int p_unit, const std::vector<Cell> &p_path, const std::string &p_kind, int p_cause) {
@@ -198,7 +198,6 @@ int TacticsSim::relocate_unit(int p_unit, const std::vector<Cell> &p_path, const
 	const int move_id = emit(event);
 	if (is_leader(p_unit)) {
 		trigger_skill_charge(*this, p_unit, ChargeTrigger::DISPLACED, 0, move_id);
-		check_victory(move_id);
 	}
 	return move_id;
 }

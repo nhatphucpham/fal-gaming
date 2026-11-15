@@ -53,9 +53,9 @@ bool is_enemy_at(const TacticsSim &p_sim, int p_caster, const Cell &p_cell) {
 	return occupant != NO_UNIT && p_sim.get_units()[occupant].side != p_sim.get_units()[p_caster].side;
 }
 
-bool check_cast_range(const TacticsSim &p_sim, int p_caster, const Cell &p_cell, std::string *r_error) {
+bool check_cast_range(const TacticsSim &p_sim, int p_caster, const Cell &p_from, const Cell &p_cell, std::string *r_error) {
 	const UnitState &caster = p_sim.get_units()[p_caster];
-	if (!p_sim.is_on_map(p_cell) || get_manhattan(caster.cell, p_cell) > caster.def.skill.cast_range_cells) {
+	if (!p_sim.is_on_map(p_cell) || get_manhattan(p_from, p_cell) > caster.def.skill.cast_range_cells) {
 		*r_error = caster.def.skill.id + " cannot reach (" + std::to_string(p_cell.col) + ", " + std::to_string(p_cell.row) + ")";
 		return false;
 	}
@@ -63,8 +63,8 @@ bool check_cast_range(const TacticsSim &p_sim, int p_caster, const Cell &p_cell,
 }
 
 // skill_target.single: the enemy on the cell.
-bool select_single(const TacticsSim &p_sim, int p_caster, const Cell &p_cell, SkillSelection &r_selection, std::string *r_error) {
-	if (!check_cast_range(p_sim, p_caster, p_cell, r_error)) {
+bool select_single(const TacticsSim &p_sim, int p_caster, const Cell &p_from, const Cell &p_cell, SkillSelection &r_selection, std::string *r_error) {
+	if (!check_cast_range(p_sim, p_caster, p_from, p_cell, r_error)) {
 		return false;
 	}
 	if (!is_enemy_at(p_sim, p_caster, p_cell)) {
@@ -79,8 +79,8 @@ bool select_single(const TacticsSim &p_sim, int p_caster, const Cell &p_cell, Sk
 
 // skill_target.area: a square of area_radius_cells (plus growth) around the
 // cell; every enemy inside, in row-major order.
-bool select_area(const TacticsSim &p_sim, int p_caster, const Cell &p_cell, SkillSelection &r_selection, std::string *r_error) {
-	if (!check_cast_range(p_sim, p_caster, p_cell, r_error)) {
+bool select_area(const TacticsSim &p_sim, int p_caster, const Cell &p_from, const Cell &p_cell, SkillSelection &r_selection, std::string *r_error) {
+	if (!check_cast_range(p_sim, p_caster, p_from, p_cell, r_error)) {
 		return false;
 	}
 	const UnitState &caster = p_sim.get_units()[p_caster];
@@ -112,8 +112,8 @@ bool is_selected(const SkillSelection &p_selection, int p_unit) {
 // skill_target.chain: the enemy on the cell, then up to chain_count - 1
 // more, each the nearest enemy not yet hit within chain_jump_cells of the
 // previous one; every jump keeps (100 - chain_falloff_pct) percent.
-bool select_chain(const TacticsSim &p_sim, int p_caster, const Cell &p_cell, SkillSelection &r_selection, std::string *r_error) {
-	if (!select_single(p_sim, p_caster, p_cell, r_selection, r_error)) {
+bool select_chain(const TacticsSim &p_sim, int p_caster, const Cell &p_from, const Cell &p_cell, SkillSelection &r_selection, std::string *r_error) {
+	if (!select_single(p_sim, p_caster, p_from, p_cell, r_selection, r_error)) {
 		return false;
 	}
 	const SkillDef &skill = p_sim.get_units()[p_caster].def.skill;
@@ -180,11 +180,20 @@ bool is_skill_ready(const UnitState &p_leader) {
 	return p_leader.def.has_skill && p_leader.skill_charge >= p_leader.def.skill.charge_threshold;
 }
 
+bool is_skill_for_own_side(const SkillDef &p_skill) {
+	for (const SkillEffectDef &effect : p_skill.effects) {
+		if (effect.handler->affects_enemies(effect)) {
+			return false;
+		}
+	}
+	return true;
+}
+
 int cast_skill(TacticsSim &p_sim, int p_caster, const Cell &p_cell, int p_cause, std::string *r_error) {
 	const SkillDef &skill = p_sim.get_units()[p_caster].def.skill;
 	SkillSelection selection;
 	selection.center = p_cell;
-	if (!skill.target->select(p_sim, p_caster, p_cell, selection, r_error)) {
+	if (!skill.target->select(p_sim, p_caster, p_sim.get_units()[p_caster].cell, p_cell, selection, r_error)) {
 		return 0;
 	}
 	Event used;

@@ -1,6 +1,7 @@
 #include "tactics_combat.h"
 #include "tactics_sim.h"
 #include "tactics_skills.h"
+#include "tactics_zones.h"
 
 // Skill effect handlers (`skill_effect.<name>`). Add one by writing its
 // apply function and listing it in SKILL_EFFECT_HANDLERS.
@@ -64,10 +65,25 @@ void apply_create_zone(TacticsSim &p_sim, int p_caster, const SkillEffectDef &p_
 	p_sim.add_zone(zone, p_effect.duration_rounds, p_cause);
 }
 
+bool is_hostile(const SkillEffectDef &p_effect) {
+	(void)p_effect;
+	return true;
+}
+
+bool is_friendly(const SkillEffectDef &p_effect) {
+	(void)p_effect;
+	return false;
+}
+
+// A zone works against enemies when its handler affects the maker's enemies.
+bool is_zone_hostile(const SkillEffectDef &p_effect) {
+	return p_effect.zone.handler->affects == ZoneAffects::ENEMIES;
+}
+
 const SkillEffectHandler SKILL_EFFECT_HANDLERS[] = {
-	{ "skill_effect.damage", false, apply_damage },
-	{ "skill_effect.squad_attack_buff", false, apply_squad_attack_buff },
-	{ "skill_effect.create_zone", true, apply_create_zone },
+	{ "skill_effect.damage", false, is_hostile, apply_damage },
+	{ "skill_effect.squad_attack_buff", false, is_friendly, apply_squad_attack_buff },
+	{ "skill_effect.create_zone", true, is_zone_hostile, apply_create_zone },
 };
 
 } // namespace

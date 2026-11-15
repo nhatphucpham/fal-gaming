@@ -37,7 +37,7 @@ func _run() -> bool:
 		_check_order_slots, _check_anticipation_shift, _check_blocked_slots, _check_free_seeks,
 		_check_free_helps, _check_soldier_priority, _check_charge_turns, _check_charge_engagements,
 		_check_charge_focus, _check_charge_damage_taken, _check_charge_soldiers_lost,
-		_check_area_skill_and_fire, _check_ai_skill, _check_stat_passives, _check_squad_passive,
+		_check_area_skill_and_fire, _check_ai_skill, _check_ai_own_side_skill, _check_stat_passives, _check_squad_passive,
 		_check_environment_passive, _check_pull_passive, _check_growth_passive,
 		_check_zone_sides, _check_side_b_durations, _check_causes,
 	]
@@ -348,6 +348,36 @@ func _check_ai_skill() -> bool:
 	var used := Kit.of_type(events, &"skill_used")
 	return Kit.expect("declared", [intent["unit"], intent["action"], intent["target"]], [enemy, &"skill", target]) \
 		and Kit.expect("used on the target", used.map(func(event: Dictionary) -> Array: return [event["unit"], event["cell"]]), [[enemy, Vector2i(5, 10)]])
+
+
+# An AI leader casts a ready skill for its own side (rally banner, cast
+# range 0) on its own cell instead of waiting, and declares it; a skill of
+# its own side that cannot target its cell is never declared.
+func _check_ai_own_side_skill() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows(), true)
+	_kit.add(battle, A, _spear(), Vector2i(0, 11))
+	var banner := _kit.add(battle, B, _kit.leader(LAC_HONG, [], {"skill": _quick_skill(LAC_HONG), "move_points": 0}), Vector2i(11, 0), _spearmen(1))
+	battle.start()
+	battle.end_phase()
+	var intent: Dictionary = battle.get_enemy_intents()[0]
+	if not Kit.expect("declared on itself", [intent["unit"], intent["action"], intent["target"], intent["target_cell"]], [banner, &"skill", banner, Vector2i(11, 0)]):
+		return false
+	var events := battle.end_phase()
+	var used := Kit.of_type(events, &"skill_used")
+	var buffs := Kit.of_type(events, &"buff_applied")
+	if not (Kit.expect("cast on its cell", used.map(func(event: Dictionary) -> Array: return [event["unit"], event["cell"]]), [[banner, Vector2i(11, 0)]]) \
+			and Kit.expect("soldier buffed", buffs.map(func(event: Dictionary) -> int: return event["unit"]), [banner + 1])):
+		return false
+	var single := _quick_skill(LAC_HONG)
+	single.target = &"skill_target.single"
+	var refused := _kit.new_battle(_kit.plain_rows(), true)
+	var spear := _kit.add(refused, A, _spear(), Vector2i(0, 11))
+	_kit.add(refused, B, _kit.leader(LAC_HONG, [], {"skill": single, "move_points": 0}), Vector2i(11, 0))
+	refused.start()
+	refused.end_phase()
+	var waiting: Dictionary = refused.get_enemy_intents()[0]
+	return Kit.expect("not legal, not declared", [waiting["action"], waiting["target"]], [&"wait", spear]) \
+		and Kit.expect("not cast", Kit.of_type(refused.end_phase(), &"skill_used"), [])
 
 
 # Stat modifiers: iron will (+15 armor on a fort) and pack fury (+20%
