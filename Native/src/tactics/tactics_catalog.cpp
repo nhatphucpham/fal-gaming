@@ -117,6 +117,7 @@ void TacticsCatalog::validate_references(PackedStringArray &r_problems) const {
 			}
 		}
 	}
+	validate_terrain_ids(r_problems);
 	for (int64_t index = 0; index < passives.size(); index++) {
 		const Ref<TacticsPassiveData> passive = passives[index];
 		const bool is_unlisted = passive.is_valid() && ((passive->get_keyword().is_valid() && !contains(keywords, passive->get_keyword())) || (passive->get_zone().is_valid() && !contains(zones, passive->get_zone())));
@@ -132,6 +133,33 @@ void TacticsCatalog::validate_references(PackedStringArray &r_problems) const {
 			if (data.is_valid() && data->get_zone().is_valid() && !contains(zones, data->get_zone())) {
 				r_problems.push_back(vformat("TacticsCatalog: %s uses a zone not listed in zones", where(skill)));
 			}
+		}
+	}
+}
+
+// Terrain ids named by keywords (heavy) and passives (a terrain condition)
+// exist, so a typo does not silently switch the effect off.
+void TacticsCatalog::validate_terrain_ids(PackedStringArray &r_problems) const {
+	Dictionary known;
+	for (int64_t index = 0; index < terrains.size(); index++) {
+		const Ref<TacticsTerrainData> terrain = terrains[index];
+		if (terrain.is_valid()) {
+			known[terrain->get_id()] = true;
+		}
+	}
+	for (int64_t index = 0; index < keywords.size(); index++) {
+		const Ref<TacticsKeywordData> keyword = keywords[index];
+		const Array terrain_ids = keyword.is_valid() ? keyword->get_terrain_ids() : Array();
+		for (int64_t terrain = 0; terrain < terrain_ids.size(); terrain++) {
+			if (!known.has(StringName(terrain_ids[terrain]))) {
+				r_problems.push_back(vformat("TacticsCatalog: %s names unknown terrain %s", where(keyword), terrain_ids[terrain]));
+			}
+		}
+	}
+	for (int64_t index = 0; index < passives.size(); index++) {
+		const Ref<TacticsPassiveData> passive = passives[index];
+		if (passive.is_valid() && !String(passive->get_condition_terrain_id()).is_empty() && !known.has(passive->get_condition_terrain_id())) {
+			r_problems.push_back(vformat("TacticsCatalog: %s names unknown terrain %s", where(passive), passive->get_condition_terrain_id()));
 		}
 	}
 }

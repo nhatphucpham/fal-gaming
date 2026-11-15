@@ -46,7 +46,8 @@ int find_order_index(const std::string &p_id);
 const OrderHandler &get_order_handler(int p_index);
 int get_order_count();
 // The squad's slot cells for the leader's current cell, heading and order,
-// shifted along the heading when the leader kept it two moves in a row.
+// shifted along the heading when the leader kept it two moves in a row;
+// none for a dead leader or an order without formation.
 std::vector<Cell> get_formation_slots(const TacticsSim &p_sim, int p_leader);
 void move_squad(TacticsSim &p_sim, int p_leader, int p_cause);
 void attack_with_squad(TacticsSim &p_sim, int p_leader, int p_cause);

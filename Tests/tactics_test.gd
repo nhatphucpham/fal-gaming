@@ -40,7 +40,7 @@ func _run() -> bool:
 		_check_dead_intent_dropped, _check_nothing_after_end, _check_map_legend,
 		_check_catalog_references, _check_objective_needs_own_move, _check_side_bounds,
 		_check_failed_scenario_load, _check_catalog_loads_scenarios, _check_hash_covers_event_ids,
-		_check_unsigned_passive_amounts,
+		_check_unsigned_passive_amounts, _check_failed_reload, _check_catalog_terrain_ids,
 	]
 	for check: Callable in checks:
 		if not check.call():
@@ -632,3 +632,34 @@ func _check_unsigned_passive_amounts() -> bool:
 		var passives: Array[TacticsPassiveData] = [passive]
 		results.append(_kit.new_battle(_kit.plain_rows()).add_leader_with_squad(A, _kit.leader(BA_KHAC, passives), Vector2i(5, 5), []) >= 0)
 	return Kit.expect("accepted", results, [false, false, true])
+
+
+# Loading a scenario whose map is missing also drops an earlier setup, so
+# the earlier scenario cannot be started by mistake.
+func _check_failed_reload() -> bool:
+	var battle := TacticsBattle.new()
+	_kit._battles.append(battle)
+	var scenario := _kit.catalog.get_scenario(&"scenario.river_crossing")
+	var no_map := scenario.duplicate() as TacticsScenarioData
+	no_map.map = null
+	print("Tactics test: the next 2 errors (no map, start refused) are expected")
+	var loaded := [battle.load_scenario(scenario), battle.load_scenario(no_map)]
+	return Kit.expect("loads", loaded, [true, false]) and Kit.expect("nothing to start", [battle.start(), battle.get_unit_count()], [[], 0])
+
+
+# The catalog reports a terrain id that no terrain has, in a keyword's
+# terrain_ids or a passive's condition_terrain_id.
+func _check_catalog_terrain_ids() -> bool:
+	var catalog := _kit.catalog.duplicate() as TacticsCatalog
+	var heavy := _kit.catalog.get_keyword(&"keyword.heavy").duplicate() as TacticsKeywordData
+	var typo: Array[StringName] = [&"terrain.forrest"]
+	heavy.terrain_ids = typo
+	var ambush := _kit.catalog.get_passive(&"tactics_passive.forest_ambush").duplicate() as TacticsPassiveData
+	ambush.condition_terrain_id = &"terrain.wood"
+	var keywords: Array[TacticsKeywordData] = [heavy]
+	var passives: Array[TacticsPassiveData] = [ambush]
+	catalog.keywords = keywords
+	catalog.passives = passives
+	var unknown := Array(catalog.validate()).filter(func(problem: String) -> bool: return problem.contains("unknown terrain"))
+	return Kit.expect("unknown terrains reported", unknown.size(), 2) \
+		and Kit.expect("the sample catalog has none", _kit.catalog.validate(), PackedStringArray())

@@ -43,7 +43,8 @@ Everything is listed in `Data/Tactics/tactics_catalog.tres`
 `skills`, `troops`, `leaders`, `maps`, `scenarios`); nothing scans folders.
 `TacticsCatalog.validate()` checks id prefixes, duplicates, name keys,
 references to unlisted files (terrains, keywords, zones, passives,
-skills, troops, leaders, maps), units (squad size against the capacity
+skills, troops, leaders, maps), terrain ids named by keywords
+(`terrain_ids`) and passives (`condition_terrain_id`), units (squad size against the capacity
 with passives; no keyword or passive listed twice), maps (spawn cells on
 the map, passable and not shared) and scenarios (each is loaded on a
 scratch battle, so a spawn cell that an earlier leader's soldier takes is
@@ -101,15 +102,15 @@ catalog), `skill`, `default_order` (`order.follow`, `order.vanguard`,
 `TacticsZoneData` (`Data/Tactics/Zones/`): `effect` is the handler,
 `zone_effect.ranged_ward` (allies of the side that made the zone take
 `amount`% less ranged damage inside it) or `zone_effect.burn` (`amount`
-damage, 0..100000, to that side's enemies inside at the start of their
-phase); each handler states which side it affects. Samples: `zone.wind`
+damage, 0..100000, not mitigated, to that side's enemies inside at the
+start of their phase); each handler states which side it affects. Samples: `zone.wind`
 (ward 50), `zone.fire` (burn 60).
 
 `TacticsPassiveData` (`Data/Tactics/Passives/`), `handler` is one of:
 
 | Handler | Fields | Sample |
 | --- | --- | --- |
-| `passive.stat_bonus` | `stat`, `amount`, `condition_terrain_id` or `condition_adjacent_allies` | `iron_will` (armor +15 on a fort), `pack_fury` (+20% attack with 2 adjacent allies), `forest_ambush` |
+| `passive.stat_bonus` | `stat`, `amount`, `condition_terrain_id`, `condition_adjacent_allies` (both must hold when both are set) | `iron_will` (armor +15 on a fort), `pack_fury` (+20% attack with 2 adjacent allies), `forest_ambush` (+20% attack in a forest) |
 | `passive.squad_bonus` | `stat`, `amount`, `keyword`, `extra_capacity` | `drilled_ranks` (soldiers +10% attack, cover, capacity +1) |
 | `passive.trail_zone` | `zone`, `radius_cells`, `duration_rounds` | `wind_trail` (wind, radius 1, 1 round, where the leader stops) |
 | `passive.pull_strike` | `amount` | `hook_spear` (pulls the target 1 cell after the leader's own attack, not after counters) |
@@ -117,6 +118,8 @@ phase); each handler states which side it affects. Samples: `zone.wind`
 
 Stats: `stat.attack_pct`, `stat.armor`, `stat.magic_resist`,
 `stat.move_points`, `stat.max_range`. `passive.stat_bonus` needs a `stat`.
+A squad passive's stat and keyword reach the soldiers only while their
+leader lives.
 Ranges: `amount` -1000..1000 (0..1000 for `pull_strike` and
 `skill_growth`, which count cells), `condition_adjacent_allies` 0..4,
 `extra_capacity` 0..8, `radius_cells` 0..64, `duration_rounds` 0..100.
@@ -220,8 +223,9 @@ error.
 | `get_unit_count`, `get_unit_state(unit)`, `get_units()`, `get_zones()` | method | Unit and zone dictionaries |
 | `get_map_width`, `get_map_height`, `get_terrain_id(cell)` | method | Map |
 | `get_reachable_cells(unit)`, `get_path_to(unit, cell)` | method | Movement queries (empty for a dead unit) |
-| `get_formation_slots(leader)`, `preview_squad(leader, cell)` | method | Order queries (`[{unit, cell}]`) |
-| `forecast_engagement(attacker, defender) -> Dictionary` | method | Hits, damage per hit and hp after, without changing state; `is_valid` false when the attack is not possible or the battle ended |
+| `get_formation_slots(leader)` | method | The slot cells of the leader's order (empty for `hold`, `free` or a dead leader) |
+| `preview_squad(leader, cell)` | method | `[{unit, cell}]`: where the soldiers would stand after the leader moved there; `[]` and an error when that move would be refused |
+| `forecast_engagement(attacker, defender) -> Dictionary` | method | Hits, damage per hit and hp after, without changing state; any two units (an enemy's attack too, whoever's phase it is); `is_valid` false when either is dead, they are on the same side, the defender is out of range or the battle ended |
 | `get_skill_charge(leader)` | method | `{skill, charge, value, threshold, is_ready, area_bonus}` |
 | `get_enemy_intents()` | method | `[{unit, to, action, target, target_cell}]` (`action` `wait`, `attack` or `skill`); `target` is the enemy aimed at (-1 and `target_cell` (-1, -1) when none), or the leader itself for a skill cast on its own cell; a leader that died loses its intent |
 | `get_state_hash() -> String` | method | FNV-1a 64 of the whole state (round, turn, units, zones, buffs, intents, the next event id), 16 hex digits; setup data is identified by ids |
@@ -233,7 +237,10 @@ Every event has `id`, `turn`, `round`, `type` and `cause` (the id of the
 event that caused it, 0 if none; ids start at 1). A command's own first
 event has cause 0; what follows from it points back: a squad's step to the
 leader's `unit_moved`, `engagement_started`, `skill_used` or
-`leader_waited`, a trail zone to the move, a pull to the engagement. Types: `battle_started`, `phase_started`,
+`leader_waited`, a trail zone to the move, a pull to the engagement.
+Expiries, burns and intents at the start of a phase point to its
+`phase_started`; a squad that steps at the end of the phase (its leader
+neither moved nor acted) and the charge gained then have cause 0. Types: `battle_started`, `phase_started`,
 `phase_ended`, `unit_moved` (`kind` `move`, `squad`, `pull`),
 `order_changed`, `leader_waited`, `intent_declared`, `engagement_started`,
 `damage_dealt`, `engagement_ended`, `unit_died`, `skill_used`,

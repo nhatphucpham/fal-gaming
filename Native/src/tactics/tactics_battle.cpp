@@ -47,6 +47,10 @@ bool TacticsBattle::setup(const Ref<TacticsRulesData> &p_rules, const Ref<Tactic
 bool TacticsBattle::load_scenario(const Ref<TacticsScenarioData> &p_scenario) {
 	ERR_FAIL_COND_V_MSG(p_scenario.is_null(), false, "Tactics: load_scenario() got a null scenario");
 	if (!setup(p_scenario->get_rules(), p_scenario->get_map())) {
+		// A running battle stays; an earlier setup does not.
+		if (!sim.is_started()) {
+			clear_setup();
+		}
 		return false;
 	}
 	for (int side = 0; side < tactics::SIDE_COUNT; side++) {

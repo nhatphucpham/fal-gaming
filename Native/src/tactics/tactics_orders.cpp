@@ -130,7 +130,8 @@ std::vector<Cell> get_formation_slots(const TacticsSim &p_sim, int p_leader) {
 	const UnitState &leader = p_sim.get_units()[p_leader];
 	const OrderHandler &order = get_order_handler(leader.order);
 	std::vector<Cell> slots;
-	if (order.mode != SquadMode::FORMATION) {
+	// A squad whose leader died fights as `free` (move_squad): no slots.
+	if (!leader.is_alive || order.mode != SquadMode::FORMATION) {
 		return slots;
 	}
 	const Cell forward = leader.heading;

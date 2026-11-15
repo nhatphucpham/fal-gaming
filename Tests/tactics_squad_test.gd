@@ -34,7 +34,7 @@ func _run() -> bool:
 	if not _kit.load_catalog():
 		return false
 	var checks: Array[Callable] = [
-		_check_order_slots, _check_anticipation_shift, _check_blocked_slots, _check_free_seeks,
+		_check_order_slots, _check_dead_leader_slots, _check_anticipation_shift, _check_blocked_slots, _check_free_seeks,
 		_check_free_helps, _check_soldier_priority, _check_charge_turns, _check_charge_engagements,
 		_check_charge_focus, _check_charge_damage_taken, _check_charge_soldiers_lost,
 		_check_area_skill_and_fire, _check_ai_skill, _check_ai_own_side_skill, _check_stat_passives, _check_squad_passive,
@@ -101,6 +101,20 @@ func _check_order_slots() -> bool:
 		if not (Kit.expect("%s preview equals the move" % order, preview, cells) and Kit.expect("%s cells" % order, cells, expected[order])):
 			return false
 	return true
+
+
+# A squad whose leader died fights as `free`, so the leader has no
+# formation slots any more.
+func _check_dead_leader_slots() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows())
+	var leader := _kit.add(battle, A, _kit.leader(THIET_NHA, [], {"hp_pct": 5}), Vector2i(5, 6), _spearmen(1))
+	var spear := _kit.add(battle, B, _kit.leader(MOON_SPEAR, [], {"keywords": _kit.keywords([])}), Vector2i(5, 5))
+	_kit.add(battle, B, _kit.leader(THIET_NHA), Vector2i(11, 0))
+	var before := battle.get_formation_slots(leader).size()
+	battle.start()
+	battle.end_phase()
+	battle.attack(spear, leader)
+	return Kit.expect("slots before and after the death", [before, battle.get_unit_state(leader)["alive"], battle.get_formation_slots(leader)], [1, false, []])
 
 
 # Two moves north in a row push the vanguard one cell further ahead; a turn
