@@ -1,28 +1,36 @@
 extends SceneTree
 
-# Headless test of the posed unit figures: every class (and an unknown one)
-# x race (and an unknown one) x cost 1..5 draws in the rest pose and in each
-# extreme pose without a script error (counted by a Logger), inside a real
-# draw notification (the headless renderer still calls _draw; it only
-# discards what is drawn);
-# draw_figure without a pose and draw_bust still work. Then the
-# PoseAnimator through UnitView: an attack turns the figure and settles at
-# the combat stance, walking drops it, a wind-up holds until the next attack
-# releases it, death ends dead-eyed and still, stone freezes the pose and
-# its redraws, idle redraws are throttled (a calm figure only blinks), and
-# the battle speed scales every pose animation, also when it changes
-# mid-cast. Then real event orders from the battle replay, which must leave
-# no skill pose behind: cavalry Breakthrough (wind-up, then charge and
-# resolve in one tick), a resolve followed one tick later by a move or an
-# attack, a cast followed by a cheer, and the automatic release.
+# Headless test of the rigged unit figures. Drawing: every class (with the
+# boss, the sage and an unknown one) x race (and an unknown one) x cost
+# draws posed, unposed and as a bust without a script error. The rig: every
+# class, view and clip solves to finite bones at sampled times, and every
+# standing pose keeps its lowest foot on the ground line. The PoseAnimator
+# through UnitView, for every class in both views: each action (attack,
+# skill, hit, knockback, walk, cheer, and the battle's event orders) ends at
+# the rest pose; death stays down without redraws; stone freezes the pose;
+# figures outside the rig stay idle; idle redraws are throttled and a calm
+# figure only blinks; the battle speed scales the clips, also mid-cast;
+# Breakthrough releases with the resolve; glides and hops clear the lean.
 
-const CLASS_IDS: Array[StringName] = [
+const RIG_CLASS_IDS: Array[StringName] = [
 	&"class.sword", &"class.shield", &"class.spear", &"class.archer", &"class.mage", &"class.cavalry",
 	&"class.unknown_test",
 ]
+const DRAWN_CLASS_IDS: Array[StringName] = [
+	&"class.sword", &"class.shield", &"class.spear", &"class.archer", &"class.mage", &"class.cavalry",
+	&"class.unknown_test", &"class.colossus", &"class.sage",
+]
 const RACE_IDS: Array[StringName] = [&"race.human", &"race.wolf", &"race.unknown_test"]
-const SETTLE_SEC: float = 0.8
+const VIEWS: Array[StringName] = [RigSolver.VIEW_BACK, RigSolver.VIEW_FRONT]
+const CLIPS: Array[StringName] = [&"attackUp", &"attackDown", &"skillUp", &"skillDown", &"hit", &"die", &"fall", &"cheer"]
+const SAMPLES: int = 5
+const GROUND_TOLERANCE: float = 0.35
+# Breathing moves the rest pose by up to 1.5 degrees.
+const REST_TOLERANCE: float = 1.8
 const TOLERANCE: float = 0.02
+# Every animator test but the speed ones runs the battle at x4.
+const FAST: float = 4.0
+const SETTLE_SEC: float = 0.6
 
 
 func _initialize() -> void:
@@ -36,11 +44,9 @@ func _initialize() -> void:
 
 func _run() -> bool:
 	var checks: Array[Callable] = [
-		_check_drawing, _check_attack_stance, _check_walk_drops_stance, _check_wind_up,
-		_check_die, _check_petrify, _check_idle_redraws, _check_calm_idle, _check_speed,
-		_check_speed_change_mid_cast, _check_breakthrough, _check_move_after_resolve,
-		_check_attack_after_resolve, _check_cheer_after_cast, _check_fallback_release,
-		_check_boss_idle, _check_glide_clears_lean,
+		_check_drawing, _check_clips_solve, _check_feet_on_ground, _check_actions_rest, _check_event_orders_rest,
+		_check_wind_up_holds, _check_die, _check_petrify, _check_posed_off_idle, _check_idle_redraws,
+		_check_calm_idle, _check_speed, _check_speed_change_mid_cast, _check_breakthrough, _check_glide_clears_lean,
 	]
 	for check: Callable in checks:
 		if not await check.call():
@@ -50,12 +56,15 @@ func _run() -> bool:
 
 
 func _check_drawing() -> bool:
-	var poses := _extreme_poses()
-	var expected := CLASS_IDS.size() * RACE_IDS.size() * 5 * (poses.size() + 2)
+	var poses: Array[UnitPose] = [
+		RigClips.get_stance(), RigClips.walk_pose(0.3), RigClips.get_clip(&"die")[3].pose,
+		RigClips.get_clip(&"skillUp")[1].pose.with_fields({"trail": 1, "flash": 0.6, "eyes": 2, "dx": 4}),
+	]
+	var expected := DRAWN_CLASS_IDS.size() * RACE_IDS.size() * 5 * (poses.size() + 2)
 	var drawn: Array[int] = [0]
 	var canvas := Node2D.new()
 	canvas.draw.connect(func() -> void:
-		for class_id: StringName in CLASS_IDS:
+		for class_id: StringName in DRAWN_CLASS_IDS:
 			for race_id: StringName in RACE_IDS:
 				for cost: int in range(1, 6):
 					var unit := _make_unit(class_id, race_id, cost)
@@ -79,99 +88,189 @@ func _check_drawing() -> bool:
 	return true
 
 
-# A melee lunge turns the figure toward the target and ends at the combat
-# stance; an archer's shot ends with the bow drawn again.
-func _check_attack_stance() -> bool:
-	var sword := _make_view(&"class.sword", 0)
-	sword.lunge(Vector2(-60, -10))
-	if sword.get_flip() != -1.0:
-		push_error("A lunge to the left should turn the figure left")
-		return false
-	var archer := _make_view(&"class.archer", 1)
-	archer.recoil(Vector2(0, 80))
-	await create_timer(SETTLE_SEC).timeout
-	var ok := _expect_near("sword strike", sword.get_pose().strike, -0.45)
-	ok = _expect_near("archer strike", archer.get_pose().strike, -1.0) and ok
-	ok = _expect_near("archer arrow", archer.get_pose().arrow, 1.0) and ok
-	if archer.get_flip() != -1.0:
-		push_error("A shot straight down keeps the facing of side 1 (left)")
-		ok = false
-	sword.queue_free()
-	archer.queue_free()
-	return ok
+# Every pose a figure can show (clip keys, the blends between them, rests
+# and the run) solves to finite bones.
+func _check_clips_solve() -> bool:
+	for class_id: StringName in RIG_CLASS_IDS:
+		var kit := RigKit.get_kit(class_id)
+		for view: StringName in VIEWS:
+			var poses: Array[UnitPose] = [kit.idle[view], kit.stance[view]]
+			for clip: StringName in CLIPS:
+				var from := kit.stance[view]
+				for key: RigClips.ClipKey in kit.get_clip(clip, view):
+					for sample: int in SAMPLES:
+						poses.append(UnitPose.blend(from, key.pose, RigClips.eased(key.easing, (sample + 1.0) / SAMPLES)))
+					from = key.pose
+			for step: int in 20:
+				poses.append(kit.get_walk_pose(step / 20.0, view))
+			for pose: UnitPose in poses:
+				if not _is_finite(RigSolver.solve(pose, view)):
+					push_error("%s seen from %s solves to a NaN bone in %s" % [class_id, view, pose.values])
+					return false
+	return true
 
 
-func _check_walk_drops_stance() -> bool:
-	var view := _make_view(&"class.spear", 0)
-	view.lunge(Vector2(0, -80))
-	await create_timer(SETTLE_SEC).timeout
-	view.glide_to(view.position + Vector2(0, -88), 0.3, &"walk")
-	await create_timer(0.1).timeout
+# A pose standing on its legs (leg IK on, no jump, not riding) puts each
+# foot that its leg can reach where the sketch plants it: the ankle above
+# the ground line at x = f, raised by the lift `l` and shifted by half the
+# step `st` (a foot farther from the viewer shows higher on screen).
+func _check_feet_on_ground() -> bool:
 	var ok := true
-	if view.get_pose().stride < 0.5:
-		push_error("Walking should move the legs, stride %.2f" % view.get_pose().stride)
+	for class_id: StringName in RIG_CLASS_IDS:
+		var kit := RigKit.get_kit(class_id)
+		for view: StringName in VIEWS:
+			var poses: Array[UnitPose] = [kit.idle[view], kit.stance[view]]
+			for clip: StringName in [&"attackUp", &"attackDown", &"skillUp", &"skillDown", &"hit", &"cheer"]:
+				for key: RigClips.ClipKey in kit.get_clip(clip, view):
+					poses.append(key.pose)
+			for pose: UnitPose in poses:
+				var v := pose.values
+				if v[UnitPose.IK] < 1.0 or v[UnitPose.JUMP] != 0.0 or v[UnitPose.RIDE] != 0.0:
+					continue
+				var frame := RigSolver.solve(pose, view)
+				var toward := -1.0 if view == RigSolver.VIEW_BACK else 1.0
+				for foot: Array in [[RigSolver.TH_F, RigSolver.FT_F, UnitPose.F_F, UnitPose.L_F, UnitPose.ST_F], [RigSolver.TH_B, RigSolver.FT_B, UnitPose.F_B, UnitPose.L_B, UnitPose.ST_B]]:
+					var planted := Vector2(v[foot[2]], -RigSolver.ANKLE - v[foot[3]] + toward * v[foot[4]] * 0.5)
+					if frame.bones[foot[0]].origin.distance_to(planted) > 2.0 * RigSolver.LEG:
+						continue
+					var ankle := frame.bones[foot[1]].origin
+					if ankle.distance_to(planted) > GROUND_TOLERANCE:
+						push_error("%s seen from %s puts a foot at %s, not %s" % [class_id, view, ankle, planted])
+						ok = false
+	return ok
+
+
+# Each action, for every class seen from both sides, ends at the rest pose:
+# the stance after a fight action, idle after a walk or a cheer.
+func _check_actions_rest() -> bool:
+	var actions: Dictionary[String, Callable] = {
+		"attack": func(view: UnitView) -> void: view.lunge(Vector2(30, -80) * _ahead(view)),
+		"skill": func(view: UnitView) -> void:
+			view.wind_up(0.4)
+			await create_timer(0.4 / FAST).timeout
+			view.recoil(Vector2(0, -80) * _ahead(view)),
+		"hit": func(view: UnitView) -> void: view.hit_flash(),
+		"knockback": func(view: UnitView) -> void: view.glide_to(view.position + Vector2(0, 40), 0.4, &"knockback"),
+		"walk": func(view: UnitView) -> void: view.glide_to(view.position + Vector2(0, -80), 0.6, &"walk"),
+		"cheer": func(view: UnitView) -> void: view.cheer(),
+	}
+	var ok := true
+	for action: String in actions:
+		ok = await _expect_rest_after(action, actions[action]) and ok
+	return ok
+
+
+# The battle replay's orders that once left a skill pose behind: a resolve
+# followed one tick later by a move or an attack, a cast then a cheer.
+func _check_event_orders_rest() -> bool:
+	var tick := 0.05 / FAST
+	var orders: Dictionary[String, Callable] = {
+		"move after a resolve": func(view: UnitView) -> void:
+			view.wind_up(0.45)
+			await create_timer(0.45 / FAST).timeout
+			view.recoil(Vector2(0, -1) * _ahead(view))
+			await create_timer(tick).timeout
+			view.glide_to(view.position + Vector2(0, -80), 0.5, &"walk"),
+		"attack after a resolve": func(view: UnitView) -> void:
+			view.wind_up(0.45)
+			await create_timer(0.45 / FAST).timeout
+			view.recoil(Vector2(0, -1) * _ahead(view))
+			await create_timer(tick).timeout
+			view.lunge(Vector2(0, -80) * _ahead(view)),
+		"cheer after a cast": func(view: UnitView) -> void:
+			view.recoil(Vector2(0, -1) * _ahead(view))
+			await create_timer(tick * 2.0).timeout
+			view.cheer(),
+	}
+	var ok := true
+	for order: String in orders:
+		ok = await _expect_rest_after(order, orders[order]) and ok
+	return ok
+
+
+# A wind-up holds raised and glowing until the cast ends, then releases by
+# itself if no resolve came.
+func _check_wind_up_holds() -> bool:
+	var view := _make_view(&"class.sword", 0)
+	var animator := view.get_animator()
+	view.wind_up(0.6)
+	await create_timer(0.55).timeout
+	var ok := true
+	if not animator.is_winding or view.get_pose().values[UnitPose.GLOW] < 0.5:
+		push_error("A wind-up should hold and glow before the cast ends")
 		ok = false
-	await create_timer(SETTLE_SEC).timeout
-	ok = _expect_near("strike after walking", view.get_pose().strike, 0.0) and ok
-	ok = _expect_near("stride after walking", view.get_pose().stride, 0.0) and ok
+	await create_timer(PoseAnimator.RELEASE_GRACE_SEC + 0.1).timeout
+	if animator.is_winding:
+		push_error("A wind-up should release by itself just after the cast")
+		ok = false
+	await create_timer(1.6).timeout
+	ok = _expect_rest("automatic release", view) and ok
 	view.queue_free()
 	return ok
 
 
-# The wind-up holds the raised weapon until the resolve's recoil releases it.
-func _check_wind_up() -> bool:
-	var view := _make_view(&"class.cavalry", 0)
-	view.wind_up(0.5)
-	await create_timer(0.45).timeout
-	var pose := view.get_pose()
-	if pose.raise < 0.8 or pose.rear < 0.8 or pose.glow < 0.8:
-		push_error("Wind-up should raise, rear and glow: %.2f %.2f %.2f" % [pose.raise, pose.rear, pose.glow])
-		return false
-	view.recoil(Vector2(0, -1))
-	await create_timer(SETTLE_SEC).timeout
-	var ok := _expect_near("raise after release", pose.raise, 0.0)
-	ok = _expect_near("rear after release", pose.rear, 0.0) and ok
-	ok = _expect_near("strike after release", pose.strike, -0.45) and ok
-	view.queue_free()
-	return ok
-
-
+# Down for good: the last pose of the fall, no redraws, and no later action moves it.
 func _check_die() -> bool:
-	var view := _make_view(&"class.mage", 1)
-	view.die()
-	await create_timer(1.2).timeout
-	var pose := view.get_pose()
-	var ok := _expect_near("limp after death", pose.limp, 1.0)
-	if pose.eyes != UnitPose.Eyes.DEAD:
-		push_error("A dead unit should have dead eyes, not %d" % pose.eyes)
-		ok = false
-	var sway := pose.sway
-	var draws := _count_draws(view)
-	await create_timer(0.4).timeout
-	if pose.sway != sway or draws[0] != 0:
-		push_error("A dead unit should not sway or redraw (%d redraws)" % draws[0])
-		ok = false
-	view.queue_free()
+	var ok := true
+	for class_id: StringName in RIG_CLASS_IDS:
+		var view := _make_view(class_id, 1)
+		view.playback_speed = FAST
+		view.die()
+		await create_timer(0.5).timeout
+		var fallen := view.get_pose().values
+		var draws := _count_draws(view)
+		view.lunge(Vector2(0, 80))
+		view.wind_up(0.3)
+		view.hit_flash()
+		view.cheer()
+		view.glide_to(view.position + Vector2(0, 40), 0.3, &"walk")
+		await create_timer(0.4).timeout
+		var fall := RigKit.get_kit(class_id).get_clip(&"fall", RigSolver.VIEW_FRONT)
+		var last := fall[fall.size() - 1].pose.values
+		if view.get_pose().values != fallen or fallen != last or draws[0] != 0:
+			push_error("%s should stay down in its last fall pose without redraws (%d redraws)" % [class_id, draws[0]])
+			ok = false
+		view.queue_free()
 	return ok
 
 
 func _check_petrify() -> bool:
-	var view := _make_view(&"class.sword", 0)
+	var view := _make_view(&"class.spear", 0)
 	view.lunge(Vector2(40, -80))
 	await create_timer(0.05).timeout
 	view.set_petrified(true)
-	var pose := view.get_pose()
-	var frozen := [pose.strike, pose.trail, pose.sway, pose.eyes]
+	var frozen := view.get_pose().values
+	var trail := view.get_animator().trail_weights.duplicate()
 	var draws := _count_draws(view)
 	await create_timer(0.5).timeout
 	var ok := true
-	if [pose.strike, pose.trail, pose.sway, pose.eyes] != frozen or draws[0] != 0:
-		push_error("Stone should freeze the pose and its redraws: %s -> %s, %d redraws" % [frozen, [pose.strike, pose.trail, pose.sway, pose.eyes], draws[0]])
+	if view.get_pose().values != frozen or view.get_animator().trail_weights != trail or draws[0] != 0:
+		push_error("Stone should freeze the pose, the trail and the redraws (%d redraws)" % draws[0])
 		ok = false
 	view.set_petrified(false)
+	view.playback_speed = FAST
 	await create_timer(SETTLE_SEC).timeout
-	ok = _expect_near("strike after the stone", pose.strike, -0.45) and ok
+	ok = _expect_rest("after the stone", view) and ok
 	view.queue_free()
+	return ok
+
+
+# Figures outside the rig (the boss, the sage) never pose or redraw while
+# idle, even though Godot re-enables processing when they enter the tree.
+func _check_posed_off_idle() -> bool:
+	var ok := true
+	for class_id: StringName in [&"class.colossus", &"class.sage"]:
+		var view := _make_view(class_id, 1)
+		await create_timer(0.3).timeout
+		var draws := _count_draws(view)
+		view.lunge(Vector2(0, 80))
+		view.wind_up(0.2)
+		view.get_animator().walk(0.2, false)
+		await create_timer(1.0).timeout
+		if draws[0] > 2 or view.get_animator().is_animating():
+			push_error("%s should not pose; it redrew %d times in 1 s" % [class_id, draws[0]])
+			ok = false
+		view.queue_free()
 	return ok
 
 
@@ -180,36 +279,32 @@ func _check_idle_redraws() -> bool:
 	var view := _make_view(&"class.archer", 0)
 	await create_timer(0.3).timeout
 	var draws := _count_draws(view)
-	var frames: Array[int] = [0]
-	var count_frame := func() -> void: frames[0] += 1
-	process_frame.connect(count_frame)
 	await create_timer(1.0).timeout
-	process_frame.disconnect(count_frame)
 	view.queue_free()
 	if draws[0] < 7 or draws[0] > 14:
-		push_error("Idle should redraw about 10 times a second, not %d (in %d frames)" % [draws[0], frames[0]])
+		push_error("Idle should redraw about 10 times a second, not %d" % draws[0])
 		return false
 	return true
 
 
-# A calm figure (bench, dimmed line-up) holds its sway and redraws only to
+# A calm figure (bench, dimmed line-up) holds still and redraws only to
 # blink, at most twice per blink.
 func _check_calm_idle() -> bool:
 	var view := _make_view(&"class.mage", 1)
 	view.set_dim(0.4)
 	await create_timer(0.3).timeout
-	var sway := view.get_pose().sway
+	var torso := view.get_pose().values[UnitPose.TORSO]
 	var draws := _count_draws(view)
 	await create_timer(2.0).timeout
 	var ok := true
-	if draws[0] > 4 or view.get_pose().sway != sway:
-		push_error("A calm figure should only blink: %d redraws in 2 s, sway %.2f -> %.2f" % [draws[0], sway, view.get_pose().sway])
+	if draws[0] > 4 or view.get_pose().values[UnitPose.TORSO] != torso:
+		push_error("A calm figure should only blink: %d redraws in 2 s" % draws[0])
 		ok = false
 	view.set_dim(0.0)
 	draws = _count_draws(view)
 	await create_timer(0.5).timeout
 	if draws[0] < 3:
-		push_error("A figure no longer dimmed should sway again, %d redraws" % draws[0])
+		push_error("A figure no longer dimmed should breathe again, %d redraws" % draws[0])
 		ok = false
 	view.queue_free()
 	return ok
@@ -218,13 +313,16 @@ func _check_calm_idle() -> bool:
 func _check_speed() -> bool:
 	var slow := _make_view(&"class.shield", 0)
 	var fast := _make_view(&"class.shield", 0)
-	fast.playback_speed = 4.0
+	fast.playback_speed = FAST
+	var seconds := 0.0
+	for key: RigClips.ClipKey in RigKit.get_kit(&"class.shield").get_clip(&"attackUp", RigSolver.VIEW_BACK):
+		seconds += key.seconds
 	slow.lunge(Vector2(0, -80))
 	fast.lunge(Vector2(0, -80))
-	await create_timer(0.2).timeout
-	var ok := _expect_near("strike at x4 after 0.2 s", fast.get_pose().strike, -0.45)
-	if absf(slow.get_pose().strike + 0.45) < 0.2:
-		push_error("At x1 the swing should still be on after 0.2 s, strike %.2f" % slow.get_pose().strike)
+	await create_timer(seconds / FAST + PoseAnimator.REST_SETTLE_SEC / FAST + 0.15).timeout
+	var ok := _expect_rest("attack at x4", fast)
+	if not slow.get_animator().is_animating():
+		push_error("At x1 the attack should still play after %.2f s" % (seconds / FAST))
 		ok = false
 	slow.queue_free()
 	fast.queue_free()
@@ -232,125 +330,124 @@ func _check_speed() -> bool:
 
 
 # Slowing the battle from x4 to x1 mid-cast slows the wind-up too: it must
-# not release (and strike) before the cast at x1 ends.
+# not release before the cast at x1 ends.
 func _check_speed_change_mid_cast() -> bool:
 	var view := _make_view(&"class.sword", 0)
-	view.playback_speed = 4.0
+	view.playback_speed = FAST
 	view.wind_up(1.0)
 	await create_timer(0.1).timeout
 	view.playback_speed = 1.0
 	await create_timer(0.5).timeout
-	var pose := view.get_pose()
 	var ok := true
-	if pose.raise < 0.5 or pose.trail > 0.0:
-		push_error("At x1 the wind-up should still hold after 0.6 s (raise %.2f, trail %.2f)" % [pose.raise, pose.trail])
+	if not view.get_animator().is_winding or view.get_pose().values[UnitPose.TRAIL] > 0.0:
+		push_error("At x1 the wind-up should still hold after 0.6 s")
 		ok = false
 	view.recoil(Vector2(0, -1))
+	view.playback_speed = FAST
 	await create_timer(SETTLE_SEC).timeout
-	ok = _expect_settled("after a speed change", view, -0.45) and ok
+	ok = _expect_rest("after a speed change", view) and ok
 	view.queue_free()
 	return ok
 
 
 # Breakthrough: the battle sends the charge move and then the resolve in the
-# same tick. The rider winds up, charges with the lance levelled and glowing,
-# the strike lands with the resolve, and nothing of the skill pose stays.
+# same tick. The rider winds up, gallops, the strike plays with the resolve
+# while the horse keeps galloping, and nothing of the skill pose stays.
 func _check_breakthrough() -> bool:
 	var view := _make_view(&"class.cavalry", 0)
 	view.wind_up(0.6)
 	await create_timer(0.6).timeout
 	view.glide_to(view.position + Vector2(0, -160), 0.6, &"charge")
 	view.recoil(Vector2(0, -1))
-	await create_timer(0.05).timeout
-	var pose := view.get_pose()
-	var ok := true
-	if pose.strike < 0.5 or pose.trail < 0.5:
-		push_error("The release should strike with the resolve: strike %.2f, trail %.2f" % [pose.strike, pose.trail])
-		ok = false
-	await create_timer(0.4).timeout
-	ok = _expect_near("lance during the charge", pose.strike, PoseAnimator.CHARGE_STRIKE) and ok
-	ok = _expect_near("raise during the charge", pose.raise, 0.0) and ok
-	if pose.stride < 0.5:
-		push_error("The horse should gallop during the charge, stride %.2f" % pose.stride)
-		ok = false
-	await create_timer(1.2).timeout
-	ok = _expect_settled("after Breakthrough", view, -0.45) and ok
-	view.queue_free()
-	return ok
-
-
-func _check_move_after_resolve() -> bool:
-	var view := _make_view(&"class.sword", 0)
-	view.wind_up(0.45)
-	await create_timer(0.45).timeout
-	view.recoil(Vector2(0, -1))
-	await create_timer(0.05).timeout
-	view.glide_to(view.position + Vector2(0, -80), 0.5, &"walk")
-	await create_timer(1.5).timeout
-	var ok := _expect_settled("move one tick after the resolve", view, 0.0)
-	view.queue_free()
-	return ok
-
-
-func _check_attack_after_resolve() -> bool:
-	var view := _make_view(&"class.spear", 0)
-	view.wind_up(0.45)
-	await create_timer(0.45).timeout
-	view.recoil(Vector2(0, -1))
-	await create_timer(0.05).timeout
-	view.lunge(Vector2(0, -80))
-	await create_timer(1.5).timeout
-	var ok := _expect_settled("attack one tick after the resolve", view, -0.45)
-	view.queue_free()
-	return ok
-
-
-func _check_cheer_after_cast() -> bool:
-	var view := _make_view(&"class.mage", 0)
-	view.recoil(Vector2(0, -1))
 	await create_timer(0.1).timeout
-	view.cheer()
-	await create_timer(1.8).timeout
-	var ok := _expect_settled("cheer after a cast", view, 0.0)
-	view.queue_free()
-	return ok
-
-
-# With no resolve the wind-up releases by itself just after the cast.
-func _check_fallback_release() -> bool:
-	var view := _make_view(&"class.sword", 0)
-	view.wind_up(0.3)
-	await create_timer(0.3 + PoseAnimator.RELEASE_GRACE_SEC + 0.05).timeout
+	var animator := view.get_animator()
 	var ok := true
-	if view.get_pose().trail < 0.5:
-		push_error("The wind-up should release by itself, trail %.2f" % view.get_pose().trail)
+	if animator.is_winding or not animator.is_animating():
+		push_error("The resolve should release the wind-up during the charge")
 		ok = false
-	await create_timer(SETTLE_SEC).timeout
-	ok = _expect_settled("after the automatic release", view, -0.45) and ok
+	if view.get_pose().values[UnitPose.HG] < 0.5:
+		push_error("The horse should gallop during the charge")
+		ok = false
+	await create_timer(2.0).timeout
+	ok = _expect_rest("after Breakthrough", view) and ok
 	view.queue_free()
 	return ok
 
 
-func _extreme_poses() -> Array[UnitPose]:
-	var fields: Array[Dictionary] = [
-		{},
-		{"stride": 1.0, "step": 1.3, "gallop": 1.3},
-		{"strike": -1.0, "aim": 1.2},
-		{"strike": 1.0, "trail": 0.8, "aim": 1.2},
-		{"strike": 1.0, "aim": 0.0, "trail": 1.0},
-		{"strike": 1.0, "aim": PI, "glow": 1.0},
-		{"raise": 1.0, "glow": 1.0, "crouch": 1.0, "rear": 1.0, "eyes": UnitPose.Eyes.HAPPY},
-		{"flinch": 1.0, "guard": 1.0, "eyes": UnitPose.Eyes.HURT, "sway": -1.0},
-		{"limp": 1.0, "eyes": UnitPose.Eyes.DEAD, "sway": 1.0},
-		{"eyes": UnitPose.Eyes.BLINK, "arrow": 0.0, "strike": -1.0},
-	]
-	var poses: Array[UnitPose] = []
-	for entry: Dictionary in fields:
-		var pose := UnitPose.new()
-		for key: String in entry:
-			pose.set(key, entry[key])
-		poses.append(pose)
-	return poses
+# A knockback glide cut off by a new glide or hop must not leave the unit tilted.
+func _check_glide_clears_lean() -> bool:
+	var view := _make_view(&"class.sword", 0)
+	view.glide_to(view.position + Vector2(40, 0), 0.4, &"knockback")
+	await create_timer(0.2).timeout
+	if absf(view.lean) < 0.05:
+		push_error("A knockback should tilt the unit, lean is %.3f" % view.lean)
+		view.queue_free()
+		return false
+	view.glide_to(view.position + Vector2(0, 80), 0.3, &"walk")
+	var ok := _expect_near("Lean after a glide cut a knockback short", view.lean, 0.0)
+	view.glide_to(view.position + Vector2(40, 0), 0.4, &"knockback")
+	await create_timer(0.2).timeout
+	view.hop_to(view.position + Vector2(0, 80), 0.3)
+	ok = _expect_near("Lean after a hop cut a knockback short", view.lean, 0.0) and ok
+	view.queue_free()
+	return ok
+
+
+# Runs `action` (func(view)) on every rigged class from both sides at x4
+# and expects each to end at its rest pose.
+func _expect_rest_after(label: String, action: Callable) -> bool:
+	var views: Array[UnitView] = []
+	for class_id: StringName in RIG_CLASS_IDS:
+		for side: int in 2:
+			var view := _make_view(class_id, side)
+			view.playback_speed = FAST
+			views.append(view)
+	for view: UnitView in views:
+		action.call(view)
+	await create_timer(1.0).timeout
+	var ok := true
+	for view: UnitView in views:
+		ok = _expect_rest("%s, %s side %d" % [label, view.unit.class_id, view.side], view) and ok
+		view.queue_free()
+	return ok
+
+
+# The pose back at the animator's rest pose (up to breathing), with no
+# clip, trail, glow, flash or step left, and the figure unsquashed.
+func _expect_rest(label: String, view: UnitView) -> bool:
+	var animator := view.get_animator()
+	var values := view.get_pose().values
+	var rest := animator.get_stance().values
+	var worst := 0.0
+	var field := ""
+	for index: int in values.size():
+		var gap := absf(values[index] - rest[index])
+		if index != UnitPose.EYES and gap > worst:
+			worst = gap
+			field = UnitPose.KEYS[index]
+	var ok := true
+	if worst > REST_TOLERANCE or animator.is_animating() or animator.is_winding:
+		push_error("%s: should be at rest, %s is %.2f off (animating %s)" % [label, field, worst, animator.is_animating()])
+		ok = false
+	for index: int in [UnitPose.TRAIL, UnitPose.GLOW, UnitPose.FLASH, UnitPose.DX]:
+		ok = _expect_near("%s: %s" % [label, UnitPose.KEYS[index]], values[index], 0.0) and ok
+	if not view.squash.is_equal_approx(Vector2.ONE):
+		push_error("%s: squash should be (1, 1), not %s" % [label, view.squash])
+		ok = false
+	return ok
+
+
+func _is_finite(frame: RigSolver.Frame) -> bool:
+	for bone: Transform2D in frame.bones:
+		for axis: Vector2 in [bone.x, bone.y, bone.origin]:
+			if not axis.is_finite():
+				return false
+	return true
+
+
+# The enemy side attacks down the board.
+func _ahead(view: UnitView) -> float:
+	return 1.0 if view.side == 0 else -1.0
 
 
 func _make_unit(class_id: StringName, race_id: StringName, cost: int) -> UnitData:
@@ -378,53 +475,6 @@ func _count_draws(view: UnitView) -> Array[int]:
 		if child is UnitFigure:
 			(child as UnitFigure).draw.connect(func() -> void: draws[0] += 1)
 	return draws
-
-
-# A figure that ignores poses (a boss) does not redraw while idle, even
-# though Godot re-enables processing when it enters the tree.
-func _check_boss_idle() -> bool:
-	var view := _make_view(&"class.colossus", 1)
-	await create_timer(0.3).timeout
-	var draws := _count_draws(view)
-	await create_timer(1.0).timeout
-	var ok := true
-	if draws[0] > 0:
-		push_error("An idle figure that ignores poses redrew %d times in 1 s" % draws[0])
-		ok = false
-	view.queue_free()
-	return ok
-
-
-# A knockback glide cut off by a new glide or hop must not leave the unit tilted.
-func _check_glide_clears_lean() -> bool:
-	var view := _make_view(&"class.sword", 0)
-	view.glide_to(view.position + Vector2(40, 0), 0.4, &"knockback")
-	await create_timer(0.2).timeout
-	if absf(view.lean) < 0.05:
-		push_error("A knockback should tilt the unit, lean is %.3f" % view.lean)
-		view.queue_free()
-		return false
-	view.glide_to(view.position + Vector2(0, 80), 0.3, &"walk")
-	var ok := _expect_near("Lean after a glide cut a knockback short", view.lean, 0.0)
-	view.glide_to(view.position + Vector2(40, 0), 0.4, &"knockback")
-	await create_timer(0.2).timeout
-	view.hop_to(view.position + Vector2(0, 80), 0.3)
-	ok = _expect_near("Lean after a hop cut a knockback short", view.lean, 0.0) and ok
-	view.queue_free()
-	return ok
-
-
-# Every skill and hit field back at rest, the strike at `strike`, the
-# figure unsquashed.
-func _expect_settled(label: String, view: UnitView, strike: float) -> bool:
-	var pose := view.get_pose()
-	var ok := _expect_near("%s: strike" % label, pose.strike, strike)
-	for field: String in ["raise", "crouch", "rear", "glow", "trail", "flinch", "guard", "stride"]:
-		ok = _expect_near("%s: %s" % [label, field], pose.get(field), 0.0) and ok
-	if not view.squash.is_equal_approx(Vector2.ONE):
-		push_error("%s: squash should be (1, 1), not %s" % [label, view.squash])
-		ok = false
-	return ok
 
 
 func _expect_near(label: String, value: float, expected: float) -> bool:
