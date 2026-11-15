@@ -239,7 +239,8 @@ cells here are global.
   from the moment it arrives (`RunHud.hold_gold()`) and counts up to it
   when the coins land (`release_gold()`), so it never shows the new total
   early and drops back. The end screen shows the result, stages cleared
-  and the board's units.
+  and the board's units as portraits: each unit is cut off at its panel's
+  lower edge and its star pips sit under the panel.
 - The top bar has the sound switch (`MuteButton`) and, from stage 6, the
   boss badge; in the boss battle the boss bar takes the title's place.
 - Every control keeps at least 24 px (`RunLayout.SAFE_EDGE_PX`) from the top

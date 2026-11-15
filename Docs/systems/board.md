@@ -10,7 +10,9 @@ cell signals, and keeps the player's formation. It does not run battles
 
 - Layer: presentation, plus one pure-data bridge class (`Lineup`).
 - `Scenes/Board/`: `board_view.gd` and `board_view.tscn` (`BoardView`),
-  `unit_view.gd` (`UnitView`), `unit_figure.gd` (`UnitFigure`),
+  `unit_view.gd` (`UnitView`) with `unit_bar.gd` (`UnitBar`, its hp bar,
+  Khí bar and star pips) and `figure_tweens.gd` (`FigureTweens`, its
+  whole-figure squash and offset steps), `unit_figure.gd` (`UnitFigure`),
   `unit_painter.gd` (`UnitPainter`, the entry point and race looks), the
   bone rig ported from [the approved sketch](../sketches/unit-rig/README.md):
   `unit_pose.gd` (`UnitPose`), `rig_solver.gd` (`RigSolver`),
@@ -146,15 +148,15 @@ pose otherwise.
 | View method | Animator call | Clip |
 | --- | --- | --- |
 | `lunge(direction)`, `recoil(direction)` | `attack(aim)` | `attackUp` from behind, `attackDown` from the front; during a wind-up it is `release()` |
-| `wind_up(seconds)` | `wind_up(seconds)` | the first `RigKit.skill_wind_keys` keys of `skillUp`/`skillDown`, stretched over the cast and held; released by the next attack, or by itself `RELEASE_GRACE_SEC` after the cast |
+| `wind_up(seconds)` | `wind_up(seconds)` | the first `RigKit.skill_wind_keys` keys of `skillUp`/`skillDown`, stretched over the cast; the last key is held, glowing and without breathing, until the next attack releases it, or it releases itself `RELEASE_GRACE_SEC` after the cast |
 | (next attack) | `release()` | the rest of the skill clip (the strike) |
 | `hit_flash()` | `hit()` | `hit` (a shield braces); ignored while winding up or running |
 | `glide_to(..., &"walk")` | `walk(seconds, false)` | the run cycle (a gallop for the rider), blended in and settled out; drops the fight stance and cancels a wind-up |
-| `glide_to(..., &"charge")` | `walk(seconds, true)` | the run 1.5 times faster; keeps a wind-up glowing, so Breakthrough's resolve (same tick) strikes while the horse gallops on |
+| `glide_to(..., &"charge")` | `walk(seconds, true)` | the run 1.5 times faster; keeps a wind-up glowing and settles back to its held key, so Breakthrough's resolve (same tick) strikes while the horse gallops on; under a strike the gallop rises and slows smoothly (`WALK_BLEND_SEC`, `WALK_SETTLE_SEC`) |
 | `glide_to(..., &"knockback")` | `flinch_for(seconds)` | the first `hit` pose without the flash, held for the slide, then a settle |
 | `die()` | `die()` | `fall` (the first keys of `die`), held: the unit stays down, no idle |
 | `cheer()` | `cheer()` | `cheer` (weapon raised, happy eyes, a hop); ends a wind-up without its strike |
-| `set_petrified(bool)` | `set_frozen(bool)` | none: the pose and its redraws freeze exactly as they are |
+| `set_petrified(bool)` | `set_frozen(bool)` | none: the pose and its redraws freeze as they are, without a hit's white flash or the weapon trail |
 | `setup()` | `set_class()`, `set_view()` | the idle pose |
 
 A pose's step toward the target (`dx`) moves the whole figure along the
@@ -162,15 +164,22 @@ attack direction (`PUSH_PER_STEP` forward, `PULL_PER_STEP` back, like the
 sketch's board) instead of shifting the body inside it. Turning: the
 figure (only the figure: never the ring, bars, pips, stone or skill marks)
 is mirrored to face the target when the target is more than 6 px to the
-side; archers turn their bow hand toward it. Whole-body squashes, lunges
-and hops stay for the boss and the sage only.
+side; archers turn their bow hand toward it. For a target straight ahead
+other figures keep their facing, while an archer turns its bow hand as the
+sketch does (the sketch counts a straight target as "to the right": the
+player's archer faces left, the enemy's right), so every straight shot
+looks the same whatever came before. The sketch also turns idle archers
+toward their target; the board does not know targets outside a battle,
+so an archer turns only when it shoots. Whole-body squashes, lunges and
+hops stay for the boss and the sage only.
 
 Redraws: a figure redraws only when its pose changed. While idle it
-breathes and blinks about 10 times a second, at a phase offset per unit,
-so 16 units do not redraw on the same frame; a calm figure (bench, dimmed
-line-up) only redraws when it blinks. While a clip, the run or a weapon
-trail plays it redraws at most 30 times a second, and once more when it
-ends. A petrified figure, a dead one after its fall, a boss and the sage
+breathes and blinks about 10 times a second of real time (so also at x4),
+at a phase offset per unit, so 16 units do not redraw on the same frame; a
+calm figure (bench, dimmed line-up) only redraws when it blinks, and a
+held wind-up does not breathe at all. While a clip, the run or a weapon
+trail plays it redraws at most 30 times a second of real time, and once
+more when it ends; the weapon trail takes one sample per such redraw. A petrified figure, a dead one after its fall, a boss and the sage
 (they ignore poses, `UnitPainter.is_posable()`) never redraw on their own.
 
 `UnitPose` (RefCounted): the sketch's 48 pose fields in one
@@ -198,8 +207,15 @@ weapon tip for the trail, where the glow sits, how many skill keys are the
 wind-up, `is_mounted` and `aims_off_hand`.
 
 `UnitPainter` (static): `draw_figure(canvas, unit, facing, flash, origin,
-scale, pose = null, animator = null)`, `draw_bust(canvas, unit, center,
-scale)` (front view) and `draw_star_pips(canvas, center, count, radius)`.
+scale, pose = null, animator = null, pixels_per_unit = 0)`,
+`draw_bust(canvas, unit, center, scale)` (front view),
+`draw_star_pips(canvas, center, count, radius)` and `draw_ring(canvas,
+center, radius, color, dust)` (a view's base ring and dust puff). `flash`
+whitens only the figures outside the rig; a rigged `UnitFigure` flashes
+through its own canvas shader (`FLASH_WHITE` at most), so a flash never
+rebuilds or re-caches the figure's triangles. `pixels_per_unit` is the
+on-screen size of one figure unit (0: `scale`; `UnitFigure` passes the
+view's figure scale, not its squashed transform).
 Without a pose a figure stands in its class's idle pose (shop cards, the
 roster, the drag ghost, the info panel, the end screen, the cutscene).
 `FACING_UP` draws the back view, `FACING_DOWN` the front. The race picks
@@ -211,11 +227,17 @@ boss and the sage) keep their own `FigureBrush` drawers.
 trail, the glow (four translucent discs, no gradients), then the pieces in
 the view's draw order, the ink outlines of all pieces of one draw order
 before their fills so touching pieces read as one shape. Curves become
-polygons once: each piece's mesh is cached by class, race, the inputs it
+polygons once: each piece's mesh is cached by piece, race, the inputs it
 uses (rounded: limb scale, heel, weapon length, eyes, sway, glow, view)
-and the line softness for the on-screen scale, so a frame only transforms
-cached triangles. The bow and the horse are built per frame from cached
-parts. `UnitPainter` submits the list as one triangle array: one draw
+and the line softness level (1 to 5, from the figure's on-screen size, so
+board figures, busts and the big cutscene figures each use one), so a
+frame only transforms cached triangles. Parts that would multiply the
+cache are their own pieces: a weapon's slide along its hand is a move of
+the cached weapon, the spear's tassel, the lance's pennant, the staff's
+orb, the face and the scarf tails sway or change on their own, and the
+torso no longer sways. The bow and the horse are built per frame from
+cached parts. The cache holds at most `RigPainter.MAX_MESHES` (1,500)
+meshes; past that the oldest quarter is dropped. `UnitPainter` submits the list as one triangle array: one draw
 call per figure. Every line gets a feather on each side fading to
 transparent (about 0.75 px on screen), which stands in for antialiasing.
 
@@ -315,25 +337,37 @@ plays the battle to its end at x4, checks that "Xếp lại" restores the
 line-up and its views, and that the speed button afterwards does not touch
 the freed battle views. The look is checked by eye from screenshots.
 
-`Tests/unit_pose_test.gd` (headless, in CI) draws every class (with the
-boss, the sage and an unknown one) x race (and an unknown one) x cost 1..5
+`Tests/unit_pose_test.gd` (headless, in CI) plays every clip and the run
+of every class from both sides in both races three times at 30 poses a
+second and checks the mesh cache stays under 1,300 meshes and grows by
+less than 5% on the last play, then paints 3,000 random blends at random
+sizes and checks the cache never passes `MAX_MESHES`. It draws every class
+(with the boss, the sage and an unknown one) x race (and an unknown one)
 in several poses, unposed and as a bust inside a real draw notification
 (the headless renderer still runs `_draw`) and fails on any logged error.
 It solves every class, view and clip at sampled times (keys and the blends
 between them, rests and the run) and fails on a NaN bone, and checks that
 every standing pose plants each foot its leg can reach where the sketch
-puts it. Through `UnitView`, for every class from both sides, it checks
-that each action (attack, skill, hit, knockback, walk, cheer, and the
-event orders of real battles: a resolve followed one tick later by a walk
-or an attack, a cast then a cheer) ends at the rest pose with no clip,
-trail, glow, flash or step left and the figure unsquashed. It also checks
-that a wind-up holds and then releases by itself, a dead unit stays in its
-last fall pose with no redraws whatever comes next, stone freezes the
-pose, the trail and the redraws, the boss and the sage never pose or
-redraw, idle redraws stay near 10 a second, a calm figure only blinks, x4
-speed plays the clip four times as fast, slowing from x4 to x1 mid-cast
-keeps the wind-up held, Breakthrough releases with the resolve while the
-horse gallops on, and a glide or hop clears a knockback's lean.
+puts it.
+
+`Tests/pose_animator_test.gd` (headless, in CI; both share
+`Tests/pose_test_kit.gd`) checks through `UnitView`, for every class from
+both sides, that each action (attack, skill, hit, knockback, walk, cheer,
+and the event orders of real battles: a resolve followed one tick later by
+a walk or an attack, a cast then a cheer) ends at the rest pose with no
+clip, trail, glow, flash or step left and the figure unsquashed. It also
+checks, sampling every frame, that a wind-up holds its last key glowing
+through the grace window (also after a charge) and then releases by
+itself; that a dead unit, still shown, stays in its last fall pose with no
+redraws whatever comes next; that stone freezes the pose and redraws and
+drops the trail, and a statue made mid-hit keeps no flash; that the boss
+and the sage never pose or redraw; that idle redraws stay near 10 a second
+at x1 and x4; that a calm figure only blinks; that x4 speed plays the clip
+four times as fast and slowing from x4 to x1 mid-cast keeps the wind-up
+held; that Breakthrough releases with the resolve while the horse gallops
+on, and the gallop never jumps under a strike; that a glide or hop clears
+a knockback's lean; and that an archer shooting straight ahead turns as
+the sketch does.
 
 ## Known limits
 
@@ -342,9 +376,19 @@ horse gallops on, and a glide or hop clears a knockback's lean.
 - Long-press info during a battle finds the unit by its current cell.
 - A rigged figure costs about 0.2 ms of GDScript to redraw in the debug
   build on a desktop CPU once its meshes are cached (0.3 ms for the archer,
-  whose bow is built per frame, 0.5 ms for the rider and horse), about
+  whose bow is built per frame, 0.43 ms for the rider and horse), about
   3,300 to 5,000 triangles in one draw call. Throttled redraws keep it in
-  hand. Not measured on a phone or in a release build.
+  hand. The animator itself costs about 0.01 ms a frame per figure during
+  an attack (the trail's rig solve runs at most 30 times a second). Not
+  measured on a phone or in a release build.
+- The mesh cache is not freed while the game runs. Playing every clip of
+  every class from both sides in both races fills it with about 1,060
+  meshes (18.5 MB of points and colours, measured in
+  `Tests/unit_pose_test.gd`'s set-up), and further plays add next to
+  nothing. Busts and the big cutscene figures add their own softness
+  level. `MAX_MESHES` (1,500, about 27 MB) is a backstop: past it the
+  oldest quarter of the meshes is dropped and rebuilt when next needed, a
+  short stutter.
 - Differences from the sketch: the pose's `alpha` is not drawn (the view
   fades instead); `dx` pushes the whole figure (see above) instead of the
   body; a hit is ignored during a wind-up or a run; cost tiers (trim,

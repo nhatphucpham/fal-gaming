@@ -191,6 +191,8 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Fixed
 
+- The end screen's portraits cut the unit off at the panel's edge, so its
+  legs no longer run behind the star pips.
 - Bosses and the sage no longer redraw 10 times a second while idle, and a
   unit that glides or hops right after a knockback is no longer left tilted.
 - The web build had no sound at all: the Music and Sfx buses were added
