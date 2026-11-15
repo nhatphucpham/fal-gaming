@@ -2,8 +2,9 @@ extends SceneTree
 
 # Headless test for the sandbox screen: places units through the same
 # functions the gestures call (no faked touches), checks the 8-unit cap,
-# move, swap and remove, then plays a battle to its end at full speed and
-# checks that "Xếp lại" restores the line-up. Cells are global (col, row).
+# move, swap and remove, then plays a battle to its end at full speed
+# (power saving off while it plays) and checks that "Xếp lại" restores the
+# line-up. Cells are global (col, row).
 
 const MAX_FRAMES: int = 3000
 const STEP_SEC: float = 0.25
@@ -279,6 +280,11 @@ func _check_battle() -> bool:
 	if not _sandbox.start_battle() or _sandbox.phase != SandboxScreen.Phase.BATTLE:
 		push_error("The battle did not start")
 		return false
+	# Low processor mode (project setting) is off while the battle plays.
+	var app := AppLifecycleService.instance
+	if app.is_power_saving() or not app.is_power_saving_wanted:
+		push_error("Power saving should be wanted, and off while a battle plays")
+		return false
 	# Setup input must be ignored: a selected card and a free cell, a drag.
 	var free_cell := _free_player_cell()
 	_setup.tap_roster_card(&"unit.archer")
@@ -298,6 +304,9 @@ func _check_battle() -> bool:
 		push_error("No result after %d frames" % frames)
 		return false
 	print("Sandbox battle ended: winner %d, reason %s" % [_sandbox.last_winner, _sandbox.last_reason])
+	if not app.is_power_saving():
+		push_error("Power saving should be back once the battle has finished")
+		return false
 	_sandbox.return_to_setup()
 	await process_frame
 	if _sandbox.phase != SandboxScreen.Phase.SETUP or _describe(_lineup) != before:

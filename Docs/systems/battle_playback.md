@@ -97,7 +97,7 @@ battle speed with `Sound.set_battle_speed()`.
 
 | Member | Kind | Description |
 | --- | --- | --- |
-| `begin(battle, board, views, clock, catalog = null)` | method | Starts playing a started battle; `views` maps unit index to `UnitView`; resets the clock; sets each view's Khí; `catalog` names skills in popups (none without it) |
+| `begin(battle, board, views, clock, catalog = null)` | method | Starts playing a started battle; `views` maps unit index to `UnitView`; resets the clock; sets each view's Khí; `catalog` names skills in popups (none without it). Holds full frame rate (`AppLifecycleService.hold_full_frame_rate()`, power saving off) until `battle_finished`, `abort()` or leaving the tree; see [App lifecycle](app_lifecycle.md) |
 | `get_view(index)`, `spawn_fx(fx)`, `run_after(seconds, action)`, `cell_center(cell)`, `get_ticks_per_second()`, `get_shake_layers()` | methods | Helpers `SkillPlayback` uses; `run_after` waits battle time at the current speed and is dropped by `abort()` |
 | `advance(delta_sec)` | method | Feeds real time (scaled by speed) to the clock; tests call it directly |
 | `stop()` | method | Stops ticking; delayed animations still finish |
