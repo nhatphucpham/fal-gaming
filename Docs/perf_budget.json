@@ -1,47 +1,50 @@
 {
-	"_comment": "Max per scene and metric for Tools/perf_probe.gd --budget. Lower it when a change makes things faster; never raise it without a written reason in the pull request. See Docs/systems/performance.md.",
+	"_comment": "Max per scene and metric for Tools/perf_probe.gd --budget. headless: plain headless run; rendered: xvfb-run with --rendering-driver opengl3 --resolution 90x160, as CI runs it. Lower it when a change makes things better; never raise it without a written reason in the pull request. See Docs/systems/performance.md.",
 	"headless": {
 		"title": {
-			"cpu_ms_per_frame": 3.9,
-			"redraws_per_sec": 71,
-			"nodes": 65
+			"cpu_ms_per_frame": 4.6,
+			"redraws_per_sec": 76,
+			"nodes": 66,
+			"frames_changed_share": 0.6
 		},
 		"prep_full": {
-			"cpu_ms_per_frame": 5.8,
-			"redraws_per_sec": 516,
-			"nodes": 311
+			"cpu_ms_per_frame": 6.2,
+			"redraws_per_sec": 277,
+			"nodes": 312,
+			"frames_changed_share": 0.6
 		},
 		"battle_x1": {
 			"cpu_ms_per_frame": 15.2,
-			"redraws_per_sec": 2232,
-			"nodes": 313
+			"redraws_per_sec": 1858,
+			"nodes": 314
 		},
 		"battle_x4": {
-			"cpu_ms_per_frame": 16.7,
-			"redraws_per_sec": 2601,
-			"nodes": 313
+			"cpu_ms_per_frame": 18.4,
+			"redraws_per_sec": 2336,
+			"nodes": 314
 		}
 	},
 	"rendered": {
 		"title": {
-			"draw_calls_max": 334,
+			"draw_calls_max": 49,
 			"primitives_max": 24094,
-			"nodes": 65
+			"nodes": 66,
+			"frames_drawn_share": 0.7
 		},
 		"prep_full": {
-			"draw_calls_max": 953,
-			"primitives_max": 141884,
-			"nodes": 311
+			"draw_calls_max": 667,
+			"primitives_max": 141911,
+			"nodes": 312
 		},
 		"battle_x1": {
-			"draw_calls_max": 1014,
-			"primitives_max": 141968,
-			"nodes": 313
+			"draw_calls_max": 728,
+			"primitives_max": 142062,
+			"nodes": 314
 		},
 		"battle_x4": {
-			"draw_calls_max": 1043,
-			"primitives_max": 143093,
-			"nodes": 313
+			"draw_calls_max": 772,
+			"primitives_max": 143780,
+			"nodes": 314
 		}
 	}
 }
