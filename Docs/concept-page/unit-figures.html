@@ -1,0 +1,1000 @@
+<title>Dáng quân Bát Trận</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;600;800&display=swap">
+<style>
+/* Layout: one column like the game's portrait screen; the stage first, the board fight second, notes last. */
+:root {
+  --bg: #1b2035; --panel: #262d4a; --line: #3a4369; --paper: #e9d6ae; --ink: #2b2320;
+  --text: #f3e6c8; --dim: #b9ad93; --red: #d2462e; --gold: #f2c14e; --blue: #4f7fd6;
+  --font: "Be Vietnam Pro", system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: dark;
+}
+body { background: var(--bg); color: var(--text); font-family: var(--font); font-size: 16px; line-height: 1.55; }
+.wrap { max-width: 720px; margin: 0 auto; padding-block: 28px 56px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 36px; }
+h1 { font-size: clamp(28px, 7vw, 40px); font-weight: 800; line-height: 1.1; margin: 0 0 10px; text-wrap: balance; letter-spacing: -0.01em; }
+h2 { font-size: 21px; font-weight: 800; margin: 0 0 6px; text-wrap: balance; }
+p { margin: 0; max-width: 62ch; }
+.lead { color: var(--dim); }
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); margin: 0 0 8px; }
+section { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 132px; gap: 12px; align-items: stretch; }
+.card { background: var(--paper); border: 3px solid var(--ink); border-radius: 6px; position: relative; overflow: hidden; min-width: 0; }
+.card canvas { display: block; width: 100%; height: auto; }
+.tag { position: absolute; left: 8px; top: 6px; font-size: 12px; font-weight: 800; color: var(--ink); letter-spacing: 0.06em; text-transform: uppercase; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; }
+.label { font-size: 12px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); margin: 4px 0 -6px; }
+button { font: inherit; font-weight: 600; color: var(--text); background: var(--panel); border: 2px solid var(--line); border-radius: 6px; min-height: 44px; padding: 0 14px; cursor: pointer; }
+button:hover { border-color: var(--dim); }
+button:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+button[aria-pressed="true"] { background: var(--paper); color: var(--ink); border-color: var(--paper); }
+button.act { background: var(--red); border-color: var(--ink); color: #fff; box-shadow: 0 3px 0 var(--ink); }
+button.act:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink); }
+.board { background: #232a45; border: 3px solid var(--ink); border-radius: 6px; overflow: hidden; max-width: 420px; align-self: center; width: 100%; }
+.board canvas { display: block; width: 100%; height: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 15px; }
+th, td { text-align: left; padding: 9px 10px 9px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--dim); font-weight: 600; }
+td:first-child { font-weight: 800; white-space: nowrap; color: var(--gold); }
+.scroll { overflow-x: auto; }
+ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; max-width: 62ch; }
+@media (max-width: 460px) { .stage { grid-template-columns: minmax(0, 1fr) 104px; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Bát Trận · bản phác nhân vật</p>
+    <h1>Quân có khớp tay chân, biết vung vũ khí</h1>
+    <p class="lead">Hiện giờ mỗi quân là một hình đứng yên, chỉ co giãn và nghiêng cả khối. Bản mới cho từng quân tay, chân, vũ khí cử động riêng và thêm trang phục theo nghề. Bấm thử bên dưới.</p>
+  </header>
+
+  <section aria-label="Xem từng quân">
+    <div class="stage">
+      <div class="card"><span class="tag">Mới</span><canvas id="stage" width="640" height="560" aria-label="Quân bản mới đang chuyển động"></canvas></div>
+      <div class="card"><span class="tag">Hiện tại</span><canvas id="old" width="264" height="560" aria-label="Quân bản hiện tại"></canvas></div>
+    </div>
+    <div class="row" id="acts">
+      <button class="act" data-act="attack" id="act-attack">Đánh</button>
+      <button class="act" data-act="skill" id="act-skill">Tung chiêu</button>
+      <button class="act" data-act="hit" id="act-hit">Trúng đòn</button>
+      <button class="act" data-act="walk" id="act-walk">Di chuyển</button>
+      <button class="act" data-act="die" id="act-die">Ngã xuống</button>
+      <button class="act" data-act="cheer" id="act-cheer">Ăn mừng</button>
+    </div>
+    <p class="label">Nghề</p>
+    <div class="row" id="classes"></div>
+    <p class="label">Tộc và giá</p>
+    <div class="row" id="looks"></div>
+  </section>
+
+  <section aria-label="Thử trên bàn cờ">
+    <div>
+      <h2>Nhìn ở cỡ thật trên bàn cờ</h2>
+      <p class="lead">Hai đội tự đánh nhau lặp lại, quân vẽ đúng cỡ trong game trên điện thoại. Quân quay mặt và chĩa vũ khí về phía mục tiêu, nên nhìn là biết ai đang đánh ai.</p>
+    </div>
+    <div class="board"><canvas id="board" width="840" height="800" aria-label="Hai đội quân tự đánh nhau"></canvas></div>
+    <div class="row"><button id="restart">Đánh lại từ đầu</button></div>
+  </section>
+
+  <section aria-label="Bộ hoạt ảnh">
+    <h2>Mỗi quân có 9 hoạt ảnh</h2>
+    <div class="scroll"><table>
+      <thead><tr><th>Hoạt ảnh</th><th>Quân làm gì</th></tr></thead>
+      <tbody>
+        <tr><td>Đứng chờ</td><td>Thở, chớp mắt, khăn, áo choàng, lông mũ và đuôi ngựa đung đưa. Quả cầu của Pháp trôi lơ lửng.</td></tr>
+        <tr><td>Thủ thế</td><td>Khi đã vào trận, quân giữ vũ khí giơ sẵn. Cung luôn giương dây chờ bắn.</td></tr>
+        <tr><td>Di chuyển</td><td>Hai chân bước so le, tay đánh nhịp. Ngựa của Kỵ chạy bốn chân, đuôi và cờ bay ngược.</td></tr>
+        <tr><td>Đánh thường</td><td>Kiếm chém một vòng có vệt sáng. Thương và Kỵ đâm thẳng về mục tiêu. Khiên vừa chém vừa đẩy khiên. Cung buông dây rồi rút tên mới. Pháp chĩa gậy, cầu lóe sáng.</td></tr>
+        <tr><td>Tung chiêu</td><td>Khuỵu gối, giơ cao vũ khí và phát sáng theo màu nghề, rồi mới ra đòn. Ngựa của Kỵ chồm hai chân trước.</td></tr>
+        <tr><td>Trúng đòn</td><td>Ngả người ra sau, nhắm mắt nhăn mặt, lóe trắng. Khiên thì giơ khiên lên đỡ.</td></tr>
+        <tr><td>Ngã xuống</td><td>Khuỵu gối, buông vũ khí, đổ nghiêng rồi mờ dần.</td></tr>
+        <tr><td>Ăn mừng</td><td>Giơ vũ khí, cười và nhảy hai cái khi thắng trận.</td></tr>
+        <tr><td>Hóa đá</td><td>Đứng sững đúng tư thế đang làm dở, chuyển màu xám như hiện nay.</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+
+  <section aria-label="Chi tiết thêm">
+    <h2>Chi tiết thêm trên hình</h2>
+    <ul>
+      <li>Mỗi nghề một kiểu mũ: Khiên đội mũ sắt, Kiếm buộc khăn đỏ, Thương đội nón trận, Cung cài lông vũ, Kỵ có chỏm lông theo màu giá.</li>
+      <li>Quân giá 3 trở lên có giáp vai, giá 4 trở lên có áo choàng, giá 5 đội vương miện như cũ.</li>
+      <li>Lang Tộc có cổ lông, tai giật khi trúng đòn. Tay có khuỷu, chân có gối, có bàn tay và giày.</li>
+      <li>Vẫn vẽ bằng code, không thêm file ảnh nào, nên bản web không nặng thêm. Lúc đứng chờ quân chỉ vẽ lại khoảng 15 lần mỗi giây để nhẹ máy.</li>
+    </ul>
+  </section>
+</div>
+
+<script>
+// Prototype of the posed unit figures for Bat Tran. Mirrors UnitPainter's
+// Brush (poly / circle / stick) so the port to GDScript _draw is mechanical.
+// Figure space: feet at (0,0), y up is negative, head centre at (0,-44).
+// Angles "a": 0 points up, positive turns clockwise (toward +x, then down).
+'use strict';
+
+const PAL = {
+  INK: '#2b2320', CREAM: '#f3e6c8', PAPER_DARK: '#d7c093', VERMILION: '#d2462e',
+  INDIGO: '#2f3e6b', OCHRE: '#d9a23b', GOLD: '#f2c14e', JADE: '#3e9c7e',
+  STEEL: '#d8dde2', STEEL_DARK: '#8f98a3', WOOD: '#8a5a35', LEATHER: '#5b3d2a',
+  SKIN: '#e8b48a', HAIR: '#3a2a22', FUR: '#8f7f6e', FUR_LIGHT: '#d3c3aa',
+  HUMAN_TUNIC: '#3c5a99', WOLF_TUNIC: '#8a5233', TROUSERS: '#4a3b33', BOOT: '#2f2622',
+  HORSE: '#a0643a', WOLF_HORSE: '#6d625a',
+  COST: ['#8e8a82', '#4e9a5b', '#3d6fb5', '#8250a8', '#c8402e'],
+  ELEMENT: { fire: '#ff7a3d', ice: '#9fdcf5', wind: '#8fe0a8', lightning: '#ffe066' },
+};
+const OUTLINE = 2;
+
+function newPose() {
+  return {
+    step: 0,      // walk cycle phase, radians
+    stride: 0,    // 0..1 how much the legs and arms follow `step`
+    strike: 0,    // -1 wound up / drawn, 0 at rest, +1 full strike / released
+    raise: 0,     // 0..1 weapon held high (skill wind-up, cheer)
+    guard: 0,     // 0..1 off hand or shield pulled up in front
+    flinch: 0,    // 0..1 knocked back by a hit
+    limp: 0,      // 0..1 collapsing (death)
+    crouch: 0,    // 0..1 knees bent
+    sway: 0,      // -1..1 idle sway of cloth, tails, plumes
+    aim: Math.PI / 2, // angle "a" toward the target after flipping (0 up .. PI down)
+    trail: 0,     // 0..1 weapon smear right after a strike
+    glow: 0,      // 0..1 weapon / orb glow
+    eyes: 'open', // open | blink | hurt | happy | dead
+    gallop: 0,    // horse leg phase
+    rear: 0,      // 0..1 horse rearing
+    arrow: 1,     // 0..1 an arrow is on the string
+  };
+}
+
+const lerp = (a, b, t) => a + (b - a) * t;
+const vlerp = (p, q, t) => [lerp(p[0], q[0], t), lerp(p[1], q[1], t)];
+const dirOf = (a) => [Math.sin(a), -Math.cos(a)];
+const add = (p, q) => [p[0] + q[0], p[1] + q[1]];
+const mul = (p, k) => [p[0] * k, p[1] * k];
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+function mix(c1, c2, t) {
+  const h = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+  const a = h(c1), b = h(c2);
+  return '#' + a.map((v, i) => Math.round(lerp(v, b[i], t)).toString(16).padStart(2, '0')).join('');
+}
+const darken = (c, t) => mix(c, '#000000', t);
+const lighten = (c, t) => mix(c, '#ffffff', t);
+
+class Brush {
+  constructor(ctx, unit, pose, flash) {
+    this.ctx = ctx; this.unit = unit; this.pose = pose; this.flash = flash || 0;
+    const wolf = unit.race === 'wolf';
+    this.wolf = wolf;
+    this.skin = wolf ? PAL.FUR : PAL.SKIN;
+    this.tunic = wolf ? PAL.WOLF_TUNIC : PAL.HUMAN_TUNIC;
+    this.mount = wolf ? PAL.WOLF_HORSE : PAL.HORSE;
+    this.trim = PAL.COST[clamp(unit.cost, 1, 5) - 1];
+    this.crownY = -60;
+  }
+  tint(c) { return this.flash > 0 ? mix(c, '#ffffff', this.flash) : c; }
+  push(origin, rot) { const c = this.ctx; c.save(); c.translate(origin[0], origin[1]); c.rotate(rot || 0); }
+  pop() { this.ctx.restore(); }
+  path(pts, close) {
+    const c = this.ctx; c.beginPath(); c.moveTo(pts[0][0], pts[0][1]);
+    for (let i = 1; i < pts.length; i++) c.lineTo(pts[i][0], pts[i][1]);
+    if (close) c.closePath();
+  }
+  poly(pts, fill) {
+    const c = this.ctx; this.path(pts, true); c.fillStyle = this.tint(fill); c.fill();
+    c.lineJoin = 'round'; c.strokeStyle = PAL.INK; c.lineWidth = OUTLINE; c.stroke();
+  }
+  outline(pts, color, w) { const c = this.ctx; this.path(pts, true); c.strokeStyle = color; c.lineWidth = w; c.stroke(); }
+  line(pts, color, w) { const c = this.ctx; this.path(pts, false); c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = color; c.lineWidth = w; c.stroke(); }
+  circle(p, r, fill) {
+    const c = this.ctx; c.beginPath(); c.arc(p[0], p[1], r, 0, 7); c.fillStyle = this.tint(fill); c.fill();
+    c.strokeStyle = PAL.INK; c.lineWidth = OUTLINE; c.stroke();
+  }
+  dot(p, r, fill) { const c = this.ctx; c.beginPath(); c.arc(p[0], p[1], r, 0, 7); c.fillStyle = fill; c.fill(); }
+  ellipse(p, rx, ry, fill) {
+    const c = this.ctx; c.beginPath(); c.ellipse(p[0], p[1], rx, ry, 0, 0, 7); c.fillStyle = this.tint(fill); c.fill();
+    c.strokeStyle = PAL.INK; c.lineWidth = OUTLINE; c.stroke();
+  }
+  // A thick line with an ink edge and round ends; `pts` may bend (limbs).
+  stick(pts, w, fill) { this.line(pts, PAL.INK, w + OUTLINE * 2); this.line(pts, this.tint(fill), w); }
+  // Two-bone limb from `root` to `tip`; `bend` +1/-1 picks the elbow side.
+  limb(root, tip, l1, l2, bend, w, fill) {
+    let dx = tip[0] - root[0], dy = tip[1] - root[1];
+    let d = Math.hypot(dx, dy) || 0.001;
+    const reach = l1 + l2 - 0.01;
+    if (d > reach) { dx *= reach / d; dy *= reach / d; d = reach; tip = [root[0] + dx, root[1] + dy]; }
+    const along = (l1 * l1 - l2 * l2 + d * d) / (2 * d);
+    const off = Math.sqrt(Math.max(0, l1 * l1 - along * along)) * bend;
+    const joint = [root[0] + (dx * along - dy * off) / d, root[1] + (dy * along + dx * off) / d];
+    this.stick([root, joint, tip], w, fill);
+    return tip;
+  }
+  glow(p, r, color, amount) {
+    if (amount <= 0) return;
+    const c = this.ctx, g = c.createRadialGradient(p[0], p[1], 0, p[0], p[1], r);
+    g.addColorStop(0, color + 'cc'); g.addColorStop(1, color + '00');
+    c.globalAlpha = amount; c.fillStyle = g; c.beginPath(); c.arc(p[0], p[1], r, 0, 7); c.fill(); c.globalAlpha = 1;
+  }
+}
+
+// ---------------------------------------------------------------- body parts
+
+// Upper-body transform shared by every humanoid: hips drop, torso tilts.
+function bodyFrame(b) {
+  const p = b.pose;
+  const drop = p.limp * 10 + p.crouch * 4 + Math.abs(Math.sin(p.step)) * p.stride * 1.2;
+  const tilt = p.sway * 0.025 - p.flinch * 0.22 + p.limp * 0.5 + p.strike * 0.06;
+  return { drop, tilt };
+}
+
+function drawLegs(b, drop) {
+  const p = b.pose, swing = Math.sin(p.step) * p.stride;
+  for (const side of [-1, 1]) {
+    const lift = Math.max(0, swing * side) * 5;
+    const hip = [side * 5, -15 + drop];
+    const foot = [side * 6 + p.limp * side * 3, -1 - lift];
+    b.limb(hip, foot, 7.3, 7.3, side, 5, PAL.TROUSERS);
+    b.ellipse([foot[0] + side * 1.2, foot[1] - 0.5], 4.2, 2.6, PAL.BOOT);
+  }
+}
+
+function drawCape(b) {
+  if (b.unit.cost < 4) return;
+  const s = b.pose.sway * 3 + b.pose.stride * Math.sin(b.pose.step * 2) * 2 - b.pose.strike * 3;
+  b.poly([[-10, -34], [10, -34], [17 + s, -7], [6 + s * 1.3, -4], [-5 + s * 1.3, -7], [-17 + s, -4]], darken(b.trim, 0.25));
+}
+
+function drawTorso(b) {
+  b.poly([[-11, -35], [11, -35], [9, -15], [-9, -15]], b.tunic);
+  b.stick([[-8, -17], [8, -17]], 3, b.trim);
+  b.dot([0, -17], 1.8, PAL.GOLD);
+  b.stick([[-4, -34], [0, -30], [4, -34]], 2, b.trim);
+  if (b.wolf) b.stick([[-9, -35], [9, -35]], 3.5, PAL.FUR_LIGHT);
+}
+
+function drawPauldrons(b) {
+  if (b.unit.cost < 3) return;
+  for (const side of [-1, 1]) b.ellipse([side * 11, -34], 4.6, 3.6, b.unit.cost >= 4 ? PAL.GOLD : PAL.STEEL);
+}
+
+function drawEyes(b, c, dx, dy) {
+  const ctx = b.ctx, mode = b.pose.eyes;
+  for (const side of [-1, 1]) {
+    const e = [c[0] + side * 3.6 + dx, c[1] + dy];
+    if (mode === 'open') b.dot(e, 1.5, PAL.INK);
+    else if (mode === 'blink') b.line([[e[0] - 1.6, e[1]], [e[0] + 1.6, e[1]]], PAL.INK, 1.3);
+    else if (mode === 'hurt') b.line([[e[0] - side * 1.8, e[1] - 1.6], [e[0] + side * 1.2, e[1]], [e[0] - side * 1.8, e[1] + 1.6]], PAL.INK, 1.3);
+    else if (mode === 'happy') { ctx.beginPath(); ctx.arc(e[0], e[1] + 1, 1.9, Math.PI, 0); ctx.strokeStyle = PAL.INK; ctx.lineWidth = 1.3; ctx.stroke(); }
+    else { b.line([[e[0] - 1.5, e[1] - 1.5], [e[0] + 1.5, e[1] + 1.5]], PAL.INK, 1.2); b.line([[e[0] - 1.5, e[1] + 1.5], [e[0] + 1.5, e[1] - 1.5]], PAL.INK, 1.2); }
+  }
+}
+
+// The head at `c`, with the race's face; `gear` draws the class headgear.
+function drawHead(b, c, gear) {
+  const p = b.pose, look = dirOf(p.aim);
+  const dx = look[0] * 1.2, dy = look[1] * 1.4 + (b.unit.facing || 0) * 0.6;
+  b.crownY = c[1] - 16;
+  if (b.wolf) {
+    const twitch = p.flinch * 2 - p.sway * 0.6;
+    for (const side of [-1, 1]) {
+      b.poly([[c[0] + side * 9, c[1] - 3], [c[0] + side * (7 + twitch * side * 0.3), c[1] - 16 + p.flinch * 3], [c[0] + side * 1.5, c[1] - 7]], b.skin);
+      b.line([[c[0] + side * 7, c[1] - 6], [c[0] + side * 6.6, c[1] - 12]], '#c98f8f', 1.6);
+    }
+    b.circle(c, 9, b.skin);
+    if (gear) gear(b, c);
+    const snout = [c[0] + dx * 0.6, c[1] + 4 + dy * 0.5];
+    b.ellipse(snout, 5.5, 4, PAL.FUR_LIGHT);
+    b.dot([snout[0], snout[1] - 1.5], 1.8, PAL.INK);
+    if (p.eyes === 'hurt' || p.eyes === 'happy') b.line([[snout[0] - 2.5, snout[1] + 1.6], [snout[0], snout[1] + 2.8], [snout[0] + 2.5, snout[1] + 1.6]], PAL.INK, 1.1);
+    drawEyes(b, [c[0], c[1] - 2], dx, dy * 0.6);
+  } else {
+    b.circle(c, 9, b.skin);
+    const hair = [];
+    for (let i = 0; i <= 8; i++) { const a = Math.PI + Math.PI * i / 8; hair.push([c[0] + Math.cos(a) * 9.5, c[1] + Math.sin(a) * 9.5]); }
+    hair.push([c[0] + 6, c[1] - 3.5], [c[0] + 1, c[1] - 5], [c[0] - 6, c[1] - 3.5]);
+    b.poly(hair, PAL.HAIR);
+    if (gear) gear(b, c);
+    drawEyes(b, [c[0], c[1] + 1], dx, dy);
+    if (p.eyes === 'happy') { const x = b.ctx; x.beginPath(); x.arc(c[0] + dx, c[1] + 3.5, 2.2, 0.15, Math.PI - 0.15); x.strokeStyle = PAL.INK; x.lineWidth = 1.2; x.stroke(); }
+    if (p.eyes === 'hurt') b.dot([c[0] + dx, c[1] + 5], 1.4, PAL.INK);
+  }
+}
+
+function drawCrown(b, x) {
+  const y = b.crownY;
+  b.poly([[x - 7, y], [x + 7, y], [x + 8, y - 7], [x + 3.5, y - 3], [x, y - 9], [x - 3.5, y - 3], [x - 8, y - 7]], PAL.GOLD);
+}
+
+// Headgear by class. Each takes the head centre.
+const GEAR = {
+  shield(b, c) { // steel helmet with a brow band and a nose guard
+    const dome = [];
+    for (let i = 0; i <= 8; i++) { const a = Math.PI + Math.PI * i / 8; dome.push([c[0] + Math.cos(a) * 10.2, c[1] - 2 + Math.sin(a) * 10.5]); }
+    b.poly(dome, PAL.STEEL);
+    b.stick([[c[0] - 9.5, c[1] - 3], [c[0] + 9.5, c[1] - 3]], 2.5, b.trim);
+    if (!b.wolf) b.stick([[c[0], c[1] - 3], [c[0], c[1] + 2]], 2, PAL.STEEL);
+    b.dot([c[0], c[1] - 12], 1.8, PAL.GOLD);
+    b.crownY = c[1] - 14;
+  },
+  sword(b, c) { // red headband with two tails
+    const s = b.pose.sway * 2.5 + b.pose.strike * -4 + b.pose.stride * Math.sin(b.pose.step * 2) * 2;
+    b.stick([[c[0] - 8.5, c[1] - 5], [c[0] - 13 + s, c[1] - 1], [c[0] - 15 + s * 1.6, c[1] + 5]], 2, PAL.VERMILION);
+    b.stick([[c[0] - 8.5, c[1] - 5], [c[0] - 11 + s, c[1] + 2]], 2, PAL.VERMILION);
+    b.stick([[c[0] - 8.8, c[1] - 5], [c[0] + 8.8, c[1] - 5]], 2.6, PAL.VERMILION);
+    if (!b.wolf) b.circle([c[0], c[1] - 10.5], 3.6, PAL.HAIR);
+  },
+  spear(b, c) { // wide conical war hat
+    b.poly([[c[0] - 15, c[1] - 5], [c[0] + 15, c[1] - 5], [c[0] + 2, c[1] - 17], [c[0] - 2, c[1] - 17]], '#d6b56a');
+    b.line([[c[0] - 9, c[1] - 8], [c[0] + 9, c[1] - 8]], darken('#d6b56a', 0.3), 1.2);
+    b.dot([c[0], c[1] - 17], 2, b.trim);
+    b.crownY = c[1] - 18;
+  },
+  cavalry(b, c) { // helmet with a plume that streams back
+    const dome = [];
+    for (let i = 0; i <= 8; i++) { const a = Math.PI + Math.PI * i / 8; dome.push([c[0] + Math.cos(a) * 9.8, c[1] - 2 + Math.sin(a) * 9.5]); }
+    const s = b.pose.sway * 2 - b.pose.stride * 5 - b.pose.strike * 3;
+    b.poly([[c[0] - 1, c[1] - 11], [c[0] + 2, c[1] - 12], [c[0] - 6 + s, c[1] - 21], [c[0] - 13 + s * 1.4, c[1] - 15], [c[0] - 9 + s, c[1] - 14]], b.trim);
+    b.poly(dome, PAL.STEEL);
+    b.stick([[c[0] - 9, c[1] - 3], [c[0] + 9, c[1] - 3]], 2.2, PAL.OCHRE);
+    b.crownY = c[1] - 20;
+  },
+  archer(b, c) { // green hood band with a feather
+    const s = b.pose.sway * 1.5;
+    b.poly([[c[0] + 5, c[1] - 7], [c[0] + 8 + s, c[1] - 20], [c[0] + 12 + s, c[1] - 18], [c[0] + 9, c[1] - 6]], PAL.CREAM);
+    b.line([[c[0] + 7, c[1] - 7], [c[0] + 10 + s, c[1] - 18]], PAL.VERMILION, 1.2);
+    b.stick([[c[0] - 8.8, c[1] - 5], [c[0] + 8.8, c[1] - 5]], 2.6, PAL.JADE);
+    if (!b.wolf) b.circle([c[0], c[1] - 10.5], 3.4, PAL.HAIR);
+  },
+  mage(b, c) { // pointed hat, the tip bends with the sway
+    const s = b.pose.sway * 2.5 - b.pose.strike * 3;
+    b.poly([[c[0] - 15, c[1] - 6], [c[0] + 15, c[1] - 6], [c[0] + 6, c[1] - 12], [c[0] + 5 + s, c[1] - 26], [c[0] - 2 + s * 0.5, c[1] - 19], [c[0] - 6, c[1] - 12]], PAL.INDIGO);
+    b.stick([[c[0] - 12, c[1] - 7], [c[0] + 12, c[1] - 7]], 3, b.trim);
+    b.dot([c[0] + 5 + s, c[1] - 25], 1.6, PAL.GOLD);
+    b.crownY = c[1] - 27;
+  },
+};
+
+// Where the weapon hand and weapon angle are, blended from four key poses.
+// `keys` = {ready, wind, strike, raise}, each {hand:[x,y], a, slide}.
+function weaponPose(b, keys) {
+  const p = b.pose, k = p.strike;
+  const target = k >= 0 ? keys.strike : keys.wind, t = Math.abs(k);
+  let hand = vlerp(keys.ready.hand, target.hand, t);
+  let a = lerp(keys.ready.a, target.a, t);
+  let slide = lerp(keys.ready.slide || 0, target.slide || 0, t);
+  hand = vlerp(hand, keys.raise.hand, p.raise); a = lerp(a, keys.raise.a, p.raise); slide = lerp(slide, keys.raise.slide || 0, p.raise);
+  // Idle life, flinch and death: the weapon wobbles, jerks or sinks.
+  a += p.sway * 0.04 + p.flinch * 0.5;
+  hand = add(hand, [p.flinch * 3, -p.flinch * 4]);
+  hand = vlerp(hand, [17, -6], p.limp); a = lerp(a, 1.9, p.limp);
+  return { hand, a, slide };
+}
+
+const SHOULDER_R = [10, -32], SHOULDER_L = [-10, -32];
+function arm(b, side, hand, color) {
+  const root = side > 0 ? SHOULDER_R : SHOULDER_L;
+  const tip = b.limb(root, hand, 9.5, 9.5, side > 0 ? 1 : -1, 4, color);
+  b.circle(tip, 2.7, b.skin);
+  return tip;
+}
+// The free hand: hangs and swings with the walk, flies up when hit.
+function freeHand(b, side) {
+  const p = b.pose;
+  return [side * (13 + p.flinch * 5), -19 + Math.sin(p.step) * p.stride * 3 * side - p.flinch * 10 + p.limp * 12 - p.raise * 4];
+}
+
+function slashTrail(b, hand, a, radius, sweep, color) {
+  const p = b.pose; if (p.trail <= 0) return;
+  const c = b.ctx; c.beginPath();
+  c.arc(hand[0], hand[1], radius, a - Math.PI / 2 - sweep, a - Math.PI / 2);
+  c.strokeStyle = color; c.globalAlpha = p.trail * 0.75; c.lineWidth = 7; c.lineCap = 'round'; c.stroke(); c.globalAlpha = 1;
+}
+
+// ------------------------------------------------------------------ classes
+
+function humanoid(b, back, front, gear, sleeve) {
+  const p = b.pose, f = bodyFrame(b);
+  b.push([0, -15 + f.drop], f.tilt); b.push([0, 15], 0); drawCape(b); b.pop(); b.pop();
+  drawLegs(b, f.drop);
+  b.push([0, -15 + f.drop], f.tilt); b.push([0, 15], 0);
+  if (back) back(b, 'body');
+  drawTorso(b);
+  drawPauldrons(b);
+  const headC = [p.flinch * -2, -44 - p.flinch * 1.5 + p.limp * 4];
+  front(b, headC, sleeve || b.tunic);
+  if (b.unit.cost >= 5) drawCrown(b, headC[0]);
+  b.pop(); b.pop();
+}
+
+const CLASS = {
+  sword(b) {
+    const aim = b.pose.aim;
+    const d = dirOf(aim);
+    const keys = {
+      ready: { hand: [16, -26], a: 0.3 },
+      wind: { hand: add(SHOULDER_R, [2 - d[0] * 3, -9]), a: aim - 1.9 },
+      strike: { hand: add(SHOULDER_R, mul(d, 11)), a: aim + 0.75 },
+      raise: { hand: [14, -47], a: 0.05 },
+    };
+    humanoid(b, (b2, layer) => {
+      if (layer === 'body') b2.stick([[-7, -18], [-17, -5]], 3.5, PAL.LEATHER);
+    }, (b2, headC, sleeve) => {
+      arm(b2, -1, freeHand(b2, -1), sleeve);
+      drawHead(b2, headC, GEAR.sword);
+      const w = weaponPose(b2, keys);
+      slashTrail(b2, w.hand, w.a, 22, 1.9, '#ffffff');
+      arm(b2, 1, w.hand, sleeve);
+      b2.push(w.hand, w.a);
+      b2.glow([0, -18], 16, '#f06a4a', b2.pose.glow);
+      b2.poly([[-2.4, -3], [2.4, -3], [2.4, -24], [0, -31], [-2.4, -24]], PAL.STEEL);
+      b2.line([[0, -5], [0, -24]], PAL.STEEL_DARK, 1);
+      b2.stick([[-5.5, -3], [5.5, -3]], 2.5, PAL.OCHRE);
+      b2.stick([[0, -2], [0, 4]], 2.5, PAL.LEATHER);
+      b2.pop();
+      b2.circle(w.hand, 2.7, b2.skin);
+    }, GEAR.sword);
+  },
+
+  shield(b) {
+    const aim = b.pose.aim, d = dirOf(aim), p = b.pose;
+    const keys = {
+      ready: { hand: [16, -24], a: 0.6 },
+      wind: { hand: [15, -37], a: aim - 1.7 },
+      strike: { hand: add(SHOULDER_R, mul(d, 10)), a: aim + 0.6 },
+      raise: { hand: [15, -46], a: 0.1 },
+    };
+    humanoid(b, null, (b2, headC, sleeve) => {
+      const w = weaponPose(b2, keys);
+      slashTrail(b2, w.hand, w.a, 15, 1.6, '#ffffff');
+      arm(b2, 1, w.hand, sleeve);
+      b2.push(w.hand, w.a);
+      b2.poly([[-2.6, -2], [2.6, -2], [3, -15], [0, -19], [-3, -15]], PAL.STEEL);
+      b2.stick([[-4.5, -2], [4.5, -2]], 2.5, PAL.OCHRE);
+      b2.pop();
+      b2.circle(w.hand, 2.7, b2.skin);
+      drawHead(b2, headC, GEAR.shield);
+      // The shield rides on the left arm: forward and up to guard, shoved toward the target to bash.
+      const bash = Math.max(0, p.strike);
+      let c = [-13, -22];
+      c = add(c, [p.guard * 9 + bash * (6 + d[0] * 5), -p.guard * 7 + bash * d[1] * 5 - p.raise * 8]);
+      c = add(c, [p.flinch * 2, p.limp * 12]);
+      const s = 1 + p.guard * 0.12 + bash * 0.08;
+      b2.limb(SHOULDER_L, [c[0] + 2, c[1] - 3], 9.5, 9.5, -1, 4, sleeve);
+      b2.push(c, -0.06 + p.guard * 0.1 + p.limp * 0.9); b2.ctx.scale(s, s);
+      b2.glow([0, 0], 26, '#6f9fe8', Math.max(p.glow, p.guard * 0.8));
+      b2.poly([[-14, -19], [14, -19], [15, -3], [0, 21], [-15, -3]], PAL.VERMILION);
+      b2.outline([[-10, -15], [10, -15], [10.5, -3], [0, 14], [-10.5, -3]], b2.trim, 2);
+      b2.circle([0, -5], 4.6, PAL.OCHRE);
+      b2.dot([0, -5], 1.6, PAL.INK);
+      b2.pop();
+    }, GEAR.shield);
+  },
+
+  spear(b) {
+    const aim = b.pose.aim, d = dirOf(aim);
+    const keys = {
+      ready: { hand: [16, -27], a: 0.0, slide: 0 },
+      wind: { hand: add(SHOULDER_R, [-d[0] * 4 + 3, -d[1] * 4 + 4]), a: aim, slide: -9 },
+      strike: { hand: add(SHOULDER_R, mul(d, 14)), a: aim, slide: 12 },
+      raise: { hand: [15, -44], a: 0.0, slide: -6 },
+    };
+    humanoid(b, null, (b2, headC, sleeve) => {
+      arm(b2, -1, freeHand(b2, -1), sleeve);
+      drawHead(b2, headC, GEAR.spear);
+      const w = weaponPose(b2, keys);
+      b2.push(w.hand, w.a);
+      const o = -w.slide;
+      if (b2.pose.trail > 0) { b2.ctx.globalAlpha = b2.pose.trail * 0.7; b2.line([[0, o - 20], [0, o - 62]], '#ffffff', 6); b2.ctx.globalAlpha = 1; }
+      b2.stick([[0, o + 28], [0, o - 36]], 3, PAL.WOOD);
+      b2.glow([0, o - 44], 14, '#4fc79a', b2.pose.glow);
+      b2.poly([[0, o - 52], [5, o - 38], [0, o - 34], [-5, o - 38]], PAL.STEEL);
+      const s = b2.pose.sway * 2 - b2.pose.strike * 3;
+      b2.stick([[0, o - 33], [-2 + s, o - 27], [-1 + s * 1.5, o - 22]], 2.4, PAL.VERMILION);
+      b2.pop();
+      arm(b2, 1, w.hand, sleeve);
+    }, GEAR.spear);
+  },
+
+  archer(b) {
+    const p = b.pose, aim = p.aim, d = dirOf(aim);
+    const drawn = clamp(-p.strike, 0, 1), loose = clamp(p.strike, 0, 1);
+    const chest = [2, -31];
+    // Bow arm: lowered at rest, straight out along the aim while drawing or loosing.
+    const engaged = Math.max(drawn, loose, p.raise);
+    let bowHand = vlerp([17, -22], add(SHOULDER_R, mul(d, 18.5)), engaged);
+    let bowA = lerp(1.75, aim, engaged);
+    bowHand = vlerp(bowHand, [12, -8], p.limp); bowA = lerp(bowA, 2.4, p.limp) + p.flinch * 0.4 + p.sway * 0.03;
+    const bd = dirOf(bowA);
+    const pull = drawn * 12;                    // how far the string hand is behind the grip
+    const stringHand = add(bowHand, mul(bd, -(7 + pull)));
+    humanoid(b, (b2, layer) => {
+      if (layer !== 'body') return;
+      b2.stick([[-13, -42], [-15.5, -49]], 1.6, PAL.CREAM);
+      b2.stick([[-16, -41], [-19.5, -47]], 1.6, PAL.VERMILION);
+      b2.poly([[-18, -41], [-11, -44], [-5, -24], [-11, -21]], PAL.LEATHER);
+    }, (b2, headC, sleeve) => {
+      drawHead(b2, headC, GEAR.archer);
+      const rest = freeHand(b2, -1);
+      const offHand = vlerp(rest, stringHand, Math.max(drawn, p.raise * 0.0));
+      arm(b2, -1, loose > 0 ? vlerp(stringHand, [stringHand[0] - bd[0] * 6, stringHand[1] - bd[1] * 6], loose) : offHand, sleeve);
+      b2.push(bowHand, bowA);
+      b2.glow([0, -4], 18, '#a6d65a', p.glow);
+      // In bow space the arrow flies along -y; limbs spread along x.
+      const tipX = 18 - drawn * 3, tipY = 7 + drawn * 4;
+      const sy = 7 + pull - loose * 3;        // string centre, behind the grip
+      b2.line([[-tipX, tipY], [0, sy], [tipX, tipY]], PAL.CREAM, 1.3);
+      const c = b2.ctx;
+      for (const [col, w] of [[PAL.INK, 6.5], [b2.tint(PAL.WOOD), 3.2]]) {
+        c.beginPath(); c.moveTo(-tipX, tipY); c.quadraticCurveTo(0, -15 - drawn * 2, tipX, tipY);
+        c.strokeStyle = col; c.lineWidth = w; c.lineCap = 'round'; c.stroke();
+      }
+      b2.stick([[0, -5.5], [0, -1.5]], 4, PAL.LEATHER);
+      if (p.arrow > 0 && (drawn > 0.02 || p.raise > 0.3)) {
+        b2.stick([[0, sy], [0, sy - 27]], 1.5, PAL.CREAM);
+        b2.poly([[0, sy - 33], [3, sy - 26], [-3, sy - 26]], PAL.STEEL);
+      }
+      b2.pop();
+      arm(b2, 1, bowHand, sleeve);
+    }, GEAR.archer);
+  },
+
+  mage(b) {
+    const p = b.pose, aim = p.aim, d = dirOf(aim);
+    const orbColor = PAL.ELEMENT[b.unit.element] || PAL.OCHRE;
+    const keys = {
+      ready: { hand: [16, -30], a: 0.0 },
+      wind: { hand: [13, -34], a: -0.45 },
+      strike: { hand: add(SHOULDER_R, mul(d, 9)), a: lerp(0.2, aim, 0.55) },
+      raise: { hand: [14, -42], a: 0.0, slide: -8 },
+    };
+    const f = bodyFrame(b);
+    // Robe instead of legs: the hem sways and lifts when walking.
+    const hem = p.sway * 1.5 + Math.sin(p.step) * p.stride * 2.5;
+    b.push([0, f.drop * 0.5], 0);
+    b.ellipse([-5 - Math.sin(p.step) * p.stride * 2, -1], 4.2, 2.6, PAL.BOOT);
+    b.ellipse([5 + Math.sin(p.step) * p.stride * 2, -1], 4.2, 2.6, PAL.BOOT);
+    b.pop();
+    b.push([0, -15 + f.drop], f.tilt); b.push([0, 15], 0);
+    drawCape(b);
+    b.poly([[-10, -35], [10, -35], [15 + hem, -3 - f.drop * 0.6], [5 + hem * 0.5, -1 - f.drop * 0.6], [-5 + hem * 0.5, -3 - f.drop * 0.6], [-15 + hem, -1 - f.drop * 0.6]], b.tunic);
+    b.stick([[0, -34], [hem * 0.4, -5 - f.drop * 0.6]], 2, b.trim);
+    b.stick([[-9, -17], [9, -17]], 3, b.trim);
+    b.stick([[-4, -34], [0, -30], [4, -34]], 2, b.trim);
+    drawPauldrons(b);
+    const headC = [p.flinch * -2, -44 - p.flinch * 1.5 + p.limp * 4];
+    // Free hand lifts with the palm out while casting.
+    const cast = Math.max(p.raise, Math.max(0, p.strike) * 0.6);
+    arm(b, -1, vlerp(freeHand(b, -1), [-15, -38], cast), b.tunic);
+    drawHead(b, headC, GEAR.mage);
+    const w = weaponPose(b, keys);
+    b.push(w.hand, w.a);
+    const o = -(w.slide || 0);
+    b.stick([[0, o + 30], [0, o - 24]], 3, PAL.WOOD);
+    b.stick([[-3.5, o - 24], [0, o - 21], [3.5, o - 24]], 2.2, PAL.OCHRE);
+    // The orb floats above the staff head: bobs when idle, swells when casting.
+    const bob = p.sway * 1.6, grow = 1 + p.raise * 0.5 + Math.max(0, p.strike) * 0.35 + p.glow * 0.2;
+    const orb = [0, o - 31 + bob - p.raise * 3];
+    b.glow(orb, 20 * grow, orbColor, 0.45 + Math.max(p.glow, p.raise, Math.abs(p.strike)) * 0.55);
+    b.circle(orb, 5.2 * grow, orbColor);
+    b.dot([orb[0] - 1.6 * grow, orb[1] - 1.8 * grow], 1.4 * grow, '#ffffff');
+    b.pop();
+    arm(b, 1, w.hand, b.tunic);
+    if (b.unit.cost >= 5) drawCrown(b, headC[0]);
+    b.pop(); b.pop();
+  },
+
+  cavalry(b) {
+    const p = b.pose, horse = b.mount, dark = darken(horse, 0.22);
+    const aim = clamp(p.aim, 0.9, 2.3), d = dirOf(aim);
+    const run = p.stride;                       // 0 standing .. 1 moving
+    const g = p.gallop;
+    const bounce = Math.abs(Math.sin(g)) * run * 3;
+    const rear = p.rear;
+    // Hind hooves stay planted; the body pivots up around them when rearing.
+    b.push([-14, -2], -rear * 0.42 - p.flinch * 0.06); b.push([14, 2 - bounce + p.limp * 6], p.limp * 0.12);
+    // Legs: four two-bone limbs driven by the gallop phase (front pair leads).
+    const legs = [[-16, 0.0, 1], [-10, 0.9, 1], [10, Math.PI, -1], [16, Math.PI + 0.9, -1]];
+    for (const [x, ph, bend] of legs) {
+      const s = Math.sin(g + ph), c = Math.cos(g + ph);
+      const front = x > 0;
+      let foot = [x + s * 7 * run, -Math.max(0, c) * 6 * run + bounce];
+      if (front) foot = vlerp(foot, [x + 9, -9 + s * 2], rear);
+      foot[1] = lerp(foot[1], -3, p.limp);
+      const tip = b.limb([x * 0.92, -13], foot, 7.5, 7.5, bend, 3.6, dark);
+      b.ellipse([tip[0] + 0.6, tip[1] + 0.2], 2.8, 2.2, PAL.BOOT);
+    }
+    // Tail streams back when running.
+    const ts = p.sway * 3 - run * 8;
+    b.stick([[-21, -19], [-28 + ts * 0.4, -14 - run * 3], [-30 + ts, -5 - run * 6]], 4, PAL.HAIR);
+    b.ellipse([0, -16], 23, 9, horse);
+    // Neck and head: nod with the gallop, toss up when rearing.
+    const nod = Math.sin(g * 2) * run * 0.12 - rear * 0.25 + p.sway * 0.02;
+    b.push([15, -20], nod);
+    b.stick([[1, -3], [6, -13], [9, -16]], 3.2, PAL.HAIR);
+    b.poly([[-2, 3], [6, -14], [12, -15], [20, -9], [19.5, -4], [10, -4], [7, 8]], horse);
+    b.poly([[6.5, -13.5], [8, -20], [11, -14.5]], horse);
+    b.dot([12, -10.5], 1.4, PAL.INK);
+    b.dot([18.6, -6.5], 0.9, PAL.INK);
+    b.line([[15.5, -12.5], [14.5, -4.5]], PAL.LEATHER, 1.3);
+    b.pop();
+    // Saddle cloth in the cost colour.
+    b.poly([[-9, -24], [9, -24], [8, -13], [-8, -13]], b.trim);
+    b.line([[-6, -15.5], [6, -15.5]], PAL.GOLD, 1.3);
+    // Rider: sits on the saddle, leans into the charge.
+    b.push([0, -23], run * 0.14 - p.flinch * 0.25 + p.limp * 0.5 + rear * 0.1);
+    b.stick([[3, 1], [5, 9], [8, 12]], 4, PAL.TROUSERS);
+    b.ellipse([9, 12.5], 3.4, 2.2, PAL.BOOT);
+    if (b.unit.cost >= 4) { const s = p.sway * 2 - run * 7; b.poly([[-8, -16], [6, -16], [-6 + s, 2], [-15 + s, -1]], darken(b.trim, 0.25)); }
+    b.poly([[-9, -17], [9, -17], [7.5, 0], [-7.5, 0]], b.tunic);
+    b.stick([[-6.5, -2], [6.5, -2]], 2.6, b.trim);
+    if (b.wolf) b.stick([[-7, -17], [7, -17]], 3, PAL.FUR_LIGHT);
+    if (b.unit.cost >= 3) for (const side of [-1, 1]) b.ellipse([side * 9, -16], 4, 3.2, b.unit.cost >= 4 ? PAL.GOLD : PAL.STEEL);
+    const headC = [p.flinch * -2, -25 + p.limp * 3];
+    b.limb([-8, -14], [-2 + p.flinch * -4, -4 - p.flinch * 6], 7, 7, -1, 3.6, b.tunic);
+    drawHead(b, headC, GEAR.cavalry);
+    // Lance: couched at rest, levelled and driven forward to strike.
+    const sh = [8, -14];
+    const keys = {
+      ready: { hand: [11, -6], a: 0.55, slide: 0 },
+      wind: { hand: [6, -8], a: aim, slide: -8 },
+      strike: { hand: add(sh, mul(d, 11)), a: aim, slide: 12 },
+      raise: { hand: [11, -24], a: 0.15, slide: -4 },
+    };
+    const k = p.strike, tgt = k >= 0 ? keys.strike : keys.wind, t = Math.abs(k);
+    let hand = vlerp(vlerp(keys.ready.hand, tgt.hand, t), keys.raise.hand, p.raise);
+    let a = lerp(lerp(lerp(keys.ready.a, tgt.a, t), keys.raise.a, p.raise), 1.2, run * (1 - t) * (1 - p.raise) * 0.6);
+    const slide = lerp(lerp(0, tgt.slide, t), keys.raise.slide, p.raise);
+    a += p.flinch * 0.5; hand = vlerp(hand, [14, 6], p.limp); a = lerp(a, 1.8, p.limp);
+    b.push(hand, a);
+    const o = -slide;
+    if (p.trail > 0) { b.ctx.globalAlpha = p.trail * 0.7; b.line([[0, o - 14], [0, o - 50]], '#ffffff', 6); b.ctx.globalAlpha = 1; }
+    b.stick([[0, o + 14], [0, o - 30]], 3, PAL.WOOD);
+    b.glow([0, o - 36], 14, '#f0b13e', p.glow);
+    b.poly([[0, o - 43], [4.5, o - 30], [-4.5, o - 30]], PAL.STEEL);
+    const ps = p.sway * 2 - run * 5 - p.strike * 4;
+    b.poly([[0, o - 29], [0, o - 22], [-9 + ps, o - 23], [-7 + ps, o - 28]], b.trim);
+    b.pop();
+    b.limb(sh, hand, 7, 7, 1, 3.6, b.tunic);
+    b.circle(hand, 2.5, b.skin);
+    if (b.unit.cost >= 5) drawCrown(b, headC[0]);
+    b.pop();
+    b.pop(); b.pop();
+  },
+};
+
+// Draws `unit` {cls, race, cost, element, facing} in `pose` with feet at the origin.
+function drawFigure(ctx, unit, pose, flash) {
+  const b = new Brush(ctx, unit, pose, flash);
+  (CLASS[unit.cls] || CLASS.sword)(b);
+}
+
+// ------------------------------------------------------- the figures today
+// A plain port of the current static UnitPainter, for the before/after view.
+function drawOldFigure(ctx, unit) {
+  const b = new Brush(ctx, unit, newPose(), 0);
+  const st = (p, q, w, f) => { b.ctx.lineCap = 'butt'; b.path([p, q]); b.ctx.strokeStyle = PAL.INK; b.ctx.lineWidth = w + 4; b.ctx.stroke(); b.path([p, q]); b.ctx.strokeStyle = f; b.ctx.lineWidth = w; b.ctx.stroke(); };
+  const legs = () => { st([-5, -15], [-6, -1], 5, PAL.TROUSERS); st([5, -15], [6, -1], 5, PAL.TROUSERS); };
+  const torso = (wx, wy, sh, wh, h) => { b.poly([[wx - sh, wy - h], [wx + sh, wy - h], [wx + wh, wy], [wx - wh, wy]], b.tunic); st([wx - wh + 1, wy - 2], [wx + wh - 1, wy - 2], 3, b.trim); st([wx - 4, wy - h + 1], [wx + 4, wy - h + 1], 2.5, b.trim); };
+  const head = (c, knot) => {
+    if (b.wolf) {
+      for (const s of [-1, 1]) b.poly([[c[0] + s * 9, c[1] - 3], [c[0] + s * 7, c[1] - 16], [c[0] + s * 1.5, c[1] - 7]], b.skin);
+      b.circle(c, 9, b.skin); b.ellipse([c[0], c[1] + 5], 5.5, 4, PAL.FUR_LIGHT); b.dot([c[0], c[1] + 5], 1.8, PAL.INK);
+      for (const s of [-1, 1]) b.dot([c[0] + s * 3.6, c[1] - 0.6], 1.5, PAL.INK);
+    } else {
+      if (knot) b.circle([c[0], c[1] - 10], 3.8, PAL.HAIR);
+      b.circle(c, 9, b.skin);
+      const hair = []; for (let i = 0; i <= 8; i++) { const a = Math.PI + Math.PI * i / 8; hair.push([c[0] + Math.cos(a) * 9.5, c[1] + Math.sin(a) * 9.5]); }
+      hair.push([c[0] + 6, c[1] - 4], [c[0] - 6, c[1] - 4]); b.poly(hair, PAL.HAIR);
+      for (const s of [-1, 1]) b.dot([c[0] + s * 3.6, c[1] + 2.4], 1.5, PAL.INK);
+    }
+  };
+  const H = [0, -44];
+  const draw = {
+    shield() { legs(); torso(0, -15, 11, 9, 20); st([9, -32], [17, -20], 4, b.skin); st([17, -20], [22, -38], 3, PAL.STEEL); head(H, true); b.poly([[-27, -40], [-1, -40], [0, -24], [-13, -2], [-28, -24]], PAL.VERMILION); b.outline([[-23, -36], [-5, -36], [-4.5, -24], [-13.5, -8], [-23.5, -24]], b.trim, 2); b.circle([-14, -27], 4.5, PAL.OCHRE); },
+    sword() { legs(); torso(0, -15, 11, 9, 20); st([-9, -32], [-13, -18], 4, b.skin); st([19, -42], [24, -70], 4, PAL.STEEL); st([13, -43], [25, -40], 3, PAL.OCHRE); st([9, -32], [18, -42], 4, b.skin); head(H, true); },
+    spear() { st([16, 2], [16, -64], 3, PAL.WOOD); b.poly([[16, -78], [21, -64], [11, -64]], PAL.STEEL); b.circle([16, -62], 3, PAL.VERMILION); legs(); torso(0, -15, 11, 9, 20); st([-9, -32], [-12, -18], 4, b.skin); st([9, -32], [16, -30], 4, b.skin); head(H, true); },
+    cavalry() { const h = b.mount; for (const x of [-17, -9, 9, 17]) st([x, -10], [x, 0], 4, darken(h, 0.2)); st([-22, -18], [-30, -8], 4, PAL.HAIR); b.ellipse([0, -15], 23, 9, h); b.poly([[14, -20], [22, -33], [31, -32], [31, -26], [23, -23], [21, -12]], h); b.dot([27, -29], 1.3, PAL.INK); st([-6, -17], [8, -17], 3, b.trim); torso(0, -24, 9, 7.5, 16); st([2, -22], [4, -10], 4, PAL.TROUSERS); st([7, -34], [20, -40], 3, PAL.WOOD); b.poly([[28, -44], [19, -43], [21, -37]], PAL.STEEL); head([0, -46], true); },
+    archer() { b.poly([[6, -40], [12, -42], [15, -24], [9, -22]], PAL.WOOD); st([10, -42], [9, -47], 2, PAL.CREAM); st([13, -43], [13, -48], 2, PAL.VERMILION); legs(); torso(0, -15, 11, 9, 20); st([9, -32], [-4, -28], 4, b.skin); head(H, true); b.line([[-14, -47], [-14, -9]], PAL.CREAM, 1.5); const c = b.ctx; for (const [col, w] of [[PAL.INK, 6], [PAL.WOOD, 3]]) { c.beginPath(); c.arc(-6, -28, 21, Math.PI - 1.15, Math.PI + 1.15); c.strokeStyle = col; c.lineWidth = w; c.lineCap = 'butt'; c.stroke(); } st([-9, -32], [-24, -28], 4, b.skin); },
+    mage() { const orb = PAL.ELEMENT[unit.element] || PAL.OCHRE; st([17, 2], [17, -56], 3, PAL.WOOD); b.circle([17, -60], 5.5, orb); b.poly([[-10, -34], [10, -34], [15, 0], [-15, 0]], b.tunic); st([-13, -2], [13, -2], 3, b.trim); st([0, -33], [0, -4], 2, b.trim); st([-9, -32], [-13, -18], 4, b.skin); st([9, -32], [17, -36], 4, b.skin); head(H, false); b.poly([[-15, -50], [15, -50], [5, -70], [0, -63]], PAL.INDIGO); st([-12, -51], [12, -51], 3, b.trim); b.crownY = -71; },
+  };
+  draw[unit.cls]();
+  if (unit.cost >= 5) drawCrown(b, 0);
+}
+
+// ---------------------------------------------------------------- animation
+// A tiny tween runner; in Godot each call becomes a Tween on the pose object.
+const EASE = {
+  lin: (t) => t, out: (t) => 1 - (1 - t) * (1 - t), in: (t) => t * t,
+  inout: (t) => (t < 0.5 ? 2 * t * t : 1 - 2 * (1 - t) * (1 - t)),
+  back: (t) => { const c = 1.9; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); },
+};
+
+class Actor {
+  constructor(unit) {
+    this.unit = unit; this.pose = newPose();
+    this.view = { x: 0, y: 0, sx: 1, sy: 1, lean: 0, alpha: 1, flash: 0, flip: 1 };
+    this.tweens = []; this.time = Math.random() * 10; this.blinkAt = 1 + Math.random() * 3;
+    this.state = 'idle'; this.inCombat = false; this.phase = Math.random() * 6.28;
+  }
+  // Animate obj[key] to `to` over `dur` seconds after `delay`.
+  tw(obj, key, to, dur, delay, ease) {
+    this.tweens = this.tweens.filter((t) => !(t.obj === obj && t.key === key && t.start >= this.time + (delay || 0)));
+    this.tweens.push({ obj, key, to, dur: Math.max(dur, 0.0001), start: this.time + (delay || 0), ease: EASE[ease || 'out'], from: null });
+  }
+  cancel() { this.tweens = []; }
+  update(dt) {
+    this.time += dt;
+    const p = this.pose;
+    for (const t of this.tweens) {
+      if (this.time < t.start) continue;
+      if (t.from === null) t.from = t.obj[t.key];
+      const k = clamp((this.time - t.start) / t.dur, 0, 1);
+      t.obj[t.key] = lerp(t.from, t.to, t.ease(k));
+      t.done = k >= 1;
+    }
+    this.tweens = this.tweens.filter((t) => !t.done);
+    if (this.state !== 'dead') {
+      p.sway = Math.sin(this.time * 1.7 + this.phase);
+      if (p.eyes === 'open' && this.time > this.blinkAt) { p.eyes = 'blink'; this.blinkEnd = this.time + 0.12; }
+      if (p.eyes === 'blink' && this.time > this.blinkEnd) { p.eyes = 'open'; this.blinkAt = this.time + 2 + Math.random() * 3; }
+    }
+    if (p.stride > 0.01) { p.step += dt * (this.unit.cls === 'cavalry' ? 9 : 11); p.gallop += dt * (this.charging ? 17 : 9); }
+  }
+  // Rest value of `strike`: units in a fight keep their weapon half wound up.
+  get rest() { return this.inCombat ? (this.unit.cls === 'archer' ? -1 : -0.45) : 0; }
+
+  reset() {
+    this.cancel(); Object.assign(this.pose, newPose(), { step: this.pose.step, gallop: this.pose.gallop });
+    Object.assign(this.view, { x: 0, y: 0, sx: 1, sy: 1, lean: 0, alpha: 1, flash: 0 });
+    this.state = 'idle'; this.inCombat = false; this.charging = false;
+  }
+  walk(seconds, charge) {
+    const p = this.pose; this.charging = !!charge;
+    this.tw(p, 'strike', charge ? -0.6 : 0, 0.15);
+    this.tw(p, 'stride', 1, 0.12);
+    this.tw(p, 'stride', 0, 0.18, seconds, 'inout');
+    if (charge) { this.tw(this.view, 'lean', 0.08, 0.1); this.tw(this.view, 'lean', 0, 0.15, seconds); }
+  }
+  attack(aim) {
+    const p = this.pose, v = this.view, cls = this.unit.cls;
+    this.inCombat = true; p.aim = aim;
+    const d = dirOf(aim);
+    if (cls === 'archer') {
+      p.arrow = 0; p.strike = -1;
+      this.tw(p, 'strike', 1, 0.06); this.tw(p, 'strike', 0, 0.16, 0.12, 'inout');
+      this.tw(p, 'arrow', 1, 0.01, 0.34); this.tw(p, 'strike', -1, 0.34, 0.36, 'inout');
+      this.tw(v, 'sx', 1.08, 0.05); this.tw(v, 'sx', 1, 0.12, 0.05);
+    } else if (cls === 'mage') {
+      this.tw(p, 'strike', 1, 0.09, 0, 'back'); p.glow = 1; this.tw(p, 'glow', 0, 0.35, 0.08);
+      this.tw(p, 'strike', this.rest, 0.3, 0.2, 'inout');
+    } else {
+      this.tw(p, 'strike', 1, 0.08, 0, 'back'); p.trail = 1; this.tw(p, 'trail', 0, 0.22, 0.04);
+      this.tw(v, 'x', d[0] * 12, 0.08); this.tw(v, 'y', d[1] * 12, 0.08);
+      this.tw(v, 'x', 0, 0.16, 0.1, 'inout'); this.tw(v, 'y', 0, 0.16, 0.1, 'inout');
+      this.tw(p, 'strike', this.rest, 0.28, 0.2, 'inout');
+    }
+  }
+  skill(aim) {
+    const p = this.pose, v = this.view; this.inCombat = true; p.aim = aim;
+    const wind = 0.45;
+    this.tw(p, 'crouch', 1, wind * 0.5); this.tw(p, 'raise', 1, wind * 0.8, 0, 'back'); this.tw(p, 'glow', 1, wind);
+    if (this.unit.cls === 'cavalry') this.tw(p, 'rear', 1, wind * 0.7, 0, 'back');
+    this.tw(v, 'sy', 1.1, wind * 0.4, wind * 0.6); this.tw(v, 'sx', 0.92, wind * 0.4, wind * 0.6);
+    this.tw(p, 'crouch', 0, 0.1, wind); this.tw(p, 'raise', 0, 0.1, wind); this.tw(p, 'rear', 0, 0.14, wind);
+    this.tw(v, 'sy', 1, 0.12, wind); this.tw(v, 'sx', 1, 0.12, wind);
+    this.tw(p, 'strike', 1, 0.08, wind, 'back'); this.tw(p, 'trail', 1, 0.01, wind); this.tw(p, 'trail', 0, 0.3, wind + 0.05);
+    this.tw(p, 'glow', 0, 0.5, wind + 0.15); this.tw(p, 'strike', this.rest, 0.3, wind + 0.3, 'inout');
+  }
+  hit() {
+    const p = this.pose, v = this.view;
+    const guards = this.unit.cls === 'shield';
+    p.eyes = 'hurt'; v.flash = 1; this.tw(v, 'flash', 0, 0.2);
+    this.tw(p, 'flinch', guards ? 0.35 : 1, 0.04); this.tw(p, 'flinch', 0, 0.26, 0.06, 'inout');
+    if (guards) { this.tw(p, 'guard', 1, 0.04); this.tw(p, 'guard', 0, 0.25, 0.2, 'inout'); }
+    this.tw(v, 'sx', 0.92, 0.05); this.tw(v, 'sx', 1, 0.12, 0.05);
+    setTimeout(() => { if (this.state !== 'dead') { this.pose.eyes = 'open'; this.blinkAt = this.time + 1.5; } }, 300);
+  }
+  die() {
+    const p = this.pose, v = this.view; this.cancel(); this.state = 'dead'; p.eyes = 'dead';
+    Object.assign(p, { strike: 0, raise: 0, stride: 0, glow: 0, trail: 0, guard: 0 });
+    this.tw(p, 'flinch', 0.8, 0.06); this.tw(p, 'flinch', 0, 0.2, 0.08);
+    this.tw(p, 'limp', 1, 0.34, 0.05, 'in');
+    this.tw(v, 'lean', -1.35, 0.3, 0.3, 'in'); this.tw(v, 'y', 3, 0.3, 0.3); this.tw(v, 'alpha', 0, 0.4, 0.75);
+  }
+  cheer() {
+    const p = this.pose, v = this.view; this.inCombat = false; p.eyes = 'happy';
+    this.tw(p, 'strike', 0, 0.1); this.tw(p, 'raise', 1, 0.18, 0, 'back');
+    if (this.unit.cls === 'cavalry') { this.tw(p, 'rear', 1, 0.25, 0, 'back'); this.tw(p, 'rear', 0, 0.2, 0.6); }
+    for (let i = 0; i < 2; i++) {
+      const t0 = i * 0.36;
+      this.tw(v, 'y', -15, 0.14, t0); this.tw(v, 'y', 0, 0.12, t0 + 0.14, 'in');
+      this.tw(v, 'sy', 1.12, 0.14, t0); this.tw(v, 'sy', 0.86, 0.05, t0 + 0.26); this.tw(v, 'sy', 1, 0.08, t0 + 0.31);
+    }
+    this.tw(p, 'raise', 0, 0.25, 0.9, 'inout');
+    setTimeout(() => { if (this.state !== 'dead') this.pose.eyes = 'open'; }, 1200);
+  }
+  draw(ctx, x, y, scale) {
+    const v = this.view, breath = this.state === 'dead' ? 0 : Math.sin(this.time * 2.4 + this.phase) * 0.03;
+    ctx.save(); ctx.globalAlpha = v.alpha;
+    ctx.translate(x + v.x * scale, y + v.y * scale); ctx.rotate(v.lean);
+    ctx.scale(scale * v.sx * (1 - breath * 0.4) * v.flip, scale * v.sy * (1 + breath));
+    drawFigure(ctx, this.unit, this.pose, v.flash);
+    ctx.restore();
+  }
+}
+
+
+
+</script>
+<script>
+'use strict';
+const CLASSES = [['sword', 'Kiếm'], ['shield', 'Khiên'], ['spear', 'Thương'], ['archer', 'Cung'], ['mage', 'Pháp'], ['cavalry', 'Kỵ']];
+const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const state = { cls: 'sword', race: 'human', cost: 3 };
+let hero = null;
+
+function makeHero() {
+  hero = new Actor({ cls: state.cls, race: state.race, cost: state.cost, element: 'fire', facing: -1 });
+  drawOld();
+}
+function press(group, attr, value) {
+  for (const b of document.querySelectorAll('#' + group + ' button[' + attr + ']')) b.setAttribute('aria-pressed', String(b.getAttribute(attr) === String(value)));
+}
+const classRow = document.getElementById('classes');
+for (const [id, name] of CLASSES) {
+  const b = document.createElement('button'); b.textContent = name; b.dataset.cls = id; b.id = 'cls-' + id;
+  b.onclick = () => { state.cls = id; press('classes', 'data-cls', id); makeHero(); };
+  classRow.appendChild(b);
+}
+const lookRow = document.getElementById('looks');
+for (const [id, name] of [['human', 'Nhân'], ['wolf', 'Lang Tộc']]) {
+  const b = document.createElement('button'); b.textContent = name; b.dataset.race = id; b.id = 'race-' + id;
+  b.onclick = () => { state.race = id; press('looks', 'data-race', id); makeHero(); };
+  lookRow.appendChild(b);
+}
+for (let cost = 1; cost <= 5; cost++) {
+  const b = document.createElement('button'); b.textContent = 'Giá ' + cost; b.dataset.cost = cost; b.id = 'cost-' + cost;
+  b.onclick = () => { state.cost = cost; press('looks', 'data-cost', cost); makeHero(); };
+  lookRow.appendChild(b);
+}
+press('classes', 'data-cls', state.cls); press('looks', 'data-race', state.race); press('looks', 'data-cost', state.cost);
+
+let aimFlip = 0;
+const AIMS = [1.45, 0.75, 2.1];
+document.getElementById('acts').addEventListener('click', (e) => {
+  const act = e.target.dataset && e.target.dataset.act; if (!act) return;
+  if (hero.state === 'dead') makeHero();
+  const aim = AIMS[aimFlip++ % AIMS.length];
+  if (act === 'attack') hero.attack(aim);
+  else if (act === 'skill') hero.skill(aim);
+  else if (act === 'hit') hero.hit();
+  else if (act === 'walk') { hero.inCombat = false; hero.walk(1.1, hero.unit.cls === 'cavalry'); }
+  else if (act === 'die') { hero.die(); setTimeout(makeHero, 1700); }
+  else if (act === 'cheer') hero.cheer();
+});
+
+function ring(ctx, x, y, rx, ry, color) {
+  ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, 7); ctx.fillStyle = color + '59'; ctx.fill(); ctx.strokeStyle = color; ctx.lineWidth = rx / 11; ctx.stroke();
+}
+const stage = document.getElementById('stage'), sctx = stage.getContext('2d');
+function drawStage() {
+  sctx.clearRect(0, 0, 640, 560);
+  ring(sctx, 300, 452, 150, 46, '#4f7fd6');
+  hero.draw(sctx, 300, 452, 5.2);
+}
+function drawOld() {
+  const c = document.getElementById('old').getContext('2d');
+  c.clearRect(0, 0, 264, 560);
+  ring(c, 132, 452, 84, 26, '#4f7fd6');
+  c.save(); c.translate(124, 452); c.scale(2.9, 2.9); drawOldFigure(c, hero.unit); c.restore();
+}
+
+// ------------------------------------------------------------ board fight
+const CELL = 120, COLS = 7, ROWS = 6, BX = 0, BY = 40;
+const board = document.getElementById('board'), bctx = board.getContext('2d');
+let squad = [], shots = [], fightOver = 0;
+const cellPos = (c, r) => [BX + (c + 0.5) * CELL, BY + (r + 0.5) * CELL];
+function setupFight() {
+  squad = []; shots = []; fightOver = 0;
+  const lineup = [['shield', 2, 4, 3], ['sword', 3, 4, 2], ['spear', 4, 4, 2], ['cavalry', 1, 4, 4], ['archer', 2, 5, 1], ['mage', 4, 5, 3], ['sword', 5, 4, 5]];
+  for (const [cls, col, row, cost] of lineup) {
+    for (const side of [0, 1]) {
+      const r = side === 0 ? row : ROWS - 1 - row, c = side === 0 ? col : COLS - 1 - col;
+      const a = new Actor({ cls, race: side === 0 ? 'human' : 'wolf', cost, element: side === 0 ? 'fire' : 'ice', facing: side === 0 ? -1 : 1 });
+      const [x, y] = cellPos(c, r);
+      const melee = cls !== 'archer' && cls !== 'mage';
+      Object.assign(a, { side, x, y, hp: cls === 'shield' ? 9 : 6, cool: 1.2 + Math.random() * 0.8, melee, count: 0, homeY: y });
+      a.view.flip = side === 0 ? 1 : -1;
+      // Melee units stride one cell forward to meet in the middle.
+      if (melee) { a.goalY = y + (side === 0 ? -CELL : CELL); a.walk(0.8, cls === 'cavalry'); }
+      squad.push(a);
+    }
+  }
+}
+function nearest(a) {
+  let best = null, bd = 1e9;
+  for (const o of squad) {
+    if (o.side === a.side || o.state === 'dead') continue;
+    const d = Math.hypot(o.x - a.x, o.y - a.y);
+    if (a.melee && d > CELL * 2.3) continue;
+    if (d < bd) { bd = d; best = o; }
+  }
+  return best;
+}
+function strikeAt(a, o) {
+  const dx = o.x - a.x, dy = o.y - a.y;
+  if (Math.abs(dx) > 6) a.view.flip = dx < 0 ? -1 : 1;
+  const aim = Math.atan2(Math.abs(dx), -dy);
+  const big = ++a.count % 4 === 0;
+  if (big) a.skill(aim); else a.attack(aim);
+  const lead = big ? 0.45 : 0;
+  const ranged = !a.melee, fly = ranged ? Math.hypot(dx, dy) / 900 : 0.08;
+  if (ranged) shots.push({ t: -lead, dur: fly, from: [a.x, a.y - 40], to: [o.x, o.y - 30], kind: a.unit.cls, color: PAL.ELEMENT[a.unit.element] });
+  setTimeout(() => {
+    if (o.state === 'dead' || a.state === 'dead') return;
+    o.hp -= big ? 3 : 1;
+    if (o.hp <= 0) o.die(); else o.hit();
+  }, (lead + fly) * 1000);
+}
+function stepFight(dt) {
+  const alive = [0, 0];
+  for (const a of squad) {
+    a.update(dt);
+    if (a.state === 'dead') continue;
+    alive[a.side]++;
+    if (a.goalY !== undefined && Math.abs(a.goalY - a.y) > 1) { a.y += Math.sign(a.goalY - a.y) * Math.min(Math.abs(a.goalY - a.y), dt * CELL / 0.8); continue; }
+    if (fightOver) continue;
+    a.cool -= dt;
+    if (a.cool <= 0) {
+      const o = nearest(a);
+      if (o) { strikeAt(a, o); a.cool = 1.15 + Math.random() * 0.5; }
+      else if (a.melee) { // step toward the fight
+        const any = squad.find((s) => s.side !== a.side && s.state !== 'dead');
+        if (any) { a.goalY = a.y + Math.sign(any.y - a.y) * CELL; a.walk(0.8, false); a.cool = 0.9; }
+      }
+    }
+  }
+  for (const s of shots) s.t += dt;
+  shots = shots.filter((s) => s.t < s.dur);
+  if (!fightOver && (alive[0] === 0 || alive[1] === 0)) {
+    fightOver = performance.now();
+    setTimeout(() => { for (const a of squad) if (a.state !== 'dead') a.cheer(); }, 500);
+    setTimeout(setupFight, 3200);
+  }
+}
+function drawFight() {
+  bctx.clearRect(0, 0, 840, 800);
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+    bctx.fillStyle = (r + c) % 2 ? '#d7c093' : '#e9d6ae';
+    if (r < ROWS / 2) bctx.fillStyle = (r + c) % 2 ? '#cdb489' : '#dfc9a0';
+    bctx.fillRect(BX + c * CELL + 2, BY + r * CELL + 2, CELL - 4, CELL - 4);
+  }
+  const order = squad.slice().sort((p, q) => p.y - q.y);
+  for (const a of order) {
+    if (a.view.alpha <= 0.01) continue;
+    bctx.globalAlpha = a.view.alpha; ring(bctx, a.x, a.y + 45, 38, 12, a.side === 0 ? '#4f7fd6' : '#d2462e'); bctx.globalAlpha = 1;
+    a.draw(bctx, a.x, a.y + 45, 1.47);
+  }
+  for (const s of shots) {
+    if (s.t < 0) continue;
+    const k = s.t / s.dur, x = s.from[0] + (s.to[0] - s.from[0]) * k, y = s.from[1] + (s.to[1] - s.from[1]) * k;
+    if (s.kind === 'archer') {
+      const ang = Math.atan2(s.to[1] - s.from[1], s.to[0] - s.from[0]);
+      bctx.save(); bctx.translate(x, y); bctx.rotate(ang); bctx.strokeStyle = PAL.INK; bctx.lineWidth = 6; bctx.beginPath(); bctx.moveTo(-26, 0); bctx.lineTo(8, 0); bctx.stroke();
+      bctx.strokeStyle = PAL.CREAM; bctx.lineWidth = 2.5; bctx.stroke(); bctx.restore();
+    } else {
+      bctx.beginPath(); bctx.arc(x, y, 11, 0, 7); bctx.fillStyle = s.color; bctx.fill(); bctx.strokeStyle = PAL.INK; bctx.lineWidth = 3; bctx.stroke();
+    }
+  }
+}
+document.getElementById('restart').onclick = setupFight;
+
+makeHero(); setupFight();
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  hero.update(dt); drawStage();
+  stepFight(dt); drawFight();
+  if (!reduced) requestAnimationFrame(frame);
+}
+if (reduced) { hero.update(0.016); drawStage(); drawFight(); document.getElementById('acts').addEventListener('click', () => { let n = 0; const run = (t) => { const dt = 0.016; hero.update(dt); drawStage(); if (++n < 120) requestAnimationFrame(run); }; requestAnimationFrame(run); }); }
+else requestAnimationFrame(frame);
+</script>

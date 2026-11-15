@@ -6,7 +6,6 @@ extends RefCounted
 ## know). Big effects and name popups are capped so a busy fight stays
 ## readable. See Docs/systems/battle_playback.md.
 
-const WIND_UP_SEC: float = 0.2
 const MAX_BIG_EFFECTS: int = 3
 const MAX_NAME_POPUPS: int = 3
 # How far apart two name popups must be to both be read.
@@ -86,7 +85,8 @@ func _on_cast_started(event: Dictionary) -> void:
 		return
 	var color := _class_color(view)
 	var seconds := float(int(event["end_tick"]) - int(event["tick"]) + 1) / _playback.get_ticks_per_second()
-	view.wind_up(WIND_UP_SEC)
+	# The wind-up spans the cast; the resolve's recoil releases the strike.
+	view.wind_up(seconds)
 	view.skill_overlay.accent = color
 	view.skill_overlay.set_casting(true)
 	var centers: Array[Vector2] = []
@@ -129,10 +129,13 @@ func _on_status_applied(event: Dictionary) -> void:
 	var status: StringName = event["status"]
 	view.skill_overlay.add_status(status)
 	if status == &"status.stun":
+		# A stun cancels the cast: no resolve follows, so no strike either.
 		view.skill_overlay.set_casting(false)
+		view.cancel_wind_up()
 	elif status == &"status.taunted":
 		_playback.spawn_fx(SkillFx.taunt_mark(view.position + Vector2(0, -66)))
 	elif status == &"status.petrified":
+		# Stone cancels the cast too (set_petrified drops the wind-up).
 		view.skill_overlay.set_casting(false)
 		view.set_petrified(true)
 		_playback.spawn_fx(SkillFx.name_popup(view.position + Vector2(0, -96), view.tr("STATUS_PETRIFIED"), Palette.STEEL))

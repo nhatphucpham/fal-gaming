@@ -144,6 +144,7 @@ func _on_sold(piece_id: int, _gold: int, _supply: int) -> void:
 
 # Puts a view under the parent of its piece's place and hops it there.
 func _settle(view: UnitView, piece: RunPiece, seconds: float) -> void:
+	view.is_idle_calm = piece.is_on_bench()
 	var parent := _home_parent(piece)
 	if view.get_parent() != parent:
 		_reparent_keep(view, parent)
@@ -165,6 +166,8 @@ func _home_position(piece: RunPiece) -> Vector2:
 
 
 func _attach(view: UnitView, parent: Node2D, local: Vector2) -> void:
+	# Bench units only wait: they blink but hold still between redraws.
+	view.is_idle_calm = parent != _board.get_piece_layer() and parent != _overlay
 	parent.add_child(view)
 	view.position = local
 

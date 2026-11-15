@@ -169,6 +169,18 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Changed
 
+- Units are drawn as jointed chibi figures with class gear (plumed,
+  iron and feathered helmets, war hat, hood, wizard hat; sword, shield,
+  spear, bow and quiver, staff, lance on a horse). Your units are seen
+  three-quarters from behind facing up the board, enemies from the front
+  facing down; wolf folk have fur, ears and a muzzle. Legs stay straight
+  and close: units run with the stride toward and away from you, step into
+  slashes, thrusts and shots aimed at the enemy, wind up and release
+  skills with a glow, flinch when hit (shields brace), fall and stay down,
+  cheer with a hop, breathe and blink while idle (plumes, scarves and
+  pennants sway), and freeze in place when turned to stone. Every pose
+  follows the battle speed and keeps up with the units' moves at a low
+  frame rate.
 - Every button keeps at least 24 px from the top and bottom of the
   screen.
 - The preparation time setting reads "Xếp quân: 60 s".
@@ -187,6 +199,18 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Fixed
 
+- The end screen's portraits cut the unit off at the panel's edge, so its
+  legs no longer run behind the star pips.
+- Bosses and the sage no longer redraw 10 times a second while idle, and a
+  unit that glides or hops right after a knockback is no longer left tilted.
+- A hit that lands after a unit turned to stone (an arrow in flight) no
+  longer flashes the statue white or makes the boss flinch; a strike
+  released just as the stone comes no longer plays after the thaw, and the
+  thaw no longer jumps the pose; a knockback or a walk cut short by the
+  stone no longer leans or runs in place after the thaw; a boss stunned
+  as it drops in still appears.
+- When the battle ends, a unit still casting no longer strikes into the
+  air before cheering, and its feet glow goes off.
 - The web build had no sound at all: the Music and Sfx buses were added
   at run time, which is silent in the browser. They now come from
   `default_bus_layout.tres`.

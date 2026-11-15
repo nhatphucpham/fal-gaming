@@ -65,7 +65,7 @@ func reject(global_home: Vector2) -> void:
 func _draw() -> void:
 	if unit == null:
 		return
-	var shadow := UnitPainter.Brush.ellipse(LIFT + Vector2(0, 2), 24.0, 8.0, 16)
+	var shadow := FigureBrush.ellipse(LIFT + Vector2(0, 2), 24.0, 8.0, 16)
 	draw_colored_polygon(shadow, Color(Palette.INK, 0.3))
 	UnitPainter.draw_figure(self, unit, facing, 0.0, LIFT, GHOST_SCALE)
 
