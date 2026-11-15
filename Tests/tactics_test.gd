@@ -645,7 +645,16 @@ func _check_failed_reload() -> bool:
 	no_map.map = null
 	print("Tactics test: the next 2 errors (no map, start refused) are expected")
 	var loaded := [battle.load_scenario(scenario), battle.load_scenario(no_map)]
-	return Kit.expect("loads", loaded, [true, false]) and Kit.expect("nothing to start", [battle.start(), battle.get_unit_count()], [[], 0])
+	if not (Kit.expect("loads", loaded, [true, false]) and Kit.expect("nothing to start", [battle.start(), battle.get_unit_count()], [[], 0])):
+		return false
+	# A failed setup() after a load leaves nothing either.
+	var resetup := TacticsBattle.new()
+	_kit._battles.append(resetup)
+	var bad_map := scenario.map.duplicate() as TacticsMapData
+	bad_map.height = bad_map.height + 1
+	print("Tactics test: the next 2 errors (row count, start refused) are expected")
+	var set_up := [resetup.load_scenario(scenario), resetup.setup(scenario.rules, bad_map)]
+	return Kit.expect("setups", set_up, [true, false]) and Kit.expect("nothing to start after setup", [resetup.start(), resetup.get_unit_count()], [[], 0])
 
 
 # The catalog reports a terrain id that no terrain has, in a keyword's

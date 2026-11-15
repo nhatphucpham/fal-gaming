@@ -37,7 +37,7 @@ func _run() -> bool:
 		_check_order_slots, _check_dead_leader_slots, _check_anticipation_shift, _check_blocked_slots, _check_free_seeks,
 		_check_free_helps, _check_soldier_priority, _check_charge_turns, _check_charge_engagements,
 		_check_charge_focus, _check_charge_damage_taken, _check_charge_soldiers_lost,
-		_check_area_skill_and_fire, _check_ai_skill, _check_ai_own_side_skill, _check_stat_passives, _check_squad_passive,
+		_check_area_skill_and_fire, _check_ai_skill, _check_ai_focus_skill, _check_ai_own_side_skill, _check_stat_passives, _check_squad_passive,
 		_check_environment_passive, _check_pull_passive, _check_growth_passive,
 		_check_zone_sides, _check_side_b_durations, _check_causes,
 	]
@@ -373,6 +373,29 @@ func _check_ai_skill() -> bool:
 	var used := Kit.of_type(events, &"skill_used")
 	return Kit.expect("declared", [intent["unit"], intent["action"], intent["target"]], [enemy, &"skill", target]) \
 		and Kit.expect("used on the target", used.map(func(event: Dictionary) -> Array: return [event["unit"], event["cell"]]), [[enemy, Vector2i(5, 10)]])
+
+
+# An AI leader whose focus skill a move would lose casts it from where it
+# stands, as declared: its pull left the target too close for an attack
+# (min range 2), so an attack would need a move.
+func _check_ai_focus_skill() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows(), true)
+	var target := _kit.add(battle, A, _kit.leader(MOON_SPEAR, [], {"keywords": _kit.keywords([]), "move_points": 0}), Vector2i(5, 6))
+	var skill := _kit.catalog.get_leader(MOON_SPEAR).skill.duplicate() as TacticsSkillData
+	skill.charge_threshold = 1
+	var hook: Array[TacticsPassiveData] = [_kit.catalog.get_passive(&"tactics_passive.hook_spear")]
+	var changes := {"keywords": _kit.keywords([]), "skill": skill, "min_range_cells": 2, "max_range_cells": 2}
+	var enemy := _kit.add(battle, B, _kit.leader(MOON_SPEAR, hook, changes), Vector2i(5, 4))
+	battle.start()
+	battle.end_phase()
+	if not Kit.expect("pulled next to it, focus ready", [Kit.cell_of(battle, target), battle.get_skill_charge(enemy)["is_ready"]], [Vector2i(5, 5), true]):
+		return false
+	var intent: Dictionary = battle.get_enemy_intents()[0]
+	var events := battle.end_phase()
+	var moves := Kit.of_type(events, &"unit_moved").filter(func(event: Dictionary) -> bool: return event["unit"] == enemy)
+	var used := Kit.of_type(events, &"skill_used")
+	return Kit.expect("declared", [intent["to"], intent["action"], intent["target"]], [Vector2i(5, 4), &"skill", target]) \
+		and Kit.expect("stayed", moves, []) and Kit.expect("cast", used.map(func(event: Dictionary) -> Array: return [event["unit"], event["cell"]]), [[enemy, Vector2i(5, 5)]])
 
 
 # An AI leader casts a ready skill for its own side (rally banner, cast

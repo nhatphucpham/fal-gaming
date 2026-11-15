@@ -192,7 +192,10 @@ placed on the spawn cells in order. Sample: `scenario.river_crossing`.
   skill is ready: a skill for its own side (no effect works against
   enemies, such as `rally_banner`) is cast on the leader's own cell when
   the target handler accepts that cell; any other skill is cast on the
-  enemy when it is in cast range. Otherwise it attacks that enemy, else
+  enemy when it is in cast range. A skill counts as ready only if it is
+  still ready after that move: when moving would lose the charge
+  (`charge.focus`) and the skill can be cast from where the leader stands,
+  it stays and casts it there. Otherwise it attacks that enemy, else
   the enemy in range with the lowest hp, else waits. When the other side
   is human, the AI's intents are declared at the start of the human phase
   (`get_enemy_intents()`) and followed as closely as the board allows; a
@@ -215,7 +218,7 @@ error.
 
 | Member | Kind | Description |
 | --- | --- | --- |
-| `setup(rules, map) -> bool` | method | Starts a new battle setup; false when the data is invalid or the battle already started |
+| `setup(rules, map) -> bool` | method | Starts a new battle setup; false when the data is invalid (then nothing stays set up) or the battle already started |
 | `load_scenario(scenario) -> bool` | method | `setup` plus the scenario's leaders on the spawn cells; on failure nothing stays set up |
 | `set_side_ai(side, is_ai)`, `is_side_ai(side)` | method | AI phases run on their own after the human's `end_phase()` |
 | `add_leader(side, leader, cell) -> int` | method | Adds the leader and its `squad`; returns the unit index or -1 |
@@ -225,7 +228,7 @@ error.
 | `is_started`, `is_finished`, `get_winner`, `get_end_reason`, `get_round`, `get_turn`, `get_active_side` | method | Battle state |
 | `get_unit_count`, `get_unit_state(unit)`, `get_units()`, `get_zones()` | method | Unit and zone dictionaries |
 | `get_map_width`, `get_map_height`, `get_terrain_id(cell)` | method | Map |
-| `get_reachable_cells(unit)`, `get_path_to(unit, cell)` | method | Cells the unit can end a move on this phase (without its own), and the path to one, both ends included (`[cell]` for its own cell); empty for a dead unit or a cell it cannot stop on |
+| `get_reachable_cells(unit)`, `get_path_to(unit, cell)` | method | Cells the unit can end a move on from where it stands (without its own), and the path to one, both ends included (`[cell]` for its own cell); empty for a dead unit or a cell it cannot stop on. They do not check whose phase it is or whether the leader already moved or acted, which `move_leader()` also needs |
 | `get_formation_slots(leader)` | method | The slot cells of the leader's order (empty for `hold`, `free` or a dead leader) |
 | `preview_squad(leader, cell)` | method | `[{unit, cell}]`: where the soldiers would stand after the leader moved there; `[]` and an error when that move would be refused |
 | `forecast_engagement(attacker, defender) -> Dictionary` | method | Hits, damage per hit and hp after, without changing state; any two units (an enemy's attack too, whoever's phase it is); `is_valid` false when either is dead, they are on the same side, the defender is out of range or the battle ended |
@@ -306,15 +309,16 @@ Format `[info][Tactics][t=<turn>] <event> key=value`, when logging is on.
 ## Tests
 
 `Tests/tactics_test.gd` (catalog checks, scenario loading and failed
-loads, movement, paths and zones of control, engagement and forecast,
+loads and setups, movement, paths and zones of control, engagement and forecast,
 keywords, terrain, AI intent, victory, defeat and time limit, objective
 only by the leader's own move, `battle_ended` as the last event, a replay
 that must give the same state hash, what the hash covers, data range
 checks, side bounds, map legends, dead units in queries and intents) and
 `Tests/tactics_squad_test.gd` (orders, anticipation, slots of a dead
 leader, the five charge mechanisms, skills and zones, the AI casting a
-skill on an enemy and on its own side, the five passive kinds, the side a
-zone affects, side B durations and event causes), sharing
+skill on an enemy and on its own side and a focus skill without moving,
+the five passive kinds, the side a zone affects, side B durations and
+event causes), sharing
 `Tests/tactics_test_kit.gd`. Run:
 `godot --headless --path . --script res://Tests/tactics_test.gd` (and the
 squad test). Both are in CI.

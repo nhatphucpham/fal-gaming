@@ -36,11 +36,16 @@ bool TacticsBattle::setup(const Ref<TacticsRulesData> &p_rules, const Ref<Tactic
 	if (!check_not_emitting("setup")) {
 		return false;
 	}
-	ERR_FAIL_COND_V_MSG(p_rules.is_null() || p_map.is_null(), false, "Tactics: setup() needs rules and a map");
 	tactics::MapDef map;
 	std::string error;
-	ERR_FAIL_COND_V_MSG(!p_map->to_map_def(&map, &error), false, "Tactics: " + to_godot_string(error));
-	ERR_FAIL_COND_V_MSG(!sim.setup(p_rules->to_rules(), map, &error), false, "Tactics: " + to_godot_string(error));
+	const bool is_data_valid = p_rules.is_valid() && p_map.is_valid() && p_map->to_map_def(&map, &error);
+	if (!is_data_valid || !sim.setup(p_rules->to_rules(), map, &error)) {
+		// Like a failed load: an earlier setup does not stay to be started.
+		if (!sim.is_started()) {
+			clear_setup();
+		}
+		ERR_FAIL_V_MSG(false, "Tactics: setup() refused: " + (error.empty() ? String("it needs rules and a map") : to_godot_string(error)));
+	}
 	return true;
 }
 

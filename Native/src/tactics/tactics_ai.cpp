@@ -30,16 +30,27 @@ int pick_ai_target(const TacticsSim &p_sim, int p_leader) {
 	return best;
 }
 
-// A ready skill against enemies that reaches p_target from p_from.
-bool can_skill_reach(const UnitState &p_leader, const Cell &p_from, const Cell &p_target) {
-	return is_skill_ready(p_leader) && !is_skill_for_own_side(p_leader.def.skill) && get_manhattan(p_from, p_target) <= p_leader.def.skill.cast_range_cells;
+// The skill is ready once the leader stands on p_from: moving there first
+// feeds the charge a displacement, which charge.focus loses.
+bool is_skill_ready_on(const UnitState &p_leader, const Cell &p_from) {
+	if (!is_skill_ready(p_leader) || p_from == p_leader.cell) {
+		return is_skill_ready(p_leader);
+	}
+	const ChargeUpdate update = p_leader.def.skill.charge->update(ChargeTrigger::DISPLACED, 0);
+	const int value = update.resets ? 0 : p_leader.skill_charge + update.delta;
+	return value >= p_leader.def.skill.charge_threshold;
 }
 
-// A ready skill for the leader's own side that it may cast on p_from, the
-// cell it stands on then.
+// A skill against enemies, ready on p_from, that reaches p_target from it.
+bool can_skill_reach(const UnitState &p_leader, const Cell &p_from, const Cell &p_target) {
+	return is_skill_ready_on(p_leader, p_from) && !is_skill_for_own_side(p_leader.def.skill) && get_manhattan(p_from, p_target) <= p_leader.def.skill.cast_range_cells;
+}
+
+// A skill for the leader's own side, ready on p_from, that it may cast on
+// p_from, the cell it stands on then.
 bool can_cast_on_own_cell(const TacticsSim &p_sim, int p_leader, const Cell &p_from) {
 	const UnitState &leader = p_sim.get_units()[p_leader];
-	if (!is_skill_ready(leader) || !is_skill_for_own_side(leader.def.skill)) {
+	if (!is_skill_ready_on(leader, p_from) || !is_skill_for_own_side(leader.def.skill)) {
 		return false;
 	}
 	SkillSelection selection;
@@ -72,6 +83,12 @@ Intent plan_intent(const TacticsSim &p_sim, int p_leader) {
 	const std::vector<int> distance = find_goal_distances(p_sim, p_leader, attack_cells);
 	// Attack cells have distance 0, so a reachable one always wins.
 	intent.destination = pick_reachable_cell(p_sim, p_leader, field, [&](const Cell &p_cell) { return distance[p_sim.get_cell_index(p_cell)]; });
+	// A skill that moving would lose (charge.focus) is cast from where the
+	// leader stands when it can be.
+	const bool would_lose_skill = is_skill_ready(leader) && !is_skill_ready_on(leader, intent.destination);
+	if (would_lose_skill && (can_cast_on_own_cell(p_sim, p_leader, leader.cell) || can_skill_reach(leader, leader.cell, target_cell))) {
+		intent.destination = leader.cell;
+	}
 	if (can_cast_on_own_cell(p_sim, p_leader, intent.destination)) {
 		return cast_on_own_cell(intent, intent.destination);
 	}
