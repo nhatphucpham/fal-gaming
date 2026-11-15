@@ -119,9 +119,15 @@ bool validate_leader_parts(const UnitDef &p_unit, std::string *r_error) {
 			!check_range(p_unit.id, "lead_capacity", p_unit.lead_capacity, 0, MAX_SQUAD_SIZE, r_error)) {
 		return false;
 	}
-	for (const PassiveDef &passive : p_unit.passives) {
-		if (!validate_passive(p_unit, passive, r_error)) {
+	for (size_t index = 0; index < p_unit.passives.size(); index++) {
+		if (!validate_passive(p_unit, p_unit.passives[index], r_error)) {
 			return false;
+		}
+		for (size_t other = 0; other < index; other++) {
+			if (p_unit.passives[other].id == p_unit.passives[index].id) {
+				*r_error = p_unit.id + " lists passive " + p_unit.passives[index].id + " twice";
+				return false;
+			}
 		}
 	}
 	if (p_unit.default_order < 0 || p_unit.default_order >= get_order_count()) {
@@ -185,9 +191,16 @@ bool validate_unit_def(const UnitDef &p_unit, std::string *r_error) {
 	if (!are_stats_valid) {
 		return false;
 	}
-	for (const KeywordDef &keyword : p_unit.keywords) {
-		if (!validate_keyword(p_unit.id, keyword, r_error)) {
+	for (size_t index = 0; index < p_unit.keywords.size(); index++) {
+		if (!validate_keyword(p_unit.id, p_unit.keywords[index], r_error)) {
 			return false;
+		}
+		// A keyword listed twice would apply twice (charge +60%, heavy +2).
+		for (size_t other = 0; other < index; other++) {
+			if (p_unit.keywords[other].id == p_unit.keywords[index].id) {
+				*r_error = p_unit.id + " lists keyword " + p_unit.keywords[index].id + " twice";
+				return false;
+			}
 		}
 	}
 	return p_unit.role != UnitRole::LEADER || validate_leader_parts(p_unit, r_error);

@@ -42,9 +42,10 @@ Everything is listed in `Data/Tactics/tactics_catalog.tres`
 (`TacticsCatalog`: `rules`, `terrains`, `keywords`, `zones`, `passives`,
 `skills`, `troops`, `leaders`, `maps`, `scenarios`); nothing scans folders.
 `TacticsCatalog.validate()` checks id prefixes, duplicates, name keys,
-references to unlisted files, units (squad size against the capacity with
-passives), maps (spawn cells on the map, passable and not shared) and
-scenarios. Ids:
+references to unlisted files (terrains, keywords, zones, passives,
+skills, troops, leaders, maps), units (squad size against the capacity
+with passives; no keyword or passive listed twice), maps (spawn cells on
+the map, passable and not shared) and scenarios. Ids:
 `terrain.`, `keyword.`, `zone.`, `tactics_passive.`, `tactics_skill.`,
 `troop.`, `leader.`, `map.`, `scenario.`. Name keys (`TERRAIN_PLAIN`,
 `LEADER_LAC_HONG`, ...) have no Locale rows yet.

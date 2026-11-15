@@ -100,6 +100,41 @@ void TacticsCatalog::validate_units(PackedStringArray &r_problems) const {
 	}
 }
 
+void TacticsCatalog::validate_references(PackedStringArray &r_problems) const {
+	Array units;
+	units.append_array(troops);
+	units.append_array(leaders);
+	for (int64_t index = 0; index < units.size(); index++) {
+		const Ref<TacticsUnitData> unit = units[index];
+		if (unit.is_null()) {
+			continue;
+		}
+		const TypedArray<TacticsKeywordData> unit_keywords = unit->get_keywords();
+		for (int64_t keyword = 0; keyword < unit_keywords.size(); keyword++) {
+			if (!contains(keywords, unit_keywords[keyword])) {
+				r_problems.push_back(vformat("TacticsCatalog: %s uses a keyword not listed in keywords", where(unit)));
+			}
+		}
+	}
+	for (int64_t index = 0; index < passives.size(); index++) {
+		const Ref<TacticsPassiveData> passive = passives[index];
+		const bool is_unlisted = passive.is_valid() && ((passive->get_keyword().is_valid() && !contains(keywords, passive->get_keyword())) || (passive->get_zone().is_valid() && !contains(zones, passive->get_zone())));
+		if (is_unlisted) {
+			r_problems.push_back(vformat("TacticsCatalog: %s uses a keyword or zone not listed in the catalog", where(passive)));
+		}
+	}
+	for (int64_t index = 0; index < skills.size(); index++) {
+		const Ref<TacticsSkillData> skill = skills[index];
+		const TypedArray<TacticsSkillEffectData> effects = skill.is_valid() ? skill->get_effects() : TypedArray<TacticsSkillEffectData>();
+		for (int64_t effect = 0; effect < effects.size(); effect++) {
+			const Ref<TacticsSkillEffectData> data = effects[effect];
+			if (data.is_valid() && data->get_zone().is_valid() && !contains(zones, data->get_zone())) {
+				r_problems.push_back(vformat("TacticsCatalog: %s uses a zone not listed in zones", where(skill)));
+			}
+		}
+	}
+}
+
 void TacticsCatalog::validate_maps(PackedStringArray &r_problems) const {
 	for (int64_t index = 0; index < maps.size(); index++) {
 		const Ref<TacticsMapData> map = maps[index];
@@ -182,6 +217,7 @@ PackedStringArray TacticsCatalog::validate() const {
 	validate_ids(maps, "map.", false, problems);
 	validate_ids(scenarios, "scenario.", false, problems);
 	validate_units(problems);
+	validate_references(problems);
 	validate_maps(problems);
 	validate_scenarios(problems);
 	return problems;

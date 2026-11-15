@@ -38,6 +38,7 @@ func _run() -> bool:
 		_check_ai_intent, _check_victory, _check_defeat, _check_time_limit, _check_determinism,
 		_check_hash_covers_setup, _check_forecast_after_end, _check_left_out_soldier, _check_data_ranges,
 		_check_dead_intent_dropped, _check_nothing_after_end, _check_map_legend,
+		_check_catalog_references,
 	]
 	for check: Callable in checks:
 		if not check.call():
@@ -504,3 +505,20 @@ func _check_map_legend() -> bool:
 	return Kit.expect("repeated symbol refused", battle.setup(_kit.catalog.rules, map), false) \
 		and Kit.expect("no side 2 spawns", map.get_spawn_cells(2), []) \
 		and Kit.expect("no side 2 leaders", _kit.catalog.get_scenario(&"scenario.river_crossing").get_leaders(2), [])
+
+
+# The catalog reports a keyword a troop uses but the catalog does not list,
+# and a unit that lists a keyword twice is refused.
+func _check_catalog_references() -> bool:
+	var unlisted := _kit.catalog.get_keyword(&"keyword.heavy").duplicate() as TacticsKeywordData
+	var unlisted_list: Array[TacticsKeywordData] = [unlisted]
+	var troop := _kit.troop(&"troop.spearman", {"keywords": unlisted_list})
+	var catalog := _kit.catalog.duplicate() as TacticsCatalog
+	var troops: Array[TacticsTroopData] = [troop]
+	catalog.troops = troops
+	var problems := catalog.validate()
+	var twice := _kit.keywords([&"keyword.charge", &"keyword.charge"])
+	var battle := _kit.new_battle(_kit.plain_rows())
+	print("Tactics test: the next error (keyword listed twice) is expected")
+	return Kit.expect_true("unlisted keyword reported: %s" % [problems], Array(problems).any(func(problem: String) -> bool: return problem.contains("keyword not listed"))) \
+		and Kit.expect("keyword twice refused", battle.add_leader_with_squad(A, _kit.leader(BA_KHAC, [], {"keywords": twice}), Vector2i(5, 5), []), -1)

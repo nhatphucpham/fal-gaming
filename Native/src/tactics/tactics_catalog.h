@@ -31,6 +31,8 @@ class TacticsCatalog : public Resource {
 
 	void validate_ids(const Array &p_entries, const String &p_prefix, bool p_needs_description, PackedStringArray &r_problems) const;
 	void validate_units(PackedStringArray &r_problems) const;
+	// Keywords and zones used by units, passives and skills are listed.
+	void validate_references(PackedStringArray &r_problems) const;
 	void validate_maps(PackedStringArray &r_problems) const;
 	void validate_scenarios(PackedStringArray &r_problems) const;
 
