@@ -147,6 +147,17 @@ func get_wind_up(view: StringName, seconds: float) -> Array[RigClips.ClipKey]:
 	return wind
 
 
+## A knockback seen from `view`: leaning back in the first `hit` pose
+## (without its flash) for `seconds`, then settling to `stance`.
+func get_flinch(view: StringName, seconds: float, lean_sec: float, settle_sec: float, stance: UnitPose) -> Array[RigClips.ClipKey]:
+	var lean := get_clip(&"hit", view)[0].pose.merged({"flash": 0})
+	return [
+		RigClips.ClipKey.new(lean_sec, RigClips.Easing.OUT, lean),
+		RigClips.ClipKey.new(seconds, RigClips.Easing.LINEAR, lean),
+		RigClips.ClipKey.new(settle_sec, RigClips.Easing.IN_OUT, stance),
+	]
+
+
 ## The run cycle at `phase` seen from `view`.
 func get_walk_pose(phase: float, view: StringName) -> UnitPose:
 	if walk.is_valid():

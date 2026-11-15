@@ -9,8 +9,8 @@ extends Node
 ## when the pose changes, as PoseRedraws times it (by real time): at most 30
 ## times a second while a clip runs, about 10 (staggered per unit) while
 ## idling, on blinks only while calm, never while frozen (stone) or after
-## death. Each frame steps the clips by at most MAX_STEP_SEC (a long frame
-## does not skip a clip), times the battle speed.
+## death. Each frame steps the clips by its time times the battle speed, at
+## most MAX_BATTLE_STEP_SEC (as far as the battle itself steps in a frame).
 ## UnitView owns one; see the call table in Docs/systems/board.md.
 ## [codeblock]
 ## var animator := PoseAnimator.new(figure)
@@ -20,8 +20,10 @@ extends Node
 ## animator.attack(PI / 2.0)
 ## [/codeblock]
 
-## The longest frame step, before the battle speed (the sketch's cap).
-const MAX_STEP_SEC: float = 0.05
+## The longest step of battle time in one frame. Mirrors the SimClock's
+## catch-up limit (max_ticks_per_frame 5 at 20 ticks a second, a property
+## of its instance, not a constant), so the poses keep up with the board.
+const MAX_BATTLE_STEP_SEC: float = 0.25
 ## A wind-up with no release after this long past its end releases anyway.
 const RELEASE_GRACE_SEC: float = 0.1
 ## Strides a second running and galloping; a charge goes faster.
@@ -121,7 +123,7 @@ func aims_off_hand() -> bool:
 func _process(delta: float) -> void:
 	if _kit == null:
 		return
-	var dt := minf(delta, MAX_STEP_SEC) * playback_speed
+	var dt := minf(delta * playback_speed, MAX_BATTLE_STEP_SEC)
 	var is_active := _advance(dt)
 	trail.update(pose, _kit, view, dt)
 	is_active = is_active or not trail.is_empty()
@@ -150,7 +152,7 @@ func _process(delta: float) -> void:
 ## runs (gallops) faster and keeps a wind-up glowing for its release. A
 ## plain walk cancels a wind-up and any clip.
 func walk(seconds: float, is_charge: bool) -> void:
-	if is_dead or _kit == null:
+	if is_dead or is_frozen or _kit == null:
 		return
 	if is_winding and not is_charge:
 		_cancel_wind_up()
@@ -223,16 +225,11 @@ func hit() -> void:
 
 ## Leans back for `seconds` (pushed by a knockback).
 func flinch_for(seconds: float) -> void:
-	if is_dead or _kit == null or is_winding:
+	if is_dead or is_frozen or _kit == null or is_winding:
 		return
 	_walk_left = 0.0
 	_is_charging = false
-	var lean := _kit.get_clip(&"hit", view)[0].pose.merged({"flash": 0})
-	_start([
-		RigClips.ClipKey.new(KNOCKBACK_LEAN_SEC, RigClips.Easing.OUT, lean),
-		RigClips.ClipKey.new(seconds, RigClips.Easing.LINEAR, lean),
-		RigClips.ClipKey.new(KNOCKBACK_SETTLE_SEC, RigClips.Easing.IN_OUT, get_stance()),
-	])
+	_start(_kit.get_flinch(view, seconds, KNOCKBACK_LEAN_SEC, KNOCKBACK_SETTLE_SEC, get_stance()))
 
 
 ## Falls and stays down with shut eyes; idle stops for good.
@@ -252,7 +249,7 @@ func die() -> void:
 ## Weapon raised with happy eyes and two hops, for the winners. Ends a
 ## wind-up without its strike.
 func cheer() -> void:
-	if is_dead or _kit == null:
+	if is_dead or is_frozen or _kit == null:
 		return
 	if is_winding:
 		_cancel_wind_up()
@@ -264,9 +261,10 @@ func cheer() -> void:
 
 ## Freezes the pose as it is (no clip, breathing or blink), or thaws it. A
 ## hit flash, the weapon trail and a wind-up's glow do not turn to stone
-## with it. The running clip ends there and a wind-up is cancelled (the
-## cast is): after the thaw the figure settles from the stone pose to its
-## rest pose without a strike; a run goes on.
+## with it. The running clip and run end there and a wind-up is cancelled
+## (the cast is): after the thaw the figure settles from the stone pose to
+## its rest pose without a strike. A statue takes no new run, knockback or
+## cheer.
 func set_frozen(frozen: bool) -> void:
 	is_frozen = frozen
 	if frozen and pose != null and _kit != null:
@@ -275,7 +273,8 @@ func set_frozen(frozen: bool) -> void:
 		_key_time = 0.0
 		pose = pose.merged({"flash": 0, "trail": 0, "glow": 0})
 		_from = pose
-		_walk_time = 0.0
+		_walk_left = 0.0
+		_is_charging = false
 		trail.clear()
 		if _figure != null:
 			_figure.queue_redraw()
@@ -385,7 +384,8 @@ func _play_key(dt: float) -> void:
 # The rest pose breathing (the sketch's idle bob), with a blink now and then.
 func _breathe() -> void:
 	_eyes_shown = redraws.get_blink()
-	pose = RigClips.breathing(get_stance(), _clock * BREATH_SPEED if is_swaying else NAN, _eyes_shown)
+	var rest := get_stance()
+	pose = RigClips.breathing(rest, _clock * BREATH_SPEED, _eyes_shown) if is_swaying else RigClips.held_breath(rest, _eyes_shown)
 
 
 func _rest_now() -> void:

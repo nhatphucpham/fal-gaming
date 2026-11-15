@@ -71,10 +71,18 @@ static func get_clip(name: StringName) -> Array[ClipKey]:
 
 
 ## `rest` breathing (the sketch's idle bob) at `phase` radians of the
-## breath, or held still for NAN (a calm figure), with `eyes` (0 open, 1 shut).
+## breath, with `eyes` (0 open, 1 shut).
 static func breathing(rest: UnitPose, phase: float, eyes: int) -> UnitPose:
-	var bob := 0.0 if is_nan(phase) else sin(phase)
-	var swing := 0.0 if is_nan(phase) else sin(phase - 0.6)
+	return _breath(rest, sin(phase), sin(phase - 0.6), eyes)
+
+
+## `rest` with the breath held still (a calm figure), with `eyes`.
+static func held_breath(rest: UnitPose, eyes: int) -> UnitPose:
+	return _breath(rest, 0.0, 0.0, eyes)
+
+
+# The breath's rise `bob` and the blade's lagging `swing`, both -1..1.
+static func _breath(rest: UnitPose, bob: float, swing: float, eyes: int) -> UnitPose:
 	var v := rest.values
 	return rest.with_fields({
 		"torso": v[UnitPose.TORSO] + 0.8 * bob, "head": v[UnitPose.HEAD] - 0.6 * bob, "hip": v[UnitPose.HIP] - 0.25 * (1.0 + bob),

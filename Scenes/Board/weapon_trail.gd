@@ -9,7 +9,7 @@ extends RefCounted
 const SAMPLES: int = 14
 const FADE_PER_SEC: float = 7.0
 ## A pose's `trail` above this takes samples.
-const MIN: float = 0.03
+const SAMPLE_TRAIL_MIN: float = 0.03
 
 ## (tip, inner edge) per sample, oldest first.
 var points := PackedVector2Array()
@@ -30,7 +30,7 @@ func clear() -> void:
 ## Takes a sample of `pose` (solved for `view` with `kit`) while its trail
 ## is up, else fades every sample by `dt` of battle time.
 func update(pose: UnitPose, kit: RigKit, view: StringName, dt: float) -> void:
-	if pose.values[UnitPose.TRAIL] > MIN:
+	if pose.values[UnitPose.TRAIL] > SAMPLE_TRAIL_MIN:
 		var still := pose.merged({"dx": 0}) if pose.values[UnitPose.DX] != 0.0 else pose
 		points.append_array(kit.get_trail_points(RigSolver.solve(still, view), still))
 		weights.append(1.0)

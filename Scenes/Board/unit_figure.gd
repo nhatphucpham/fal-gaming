@@ -4,9 +4,10 @@ extends Node2D
 ## redrawn only when its look, the hit flash or its pose changes (a
 ## PoseAnimator calls queue_redraw). It knows which way it faces (`flip`)
 ## and how far its pose's step pushes it toward its target; the view
-## moves, scales, mirrors and rotates it for whole-body animation. A rigged figure's hit flash is a
-## shader on the figure (no redraw, no tinted copies of its meshes) that
-## leaves the weapon trail and the glow their colours.
+## moves, scales, mirrors and rotates it for whole-body animation. A
+## rigged figure's hit flash is a shader on the figure (no redraw, no
+## tinted copies of its meshes) that leaves the weapon trail and the glow
+## their colours.
 
 ## A target less than this far to the side keeps the current facing.
 const TURN_MIN_PX: float = 6.0
