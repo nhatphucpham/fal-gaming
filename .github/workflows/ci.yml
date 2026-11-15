@@ -145,6 +145,7 @@ jobs:
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/unit_pose_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/pose_animator_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/pose_cast_test.gd
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/pose_stone_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --quit-after 2
 
   android:

@@ -215,12 +215,12 @@ func _check_feet_on_ground() -> bool:
 func _play_every_clip(kit: RigKit, view: StringName, look: RigPainter.Look) -> void:
 	for clip: StringName in CLIPS:
 		var from := kit.stance[view]
-		var time := randf() / PoseAnimator.ACTION_REDRAWS_PER_SEC
+		var time := randf() / PoseRedraws.ACTION_PER_SEC
 		for key: RigClips.ClipKey in kit.get_clip(clip, view):
 			while time < key.seconds:
 				look.clock = randf() * 100.0
 				_paint(kit, UnitPose.blend(from, key.pose, RigClips.eased(key.easing, time / key.seconds)), view, look)
-				time += 1.0 / PoseAnimator.ACTION_REDRAWS_PER_SEC
+				time += 1.0 / PoseRedraws.ACTION_PER_SEC
 			time -= key.seconds
 			from = key.pose
 	for step: int in 30:

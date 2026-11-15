@@ -6,9 +6,11 @@ extends SceneTree
 # without redraws; figures outside the rig stay idle; idle redraws are
 # throttled at any battle speed, blinks still show at x4 and a calm figure
 # only blinks; the battle speed scales the clips; glides and hops clear
-# the lean; the trail takes a sample every frame; an archer shooting
-# straight ahead turns its bow hand the way the sketch does. Casts and
-# stone have their own test, pose_cast_test.gd.
+# the lean; the trail takes a sample every frame; a long frame steps the
+# clips by at most MAX_STEP_SEC; an archer shooting straight ahead turns
+# its bow hand the way the sketch does. The timing checks step the
+# animators by hand (Kit.Stepper). Casts and stone have their own tests,
+# pose_cast_test.gd and pose_stone_test.gd.
 
 const Kit := preload("res://Tests/pose_test_kit.gd")
 # Every animator test but the speed ones runs the battle at x4.
@@ -28,7 +30,7 @@ func _run() -> bool:
 	var checks: Array[Callable] = [
 		_check_actions_rest, _check_event_orders_rest, _check_die, _check_posed_off_idle, _check_idle_redraws,
 		_check_blinks_at_speed, _check_calm_idle, _check_speed, _check_glide_clears_lean, _check_trail_every_frame,
-		_check_archer_straight_shot,
+		_check_step_cap, _check_archer_straight_shot,
 	]
 	for check: Callable in checks:
 		if not await check.call():
@@ -136,18 +138,21 @@ func _check_posed_off_idle() -> bool:
 
 
 # Idle (no action) redraws about 10 times a second, not every frame, at
-# x1 and at x4 alike.
+# x1 and at x4 alike (60 fixed frames of a second, stepped by hand).
 func _check_idle_redraws() -> bool:
 	var ok := true
 	for speed: float in [1.0, FAST]:
 		var view := Kit.make_view(root, &"class.archer", 0)
+		var stepper := Kit.Stepper.new()
+		stepper.take(view)
 		view.playback_speed = speed
-		await create_timer(0.3).timeout
+		await stepper.run(self, 0.3)
 		var draws := Kit.count_draws(view)
-		await create_timer(1.0).timeout
+		await stepper.run(self, 1.0)
 		view.queue_free()
-		if draws[0] < 7 or draws[0] > 14:
-			push_error("Idle at x%.0f should redraw about 10 times a second, not %d" % [speed, draws[0]])
+		var expected := PoseRedraws.IDLE_PER_SEC
+		if draws[0] < expected - 1 or draws[0] > expected + 1:
+			push_error("Idle at x%.0f should redraw %.0f times a second, not %d" % [speed, expected, draws[0]])
 			ok = false
 	return ok
 
@@ -157,24 +162,26 @@ func _check_idle_redraws() -> bool:
 # figure, swaying or calm, shows shut eyes at least once.
 func _check_blinks_at_speed() -> bool:
 	var views: Array[UnitView] = []
+	var stepper := Kit.Stepper.new()
 	for calm: bool in [false, true]:
 		for index: int in 3:
 			var view := Kit.make_view(root, &"class.sword", index % 2)
+			stepper.take(view)
 			view.playback_speed = FAST
 			view.is_idle_calm = calm
 			views.append(view)
 	var blinked: Array[bool] = []
 	blinked.resize(views.size())
-	var start := Time.get_ticks_msec()
-	while Time.get_ticks_msec() - start < (PoseAnimator.BLINK_PERIOD_SEC + 0.3) * 1000.0:
-		await process_frame
+	var period := PoseRedraws.BLINK_PERIOD_SEC + 0.3
+	for frame: int in roundi(period / Kit.Stepper.FRAME):
+		await stepper.step(self)
 		for index: int in views.size():
 			if views[index].get_pose().values[UnitPose.EYES] == 1.0:
 				blinked[index] = true
 	var ok := true
 	for index: int in views.size():
 		if not blinked[index]:
-			push_error("A figure at x4 (calm %s) never showed a blink in %.1f s" % [views[index].is_idle_calm, PoseAnimator.BLINK_PERIOD_SEC + 0.3])
+			push_error("A figure at x4 (calm %s) never showed a blink in %.1f s" % [views[index].is_idle_calm, period])
 			ok = false
 		views[index].queue_free()
 	return ok
@@ -184,21 +191,41 @@ func _check_blinks_at_speed() -> bool:
 # redraw: frames within one redraw slot still add samples.
 func _check_trail_every_frame() -> bool:
 	var view := Kit.make_view(root, &"class.sword", 0)
-	var animator := view.get_animator()
+	var stepper := Kit.Stepper.new()
+	var animator := stepper.take(view)
 	view.lunge(Vector2(0, -80))
-	var start := Time.get_ticks_msec()
-	while view.get_pose().values[UnitPose.TRAIL] <= PoseAnimator.TRAIL_MIN and Time.get_ticks_msec() - start < 2000:
-		await process_frame
-	animator.set_process(false)
-	var before := animator.trail_weights.size()
+	for frame: int in 120:
+		if view.get_pose().values[UnitPose.TRAIL] > WeaponTrail.MIN:
+			break
+		await stepper.step(self)
+	var before := animator.trail.weights.size()
 	for frame: int in 3:
 		animator._process(0.002)
-	var added := animator.trail_weights.size() - before
+	var added := animator.trail.weights.size() - before
 	view.queue_free()
 	if added != 3:
 		push_error("Three frames of a swing should add three trail samples, not %d" % added)
 		return false
 	return true
+
+
+# A long frame (a hitch) steps the clips by at most MAX_STEP_SEC, times
+# the battle speed, so it does not skip a clip.
+func _check_step_cap() -> bool:
+	var view := Kit.make_view(root, &"class.sword", 0)
+	var stepper := Kit.Stepper.new()
+	var animator := stepper.take(view)
+	view.playback_speed = 2.0
+	view.lunge(Vector2(0, -80))
+	var before := animator.get_clock()
+	animator._process(1.0)
+	var stepped := animator.get_clock() - before
+	var ok := Kit.expect_near("Clock after a 1 s frame at x2", stepped, PoseAnimator.MAX_STEP_SEC * 2.0, 0.0001)
+	if not animator.is_animating():
+		push_error("A 1 s frame should not skip the attack clip")
+		ok = false
+	view.queue_free()
+	return ok
 
 
 # A calm figure (bench, dimmed line-up) holds still and redraws only to

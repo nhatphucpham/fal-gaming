@@ -1,7 +1,8 @@
 extends RefCounted
 ## Shared set-up for the rig tests (unit_pose_test.gd, pose_animator_test.gd,
-## pose_cast_test.gd): the class, race and view lists, test units and views,
-## redraw counting, an error counter, the rest-pose check and float checks.
+## pose_cast_test.gd, pose_stone_test.gd): the class, race and view lists, test units and views,
+## redraw counting, an error counter, the rest-pose and no-strike checks,
+## float checks and a Stepper that drives animators with fixed frames.
 
 const RIG_CLASS_IDS: Array[StringName] = [
 	&"class.sword", &"class.shield", &"class.spear", &"class.archer", &"class.mage", &"class.cavalry",
@@ -78,6 +79,71 @@ static func expect_rest(label: String, view: UnitView) -> bool:
 static func ahead(view: UnitView) -> float:
 	return 1.0 if view.side == 0 else -1.0
 
+
+
+## The view's UnitFigure.
+static func figure_of(view: UnitView) -> UnitFigure:
+	for child: Node in view.get_children():
+		if child is UnitFigure:
+			return child
+	return null
+
+
+## The last key of the class's wind-up (the skill clip's first keys).
+static func wind_pose(class_id: StringName, view: StringName) -> UnitPose:
+	var kit := RigKit.get_kit(class_id)
+	return kit.get_skill_clip(view)[kit.skill_wind_keys - 1].pose
+
+
+## Steps `view` for `seconds` with `stepper`, checking every frame: no
+## trail, no step toward the target (dx never grows past what showed), no
+## glow coming back and no wind-up; then the rest pose.
+static func expect_no_strike(label: String, view: UnitView, stepper: Stepper, tree: SceneTree, seconds: float) -> bool:
+	var last := view.get_pose().values
+	for frame: int in roundi(seconds / Stepper.FRAME):
+		await stepper.step(tree)
+		var values := view.get_pose().values
+		var rising := values[UnitPose.DX] > maxf(last[UnitPose.DX], 0.0) + 0.001 or values[UnitPose.GLOW] > last[UnitPose.GLOW] + 0.001
+		if values[UnitPose.TRAIL] > 0.0 or rising or view.get_animator().is_winding:
+			push_error("%s: a strike or a glow plays (trail %.2f, dx %.2f, glow %.2f)" % [label, values[UnitPose.TRAIL], values[UnitPose.DX], values[UnitPose.GLOW]])
+			return false
+		last = values
+	return expect_rest(label, view)
+
+
+## Drives the animators it takes by hand, a fixed FRAME at a time, with a
+## clock of its own (their redraw and blink timing): timing checks then
+## do not depend on how fast the machine runs. The tree still draws once
+## per step. A frozen animator (stone) is skipped, as the engine would.
+class Stepper extends RefCounted:
+	const FRAME: float = 1.0 / 60.0
+	var seconds: float = 100.0
+	var animators: Array[PoseAnimator] = []
+
+	func now() -> float:
+		return seconds
+
+	## Stops `view`'s animator running by itself and drives it from now on.
+	func take(view: UnitView) -> PoseAnimator:
+		var animator := view.get_animator()
+		animator.set_process(false)
+		if not animator.is_node_ready():
+			# Entering the tree turns processing back on.
+			animator.ready.connect(animator.set_process.bind(false), CONNECT_ONE_SHOT)
+		animator.set_clock(now)
+		animators.append(animator)
+		return animator
+
+	func step(tree: SceneTree) -> void:
+		seconds += FRAME
+		for animator: PoseAnimator in animators:
+			if is_instance_valid(animator) and animator.can_process():
+				animator._process(FRAME)
+		await tree.process_frame
+
+	func run(tree: SceneTree, duration: float) -> void:
+		for frame: int in roundi(duration / FRAME):
+			await step(tree)
 
 
 ## Counts errors (not warnings) logged while it is added.
