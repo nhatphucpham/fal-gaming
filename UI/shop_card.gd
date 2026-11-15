@@ -114,7 +114,7 @@ func _process(delta: float) -> void:
 	_time += delta
 	# The pulses redraw on the shared IdleTicks steps, the frames the idle
 	# figures redraw on, so the frames between can be skipped.
-	var step := IdleTicks.step_at(IdleTicks.engine_seconds())
+	var step := IdleTicks.current_step()
 	if step == _pulse_step:
 		return
 	_pulse_step = step

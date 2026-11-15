@@ -1,7 +1,8 @@
 class_name PoseRedraws
 extends RefCounted
 ## When a PoseAnimator's figure redraws and blinks, by its own clock of
-## real seconds (`now`, the engine's ticks unless a test replaces it):
+## real seconds (`now`, IdleTicks.engine_seconds, read once per process
+## frame, unless a test replaces it):
 ## IDLE_PER_SEC while idle, on one of the IdleTicks phases, so figures
 ## spread over a few shared frames instead of redrawing on every frame; at
 ## most ACTION_PER_SEC while a clip, the run or a trail plays (on the

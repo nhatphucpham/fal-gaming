@@ -43,7 +43,8 @@ idle screens save power; the service reads it at start into
   paused.
 - **Power saving:** with low processor mode Godot draws a frame only when
   something on screen changed, so idle screens (title, preparation) draw
-  about 30 frames a second instead of 60 (see
+  about 31 frames a second instead of 60: 30 for the shared idle steps
+  and about one for labels such as the preparation timer (see
   [Performance](performance.md)). On desktop the mode also sleeps part of
   each frame, which the heaviest scene cannot spare, so `BattlePlayback`
   holds full frame rate from `begin()` until `battle_finished`, `abort()`

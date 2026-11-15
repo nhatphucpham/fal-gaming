@@ -76,10 +76,15 @@ settings files (deleted at the end) and 60 fps. It is not part of
 ## The budget
 
 Budgets are set from measurements after a change: draw calls, primitives
-and nodes about +5%, redraws per second about +15%, the share of changed
-frames about +15%, and `cpu_ms_per_frame` about 2.5 times the local number,
-since CI machines are slower and noisy: the CPU budget is a tripwire for
-gross regressions, not a measurement. Frame times are never budgeted.
+and nodes about +5%, redraws per second about +15%, and `cpu_ms_per_frame`
+about 2.5 times the local number, since CI machines are slower and noisy:
+the CPU budget is a tripwire for gross regressions, not a measurement.
+The share of changed frames is set from what it must be, not from a
+margin: at 60 fps the shared idle steps change 0.50 of the frames, the
+preparation timer adds 0.017, and the budget of 0.55 leaves room for
+about two more changes a second (a label, a hop on the title); it was
+0.49-0.52 in eight runs, three of them with three busy loops on the
+probe's core. Frame times are never budgeted.
 
 A budget is **lowered** in the pull request that makes things better, to
 the new numbers with the same margins. It is **never raised** without a
@@ -99,11 +104,17 @@ How the pieces of this round work:
 
 - `IdleTicks` cuts real time into 33 ms steps; an idle figure breathes 10
   times a second on one of three phases, and pulses (shop card glows,
-  merge stars, near-miss outlines) redraw on the steps. A screen of idle
-  things changes on at most 30 frames a second, which low processor mode
-  (`application/run/low_processor_mode`, see
-  [App lifecycle](app_lifecycle.md)) turns into 30 frames drawn instead of
-  60. Battles turn the mode off while they play.
+  merge stars, near-miss outlines, a non-rig figure's hit flash) redraw on
+  the steps. It reads the clock once per process frame and every default
+  clock uses it, so all nodes see the same step in a frame and a step costs
+  one changed frame, never two. The idle animation of a screen then
+  changes at most 30 frames a second; what else changes adds to that (the
+  preparation timer's label once a second, a gold or level label when it
+  changes), so an idle screen changes about 31 of 60 frames, which low
+  processor mode (`application/run/low_processor_mode`, see
+  [App lifecycle](app_lifecycle.md)) turns into about 31 frames drawn
+  instead of 60. A machine that cannot keep 60 fps changes a larger share
+  of fewer frames. Battles turn the mode off while they play.
 - `UnitView` writes its figure's transform only when it changed: any
   transform write makes a frame.
 - `Backdrop` draws its lattice as one triangle array (2 draw calls instead
@@ -159,8 +170,11 @@ a second at most there); the headless changed-frames share stands in.
   scenes and metrics the probe emits; the over-budget check fails when it
   should.
 - `Tests/idle_frames_test.gd`: an idle unit view writes no transform, the
-  Khí bar and cast glow process only while they show, idle figures and
-  shop card pulses change at most 30 frames a second, formation outlines
+  Khí bar and cast glow process only while they show, twelve idle figures
+  and a pulsing shop card change at most 31 frames in a second (30 steps,
+  plus one when the measured second ends just past a boundary; measured:
+  30 every time, also with three busy loops on the same core), near-miss
+  outlines breathe on the same steps, formation outlines
   redraw only while they animate, and the run layout hides and stops the
   panel it slid away. It counts frames with `RenderingServer.has_changed()`
   and draws by hand in between, so it runs headless.

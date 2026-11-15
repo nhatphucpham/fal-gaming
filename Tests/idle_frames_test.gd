@@ -113,7 +113,10 @@ func _check_shared_idle_frames() -> bool:
 	for node: Node in nodes:
 		node.queue_free()
 	await process_frame
-	# One step more for a boundary at either end of the second.
+	print("Idle figures and a glowing card changed %d of %d frames in 1 s" % counts)
+	# IdleTicks reads the clock once a frame, so a step costs one changed
+	# frame: 30 steps a second, one more when the second starts or ends
+	# just after a boundary. Nothing else on this screen changes.
 	if counts[0] > IdleTicks.STEPS_PER_SEC + 1:
 		push_error("Idle figures changed %d of %d frames in 1 s" % counts)
 		return false
@@ -154,7 +157,10 @@ func _check_still_outlines() -> bool:
 		ok = false
 	var near := {"near_formations": [{"id": &"formation.idle_test", "cells": [Vector2i(1, 1), Vector2i(2, 1)], "missing_cell": Vector2i(3, 1), "needed_class": &""}]}
 	outlines.show_side(Battle.SIDE_A, near, false)
+	# The new outline draws once; count only its breathing after that.
+	await create_timer(0.1).timeout
 	counts = await count_changed_frames(1.0)
+	print("A near-miss outline changed %d of %d frames in 1 s" % counts)
 	if counts[0] > IdleTicks.STEPS_PER_SEC + 1 or counts[0] < IdleTicks.PER_SEC:
 		push_error("A near-miss outline should breathe on the shared steps; it changed %d of %d frames" % counts)
 		ok = false

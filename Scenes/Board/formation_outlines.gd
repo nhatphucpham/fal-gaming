@@ -203,7 +203,7 @@ func _process(delta: float) -> void:
 	if is_animating or _was_animating:
 		queue_redraw()
 	elif is_breathing:
-		var step := IdleTicks.step_at(IdleTicks.engine_seconds())
+		var step := IdleTicks.current_step()
 		if step != _breath_step:
 			_breath_step = step
 			queue_redraw()

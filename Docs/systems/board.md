@@ -188,8 +188,10 @@ Redraws: a figure redraws only when its pose changed. While idle it
 breathes 10 times a second of real time (so also at x4), on one of the
 three phases of the shared idle tick (`IdleTicks`, `UI/idle_ticks.gd`:
 every 100 ms tick is split into three 33 ms steps and each figure takes
-one), so a board of idle figures redraws on at most 30 distinct frames a
-second and low processor mode can skip the others; a
+one). `IdleTicks` reads the clock once per process frame, so every node
+sees the same step in a frame and a step boundary costs one frame: a
+board of idle figures redraws on at most 30 distinct frames a second (one
+per step) and low processor mode can skip the others; a
 calm figure (bench, dimmed line-up) only redraws when it blinks (checked on
 its idle ticks too), and a
 held wind-up does not breathe at all. Blinks last 0.12 s of real time

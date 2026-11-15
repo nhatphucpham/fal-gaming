@@ -5,13 +5,13 @@
 			"cpu_ms_per_frame": 4.6,
 			"redraws_per_sec": 76,
 			"nodes": 66,
-			"frames_changed_share": 0.6
+			"frames_changed_share": 0.55
 		},
 		"prep_full": {
 			"cpu_ms_per_frame": 6.2,
 			"redraws_per_sec": 277,
 			"nodes": 312,
-			"frames_changed_share": 0.6
+			"frames_changed_share": 0.55
 		},
 		"battle_x1": {
 			"cpu_ms_per_frame": 15.2,
