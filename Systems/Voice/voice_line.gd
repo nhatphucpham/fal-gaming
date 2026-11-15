@@ -8,6 +8,8 @@ signal finished(stream: AudioStreamWAV)
 
 var text := ""
 var voice := ""
+## A copy of the style asked for; null for the default style.
+var style: VoiceStyle
 var key := ""
 ## Null until done, and still null if the line could not be voiced.
 var stream: AudioStreamWAV
@@ -17,6 +19,10 @@ var done := false
 var error := ""
 ## True while the line only waits in the background prefetch queue.
 var prefetch := false
+## Times a prefetch was answered "busy" (429) and put back in the queue.
+var busy_retries := 0
+## True while a prefetch put back after a 429 waits out its Retry-After.
+var _busy_wait := false
 
 
 ## Returns the audio, waiting for the network if needed. Safe to call after

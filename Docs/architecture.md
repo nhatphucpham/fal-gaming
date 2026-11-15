@@ -59,8 +59,9 @@
   `LineupPreset`. `Systems/Audio/` has the `Audio` autoload
   (`AudioService`), the static facade `Sound` that presentation code calls,
   and the data types `SoundBank` and `SoundData`. `Systems/Voice/` has the
-  `Voice` autoload (`VoiceService`) and `VoiceLine`, the optional spoken
-  dialogue from the TTS service (see [Voice](systems/voice.md));
+  `Voice` autoload (`VoiceService`), `VoiceLine`, `VoiceStyle`,
+  `VoiceTags` and `VoiceWav`, the optional spoken dialogue from the TTS
+  service (see [Voice](systems/voice.md));
   `Scenes/Dev/voice_demo.tscn` tries it by hand. `Scenes/Dev/` holds
   developer pages only and is not exported.
 - `Scenes/Board/` holds the reusable battlefield: `BoardView`, `UnitView`,
