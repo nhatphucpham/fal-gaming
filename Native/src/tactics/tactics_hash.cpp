@@ -65,6 +65,8 @@ uint64_t TacticsSim::get_state_hash() const {
 	hash_text(&hash, end_reason);
 	hash_value(&hash, side_is_ai[SIDE_A] ? 1 : 0);
 	hash_value(&hash, side_is_ai[SIDE_B] ? 1 : 0);
+	// The next event's id: it numbers every later event and cause.
+	hash_value(&hash, next_event_id);
 	hash_value(&hash, static_cast<int64_t>(units.size()));
 	for (const UnitState &unit : units) {
 		hash_unit(&hash, unit);

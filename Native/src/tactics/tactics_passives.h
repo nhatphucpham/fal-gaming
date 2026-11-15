@@ -36,6 +36,8 @@ struct PassiveHandler {
 	// The handler reads PassiveDef::zone (or ::stat), so the passive must have one.
 	bool needs_zone;
 	bool needs_stat;
+	// `amount` is a count of cells (pull, growth), so it cannot be negative.
+	bool needs_unsigned_amount;
 	void (*modify_own_stats)(const TacticsSim &p_sim, int p_unit, const Cell &p_cell, const PassiveDef &p_passive, StatModifiers &r_mods);
 	void (*modify_soldier_stats)(const TacticsSim &p_sim, int p_soldier, const PassiveDef &p_passive, StatModifiers &r_mods);
 	void (*grant_soldier_keywords)(const PassiveDef &p_passive, std::vector<const KeywordDef *> &r_keywords);

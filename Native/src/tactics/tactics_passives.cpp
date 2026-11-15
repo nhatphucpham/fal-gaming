@@ -131,11 +131,11 @@ void skill_growth_defeated(TacticsSim &p_sim, int p_leader, int p_victim, const 
 }
 
 const PassiveHandler PASSIVE_HANDLERS[] = {
-	{ "passive.stat_bonus", "stat_modifier", false, true, stat_bonus_own, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr },
-	{ "passive.squad_bonus", "squad_modifier", false, false, nullptr, squad_bonus_soldier, squad_bonus_keywords, squad_bonus_capacity, nullptr, nullptr, nullptr },
-	{ "passive.trail_zone", "environment", true, false, nullptr, nullptr, nullptr, nullptr, trail_zone_moved, nullptr, nullptr },
-	{ "passive.pull_strike", "special_weapon", false, false, nullptr, nullptr, nullptr, nullptr, nullptr, pull_strike_after_attack, nullptr },
-	{ "passive.skill_growth", "skill_growth", false, false, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, skill_growth_defeated },
+	{ "passive.stat_bonus", "stat_modifier", false, true, false, stat_bonus_own, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr },
+	{ "passive.squad_bonus", "squad_modifier", false, false, false, nullptr, squad_bonus_soldier, squad_bonus_keywords, squad_bonus_capacity, nullptr, nullptr, nullptr },
+	{ "passive.trail_zone", "environment", true, false, false, nullptr, nullptr, nullptr, nullptr, trail_zone_moved, nullptr, nullptr },
+	{ "passive.pull_strike", "special_weapon", false, false, true, nullptr, nullptr, nullptr, nullptr, nullptr, pull_strike_after_attack, nullptr },
+	{ "passive.skill_growth", "skill_growth", false, false, true, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, skill_growth_defeated },
 };
 
 } // namespace

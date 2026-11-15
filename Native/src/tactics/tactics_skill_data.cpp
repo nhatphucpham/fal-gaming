@@ -62,7 +62,7 @@ void TacticsSkillEffectData::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "handler"), "set_handler", "get_handler");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "coefficient_pct", PROPERTY_HINT_RANGE, "0,1000,1"), "set_coefficient_pct", "get_coefficient_pct");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "damage_kind", PROPERTY_HINT_ENUM, "Physical,Magic"), "set_damage_kind", "get_damage_kind");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "amount_pct", PROPERTY_HINT_RANGE, "0,200,1"), "set_amount_pct", "get_amount_pct");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "amount_pct", PROPERTY_HINT_RANGE, "0,1000,1"), "set_amount_pct", "get_amount_pct");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "duration_rounds", PROPERTY_HINT_RANGE, "0,100,1"), "set_duration_rounds", "get_duration_rounds");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "zone", PROPERTY_HINT_RESOURCE_TYPE, "TacticsZoneData"), "set_zone", "get_zone");
 }
@@ -90,7 +90,7 @@ void TacticsSkillData::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "cast_range_cells", PROPERTY_HINT_RANGE, "0,64,1"), "set_cast_range_cells", "get_cast_range_cells");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "area_radius_cells", PROPERTY_HINT_RANGE, "0,32,1"), "set_area_radius_cells", "get_area_radius_cells");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "chain_count", PROPERTY_HINT_RANGE, "1,16,1"), "set_chain_count", "get_chain_count");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "chain_jump_cells", PROPERTY_HINT_RANGE, "1,32,1"), "set_chain_jump_cells", "get_chain_jump_cells");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "chain_jump_cells", PROPERTY_HINT_RANGE, "1,64,1"), "set_chain_jump_cells", "get_chain_jump_cells");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "chain_falloff_pct", PROPERTY_HINT_RANGE, "0,100,1"), "set_chain_falloff_pct", "get_chain_falloff_pct");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "effects", PROPERTY_HINT_ARRAY_TYPE, "TacticsSkillEffectData"), "set_effects", "get_effects");
 }

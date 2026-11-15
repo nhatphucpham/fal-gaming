@@ -11,6 +11,7 @@
 #include <godot_cpp/variant/typed_array.hpp>
 
 #include <string>
+#include <vector>
 
 namespace godot {
 
@@ -72,6 +73,10 @@ protected:
 public:
 	bool to_unit_def(tactics::UnitDef *r_def, std::string *r_error) const;
 };
+
+// The soldier definitions of a squad (an Array of TacticsTroopData) led by
+// p_leader_id; false with r_error naming the bad entry.
+bool tactics_squad_to_unit_defs(const std::string &p_leader_id, const Array &p_squad, std::vector<tactics::UnitDef> *r_defs, std::string *r_error);
 
 // A leader (tướng): one file per leader in Data/Tactics/Leaders/, id
 // `leader.<name>`, with its passives, skill, starting order and the squad

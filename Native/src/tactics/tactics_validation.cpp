@@ -107,7 +107,8 @@ bool validate_passive(const UnitDef &p_unit, const PassiveDef &p_passive, std::s
 	if ((p_passive.has_zone && !validate_zone(p_passive.id, p_passive.zone, r_error)) || (p_passive.has_keyword && !validate_keyword(p_passive.id, p_passive.keyword, r_error))) {
 		return false;
 	}
-	return check_range(p_passive.id, "amount", p_passive.amount, -MAX_PASSIVE_AMOUNT, MAX_PASSIVE_AMOUNT, r_error) &&
+	const int min_amount = p_passive.handler->needs_unsigned_amount ? 0 : -MAX_PASSIVE_AMOUNT;
+	return check_range(p_passive.id, "amount", p_passive.amount, min_amount, MAX_PASSIVE_AMOUNT, r_error) &&
 			check_range(p_passive.id, "condition_adjacent_allies", p_passive.condition_adjacent_allies, 0, MAX_ADJACENT_CELLS, r_error) &&
 			check_range(p_passive.id, "extra_capacity", p_passive.extra_capacity, 0, MAX_SQUAD_SIZE, r_error) &&
 			check_range(p_passive.id, "radius_cells", p_passive.radius_cells, 0, MAX_MAP_CELLS_PER_AXIS * 2, r_error) &&

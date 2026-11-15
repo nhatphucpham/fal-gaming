@@ -42,6 +42,7 @@ private:
 	bool check_not_emitting(const char *p_method) const;
 	void log_event(const tactics::Event &p_event) const;
 	bool check_unit(int64_t p_unit, const char *p_method) const;
+	void clear_setup();
 
 protected:
 	static void _bind_methods();
@@ -50,7 +51,8 @@ public:
 	// Setup; refused once started.
 	bool setup(const Ref<TacticsRulesData> &p_rules, const Ref<TacticsMapData> &p_map);
 	// setup() with the scenario's rules and map, then its leaders on the
-	// map's spawn cells in order, each with its own squad.
+	// map's spawn cells in order, each with its own squad. On failure the
+	// battle is left with no setup, so start() is refused.
 	bool load_scenario(const Ref<TacticsScenarioData> &p_scenario);
 	void set_side_ai(int64_t p_side, bool p_is_ai);
 	bool is_side_ai(int64_t p_side) const;

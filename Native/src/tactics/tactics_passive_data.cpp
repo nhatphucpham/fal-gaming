@@ -61,6 +61,6 @@ void TacticsPassiveData::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "keyword", PROPERTY_HINT_RESOURCE_TYPE, "TacticsKeywordData"), "set_keyword", "get_keyword");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "extra_capacity", PROPERTY_HINT_RANGE, "0,8,1"), "set_extra_capacity", "get_extra_capacity");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "zone", PROPERTY_HINT_RESOURCE_TYPE, "TacticsZoneData"), "set_zone", "get_zone");
-	ADD_PROPERTY(PropertyInfo(Variant::INT, "radius_cells", PROPERTY_HINT_RANGE, "0,32,1"), "set_radius_cells", "get_radius_cells");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "radius_cells", PROPERTY_HINT_RANGE, "0,64,1"), "set_radius_cells", "get_radius_cells");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "duration_rounds", PROPERTY_HINT_RANGE, "0,100,1"), "set_duration_rounds", "get_duration_rounds");
 }

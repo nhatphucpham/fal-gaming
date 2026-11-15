@@ -45,7 +45,9 @@ Everything is listed in `Data/Tactics/tactics_catalog.tres`
 references to unlisted files (terrains, keywords, zones, passives,
 skills, troops, leaders, maps), units (squad size against the capacity
 with passives; no keyword or passive listed twice), maps (spawn cells on
-the map, passable and not shared) and scenarios. Ids:
+the map, passable and not shared) and scenarios (each is loaded on a
+scratch battle, so a spawn cell that an earlier leader's soldier takes is
+reported). Ids:
 `terrain.`, `keyword.`, `zone.`, `tactics_passive.`, `tactics_skill.`,
 `troop.`, `leader.`, `map.`, `scenario.`. Name keys (`TERRAIN_PLAIN`,
 `LEADER_LAC_HONG`, ...) have no Locale rows yet.
@@ -115,16 +117,17 @@ phase); each handler states which side it affects. Samples: `zone.wind`
 
 Stats: `stat.attack_pct`, `stat.armor`, `stat.magic_resist`,
 `stat.move_points`, `stat.max_range`. `passive.stat_bonus` needs a `stat`.
-Ranges: `amount` -1000..1000, `condition_adjacent_allies` 0..4,
+Ranges: `amount` -1000..1000 (0..1000 for `pull_strike` and
+`skill_growth`, which count cells), `condition_adjacent_allies` 0..4,
 `extra_capacity` 0..8, `radius_cells` 0..64, `duration_rounds` 0..100.
 Keyword `amount` is 0..1000 and `min_cells` 0..20.
 
-`TacticsSkillData` (`Data/Tactics/Skills/`): `charge` and
-`charge_threshold` 1..100000, `target`, `cast_range_cells`,
-`area_radius_cells`, `chain_count`, `chain_jump_cells`, `chain_falloff_pct`,
-`effects` (at least one `TacticsSkillEffectData`: `handler`,
-`coefficient_pct` 0..1000, `damage_kind`, `amount_pct` 0..1000,
-`duration_rounds` 0..100, `zone`). `chain_jump_cells` is 1..64.
+`TacticsSkillData` (`Data/Tactics/Skills/`): `charge` (a charge id) and
+`charge_threshold` 1..100000, `target`, `cast_range_cells` 0..64,
+`area_radius_cells` 0..32, `chain_count` 1..16, `chain_jump_cells` 1..64,
+`chain_falloff_pct` 0..100, `effects` (at least one
+`TacticsSkillEffectData`: `handler`, `coefficient_pct` 0..1000,
+`damage_kind`, `amount_pct` 0..1000, `duration_rounds` 0..100, `zone`).
 
 - Charge: `charge.turns` (+1 at the end of each own phase),
   `charge.engagements` (+1 per engagement of the leader), `charge.focus`
@@ -155,21 +158,26 @@ placed on the spawn cells in order. Sample: `scenario.river_crossing`.
 - A round is side A's phase then side B's. In its phase each leader of the
   active side may move once and then act once (attack, skill or wait);
   acting ends its turn. `end_phase()` passes the turn.
-- Movement: Dijkstra over move costs; enemies block; a cell next to an
-  enemy (zone of control) ends movement unless the unit starts there.
+- Movement: Dijkstra over move costs; enemies block; allies can be
+  passed but not stopped on; a cell next to an enemy (zone of control)
+  ends movement unless the unit starts there.
 - Engagement: attacker and defender trade `hits_per_engagement` hits
   each, attacker first (defender first with `long_weapon` against melee);
   the defender only counters if the attacker is in its range. Per-hit
   damage is fixed at the start. `forecast_engagement()` runs the same code
-  on a copy.
-- Squads follow their order: formation slots are relative to the leader's
+  on a copy. Damage goes through `battle::compute_damage`, which caps the
+  summed increases (keywords, terrain, zones) at +200% and the decreases
+  at -100%, and every hit deals at least 1.
+- Squads start on the `order.follow` slots whatever the leader's order
+  (each soldier on the free cell nearest its slot; with none free it is
+  left out, dead, at (-1, -1)), then follow their order: formation slots are relative to the leader's
   heading; after two straight moves the slots shift forward by
   `anticipation_shift_cells`. Soldiers step after their leader moves (or
   acts, or at the end of the phase), then attack: first an enemy that
   threatens their leader, then the lowest hp. `order.hold` stays put;
-  `order.free` goes for the enemy that attacked the nearest allied soldier
-  within `help_radius_cells` since that soldier's last squad step, else for
-  the nearest enemy by path.
+  `order.free` goes for the living enemy that attacked the nearest other
+  allied soldier within `help_radius_cells` since that soldier's last
+  squad step, else for the nearest enemy by path.
   A squad whose leader died acts as `free`. `preview_squad()` shows where
   soldiers would go if the leader moved to a cell.
 - Buffs and zones made in round r for d rounds end at the start of their
@@ -202,7 +210,7 @@ error.
 | Member | Kind | Description |
 | --- | --- | --- |
 | `setup(rules, map) -> bool` | method | Starts a new battle setup; false when the data is invalid or the battle already started |
-| `load_scenario(scenario) -> bool` | method | `setup` plus the scenario's leaders on the spawn cells |
+| `load_scenario(scenario) -> bool` | method | `setup` plus the scenario's leaders on the spawn cells; on failure nothing stays set up |
 | `set_side_ai(side, is_ai)`, `is_side_ai(side)` | method | AI phases run on their own after the human's `end_phase()` |
 | `add_leader(side, leader, cell) -> int` | method | Adds the leader and its `squad`; returns the unit index or -1 |
 | `add_leader_with_squad(side, leader, cell, squad) -> int` | method | Same with another squad (up to capacity) |
@@ -216,7 +224,7 @@ error.
 | `forecast_engagement(attacker, defender) -> Dictionary` | method | Hits, damage per hit and hp after, without changing state; `is_valid` false when the attack is not possible or the battle ended |
 | `get_skill_charge(leader)` | method | `{skill, charge, value, threshold, is_ready, area_bonus}` |
 | `get_enemy_intents()` | method | `[{unit, to, action, target, target_cell}]` (`action` `wait`, `attack` or `skill`); `target` is the enemy aimed at (-1 and `target_cell` (-1, -1) when none), or the leader itself for a skill cast on its own cell; a leader that died loses its intent |
-| `get_state_hash() -> int` | method | FNV-1a 64 of the whole state |
+| `get_state_hash() -> String` | method | FNV-1a 64 of the whole state (round, turn, units, zones, buffs, intents, the next event id), 16 hex digits; setup data is identified by ids |
 | `set_log_enabled(enabled)` | method | Prints the log events below |
 | `event_emitted(event)` | signal | Each event, in order |
 | `battle_ended(winner, reason)` | signal | Once; `reason` is `rout`, `objective` or `time_limit` |
@@ -232,6 +240,29 @@ leader's `unit_moved`, `engagement_started`, `skill_used` or
 `skill_resolved`, `skill_charge_changed`, `skill_grew`, `buff_applied`,
 `buff_ended`, `zone_created`, `zone_expired`, `passive_triggered`,
 `battle_ended`.
+
+| Type | Payload |
+| --- | --- |
+| `battle_started` | `units` (count) |
+| `phase_started`, `phase_ended` | `side` |
+| `unit_moved` | `unit`, `from`, `to`, `path` (both ends included), `kind` |
+| `order_changed` | `unit`, `order` |
+| `leader_waited` | `unit` |
+| `intent_declared` | `unit`, `to`, `action`, `target`, `target_cell` (as `get_enemy_intents()`) |
+| `engagement_started` | `unit` (attacker), `target`, `kind` (`melee`, `ranged`), `is_first_strike` |
+| `damage_dealt` | `source`, `target`, `amount` (the hit, before hp runs out), `hp_after`, `is_counter`, `source_id` (skill or zone id, empty for a basic hit) |
+| `engagement_ended` | `unit`, `target`, `amount` (attacker's hits x damage), `counter_amount` |
+| `unit_died` | `unit`, `killer`, `cell` |
+| `skill_used` | `unit`, `skill`, `cell`, `cells`, `targets` |
+| `skill_resolved` | `unit`, `skill`, `results` (`[{unit, amount, hp_after, is_dead}]`, damage only) |
+| `skill_charge_changed` | `unit`, `charge`, `value`, `threshold` |
+| `skill_grew` | `unit`, `skill`, `area_bonus` |
+| `buff_applied` | `unit`, `stat`, `amount`, `end_round`, `source_id` |
+| `buff_ended` | `unit`, `source_id` |
+| `zone_created` | `unit` (source), `side`, `zone`, `cells`, `end_round` |
+| `zone_expired` | `unit` (source), `zone`, `cells` |
+| `passive_triggered` | `unit`, `passive` |
+| `battle_ended` | `winner`, `reason` |
 
 ## Log events
 

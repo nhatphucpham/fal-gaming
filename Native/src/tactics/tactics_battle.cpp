@@ -52,14 +52,27 @@ bool TacticsBattle::load_scenario(const Ref<TacticsScenarioData> &p_scenario) {
 	for (int side = 0; side < tactics::SIDE_COUNT; side++) {
 		const TypedArray<TacticsLeaderData> leaders = p_scenario->get_leaders(side);
 		const TypedArray<Vector2i> spawns = p_scenario->get_map()->get_spawn_cells(side);
-		ERR_FAIL_COND_V_MSG(leaders.size() > spawns.size(), false, vformat("Tactics: %s side %d has more leaders than spawn cells", p_scenario->get_id(), side));
-		for (int64_t index = 0; index < leaders.size(); index++) {
+		const bool has_spawns = leaders.size() <= spawns.size();
+		for (int64_t index = 0; has_spawns && index < leaders.size(); index++) {
 			if (add_leader(side, leaders[index], spawns[index]) < 0) {
+				clear_setup();
 				return false;
 			}
 		}
+		if (!has_spawns) {
+			clear_setup();
+			ERR_FAIL_V_MSG(false, vformat("Tactics: %s side %d has more leaders than spawn cells", p_scenario->get_id(), side));
+		}
 	}
 	return true;
+}
+
+// A failed load leaves nothing to start; the AI sides are kept.
+void TacticsBattle::clear_setup() {
+	const bool ai_sides[tactics::SIDE_COUNT] = { sim.is_side_ai(tactics::SIDE_A), sim.is_side_ai(tactics::SIDE_B) };
+	sim = tactics::TacticsSim();
+	sim.set_side_ai(tactics::SIDE_A, ai_sides[tactics::SIDE_A]);
+	sim.set_side_ai(tactics::SIDE_B, ai_sides[tactics::SIDE_B]);
 }
 
 void TacticsBattle::set_side_ai(int64_t p_side, bool p_is_ai) {
@@ -83,17 +96,14 @@ int TacticsBattle::add_leader_with_squad(int64_t p_side, const Ref<TacticsLeader
 		return -1;
 	}
 	ERR_FAIL_COND_V_MSG(p_leader.is_null(), -1, "Tactics: add_leader() got a null leader");
+	// Checked here: the simulation takes an int, and a side such as 2^32
+	// would truncate to 0.
+	ERR_FAIL_COND_V_MSG(!is_valid_side(p_side), -1, vformat("Tactics: add_leader() got side %d, expected 0 or 1", p_side));
 	tactics::UnitDef leader;
 	std::string error;
 	ERR_FAIL_COND_V_MSG(!p_leader->to_unit_def(&leader, &error), -1, "Tactics: " + to_godot_string(error));
 	std::vector<tactics::UnitDef> squad;
-	for (int64_t index = 0; index < p_squad.size(); index++) {
-		const Ref<TacticsTroopData> troop = p_squad[index];
-		ERR_FAIL_COND_V_MSG(troop.is_null(), -1, vformat("Tactics: %s squad entry %d is not a TacticsTroopData", p_leader->get_id(), index));
-		tactics::UnitDef soldier;
-		ERR_FAIL_COND_V_MSG(!troop->to_unit_def(&soldier, &error), -1, "Tactics: " + to_godot_string(error));
-		squad.push_back(soldier);
-	}
+	ERR_FAIL_COND_V_MSG(!tactics_squad_to_unit_defs(leader.id, p_squad, &squad, &error), -1, "Tactics: " + to_godot_string(error));
 	const int index = sim.add_leader(static_cast<int>(p_side), leader, to_cell(p_cell), squad, &error);
 	ERR_FAIL_COND_V_MSG(index < 0, -1, "Tactics: " + to_godot_string(error));
 	return index;

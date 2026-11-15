@@ -78,6 +78,23 @@ bool TacticsLeaderData::to_unit_def(tactics::UnitDef *r_def, std::string *r_erro
 	return true;
 }
 
+bool godot::tactics_squad_to_unit_defs(const std::string &p_leader_id, const Array &p_squad, std::vector<tactics::UnitDef> *r_defs, std::string *r_error) {
+	r_defs->clear();
+	for (int64_t index = 0; index < p_squad.size(); index++) {
+		const Ref<TacticsTroopData> troop = p_squad[index];
+		tactics::UnitDef soldier;
+		if (troop.is_null()) {
+			*r_error = p_leader_id + " squad entry " + std::to_string(index) + " is not a TacticsTroopData";
+			return false;
+		}
+		if (!troop->to_unit_def(&soldier, r_error)) {
+			return false;
+		}
+		r_defs->push_back(soldier);
+	}
+	return true;
+}
+
 void TacticsUnitData::_bind_methods() {
 	BATTLE_BIND_ACCESSORS(TacticsUnitData, id);
 	BATTLE_BIND_ACCESSORS(TacticsUnitData, name_key);

@@ -35,6 +35,7 @@ class TacticsCatalog : public Resource {
 	void validate_references(PackedStringArray &r_problems) const;
 	void validate_maps(PackedStringArray &r_problems) const;
 	void validate_scenarios(PackedStringArray &r_problems) const;
+	bool try_load_scenario(const Ref<TacticsScenarioData> &p_scenario, std::string *r_error) const;
 
 protected:
 	static void _bind_methods();

@@ -38,7 +38,9 @@ func _run() -> bool:
 		_check_ai_intent, _check_victory, _check_defeat, _check_time_limit, _check_determinism,
 		_check_hash_covers_setup, _check_forecast_after_end, _check_left_out_soldier, _check_data_ranges,
 		_check_dead_intent_dropped, _check_nothing_after_end, _check_map_legend,
-		_check_catalog_references, _check_objective_needs_own_move,
+		_check_catalog_references, _check_objective_needs_own_move, _check_side_bounds,
+		_check_failed_scenario_load, _check_catalog_loads_scenarios, _check_hash_covers_event_ids,
+		_check_unsigned_passive_amounts,
 	]
 	for check: Callable in checks:
 		if not check.call():
@@ -463,9 +465,10 @@ func _check_data_ranges() -> bool:
 		_kit.leader(BA_KHAC, [], {"skill": huge_coefficient}), _kit.leader(BA_KHAC, huge_list),
 		_kit.leader(BA_KHAC, [], {"keywords": heavy_list}),
 	]
-	var battle := _kit.new_battle(_kit.plain_rows())
 	print("Tactics test: the next %d errors (bad data) are expected" % bad_leaders.size())
-	var indexes: Array = bad_leaders.map(func(data: TacticsLeaderData) -> int: return battle.add_leader_with_squad(A, data, Vector2i(5, 5), []))
+	# A fresh battle each, so a leader is refused for its data, never for a
+	# cell taken by one wrongly accepted before it.
+	var indexes: Array = bad_leaders.map(func(data: TacticsLeaderData) -> int: return _kit.new_battle(_kit.plain_rows()).add_leader_with_squad(A, data, Vector2i(5, 5), []))
 	return Kit.expect("bad data refused", indexes, [-1, -1, -1, -1, -1])
 
 
@@ -555,3 +558,77 @@ func _check_objective_needs_own_move() -> bool:
 	spawned.start()
 	spawned.attack(spear, weak)
 	return Kit.expect("spawned on it, a death elsewhere, no win", [spawned.get_unit_state(weak)["alive"], spawned.is_finished()], [false, false])
+
+
+# A side outside 0 and 1 is refused even when it only looks like 0 after
+# truncation to 32 bits.
+func _check_side_bounds() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows())
+	print("Tactics test: the next error (side 4294967296) is expected")
+	return Kit.expect("side 2^32 refused", battle.add_leader_with_squad(1 << 32, _kit.leader(MOON_SPEAR), Vector2i(5, 5), []), -1) \
+		and Kit.expect("no unit added", battle.get_unit_count(), 0)
+
+
+# A scenario that fails half-way leaves no half-loaded battle behind:
+# start() is refused afterwards.
+func _check_failed_scenario_load() -> bool:
+	var scenario := _kit.catalog.get_scenario(&"scenario.river_crossing").duplicate() as TacticsScenarioData
+	var broken := _kit.leader(THIET_NHA, [], {"default_order": &"order.unknown"})
+	var leaders_b: Array[TacticsLeaderData] = [_kit.catalog.get_leader(BA_KHAC), broken]
+	scenario.leaders_b = leaders_b
+	var battle := TacticsBattle.new()
+	_kit._battles.append(battle)
+	print("Tactics test: the next 2 errors (unknown order, start refused) are expected")
+	var loaded := battle.load_scenario(scenario)
+	var started := battle.start()
+	return Kit.expect("load failed", loaded, false) and Kit.expect("nothing left to start", [started, battle.is_started(), battle.get_unit_count()], [[], false, 0])
+
+
+# The catalog reports a scenario whose leaders do not all fit: here the
+# first leader's soldier takes the second leader's spawn cell.
+func _check_catalog_loads_scenarios() -> bool:
+	var catalog := _kit.catalog.duplicate() as TacticsCatalog
+	var map := _kit.catalog.get_map(&"map.river_crossing").duplicate() as TacticsMapData
+	var spawns: Array[Vector2i] = [Vector2i(3, 13), Vector2i(3, 14), Vector2i(8, 12)]
+	map.spawn_cells_a = spawns
+	var scenario := _kit.catalog.get_scenario(&"scenario.river_crossing").duplicate() as TacticsScenarioData
+	scenario.map = map
+	var maps: Array[TacticsMapData] = [map]
+	var scenarios: Array[TacticsScenarioData] = [scenario]
+	catalog.maps = maps
+	catalog.scenarios = scenarios
+	var problems := catalog.validate()
+	return Kit.expect_true("spawn taken reported: %s" % [problems], Array(problems).any(func(problem: String) -> bool: return problem.contains("cannot stand on (3, 14)")))
+
+
+# Two battles in the same state but with a different number of events so
+# far hash differently: their next events would get other ids and causes.
+func _check_hash_covers_event_ids() -> bool:
+	var hashes: Array[String] = []
+	for variant: int in 2:
+		var battle := _kit.new_battle(_kit.plain_rows())
+		var leader := _kit.add(battle, A, _kit.leader(MOON_SPEAR), Vector2i(5, 8))
+		_kit.add(battle, B, _kit.leader(THIET_NHA), Vector2i(5, 1))
+		battle.start()
+		if variant == 1:
+			battle.set_order(leader, &"order.hold")
+		battle.set_order(leader, &"order.follow")
+		hashes.append(battle.get_state_hash())
+	return Kit.expect_true("hashes differ: %s" % [hashes], hashes[0] != hashes[1])
+
+
+# Pull and skill growth amounts cannot be negative (a negative growth would
+# shrink a skill's area below nothing); stat amounts may.
+func _check_unsigned_passive_amounts() -> bool:
+	var pull := _kit.catalog.get_passive(&"tactics_passive.hook_spear").duplicate() as TacticsPassiveData
+	pull.amount = -1
+	var growth := _kit.catalog.get_passive(&"tactics_passive.warlord_growth").duplicate() as TacticsPassiveData
+	growth.amount = -1
+	var malus := _kit.catalog.get_passive(&"tactics_passive.pack_fury").duplicate() as TacticsPassiveData
+	malus.amount = -20
+	var results: Array = []
+	print("Tactics test: the next 2 errors (negative pull, negative growth) are expected")
+	for passive: TacticsPassiveData in [pull, growth, malus]:
+		var passives: Array[TacticsPassiveData] = [passive]
+		results.append(_kit.new_battle(_kit.plain_rows()).add_leader_with_squad(A, _kit.leader(BA_KHAC, passives), Vector2i(5, 5), []) >= 0)
+	return Kit.expect("accepted", results, [false, false, true])

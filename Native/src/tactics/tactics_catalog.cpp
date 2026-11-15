@@ -1,6 +1,7 @@
 #include "tactics_catalog.h"
 
 #include "tactics_passives.h"
+#include "tactics_sim.h"
 #include "tactics_validation.h"
 
 #include <godot_cpp/variant/dictionary.hpp>
@@ -194,7 +195,40 @@ void TacticsCatalog::validate_scenarios(PackedStringArray &r_problems) const {
 				}
 			}
 		}
+		std::string error;
+		if (!try_load_scenario(scenario, &error)) {
+			r_problems.push_back(vformat("TacticsCatalog: %s does not load: %s", where(scenario), to_godot_string(error)));
+		}
 	}
+}
+
+// Places the scenario's leaders as TacticsBattle.load_scenario() does, so a
+// spawn cell that a soldier placed before takes is caught here.
+bool TacticsCatalog::try_load_scenario(const Ref<TacticsScenarioData> &p_scenario, std::string *r_error) const {
+	tactics::MapDef map;
+	tactics::TacticsSim sim;
+	if (!p_scenario->get_map()->to_map_def(&map, r_error) || !sim.setup(p_scenario->get_rules()->to_rules(), map, r_error)) {
+		return false;
+	}
+	for (int side = 0; side < tactics::SIDE_COUNT; side++) {
+		const TypedArray<TacticsLeaderData> side_leaders = p_scenario->get_leaders(side);
+		const TypedArray<Vector2i> spawns = p_scenario->get_map()->get_spawn_cells(side);
+		for (int64_t index = 0; index < side_leaders.size() && index < spawns.size(); index++) {
+			const Ref<TacticsLeaderData> leader = side_leaders[index];
+			tactics::UnitDef def;
+			std::vector<tactics::UnitDef> squad;
+			if (leader.is_null()) {
+				*r_error = "side " + std::to_string(side) + " leader " + std::to_string(index) + " is empty";
+				return false;
+			}
+			const Vector2i cell = spawns[index];
+			if (!leader->to_unit_def(&def, r_error) || !tactics_squad_to_unit_defs(def.id, leader->get_squad(), &squad, r_error) ||
+					sim.add_leader(side, def, { cell.x, cell.y }, squad, r_error) == tactics::NO_UNIT) {
+				return false;
+			}
+		}
+	}
+	return true;
 }
 
 PackedStringArray TacticsCatalog::validate() const {
