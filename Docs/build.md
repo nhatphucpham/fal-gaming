@@ -90,7 +90,8 @@ After building, run the editor import, `Tests/smoke_test.gd`,
 `Tests/audio_test.gd`, `Tests/unit_pose_test.gd`,
 `Tests/pose_animator_test.gd`, `Tests/pose_cast_test.gd`,
 `Tests/pose_stone_test.gd`, `Tests/voice_test.gd`,
-`Tests/perf_budget_test.gd` and `Tests/idle_frames_test.gd` as shown in the
+`Tests/perf_budget_test.gd`, `Tests/idle_frames_test.gd` and
+`Tests/app_lifecycle_test.gd` as shown in the
 README. Tests that touch the
 settings file point `RunSettings.path` at `user://settings_test.json`, so
 the player's mute and preparation time are left alone.

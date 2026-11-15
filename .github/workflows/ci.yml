@@ -149,6 +149,7 @@ jobs:
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/voice_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/perf_budget_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/idle_frames_test.gd
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/app_lifecycle_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --quit-after 2
       - name: Install a virtual display
         run: |
