@@ -4,7 +4,8 @@ extends SceneTree
 # a full late preparation, a full battle at x1 and x4) at 60 frames a second
 # and prints, per scene, the CPU time per frame, the frame times, how many
 # canvas items redraw each second (by class), draw calls, the share of
-# frames really drawn and memory. Not shipped (Tools/ is excluded from every
+# frames really drawn (rendered) or changed (headless, idle scenes) and
+# memory. Not shipped (Tools/ is excluded from every
 # export preset) and not part of Tools/build_and_test.sh. Usage:
 #   godot --headless --path . --script res://Tools/perf_probe.gd -- [--json=<file>] [--budget=<file>] [--summary=<file>]
 # Headless gives CPU and redraw numbers; under a display (xvfb-run with
@@ -28,6 +29,7 @@ const SEED: int = 4242
 const FPS: int = 60
 const SETTLE_SEC: float = 2.0
 const IDLE_FRAMES: int = 300
+const CHANGED_FRAMES: int = 180
 const MAX_BATTLE_FRAMES: int = 3600
 const LATE_STAGE: int = 11
 const MAX_SHOP_REFRESHES: int = 200
@@ -79,10 +81,12 @@ func _run() -> bool:
 	root.add_child(_main)
 	await _wait(SETTLE_SEC)
 	await _sample("title", IDLE_FRAMES, Callable())
+	await _sample_changed_frames("title")
 
 	var screen := await _open_late_run()
 	await _wait(SETTLE_SEC)
 	await _sample("prep_full", IDLE_FRAMES, Callable())
+	await _sample_changed_frames("prep_full")
 	screen.start_battle()
 	await _sample("battle_x1", MAX_BATTLE_FRAMES, func() -> bool: return screen.run.phase != RunState.Phase.BATTLE)
 
@@ -188,6 +192,24 @@ func _sample(scene: String, max_frames: int, is_done: Callable) -> void:
 		# skips frames where nothing changed.
 		result["frames_drawn_share"] = snappedf(float(Engine.get_frames_drawn() - drawn_start) / maxi(1, frames), 0.01)
 	_results[scene] = result
+
+
+# Headless only, on an idle scene, after its sample (so the CPU numbers
+# leave it out): the share of frames after which something on screen
+# changed (RenderingServer.has_changed()), drawing by hand in between.
+# The renderer's own frames_drawn_share would show it only on a machine
+# fast enough to draw every frame; this does not depend on one.
+func _sample_changed_frames(scene: String) -> void:
+	if _is_rendering:
+		return
+	var changed := 0
+	RenderingServer.force_draw(false)
+	for frame: int in CHANGED_FRAMES:
+		await process_frame
+		if RenderingServer.has_changed():
+			changed += 1
+			RenderingServer.force_draw(false)
+	_results[scene]["frames_changed_share"] = snappedf(float(changed) / CHANGED_FRAMES, 0.01)
 
 
 func _append_summary(path: String) -> void:

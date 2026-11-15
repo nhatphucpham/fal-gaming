@@ -22,6 +22,9 @@ const COMMON_METRICS: Array[String] = [
 const RENDERED_METRICS: Array[String] = [
 	"draw_calls_max", "primitives_max", "render_objects_max", "video_memory_mb", "frames_drawn_share",
 ]
+## Numbers the probe emits headless, on the idle scenes only.
+const HEADLESS_IDLE_METRICS: Array[String] = ["frames_changed_share"]
+const IDLE_SCENES: Array[String] = ["title", "prep_full"]
 ## Measured but never budgeted: frame times depend on the machine, not on
 ## the change (see Docs/systems/performance.md).
 const UNBUDGETED_METRICS: Array[String] = ["frames", "seconds", "frame_ms_p95", "frame_ms_max", "long_frames"]
@@ -32,12 +35,14 @@ static func section_name(is_rendering: bool) -> String:
 	return SECTION_RENDERED if is_rendering else SECTION_HEADLESS
 
 
-## The metrics the probe emits in a mode.
-static func emitted_metrics(is_rendering: bool) -> Array[String]:
+## The metrics the probe emits for `scene` in a mode.
+static func emitted_metrics(is_rendering: bool, scene: String) -> Array[String]:
 	var metrics: Array[String] = []
 	metrics.append_array(COMMON_METRICS)
 	if is_rendering:
 		metrics.append_array(RENDERED_METRICS)
+	elif IDLE_SCENES.has(scene):
+		metrics.append_array(HEADLESS_IDLE_METRICS)
 	return metrics
 
 
@@ -67,11 +72,11 @@ static func validate(budget: Dictionary) -> Array[String]:
 			problems.append("PerfBudget: the section '%s' is missing" % section)
 			continue
 		var scenes: Dictionary = budget[section]
-		var metrics := emitted_metrics(is_rendering)
 		for scene: Variant in scenes:
 			if not SCENES.has(scene):
 				problems.append("PerfBudget: %s names an unknown scene '%s'" % [section, scene])
 				continue
+			var metrics := emitted_metrics(is_rendering, scene)
 			if not scenes[scene] is Dictionary:
 				problems.append("PerfBudget: %s.%s is not a metric map" % [section, scene])
 				continue
@@ -106,7 +111,7 @@ static func check(budget: Dictionary, results: Dictionary, is_rendering: bool) -
 
 ## A Markdown table of the main numbers per scene, for a CI job summary.
 static func summary_table(results: Dictionary, is_rendering: bool) -> String:
-	var columns: Array[String] = ["cpu_ms_per_frame", "redraws_per_sec", "nodes", "objects", "static_memory_mb"]
+	var columns: Array[String] = ["cpu_ms_per_frame", "redraws_per_sec", "frames_changed_share", "nodes", "objects", "static_memory_mb"]
 	if is_rendering:
 		columns = ["draw_calls_max", "primitives_max", "frames_drawn_share", "redraws_per_sec", "nodes", "video_memory_mb"]
 	var lines: Array[String] = [

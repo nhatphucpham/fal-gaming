@@ -2,9 +2,9 @@ extends SceneTree
 
 # Headless test of the performance budget (PerfBudget, Docs/perf_budget.json)
 # without running the probe's scenes: the file parses, names only scenes
-# and metrics the probe emits in each section's mode and no frame times,
-# results within it pass, and results over it, or missing a budgeted
-# metric, fail.
+# and metrics the probe emits in each section's mode (and scene) and no
+# frame times, results within it pass, and results over it, or missing a
+# budgeted metric, fail.
 
 const BUDGET_PATH: String = "res://Docs/perf_budget.json"
 
@@ -47,12 +47,14 @@ func _check_rejects_bad_budgets() -> bool:
 		{"headless": {"title": {"frame_ms_p95": 20}}, "rendered": {}},
 		{"headless": {"title": {"nodes": "many"}}, "rendered": {}},
 		{"headless": {}, "rendered": {}, "gpu": {}},
+		{"headless": {"battle_x1": {"frames_changed_share": 0.5}}, "rendered": {}},
 	]
 	for budget: Dictionary in bad:
 		if PerfBudget.validate(budget).is_empty():
 			push_error("A bad budget passed validation: %s" % budget)
 			return false
-	return PerfBudget.validate({"headless": {"title": {"nodes": 10}}, "rendered": {"title": {"frames_drawn_share": 0.6}}}).is_empty()
+	var good := {"headless": {"title": {"nodes": 10, "frames_changed_share": 0.6}}, "rendered": {"title": {"frames_drawn_share": 0.6}}}
+	return PerfBudget.validate(good).is_empty()
 
 
 func _check_over_budget() -> bool:
