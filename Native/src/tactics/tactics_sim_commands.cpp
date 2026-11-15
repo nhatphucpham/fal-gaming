@@ -85,6 +85,10 @@ void TacticsSim::apply_leader_move(int p_unit, const Cell &p_cell, int p_cause) 
 	units[p_unit].has_moved = true;
 	units[p_unit].straight_cells = get_trailing_straight_cells(path);
 	relocate_unit(p_unit, path, "move", p_cause);
+	// The move may have taken the objective: nothing happens after the end.
+	if (finished) {
+		return;
+	}
 	const std::vector<PassiveDef> passives = units[p_unit].def.passives;
 	for (const PassiveDef &passive : passives) {
 		if (passive.handler->on_leader_moved != nullptr) {
@@ -161,7 +165,7 @@ bool TacticsSim::set_order(int p_unit, int p_order, std::string *r_error) {
 	if (!check_command(p_unit, r_error)) {
 		return false;
 	}
-	if (p_order < 0) {
+	if (p_order < 0 || p_order >= get_order_count()) {
 		*r_error = "set_order() got an unknown order";
 		return false;
 	}
@@ -195,7 +199,7 @@ void TacticsSim::run_squad_moves(int p_leader, int p_cause) {
 
 EngagementResult TacticsSim::forecast_engagement(int p_attacker, int p_defender) const {
 	const int count = static_cast<int>(units.size());
-	if (p_attacker < 0 || p_attacker >= count || p_defender < 0 || p_defender >= count || !can_attack(*this, p_attacker, p_defender)) {
+	if (finished || p_attacker < 0 || p_attacker >= count || p_defender < 0 || p_defender >= count || !can_attack(*this, p_attacker, p_defender)) {
 		return EngagementResult();
 	}
 	TacticsSim copy = *this;

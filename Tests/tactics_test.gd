@@ -36,6 +36,8 @@ func _run() -> bool:
 		_check_engagement, _check_counter_out_of_range, _check_long_weapon, _check_charge,
 		_check_armor_pierce, _check_cover, _check_flying, _check_heavy, _check_terrain_modifiers,
 		_check_ai_intent, _check_victory, _check_defeat, _check_time_limit, _check_determinism,
+		_check_hash_covers_setup, _check_forecast_after_end, _check_left_out_soldier, _check_data_ranges,
+		_check_dead_intent_dropped, _check_nothing_after_end,
 	]
 	for check: Callable in checks:
 		if not check.call():
@@ -116,8 +118,8 @@ func _check_engagement() -> bool:
 	var leader := _kit.add(battle, A, _kit.leader(MOON_SPEAR, [], {"keywords": _kit.keywords([])}), Vector2i(5, 6))
 	var enemy := _kit.add(battle, B, _kit.leader(THIET_NHA), Vector2i(5, 5))
 	battle.start()
-	var forecast := battle.forecast_engagement(leader, enemy)
 	var hash_before := battle.get_state_hash()
+	var forecast := battle.forecast_engagement(leader, enemy)
 	if not (Kit.expect("forecast changes nothing", battle.get_state_hash(), hash_before) \
 			and Kit.expect("per hit", [forecast["attacker_damage_per_hit"], forecast["defender_damage_per_hit"]], [52, 57]) \
 			and Kit.expect("hits", [forecast["attacker_hits"], forecast["defender_hits"]], [4, 4]) \
@@ -395,3 +397,97 @@ func _apply(battle: TacticsBattle, command: Array, played: Array, hashes: Array[
 			battle.end_phase()
 	played.append(command)
 	hashes.append(battle.get_state_hash())
+
+
+# The state hash covers what the battle was set up with: two battles with
+# the same cells and hp but another troop id or another AI side differ.
+func _check_hash_covers_setup() -> bool:
+	var hashes: Array[String] = []
+	for variant: int in 3:
+		var battle := _kit.new_battle(_kit.plain_rows(), variant == 2)
+		var troop := _kit.troop(&"troop.spearman", {"id": &"troop.spearman_copy"} if variant == 1 else {})
+		_kit.add(battle, A, _kit.leader(MOON_SPEAR), Vector2i(5, 8), [troop])
+		_kit.add(battle, B, _kit.leader(THIET_NHA), Vector2i(5, 1))
+		hashes.append(battle.get_state_hash())
+	return Kit.expect_true("hashes differ: %s" % [hashes], hashes[0] != hashes[1] and hashes[0] != hashes[2])
+
+
+# Once the battle ended nothing can happen, so the forecast is invalid.
+func _check_forecast_after_end() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows(), false, null, Vector2i(5, 5))
+	var leader := _kit.add(battle, A, _kit.leader(MOON_SPEAR), Vector2i(5, 6))
+	var enemy := _kit.add(battle, B, _kit.leader(THIET_NHA), Vector2i(4, 5))
+	battle.start()
+	battle.move_leader(leader, Vector2i(5, 5))
+	return Kit.expect("ended", battle.is_finished(), true) \
+		and Kit.expect("forecast after the end", battle.forecast_engagement(leader, enemy)["is_valid"], false)
+
+
+# A soldier that found no free cell is left out (dead, off the map); the
+# movement queries answer it with nothing instead of reading off the map.
+func _check_left_out_soldier() -> bool:
+	var battle := _kit.new_battle(PackedStringArray(["..."]))
+	_kit.add(battle, B, _kit.leader(THIET_NHA), Vector2i(2, 0))
+	var leader := _kit.add(battle, A, _kit.leader(MOON_SPEAR), Vector2i(0, 0), [_kit.troop(&"troop.spearman"), _kit.troop(&"troop.spearman")])
+	battle.start()
+	var left_out := leader + 2
+	return Kit.expect("left out", [battle.get_unit_state(left_out)["alive"], Kit.cell_of(battle, left_out)], [false, Vector2i(-1, -1)]) \
+		and Kit.expect("no reachable cells", battle.get_reachable_cells(left_out), []) \
+		and Kit.expect("no path", battle.get_path_to(left_out, Vector2i(1, 0)), [])
+
+
+# Numbers the handlers read are range-checked when a leader is added: a
+# negative burn, a huge passive, a skill without effects and a negative
+# heavy cost are refused.
+func _check_data_ranges() -> bool:
+	var burn := TacticsZoneData.new()
+	burn.id = &"zone.bad_fire"
+	burn.effect = &"zone_effect.burn"
+	burn.amount = -60
+	var bad_zone_skill := _kit.catalog.get_skill(&"tactics_skill.fire_rain").duplicate(true) as TacticsSkillData
+	(bad_zone_skill.effects[1] as TacticsSkillEffectData).zone = burn
+	var no_effects := _kit.catalog.get_skill(&"tactics_skill.fire_rain").duplicate() as TacticsSkillData
+	var empty: Array[TacticsSkillEffectData] = []
+	no_effects.effects = empty
+	var huge_coefficient := _kit.catalog.get_skill(&"tactics_skill.fire_rain").duplicate(true) as TacticsSkillData
+	(huge_coefficient.effects[0] as TacticsSkillEffectData).coefficient_pct = 100000000
+	var huge := _kit.catalog.get_passive(&"tactics_passive.pack_fury").duplicate() as TacticsPassiveData
+	huge.amount = 2000000000
+	var heavy := _kit.catalog.get_keyword(&"keyword.heavy").duplicate() as TacticsKeywordData
+	heavy.amount = -5
+	var heavy_list: Array[TacticsKeywordData] = [heavy]
+	var huge_list: Array[TacticsPassiveData] = [huge]
+	var bad_leaders: Array[TacticsLeaderData] = [
+		_kit.leader(BA_KHAC, [], {"skill": bad_zone_skill}), _kit.leader(BA_KHAC, [], {"skill": no_effects}),
+		_kit.leader(BA_KHAC, [], {"skill": huge_coefficient}), _kit.leader(BA_KHAC, huge_list),
+		_kit.leader(BA_KHAC, [], {"keywords": heavy_list}),
+	]
+	var battle := _kit.new_battle(_kit.plain_rows())
+	print("Tactics test: the next %d errors (bad data) are expected" % bad_leaders.size())
+	var indexes: Array = bad_leaders.map(func(data: TacticsLeaderData) -> int: return battle.add_leader_with_squad(A, data, Vector2i(5, 5), []))
+	return Kit.expect("bad data refused", indexes, [-1, -1, -1, -1, -1])
+
+
+# An AI leader killed during the player's phase has no declared intent left.
+func _check_dead_intent_dropped() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows(), true)
+	var spear := _kit.add(battle, A, _kit.leader(MOON_SPEAR, [], {"keywords": _kit.keywords([])}), Vector2i(5, 6))
+	var weak := _kit.add(battle, B, _kit.leader(THIET_NHA, [], {"hp_pct": 5}), Vector2i(5, 5))
+	var other := _kit.add(battle, B, _kit.leader(THIET_NHA), Vector2i(0, 0))
+	battle.start()
+	if not Kit.expect("two intents", battle.get_enemy_intents().size(), 2):
+		return false
+	battle.attack(spear, weak)
+	return Kit.expect("only the living leader's intent", battle.get_enemy_intents().map(func(intent: Dictionary) -> int: return intent["unit"]), [other])
+
+
+# battle_ended closes the event list of the command that ended the battle:
+# a wind trail leader stepping on the objective leaves no zone behind.
+func _check_nothing_after_end() -> bool:
+	var trail: Array[TacticsPassiveData] = [_kit.catalog.get_passive(&"tactics_passive.wind_trail")]
+	var battle := _kit.new_battle(_kit.plain_rows(), false, null, Vector2i(5, 3))
+	var leader := _kit.add(battle, A, _kit.leader(LIEU_MI, trail), Vector2i(5, 5))
+	_kit.add(battle, B, _kit.leader(THIET_NHA), Vector2i(11, 11))
+	battle.start()
+	var events := battle.move_leader(leader, Vector2i(5, 3))
+	return Kit.expect("last event", events.back()["type"], &"battle_ended") and Kit.expect("no zone", battle.get_zones(), [])

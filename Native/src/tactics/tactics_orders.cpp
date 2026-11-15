@@ -122,6 +122,10 @@ const OrderHandler &get_order_handler(int p_index) {
 	return ORDER_HANDLERS[p_index];
 }
 
+int get_order_count() {
+	return ORDER_COUNT;
+}
+
 std::vector<Cell> get_formation_slots(const TacticsSim &p_sim, int p_leader) {
 	const UnitState &leader = p_sim.get_units()[p_leader];
 	const OrderHandler &order = get_order_handler(leader.order);

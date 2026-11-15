@@ -31,7 +31,8 @@ struct PathField {
 	std::vector<int> previous;
 };
 
-// Every cell the unit can reach within p_max_cost from its cell.
+// Every cell the unit can reach within p_max_cost from its cell; none for a
+// dead unit.
 PathField find_paths(const TacticsSim &p_sim, int p_unit, int p_max_cost, ZocMode p_zoc);
 // Remaining cost from each cell to the nearest of p_goals (zones of control
 // ignored), for walking toward something out of reach this phase.

@@ -89,8 +89,10 @@ public:
 	int deal_damage(int p_source, int p_target, int p_amount, const std::string &p_content_id, bool p_is_counter, int p_cause);
 	// Moves a unit and emits unit_moved; p_path includes both ends.
 	void relocate_unit(int p_unit, const std::vector<Cell> &p_path, const std::string &p_kind, int p_cause);
-	void add_zone(const ZoneState &p_zone, int p_cause);
-	void add_buff(const BuffState &p_buff, int p_cause);
+	// Both last p_duration_rounds rounds: until the start of the active
+	// side's phase that many rounds later (end_round and end_turn are set here).
+	void add_zone(ZoneState p_zone, int p_duration_rounds, int p_cause);
+	void add_buff(BuffState p_buff, int p_duration_rounds, int p_cause);
 	void change_skill_charge(int p_leader, int p_delta, bool p_resets, int p_cause);
 	void emit_passive_triggered(int p_unit, const std::string &p_passive_id, int p_cause);
 	// Runs the soldiers' moves only (orders.h); the preview uses it alone.

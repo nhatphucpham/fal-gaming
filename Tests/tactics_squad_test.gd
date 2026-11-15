@@ -39,6 +39,7 @@ func _run() -> bool:
 		_check_charge_focus, _check_charge_damage_taken, _check_charge_soldiers_lost,
 		_check_area_skill_and_fire, _check_ai_skill, _check_stat_passives, _check_squad_passive,
 		_check_environment_passive, _check_pull_passive, _check_growth_passive,
+		_check_zone_sides, _check_side_b_durations,
 	]
 	for check: Callable in checks:
 		if not check.call():
@@ -91,8 +92,8 @@ func _check_order_slots() -> bool:
 		_kit.add(battle, B, _kit.leader(THIET_NHA), Vector2i(11, 0))
 		battle.start()
 		battle.set_order(leader, order)
-		var preview := _preview_cells(battle.preview_squad(leader, Vector2i(5, 6)))
 		var hash_before := battle.get_state_hash()
+		var preview := _preview_cells(battle.preview_squad(leader, Vector2i(5, 6)))
 		if not Kit.expect("preview changes nothing", battle.get_state_hash(), hash_before):
 			return false
 		battle.move_leader(leader, Vector2i(5, 6))
@@ -423,3 +424,47 @@ func _check_growth_passive() -> bool:
 	var grew := Kit.of_type(events, &"skill_grew")
 	return Kit.expect("grew", grew.map(func(event: Dictionary) -> Array: return [event["unit"], event["area_bonus"]]), [[leader, 1]]) \
 		and Kit.expect("area bonus", battle.get_skill_charge(leader)["area_bonus"], 1) and Kit.expect("still running", battle.is_finished(), false)
+
+
+# A zone works for its side: fire burns only the caster's enemies, and a
+# wind trail only wards the leader's allies.
+func _check_zone_sides() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows())
+	var leader := _kit.add(battle, A, _kit.leader(BA_KHAC, [], {"skill": _quick_skill(BA_KHAC)}), Vector2i(5, 9))
+	var ally := _kit.add(battle, A, _kit.leader(THIET_NHA), Vector2i(4, 4))
+	var enemy := _kit.add(battle, B, _kit.leader(THIET_NHA), Vector2i(5, 5))
+	battle.start()
+	_rounds(battle, 1)
+	battle.use_skill(leader, Vector2i(5, 5))
+	var burns := Kit.of_type(_rounds(battle, 1), &"damage_dealt").filter(func(event: Dictionary) -> bool: return event["source_id"] == &"zone.fire")
+	if not Kit.expect("fire burns the enemy only", burns.map(func(event: Dictionary) -> int: return event["target"]), [enemy]):
+		return false
+	var wind := _kit.new_battle(_kit.plain_rows())
+	var trail: Array[TacticsPassiveData] = [_kit.catalog.get_passive(&"tactics_passive.wind_trail")]
+	var walker := _kit.add(wind, A, _kit.leader(LIEU_MI, trail), Vector2i(5, 11))
+	var archer := _kit.add(wind, A, _kit.leader(LIEU_MI), Vector2i(7, 6))
+	var target := _kit.add(wind, B, _kit.leader(LIEU_MI), Vector2i(5, 8))
+	wind.start()
+	var before: int = wind.forecast_engagement(archer, target)["attacker_damage_per_hit"]
+	wind.move_leader(walker, Vector2i(5, 9))
+	var after: int = wind.forecast_engagement(archer, target)["attacker_damage_per_hit"]
+	return Kit.expect("wind does not ward the enemy", after, before)
+
+
+# A zone or buff made by side B for d rounds lasts as long as one made by
+# side A: until the start of its own side's phase d rounds later, so a
+# one-round wind trail still wards side B through side A's next phase.
+func _check_side_b_durations() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows())
+	var archer := _kit.add(battle, A, _kit.leader(LIEU_MI), Vector2i(5, 2))
+	var trail: Array[TacticsPassiveData] = [_kit.catalog.get_passive(&"tactics_passive.wind_trail")]
+	var walker := _kit.add(battle, B, _kit.leader(LIEU_MI, trail), Vector2i(5, 8))
+	battle.start()
+	battle.end_phase()
+	battle.move_leader(walker, Vector2i(5, 6))
+	var during_own_phase: int = battle.forecast_engagement(archer, walker)["attacker_damage_per_hit"]
+	var expired_at_a := Kit.of_type(battle.end_phase(), &"zone_expired")
+	var during_a_phase: int = battle.forecast_engagement(archer, walker)["attacker_damage_per_hit"]
+	var expired_at_b := Kit.of_type(battle.end_phase(), &"zone_expired")
+	return Kit.expect("wind wards through side A's phase", [during_own_phase, during_a_phase], [30, 30]) \
+		and Kit.expect("expires at the start of side B's next phase", [expired_at_a.size(), expired_at_b.size()], [0, 1])

@@ -42,7 +42,9 @@ Everything is listed in `Data/Tactics/tactics_catalog.tres`
 (`TacticsCatalog`: `rules`, `terrains`, `keywords`, `zones`, `passives`,
 `skills`, `troops`, `leaders`, `maps`, `scenarios`); nothing scans folders.
 `TacticsCatalog.validate()` checks id prefixes, duplicates, name keys,
-references to unlisted files, units, maps and scenarios. Ids:
+references to unlisted files, units (squad size against the capacity with
+passives), maps (spawn cells on the map, passable and not shared) and
+scenarios. Ids:
 `terrain.`, `keyword.`, `zone.`, `tactics_passive.`, `tactics_skill.`,
 `troop.`, `leader.`, `map.`, `scenario.`. Name keys (`TERRAIN_PLAIN`,
 `LEADER_LAC_HONG`, ...) have no Locale rows yet.
@@ -94,9 +96,11 @@ catalog), `skill`, `default_order` (`order.follow`, `order.vanguard`,
 | `keyword.heavy` | +`amount` (1) move cost on `terrain_ids` (forest, ford) |
 
 `TacticsZoneData` (`Data/Tactics/Zones/`): `effect` is the handler,
-`zone_effect.ranged_ward` (allies inside take `amount`% less ranged damage)
-or `zone_effect.burn` (`amount` damage to enemies inside at the start of
-their phase). Samples: `zone.wind` (ward 50), `zone.fire` (burn 60).
+`zone_effect.ranged_ward` (allies of the side that made the zone take
+`amount`% less ranged damage inside it) or `zone_effect.burn` (`amount`
+damage, 0..100000, to that side's enemies inside at the start of their
+phase); each handler states which side it affects. Samples: `zone.wind`
+(ward 50), `zone.fire` (burn 60).
 
 `TacticsPassiveData` (`Data/Tactics/Passives/`), `handler` is one of:
 
@@ -109,13 +113,17 @@ their phase). Samples: `zone.wind` (ward 50), `zone.fire` (burn 60).
 | `passive.skill_growth` | `amount` | `warlord_growth` (skill area +1 per enemy leader killed) |
 
 Stats: `stat.attack_pct`, `stat.armor`, `stat.magic_resist`,
-`stat.move_points`, `stat.max_range`.
+`stat.move_points`, `stat.max_range`. `passive.stat_bonus` needs a `stat`.
+Ranges: `amount` -1000..1000, `condition_adjacent_allies` 0..4,
+`extra_capacity` 0..8, `radius_cells` 0..64, `duration_rounds` 0..100.
+Keyword `amount` is 0..1000 and `min_cells` 0..20.
 
 `TacticsSkillData` (`Data/Tactics/Skills/`): `charge` and
 `charge_threshold` 1..100000, `target`, `cast_range_cells`,
 `area_radius_cells`, `chain_count`, `chain_jump_cells`, `chain_falloff_pct`,
-`effects` (`TacticsSkillEffectData`: `handler`, `coefficient_pct`,
-`damage_kind`, `amount_pct`, `duration_rounds`, `zone`).
+`effects` (at least one `TacticsSkillEffectData`: `handler`,
+`coefficient_pct` 0..1000, `damage_kind`, `amount_pct` 0..1000,
+`duration_rounds` 0..100, `zone`). `chain_jump_cells` is 1..64.
 
 - Charge: `charge.turns` (+1 at the end of each own phase),
   `charge.engagements` (+1 per engagement of the leader), `charge.focus`
@@ -161,8 +169,10 @@ placed on the spawn cells in order. Sample: `scenario.river_crossing`.
   `order.free` helps allies under attack, else goes for the nearest enemy.
   A squad whose leader died acts as `free`. `preview_squad()` shows where
   soldiers would go if the leader moved to a cell.
-- Buffs and zones made in round r for d rounds end at the start of round
-  r + d.
+- Buffs and zones made in round r for d rounds end at the start of their
+  side's phase in round r + d (`end_round`), so both sides get the same
+  length: a 1-round zone made by side B still works in side A's next phase.
+  d = 0 ends at the start of the next phase.
 - AI: each leader goes for the nearest enemy by path, moves to the
   reachable cell closest to it, then casts when ready and in range, else
   attacks, else waits. When the other side is human, the AI's intents are
@@ -189,18 +199,18 @@ error.
 | `is_started`, `is_finished`, `get_winner`, `get_end_reason`, `get_round`, `get_turn`, `get_active_side` | method | Battle state |
 | `get_unit_count`, `get_unit_state(unit)`, `get_units()`, `get_zones()` | method | Unit and zone dictionaries |
 | `get_map_width`, `get_map_height`, `get_terrain_id(cell)` | method | Map |
-| `get_reachable_cells(unit)`, `get_path_to(unit, cell)` | method | Movement queries |
+| `get_reachable_cells(unit)`, `get_path_to(unit, cell)` | method | Movement queries (empty for a dead unit) |
 | `get_formation_slots(leader)`, `preview_squad(leader, cell)` | method | Order queries (`[{unit, cell}]`) |
-| `forecast_engagement(attacker, defender) -> Dictionary` | method | Hits, damage per hit and hp after, without changing state |
+| `forecast_engagement(attacker, defender) -> Dictionary` | method | Hits, damage per hit and hp after, without changing state; `is_valid` false when the attack is not possible or the battle ended |
 | `get_skill_charge(leader)` | method | `{skill, charge, value, threshold, is_ready, area_bonus}` |
-| `get_enemy_intents()` | method | `[{unit, to, action, target, target_cell}]` |
+| `get_enemy_intents()` | method | `[{unit, to, action, target, target_cell}]`; a leader that died loses its intent |
 | `get_state_hash() -> int` | method | FNV-1a 64 of the whole state |
 | `set_log_enabled(enabled)` | method | Prints the log events below |
 | `event_emitted(event)` | signal | Each event, in order |
 | `battle_ended(winner, reason)` | signal | Once; `reason` is `rout`, `objective` or `time_limit` |
 
 Every event has `id`, `turn`, `round`, `type` and `cause` (the id of the
-event that caused it, or -1). Types: `battle_started`, `phase_started`,
+event that caused it, 0 if none; ids start at 1). Types: `battle_started`, `phase_started`,
 `phase_ended`, `unit_moved` (`kind` `move`, `squad`, `pull`),
 `order_changed`, `leader_waited`, `intent_declared`, `engagement_started`,
 `damage_dealt`, `engagement_ended`, `unit_died`, `skill_used`,
@@ -228,7 +238,10 @@ Format `[info][Tactics][t=<turn>] <event> key=value`, when logging is on.
   skill effect: write the handler and add it to the registry array in
   `tactics_keywords.cpp`, `tactics_zones.cpp`, `tactics_passives.cpp`,
   `tactics_skills.cpp` or `tactics_skill_effects.cpp`; mark `needs_zone`
-  when it reads a zone so validation checks it. Then add data that uses it.
+  when it reads a zone (and, for a passive, `needs_stat` when it reads
+  `stat`) so validation checks it; a zone handler also says whether it
+  affects the allies or the enemies of the side that made the zone. Then
+  add data that uses it.
 
 ## Tests
 

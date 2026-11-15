@@ -285,7 +285,7 @@ void TacticsSim::declare_intents(int p_cause) {
 
 void TacticsSim::expire_timed_effects(int p_cause) {
 	for (size_t index = 0; index < zones.size();) {
-		if (round < zones[index].end_round) {
+		if (turn < zones[index].end_turn) {
 			index++;
 			continue;
 		}
@@ -299,7 +299,7 @@ void TacticsSim::expire_timed_effects(int p_cause) {
 		zones.erase(zones.begin() + static_cast<long>(index));
 	}
 	for (size_t index = 0; index < buffs.size();) {
-		if (round < buffs[index].end_round) {
+		if (turn < buffs[index].end_turn) {
 			index++;
 			continue;
 		}
@@ -313,8 +313,8 @@ void TacticsSim::expire_timed_effects(int p_cause) {
 	}
 }
 
-// Zones act on the units of the side whose phase begins, in unit order,
-// each zone in creation order.
+// Zones act on the units of the side whose phase begins (each zone on the
+// side its handler affects), in unit order, each zone in creation order.
 void TacticsSim::apply_phase_start_effects(int p_cause) {
 	const std::vector<ZoneState> active = zones;
 	for (size_t unit = 0; unit < units.size(); unit++) {
@@ -322,7 +322,7 @@ void TacticsSim::apply_phase_start_effects(int p_cause) {
 			continue;
 		}
 		for (const ZoneState &zone : active) {
-			const bool is_affected = !finished && units[unit].is_alive && zone.def.handler->on_phase_start != nullptr && is_cell_in_zone(zone, units[unit].cell);
+			const bool is_affected = !finished && units[unit].is_alive && zone.def.handler->on_phase_start != nullptr && does_zone_affect(*this, zone, static_cast<int>(unit));
 			if (is_affected) {
 				zone.def.handler->on_phase_start(*this, zone, static_cast<int>(unit), p_cause);
 			}

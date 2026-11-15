@@ -59,6 +59,10 @@ PathField find_paths(const TacticsSim &p_sim, int p_unit, int p_max_cost, ZocMod
 	field.origin = unit.cell;
 	field.cost.assign(cell_count, UNREACHABLE);
 	field.previous.assign(cell_count, NO_INDEX);
+	// A dead unit (or a soldier left out at setup, off the map) goes nowhere.
+	if (!unit.is_alive || !p_sim.is_on_map(unit.cell)) {
+		return field;
+	}
 	std::vector<bool> is_done(cell_count, false);
 	MinQueue queue;
 	const int origin_index = p_sim.get_cell_index(unit.cell);

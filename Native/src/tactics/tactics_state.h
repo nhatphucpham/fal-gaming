@@ -41,15 +41,20 @@ struct ZoneState {
 	int side = SIDE_A;
 	int source = NO_UNIT;
 	std::vector<Cell> cells;
-	// The zone is removed at the start of the first phase of this round.
+	// Made for d rounds in round r: removed at the start of its side's phase
+	// in round r + d (end_round), which is phase end_turn (see add_zone).
 	int end_round = 0;
+	int end_turn = 0;
 };
 
 struct BuffState {
 	int unit = NO_UNIT;
 	StatKind stat = StatKind::ATTACK_PCT;
 	int amount = 0;
+	// As for ZoneState: removed at the start of phase end_turn, the phase of
+	// the unit's side in round end_round.
 	int end_round = 0;
+	int end_turn = 0;
 	std::string source_id;
 };
 

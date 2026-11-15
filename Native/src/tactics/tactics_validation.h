@@ -19,6 +19,13 @@ constexpr int MAX_PERCENT_MODIFIER = 100;
 constexpr int MAX_HITS_PER_ENGAGEMENT = 10;
 constexpr int MAX_ROUNDS = 1000;
 constexpr int MAX_DURATION_ROUNDS = 100;
+// Keyword amounts (percents, extra move cost) and passive amounts.
+constexpr int MAX_KEYWORD_AMOUNT = 1000;
+constexpr int MAX_PASSIVE_AMOUNT = 1000;
+// The battle damage pipeline clamps coefficients to this.
+constexpr int MAX_COEFFICIENT_PCT = 1000;
+constexpr int MAX_BUFF_PCT = 1000;
+constexpr int MAX_ADJACENT_CELLS = 4;
 
 bool validate_rules(const Rules &p_rules, std::string *r_error);
 bool validate_map(const MapDef &p_map, std::string *r_error);

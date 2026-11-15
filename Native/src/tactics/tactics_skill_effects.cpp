@@ -47,9 +47,8 @@ void apply_squad_attack_buff(TacticsSim &p_sim, int p_caster, const SkillEffectD
 		buff.unit = soldier;
 		buff.stat = StatKind::ATTACK_PCT;
 		buff.amount = p_effect.amount_pct;
-		buff.end_round = p_sim.get_round() + p_effect.duration_rounds;
 		buff.source_id = caster.def.skill.id;
-		p_sim.add_buff(buff, p_cause);
+		p_sim.add_buff(buff, p_effect.duration_rounds, p_cause);
 	}
 }
 
@@ -62,8 +61,7 @@ void apply_create_zone(TacticsSim &p_sim, int p_caster, const SkillEffectDef &p_
 	zone.side = p_sim.get_units()[p_caster].side;
 	zone.source = p_caster;
 	zone.cells = p_selection.cells;
-	zone.end_round = p_sim.get_round() + p_effect.duration_rounds;
-	p_sim.add_zone(zone, p_cause);
+	p_sim.add_zone(zone, p_effect.duration_rounds, p_cause);
 }
 
 const SkillEffectHandler SKILL_EFFECT_HANDLERS[] = {

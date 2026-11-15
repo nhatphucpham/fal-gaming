@@ -1,5 +1,6 @@
 #include "tactics_catalog.h"
 
+#include "tactics_passives.h"
 #include "tactics_validation.h"
 
 #include <godot_cpp/variant/dictionary.hpp>
@@ -88,8 +89,13 @@ void TacticsCatalog::validate_units(PackedStringArray &r_problems) const {
 				r_problems.push_back(vformat("TacticsCatalog: %s has a squad troop not listed in troops", where(leader)));
 			}
 		}
-		if (squad.size() > def.lead_capacity) {
-			r_problems.push_back(vformat("TacticsCatalog: %s has %d soldiers for lead_capacity %d", where(leader), squad.size(), def.lead_capacity));
+		// The same capacity TacticsSim::get_squad_capacity() gives the leader.
+		int capacity = def.lead_capacity;
+		for (const tactics::PassiveDef &passive : def.passives) {
+			capacity += passive.handler->get_extra_capacity != nullptr ? passive.handler->get_extra_capacity(passive) : 0;
+		}
+		if (squad.size() > capacity) {
+			r_problems.push_back(vformat("TacticsCatalog: %s has %d soldiers for a capacity of %d", where(leader), squad.size(), capacity));
 		}
 	}
 }
@@ -112,13 +118,21 @@ void TacticsCatalog::validate_maps(PackedStringArray &r_problems) const {
 				r_problems.push_back(vformat("TacticsCatalog: %s uses a terrain not listed in terrains", where(map)));
 			}
 		}
+		Dictionary used;
 		for (int side = 0; side < tactics::SIDE_COUNT; side++) {
 			const TypedArray<Vector2i> spawns = map->get_spawn_cells(side);
 			for (int64_t spawn = 0; spawn < spawns.size(); spawn++) {
 				const Vector2i cell = spawns[spawn];
 				if (cell.x < 0 || cell.x >= def.width || cell.y < 0 || cell.y >= def.height) {
 					r_problems.push_back(vformat("TacticsCatalog: %s has spawn cell %s off the map", where(map), cell));
+					continue;
 				}
+				// A leader cannot be placed there: add_leader() would refuse it.
+				const tactics::TerrainDef &terrain = def.terrains[def.cell_terrain[cell.y * def.width + cell.x]];
+				if (used.has(cell) || terrain.is_impassable) {
+					r_problems.push_back(vformat("TacticsCatalog: %s has spawn cell %s twice or on impassable terrain", where(map), cell));
+				}
+				used[cell] = true;
 			}
 		}
 	}

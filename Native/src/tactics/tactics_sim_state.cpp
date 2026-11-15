@@ -5,6 +5,7 @@
 #include "tactics_skills.h"
 
 #include <algorithm>
+#include <cstdint>
 
 // State helpers shared by the rules modules: lookups, effective stats,
 // damage, deaths, relocation, zones, buffs, skill charge and events.
@@ -55,7 +56,9 @@ Stats TacticsSim::get_stats_at(int p_unit, const Cell &p_cell) const {
 		}
 	}
 	Stats stats;
-	stats.attack = at_least(unit.def.attack * at_least(PERCENT + mods.attack_pct, 0) / PERCENT, 0);
+	// 64 bits: stacked buffs can push the percent high enough to overflow.
+	const int64_t attack = static_cast<int64_t>(unit.def.attack) * at_least(PERCENT + mods.attack_pct, 0) / PERCENT;
+	stats.attack = attack > INT32_MAX ? INT32_MAX : static_cast<int>(attack);
 	stats.armor = at_least(unit.def.armor + mods.armor, 0);
 	stats.magic_resist = at_least(unit.def.magic_resist + mods.magic_resist, 0);
 	stats.move_points = at_least(unit.def.move_points + mods.move_points, 0);
@@ -160,6 +163,7 @@ void TacticsSim::handle_death(int p_unit, int p_killer, int p_cause) {
 	event.cause = p_cause;
 	const int death_id = emit(event);
 	buffs.erase(std::remove_if(buffs.begin(), buffs.end(), [&](const BuffState &p_buff) { return p_buff.unit == p_unit; }), buffs.end());
+	intents.erase(std::remove_if(intents.begin(), intents.end(), [&](const Intent &p_intent) { return p_intent.leader == p_unit; }), intents.end());
 	if (!is_leader(p_unit) && units[unit.leader].is_alive) {
 		trigger_skill_charge(*this, unit.leader, ChargeTrigger::SOLDIER_LOST, 1, death_id);
 	}
@@ -198,7 +202,9 @@ void TacticsSim::relocate_unit(int p_unit, const std::vector<Cell> &p_path, cons
 	}
 }
 
-void TacticsSim::add_zone(const ZoneState &p_zone, int p_cause) {
+void TacticsSim::add_zone(ZoneState p_zone, int p_duration_rounds, int p_cause) {
+	p_zone.end_round = round + p_duration_rounds;
+	p_zone.end_turn = turn + SIDE_COUNT * p_duration_rounds;
 	zones.push_back(p_zone);
 	Event event;
 	event.type = EventType::ZONE_CREATED;
@@ -211,7 +217,9 @@ void TacticsSim::add_zone(const ZoneState &p_zone, int p_cause) {
 	emit(event);
 }
 
-void TacticsSim::add_buff(const BuffState &p_buff, int p_cause) {
+void TacticsSim::add_buff(BuffState p_buff, int p_duration_rounds, int p_cause) {
+	p_buff.end_round = round + p_duration_rounds;
+	p_buff.end_turn = turn + SIDE_COUNT * p_duration_rounds;
 	buffs.push_back(p_buff);
 	Event event;
 	event.type = EventType::BUFF_APPLIED;

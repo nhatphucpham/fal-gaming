@@ -33,8 +33,9 @@ struct PassiveHandler {
 	const char *id;
 	// stat_modifier, squad_modifier, environment, special_weapon or skill_growth.
 	const char *kind;
-	// The handler reads PassiveDef::zone, so the passive must have one.
+	// The handler reads PassiveDef::zone (or ::stat), so the passive must have one.
 	bool needs_zone;
+	bool needs_stat;
 	void (*modify_own_stats)(const TacticsSim &p_sim, int p_unit, const Cell &p_cell, const PassiveDef &p_passive, StatModifiers &r_mods);
 	void (*modify_soldier_stats)(const TacticsSim &p_sim, int p_soldier, const PassiveDef &p_passive, StatModifiers &r_mods);
 	void (*grant_soldier_keywords)(const PassiveDef &p_passive, std::vector<const KeywordDef *> &r_keywords);

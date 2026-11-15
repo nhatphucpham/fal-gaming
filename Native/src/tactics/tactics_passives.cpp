@@ -73,7 +73,6 @@ void trail_zone_moved(TacticsSim &p_sim, int p_leader, const PassiveDef &p_passi
 	zone.def = p_passive.zone;
 	zone.side = leader.side;
 	zone.source = p_leader;
-	zone.end_round = p_sim.get_round() + p_passive.duration_rounds;
 	const int cell_count = p_sim.get_map().width * p_sim.get_map().height;
 	for (int index = 0; index < cell_count; index++) {
 		const Cell cell = p_sim.get_cell_at(index);
@@ -82,7 +81,7 @@ void trail_zone_moved(TacticsSim &p_sim, int p_leader, const PassiveDef &p_passi
 		}
 	}
 	p_sim.emit_passive_triggered(p_leader, p_passive.id, p_cause);
-	p_sim.add_zone(zone, p_cause);
+	p_sim.add_zone(zone, p_passive.duration_rounds, p_cause);
 }
 
 // passive.pull_strike (special weapon): the leader's attack pulls a target
@@ -132,11 +131,11 @@ void skill_growth_defeated(TacticsSim &p_sim, int p_leader, int p_victim, const 
 }
 
 const PassiveHandler PASSIVE_HANDLERS[] = {
-	{ "passive.stat_bonus", "stat_modifier", false, stat_bonus_own, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr },
-	{ "passive.squad_bonus", "squad_modifier", false, nullptr, squad_bonus_soldier, squad_bonus_keywords, squad_bonus_capacity, nullptr, nullptr, nullptr },
-	{ "passive.trail_zone", "environment", true, nullptr, nullptr, nullptr, nullptr, trail_zone_moved, nullptr, nullptr },
-	{ "passive.pull_strike", "special_weapon", false, nullptr, nullptr, nullptr, nullptr, nullptr, pull_strike_after_attack, nullptr },
-	{ "passive.skill_growth", "skill_growth", false, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, skill_growth_defeated },
+	{ "passive.stat_bonus", "stat_modifier", false, true, stat_bonus_own, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr },
+	{ "passive.squad_bonus", "squad_modifier", false, false, nullptr, squad_bonus_soldier, squad_bonus_keywords, squad_bonus_capacity, nullptr, nullptr, nullptr },
+	{ "passive.trail_zone", "environment", true, false, nullptr, nullptr, nullptr, nullptr, trail_zone_moved, nullptr, nullptr },
+	{ "passive.pull_strike", "special_weapon", false, false, nullptr, nullptr, nullptr, nullptr, nullptr, pull_strike_after_attack, nullptr },
+	{ "passive.skill_growth", "skill_growth", false, false, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, skill_growth_defeated },
 };
 
 } // namespace

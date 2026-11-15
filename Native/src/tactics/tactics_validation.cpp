@@ -33,22 +33,53 @@ bool validate_terrain(const TerrainDef &p_terrain, std::string *r_error) {
 			check_range(p_terrain.id, "ranged_range_bonus", p_terrain.ranged_range_bonus, 0, MAX_RANGE_CELLS, r_error);
 }
 
+bool validate_keyword(const std::string &p_owner, const KeywordDef &p_keyword, std::string *r_error) {
+	if (p_keyword.handler == nullptr) {
+		*r_error = p_owner + " has unknown keyword " + p_keyword.id;
+		return false;
+	}
+	return check_range(p_keyword.id, "amount", p_keyword.amount, 0, MAX_KEYWORD_AMOUNT, r_error) &&
+			check_range(p_keyword.id, "min_cells", p_keyword.min_cells, 0, MAX_MOVE_POINTS, r_error);
+}
+
+bool validate_zone(const std::string &p_owner, const ZoneDef &p_zone, std::string *r_error) {
+	if (p_zone.handler == nullptr) {
+		*r_error = p_owner + " has a zone with an unknown effect: " + p_zone.id;
+		return false;
+	}
+	return check_range(p_zone.id, "amount", p_zone.amount, 0, MAX_STAT, r_error);
+}
+
+bool validate_skill_effect(const SkillDef &p_skill, const SkillEffectDef &p_effect, std::string *r_error) {
+	if (p_effect.handler == nullptr) {
+		*r_error = p_skill.id + " has an unknown effect handler " + p_effect.handler_id;
+		return false;
+	}
+	if (p_effect.handler->needs_zone && !p_effect.has_zone) {
+		*r_error = p_skill.id + ": " + p_effect.handler_id + " needs a zone";
+		return false;
+	}
+	if (p_effect.has_zone && !validate_zone(p_skill.id, p_effect.zone, r_error)) {
+		return false;
+	}
+	const std::string owner = p_skill.id + " " + p_effect.handler_id;
+	return check_range(owner, "duration_rounds", p_effect.duration_rounds, 0, MAX_DURATION_ROUNDS, r_error) &&
+			check_range(owner, "coefficient_pct", p_effect.coefficient_pct, 0, MAX_COEFFICIENT_PCT, r_error) &&
+			check_range(owner, "amount_pct", p_effect.amount_pct, 0, MAX_BUFF_PCT, r_error);
+}
+
 bool validate_skill(const UnitDef &p_unit, std::string *r_error) {
 	const SkillDef &skill = p_unit.skill;
 	if (skill.charge == nullptr || skill.target == nullptr) {
 		*r_error = skill.id + " of " + p_unit.id + " has an unknown charge or target handler";
 		return false;
 	}
+	if (skill.effects.empty()) {
+		*r_error = skill.id + " of " + p_unit.id + " has no effects";
+		return false;
+	}
 	for (const SkillEffectDef &effect : skill.effects) {
-		if (effect.handler == nullptr || (effect.has_zone && effect.zone.handler == nullptr)) {
-			*r_error = skill.id + " has an unknown effect or zone handler " + effect.handler_id;
-			return false;
-		}
-		if (effect.handler->needs_zone && !effect.has_zone) {
-			*r_error = skill.id + ": " + effect.handler_id + " needs a zone";
-			return false;
-		}
-		if (!check_range(skill.id, "duration_rounds", effect.duration_rounds, 0, MAX_DURATION_ROUNDS, r_error)) {
+		if (!validate_skill_effect(skill, effect, r_error)) {
 			return false;
 		}
 	}
@@ -56,7 +87,31 @@ bool validate_skill(const UnitDef &p_unit, std::string *r_error) {
 			check_range(skill.id, "cast_range_cells", skill.cast_range_cells, 0, MAX_MAP_CELLS_PER_AXIS * 2, r_error) &&
 			check_range(skill.id, "area_radius_cells", skill.area_radius_cells, 0, MAX_MAP_CELLS_PER_AXIS, r_error) &&
 			check_range(skill.id, "chain_count", skill.chain_count, 1, MAX_SQUAD_SIZE * 2, r_error) &&
+			check_range(skill.id, "chain_jump_cells", skill.chain_jump_cells, 1, MAX_MAP_CELLS_PER_AXIS * 2, r_error) &&
 			check_range(skill.id, "chain_falloff_pct", skill.chain_falloff_pct, 0, MAX_PERCENT_MODIFIER, r_error);
+}
+
+bool validate_passive(const UnitDef &p_unit, const PassiveDef &p_passive, std::string *r_error) {
+	if (p_passive.handler == nullptr) {
+		*r_error = p_passive.id + " of " + p_unit.id + " has an unknown handler";
+		return false;
+	}
+	if (p_passive.handler->needs_zone && !p_passive.has_zone) {
+		*r_error = p_passive.id + " of " + p_unit.id + " needs a zone";
+		return false;
+	}
+	if (p_passive.handler->needs_stat && p_passive.stat == StatKind::NONE) {
+		*r_error = p_passive.id + " of " + p_unit.id + " needs a stat";
+		return false;
+	}
+	if ((p_passive.has_zone && !validate_zone(p_passive.id, p_passive.zone, r_error)) || (p_passive.has_keyword && !validate_keyword(p_passive.id, p_passive.keyword, r_error))) {
+		return false;
+	}
+	return check_range(p_passive.id, "amount", p_passive.amount, -MAX_PASSIVE_AMOUNT, MAX_PASSIVE_AMOUNT, r_error) &&
+			check_range(p_passive.id, "condition_adjacent_allies", p_passive.condition_adjacent_allies, 0, MAX_ADJACENT_CELLS, r_error) &&
+			check_range(p_passive.id, "extra_capacity", p_passive.extra_capacity, 0, MAX_SQUAD_SIZE, r_error) &&
+			check_range(p_passive.id, "radius_cells", p_passive.radius_cells, 0, MAX_MAP_CELLS_PER_AXIS * 2, r_error) &&
+			check_range(p_passive.id, "duration_rounds", p_passive.duration_rounds, 0, MAX_DURATION_ROUNDS, r_error);
 }
 
 bool validate_leader_parts(const UnitDef &p_unit, std::string *r_error) {
@@ -65,19 +120,11 @@ bool validate_leader_parts(const UnitDef &p_unit, std::string *r_error) {
 		return false;
 	}
 	for (const PassiveDef &passive : p_unit.passives) {
-		if (passive.handler == nullptr || (passive.has_zone && passive.zone.handler == nullptr) || (passive.has_keyword && passive.keyword.handler == nullptr)) {
-			*r_error = passive.id + " of " + p_unit.id + " has an unknown handler";
-			return false;
-		}
-		if (passive.handler->needs_zone && !passive.has_zone) {
-			*r_error = passive.id + " of " + p_unit.id + " needs a zone";
-			return false;
-		}
-		if (!check_range(passive.id, "duration_rounds", passive.duration_rounds, 0, MAX_DURATION_ROUNDS, r_error)) {
+		if (!validate_passive(p_unit, passive, r_error)) {
 			return false;
 		}
 	}
-	if (p_unit.default_order < 0) {
+	if (p_unit.default_order < 0 || p_unit.default_order >= get_order_count()) {
 		*r_error = p_unit.id + " has an unknown default_order";
 		return false;
 	}
@@ -139,8 +186,7 @@ bool validate_unit_def(const UnitDef &p_unit, std::string *r_error) {
 		return false;
 	}
 	for (const KeywordDef &keyword : p_unit.keywords) {
-		if (keyword.handler == nullptr) {
-			*r_error = p_unit.id + " has unknown keyword " + keyword.id;
+		if (!validate_keyword(p_unit.id, keyword, r_error)) {
 			return false;
 		}
 	}

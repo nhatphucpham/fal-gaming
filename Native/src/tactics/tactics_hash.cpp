@@ -34,6 +34,11 @@ void hash_cell(uint64_t *r_hash, const Cell &p_cell) {
 } // namespace
 
 void TacticsSim::hash_unit(uint64_t *r_hash, const UnitState &p_unit) const {
+	// Identity first: two setups with the same cells and hp but other unit
+	// types or squads play differently.
+	hash_text(r_hash, p_unit.def.id);
+	hash_value(r_hash, p_unit.side);
+	hash_value(r_hash, p_unit.leader);
 	hash_value(r_hash, p_unit.is_alive ? 1 : 0);
 	hash_value(r_hash, p_unit.hp);
 	hash_cell(r_hash, p_unit.cell);
@@ -57,6 +62,9 @@ uint64_t TacticsSim::get_state_hash() const {
 	hash_value(&hash, active_side);
 	hash_value(&hash, finished ? 1 : 0);
 	hash_value(&hash, winner);
+	hash_text(&hash, end_reason);
+	hash_value(&hash, side_is_ai[SIDE_A] ? 1 : 0);
+	hash_value(&hash, side_is_ai[SIDE_B] ? 1 : 0);
 	hash_value(&hash, static_cast<int64_t>(units.size()));
 	for (const UnitState &unit : units) {
 		hash_unit(&hash, unit);
@@ -67,6 +75,7 @@ uint64_t TacticsSim::get_state_hash() const {
 		hash_value(&hash, zone.side);
 		hash_value(&hash, zone.source);
 		hash_value(&hash, zone.end_round);
+		hash_value(&hash, zone.end_turn);
 		hash_value(&hash, static_cast<int64_t>(zone.cells.size()));
 		for (const Cell &cell : zone.cells) {
 			hash_cell(&hash, cell);
@@ -78,6 +87,8 @@ uint64_t TacticsSim::get_state_hash() const {
 		hash_value(&hash, static_cast<int64_t>(buff.stat));
 		hash_value(&hash, buff.amount);
 		hash_value(&hash, buff.end_round);
+		hash_value(&hash, buff.end_turn);
+		hash_text(&hash, buff.source_id);
 	}
 	hash_value(&hash, static_cast<int64_t>(intents.size()));
 	for (const Intent &intent : intents) {
@@ -85,6 +96,7 @@ uint64_t TacticsSim::get_state_hash() const {
 		hash_cell(&hash, intent.destination);
 		hash_value(&hash, static_cast<int64_t>(intent.action));
 		hash_value(&hash, intent.target);
+		hash_cell(&hash, intent.target_cell);
 	}
 	return hash;
 }

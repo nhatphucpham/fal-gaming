@@ -42,7 +42,9 @@ struct OrderHandler {
 
 // The order's index, or NO_INDEX when the id is not registered.
 int find_order_index(const std::string &p_id);
+// p_index is 0..get_order_count() - 1.
 const OrderHandler &get_order_handler(int p_index);
+int get_order_count();
 // The squad's slot cells for the leader's current cell, heading and order,
 // shifted along the heading when the leader kept it two moves in a row.
 std::vector<Cell> get_formation_slots(const TacticsSim &p_sim, int p_leader);
