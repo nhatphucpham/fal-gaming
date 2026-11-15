@@ -57,6 +57,14 @@ static func unsquash(tween: Tween, view: UnitView) -> void:
 	tween.parallel().tween_property(view, ^"anim_offset", Vector2.ZERO, 0.08)
 
 
+## Turned to stone: a short squash, back to shape and to the cell centre
+## (a wind-up cut short may have left it crouched).
+static func stone_thud(tween: Tween, view: UnitView) -> void:
+	tween.parallel().tween_property(view, ^"squash", Vector2(1.06, 0.94), 0.08)
+	tween.parallel().tween_property(view, ^"anim_offset", Vector2.ZERO, 0.08)
+	tween.tween_property(view, ^"squash", Vector2.ONE, 0.1)
+
+
 ## Crouches over 60% of `seconds`, stretches up, and settles.
 static func wind_up(tween: Tween, view: UnitView, seconds: float) -> void:
 	tween.tween_property(view, ^"squash", Vector2(1.18, 0.82), seconds * 0.6).set_ease(Tween.EASE_OUT)

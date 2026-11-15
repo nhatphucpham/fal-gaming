@@ -128,6 +128,25 @@ func get_clip(name: StringName, view: StringName) -> Array[RigClips.ClipKey]:
 	return keys
 
 
+## The skill clip seen from `view`: Up from behind, Down from the front.
+func get_skill_clip(view: StringName) -> Array[RigClips.ClipKey]:
+	return get_clip(&"skillUp" if view == RigSolver.VIEW_BACK else &"skillDown", view)
+
+
+## The skill's first `skill_wind_keys` keys (the wind-up) stretched to last
+## `seconds` (the cast) in all.
+func get_wind_up(view: StringName, seconds: float) -> Array[RigClips.ClipKey]:
+	var keys := get_skill_clip(view)
+	var wind_seconds := 0.0
+	for index: int in skill_wind_keys:
+		wind_seconds += keys[index].seconds
+	var stretch := seconds / wind_seconds if seconds > 0.0 else 1.0
+	var wind: Array[RigClips.ClipKey] = []
+	for index: int in skill_wind_keys:
+		wind.append(RigClips.ClipKey.new(keys[index].seconds * stretch, keys[index].easing, keys[index].pose))
+	return wind
+
+
 ## The run cycle at `phase` seen from `view`.
 func get_walk_pose(phase: float, view: StringName) -> UnitPose:
 	if walk.is_valid():

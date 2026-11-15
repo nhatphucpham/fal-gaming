@@ -304,6 +304,10 @@ func _on_battle_ended(event: Dictionary) -> void:
 	var winner: int = event["winner"]
 	var reason: StringName = event["reason"]
 	stop()
+	# Casts still running end with the battle: no strike, no feet glow.
+	for view: UnitView in _views.values():
+		view.skill_overlay.set_casting(false)
+		view.cancel_wind_up()
 	run_after(END_PAUSE_SEC, func() -> void:
 		for view: UnitView in _views.values():
 			if view.side == winner and not view.is_dead:

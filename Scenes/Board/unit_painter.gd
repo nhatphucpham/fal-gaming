@@ -68,8 +68,8 @@ static func draw_figure(canvas: CanvasItem, unit: UnitData, facing: int, flash: 
 	look.pixels_per_unit = pixels_per_unit if pixels_per_unit > 0.0 else figure_scale
 	if animator != null:
 		look.clock = animator.get_clock()
-		look.trail = animator.trail
-		look.trail_weights = animator.trail_weights
+		look.trail = animator.trail.points
+		look.trail_weights = animator.trail.weights
 	var shown := pose if pose != null else kit.idle[view]
 	# The board turns the pose's step toward the target into a push of the
 	# whole figure (UnitView), so the rig itself stays over its feet.

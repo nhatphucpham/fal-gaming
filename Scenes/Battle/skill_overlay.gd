@@ -38,6 +38,11 @@ func _process(delta: float) -> void:
 		queue_redraw()
 
 
+## True while the glow at the feet shows.
+func is_casting() -> bool:
+	return _is_casting
+
+
 ## Starts or stops the glow at the feet.
 func set_casting(is_casting: bool) -> void:
 	_is_casting = is_casting
