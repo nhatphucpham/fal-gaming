@@ -88,8 +88,8 @@ After building, run the editor import, `Tests/smoke_test.gd`,
 `Tests/formation_battle_test.gd`, `Tests/synergy_ui_test.gd`,
 `Tests/epiphany_test.gd`, `Tests/boss_test.gd`, `Tests/cutscene_test.gd`,
 `Tests/audio_test.gd`, `Tests/unit_pose_test.gd`,
-`Tests/pose_animator_test.gd`, `Tests/pose_cast_test.gd` and
-`Tests/pose_stone_test.gd` as shown in the
+`Tests/pose_animator_test.gd`, `Tests/pose_cast_test.gd`,
+`Tests/pose_stone_test.gd` and `Tests/voice_test.gd` as shown in the
 README. Tests that touch the
 settings file point `RunSettings.path` at `user://settings_test.json`, so
 the player's mute and preparation time are left alone.
@@ -131,7 +131,8 @@ godot --headless --path . --script res://Tools/run_bot.gd -- 300 1
 ```
 
 The arguments are the number of runs, the first seed and, optionally,
-`verbose`. `Tools/` is left out of every export preset.
+`verbose`. `Tools/`, `Tests/` and `Scenes/Dev/` (developer pages such as
+the voice demo) are left out of every export preset.
 
 CI runs once per commit: on pull requests, and on pushes to `master`. A
 branch without a pull request is not built. A newer commit on a pull request

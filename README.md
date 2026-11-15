@@ -162,7 +162,8 @@ Git.
   [Run](Docs/systems/run.md), [Skill](Docs/systems/skill.md),
   [Synergy](Docs/systems/synergy.md), [Formation](Docs/systems/formation.md),
   [Kỳ Ngộ](Docs/systems/epiphany.md), [Cutscene](Docs/systems/cutscene.md),
-  [Boss](Docs/systems/boss.md), [Audio](Docs/systems/audio.md)
+  [Boss](Docs/systems/boss.md), [Audio](Docs/systems/audio.md),
+  [Voice](Docs/systems/voice.md)
 - [Changelog](CHANGELOG.md)
 - [Agent instructions](AGENTS.md)
 
