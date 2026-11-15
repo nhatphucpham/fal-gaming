@@ -147,6 +147,7 @@ private:
 	void check_objective_taken(int p_leader, int p_cause);
 	void end_battle(int p_winner, const std::string &p_reason, int p_cause);
 	void declare_intents(int p_cause);
+	void hash_setup(uint64_t *r_hash) const;
 	void hash_unit(uint64_t *r_hash, const UnitState &p_unit) const;
 };
 

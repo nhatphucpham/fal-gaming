@@ -1,7 +1,8 @@
 #include "tactics_sim.h"
 
-// The tactics battle's state hash: everything that can change during a
-// battle, so two replays of the same commands agree after every command.
+// The tactics battle's state hash: the rules and map, and everything that
+// can change during a battle, so two replays of the same commands agree
+// after every command.
 
 namespace tactics {
 
@@ -55,8 +56,30 @@ void TacticsSim::hash_unit(uint64_t *r_hash, const UnitState &p_unit) const {
 	hash_value(r_hash, p_unit.last_attacker);
 }
 
+// Rules and map: other rules or terrain play differently from the same
+// units on the same cells.
+void TacticsSim::hash_setup(uint64_t *r_hash) const {
+	hash_value(r_hash, rules.hits_per_engagement);
+	hash_value(r_hash, rules.anticipation_shift_cells);
+	hash_value(r_hash, rules.help_radius_cells);
+	hash_value(r_hash, rules.max_leaders_per_side);
+	hash_value(r_hash, rules.max_rounds);
+	hash_text(r_hash, map.id);
+	hash_value(r_hash, map.width);
+	hash_value(r_hash, map.height);
+	for (int terrain : map.cell_terrain) {
+		hash_text(r_hash, map.terrains[terrain].id);
+	}
+	hash_value(r_hash, map.has_objective ? 1 : 0);
+	hash_cell(r_hash, map.objective);
+	hash_value(r_hash, map.objective_side);
+	hash_cell(r_hash, map.facing[SIDE_A]);
+	hash_cell(r_hash, map.facing[SIDE_B]);
+}
+
 uint64_t TacticsSim::get_state_hash() const {
 	uint64_t hash = FNV_OFFSET_BASIS;
+	hash_setup(&hash);
 	hash_value(&hash, round);
 	hash_value(&hash, turn);
 	hash_value(&hash, active_side);

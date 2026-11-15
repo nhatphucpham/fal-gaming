@@ -41,7 +41,7 @@ func _run() -> bool:
 		_check_catalog_references, _check_objective_needs_own_move, _check_side_bounds,
 		_check_failed_scenario_load, _check_catalog_loads_scenarios, _check_hash_covers_event_ids,
 		_check_unsigned_passive_amounts, _check_failed_reload, _check_catalog_terrain_ids,
-		_check_end_is_last, _check_path_matches_move,
+		_check_end_is_last, _check_path_matches_move, _check_command_limits,
 	]
 	for check: Callable in checks:
 		if not check.call():
@@ -404,16 +404,22 @@ func _apply(battle: TacticsBattle, command: Array, played: Array, hashes: Array[
 
 
 # The state hash covers what the battle was set up with: two battles with
-# the same cells and hp but another troop id or another AI side differ.
+# the same cells and hp but another troop id, another AI side, other rules
+# or another terrain differ.
 func _check_hash_covers_setup() -> bool:
 	var hashes: Array[String] = []
-	for variant: int in 3:
-		var battle := _kit.new_battle(_kit.plain_rows(), variant == 2)
+	var rules := _kit.catalog.rules.duplicate() as TacticsRulesData
+	rules.hits_per_engagement = 3
+	var forest_rows := _kit.plain_rows()
+	forest_rows[0] = "f..........."
+	for variant: int in 5:
+		var rows := forest_rows if variant == 4 else _kit.plain_rows()
+		var battle := _kit.new_battle(rows, variant == 2, rules if variant == 3 else null)
 		var troop := _kit.troop(&"troop.spearman", {"id": &"troop.spearman_copy"} if variant == 1 else {})
 		_kit.add(battle, A, _kit.leader(MOON_SPEAR), Vector2i(5, 8), [troop])
 		_kit.add(battle, B, _kit.leader(THIET_NHA), Vector2i(5, 1))
 		hashes.append(battle.get_state_hash())
-	return Kit.expect_true("hashes differ: %s" % [hashes], hashes[0] != hashes[1] and hashes[0] != hashes[2])
+	return Kit.expect_true("hashes differ: %s" % [hashes], hashes.all(func(hash: String) -> bool: return hashes.count(hash) == 1))
 
 
 # Once the battle ended nothing can happen, so the forecast is invalid.
@@ -710,3 +716,30 @@ func _check_path_matches_move() -> bool:
 	return Kit.expect("no path onto an ally", battle.get_path_to(leader, Vector2i(5, 7)), []) \
 		and Kit.expect("path through it", battle.get_path_to(leader, Vector2i(5, 6)), [Vector2i(5, 8), Vector2i(5, 7), Vector2i(5, 6)]) \
 		and Kit.expect("own cell", battle.get_path_to(leader, Vector2i(5, 8)), [Vector2i(5, 8)])
+
+
+# Each leader moves once and acts once per own phase; the other side's
+# leaders and soldiers take no commands. A refused command changes nothing,
+# and the next own phase allows both again.
+func _check_command_limits() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows())
+	var leader := _kit.add(battle, A, _kit.leader(MOON_SPEAR, [], {"keywords": _kit.keywords([])}), Vector2i(5, 8), [_kit.troop(&"troop.spearman")])
+	var enemy := _kit.add(battle, B, _kit.leader(THIET_NHA), Vector2i(5, 4))
+	battle.start()
+	print("Tactics test: the next 7 errors (commands refused) are expected")
+	var other_side := [battle.wait(enemy), battle.move_leader(enemy, Vector2i(5, 3)), battle.wait(leader + 1)]
+	var moved := battle.move_leader(leader, Vector2i(5, 6))
+	var hash := battle.get_state_hash()
+	var second_move := battle.move_leader(leader, Vector2i(5, 7))
+	var attacked := battle.attack(leader, enemy)
+	hash = battle.get_state_hash()
+	var after_act := [battle.attack(leader, enemy), battle.wait(leader), battle.move_leader(leader, Vector2i(4, 6))]
+	if not (Kit.expect("other side and soldier refused", other_side, [[], [], []]) and Kit.expect_true("moved", not moved.is_empty()) \
+			and Kit.expect("second move refused", second_move, []) and Kit.expect_true("attacked", not attacked.is_empty()) \
+			and Kit.expect("after acting refused", after_act, [[], [], []]) and Kit.expect("refusals change nothing", battle.get_state_hash(), hash)):
+		return false
+	battle.end_phase()
+	var enemy_waited := battle.wait(enemy)
+	battle.end_phase()
+	return Kit.expect_true("enemy acts in its phase", not enemy_waited.is_empty()) \
+		and Kit.expect_true("next phase allows a move", not battle.move_leader(leader, Vector2i(5, 7)).is_empty())

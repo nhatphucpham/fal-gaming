@@ -234,7 +234,7 @@ error.
 | `forecast_engagement(attacker, defender) -> Dictionary` | method | Hits, damage per hit and hp after, without changing state; any two units (an enemy's attack too, whoever's phase it is); `is_valid` false when either is dead, they are on the same side, the defender is out of range or the battle ended |
 | `get_skill_charge(leader)` | method | `{skill, charge, value, threshold, is_ready, area_bonus}` |
 | `get_enemy_intents()` | method | `[{unit, to, action, target, target_cell}]` (`action` `wait`, `attack` or `skill`); `target` is the enemy aimed at (-1 and `target_cell` (-1, -1) when none), or the leader itself for a skill cast on its own cell; a leader that died loses its intent |
-| `get_state_hash() -> String` | method | FNV-1a 64 of the whole state (round, turn, units, zones, buffs, intents, the next event id), 16 hex digits; setup data is identified by ids |
+| `get_state_hash() -> String` | method | FNV-1a 64 of the whole state (rules, map terrain, round, turn, units, zones, buffs, intents, the next event id), 16 hex digits; units, terrains and zones are identified by ids |
 | `set_log_enabled(enabled)` | method | Prints the log events below |
 | `event_emitted(event)` | signal | Each event, in order |
 | `battle_ended(winner, reason)` | signal | Once; `reason` is `rout`, `objective` or `time_limit` |
@@ -312,7 +312,8 @@ Format `[info][Tactics][t=<turn>] <event> key=value`, when logging is on.
 loads and setups, movement, paths and zones of control, engagement and forecast,
 keywords, terrain, AI intent, victory, defeat and time limit, objective
 only by the leader's own move, `battle_ended` as the last event, a replay
-that must give the same state hash, what the hash covers, data range
+that must give the same state hash, what the hash covers (rules and
+terrain too), one move and one action per leader and phase, data range
 checks, side bounds, map legends, dead units in queries and intents) and
 `Tests/tactics_squad_test.gd` (orders, anticipation, slots of a dead
 leader, the five charge mechanisms, skills and zones, the AI casting a
