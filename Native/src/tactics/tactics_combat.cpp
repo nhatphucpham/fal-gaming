@@ -127,6 +127,7 @@ EngagementResult resolve_engagement(TacticsSim &p_sim, int p_attacker, int p_def
 	started.is_first_strike = result.is_first_strike;
 	started.cause = p_cause;
 	const int cause = p_sim.emit(started);
+	result.event_id = cause;
 
 	const int hits = p_sim.get_rules().hits_per_engagement;
 	if (result.is_first_strike) {

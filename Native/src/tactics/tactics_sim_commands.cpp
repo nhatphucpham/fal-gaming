@@ -71,30 +71,32 @@ bool TacticsSim::move_leader(int p_unit, const Cell &p_cell, std::string *r_erro
 	if (!check_leader_move(p_unit, p_cell, r_error)) {
 		return false;
 	}
-	apply_leader_move(p_unit, p_cell, 0);
+	const int move_id = apply_leader_move(p_unit, p_cell, 0);
 	if (!finished) {
-		run_squad_step(p_unit, 0);
+		run_squad_step(p_unit, move_id);
 	}
 	return true;
 }
 
-void TacticsSim::apply_leader_move(int p_unit, const Cell &p_cell, int p_cause) {
+// Passives that react to the move are caused by the leader's unit_moved.
+int TacticsSim::apply_leader_move(int p_unit, const Cell &p_cell, int p_cause) {
 	const PathField field = find_paths(*this, p_unit, get_stats(p_unit).move_points, ZocMode::APPLY);
 	const std::vector<Cell> path = get_path(*this, field, p_cell);
 	update_heading(p_unit, units[p_unit].cell, p_cell);
 	units[p_unit].has_moved = true;
 	units[p_unit].straight_cells = get_trailing_straight_cells(path);
-	relocate_unit(p_unit, path, "move", p_cause);
+	const int move_id = relocate_unit(p_unit, path, "move", p_cause);
 	// The move may have taken the objective: nothing happens after the end.
 	if (finished) {
-		return;
+		return move_id;
 	}
 	const std::vector<PassiveDef> passives = units[p_unit].def.passives;
 	for (const PassiveDef &passive : passives) {
 		if (passive.handler->on_leader_moved != nullptr) {
-			passive.handler->on_leader_moved(*this, p_unit, passive, p_cause);
+			passive.handler->on_leader_moved(*this, p_unit, passive, move_id);
 		}
 	}
+	return move_id;
 }
 
 // Heading: the dominant axis of the move; on a tie the current heading
@@ -126,11 +128,11 @@ bool TacticsSim::attack(int p_unit, int p_target, std::string *r_error) {
 		const std::vector<PassiveDef> passives = units[p_unit].def.passives;
 		for (const PassiveDef &passive : passives) {
 			if (passive.handler->after_basic_attack != nullptr) {
-				passive.handler->after_basic_attack(*this, p_unit, p_target, passive, 0);
+				passive.handler->after_basic_attack(*this, p_unit, p_target, passive, result.event_id);
 			}
 		}
 	}
-	finish_leader_action(p_unit, 0);
+	finish_leader_action(p_unit, result.event_id);
 	return true;
 }
 
@@ -142,10 +144,11 @@ bool TacticsSim::use_skill(int p_unit, const Cell &p_cell, std::string *r_error)
 		*r_error = "leader " + std::to_string(p_unit) + " has no skill ready";
 		return false;
 	}
-	if (!cast_skill(*this, p_unit, p_cell, 0, r_error)) {
+	const int skill_id = cast_skill(*this, p_unit, p_cell, 0, r_error);
+	if (skill_id == 0) {
 		return false;
 	}
-	finish_leader_action(p_unit, 0);
+	finish_leader_action(p_unit, skill_id);
 	return true;
 }
 
@@ -156,8 +159,7 @@ bool TacticsSim::wait(int p_unit, std::string *r_error) {
 	Event event;
 	event.type = EventType::LEADER_WAITED;
 	event.unit = p_unit;
-	emit(event);
-	finish_leader_action(p_unit, 0);
+	finish_leader_action(p_unit, emit(event));
 	return true;
 }
 
@@ -179,7 +181,7 @@ bool TacticsSim::set_order(int p_unit, int p_order, std::string *r_error) {
 }
 
 // Acting ends the leader's phase; a squad that has not stepped yet (the
-// leader did not move) steps right after the action.
+// leader did not move) steps right after the action, caused by p_cause.
 void TacticsSim::finish_leader_action(int p_unit, int p_cause) {
 	units[p_unit].has_acted = true;
 	if (!units[p_unit].has_squad_acted && !finished) {

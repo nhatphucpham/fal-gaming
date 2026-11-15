@@ -180,12 +180,12 @@ bool is_skill_ready(const UnitState &p_leader) {
 	return p_leader.def.has_skill && p_leader.skill_charge >= p_leader.def.skill.charge_threshold;
 }
 
-bool cast_skill(TacticsSim &p_sim, int p_caster, const Cell &p_cell, int p_cause, std::string *r_error) {
+int cast_skill(TacticsSim &p_sim, int p_caster, const Cell &p_cell, int p_cause, std::string *r_error) {
 	const SkillDef &skill = p_sim.get_units()[p_caster].def.skill;
 	SkillSelection selection;
 	selection.center = p_cell;
 	if (!skill.target->select(p_sim, p_caster, p_cell, selection, r_error)) {
-		return false;
+		return 0;
 	}
 	Event used;
 	used.type = EventType::SKILL_USED;
@@ -209,7 +209,7 @@ bool cast_skill(TacticsSim &p_sim, int p_caster, const Cell &p_cell, int p_cause
 	resolved.cause = cause;
 	p_sim.emit(resolved);
 	p_sim.change_skill_charge(p_caster, 0, true, cause);
-	return true;
+	return cause;
 }
 
 } // namespace tactics

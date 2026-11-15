@@ -39,7 +39,7 @@ func _run() -> bool:
 		_check_charge_focus, _check_charge_damage_taken, _check_charge_soldiers_lost,
 		_check_area_skill_and_fire, _check_ai_skill, _check_stat_passives, _check_squad_passive,
 		_check_environment_passive, _check_pull_passive, _check_growth_passive,
-		_check_zone_sides, _check_side_b_durations,
+		_check_zone_sides, _check_side_b_durations, _check_causes,
 	]
 	for check: Callable in checks:
 		if not check.call():
@@ -468,3 +468,28 @@ func _check_side_b_durations() -> bool:
 	var expired_at_b := Kit.of_type(battle.end_phase(), &"zone_expired")
 	return Kit.expect("wind wards through side A's phase", [during_own_phase, during_a_phase], [30, 30]) \
 		and Kit.expect("expires at the start of side B's next phase", [expired_at_a.size(), expired_at_b.size()], [0, 1])
+
+
+# Events name what caused them: the squad's step is caused by the leader's
+# move or action, a trail zone by the move, a pull by the engagement.
+func _check_causes() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows())
+	var trail: Array[TacticsPassiveData] = [_kit.catalog.get_passive(&"tactics_passive.wind_trail")]
+	var walker := _kit.add(battle, A, _kit.leader(LIEU_MI, trail), Vector2i(2, 10), _spearmen(1))
+	var hook: Array[TacticsPassiveData] = [_kit.catalog.get_passive(&"tactics_passive.hook_spear")]
+	var hooker := _kit.add(battle, A, _kit.leader(MOON_SPEAR, hook, {"keywords": _kit.keywords([])}), Vector2i(8, 8), _spearmen(1))
+	var enemy := _kit.add(battle, B, _kit.leader(THIET_NHA), Vector2i(8, 6))
+	battle.start()
+	var moved := battle.move_leader(walker, Vector2i(2, 8))
+	var leader_move: Dictionary = Kit.of_type(moved, &"unit_moved")[0]
+	var later_causes: Array = moved.slice(moved.find(leader_move) + 1).map(func(event: Dictionary) -> int: return event["cause"])
+	if not Kit.expect("caused by the move", later_causes.has(0), false):
+		return false
+	battle.wait(walker)
+	var attacked := battle.attack(hooker, enemy)
+	var engagements := Kit.of_type(attacked, &"engagement_started")
+	var pull: Dictionary = Kit.of_type(attacked, &"unit_moved").filter(func(event: Dictionary) -> bool: return event["kind"] == &"pull")[0]
+	var squad_move: Array = Kit.of_type(attacked, &"unit_moved").filter(func(event: Dictionary) -> bool: return event["kind"] == &"squad")
+	return Kit.expect("pull caused by the engagement", pull["cause"], engagements[0]["id"]) \
+		and Kit.expect("squad step caused by the engagement", squad_move.map(func(event: Dictionary) -> int: return event["cause"]), [engagements[0]["id"]]) \
+		and Kit.expect_true("enemy is the target", engagements[0]["target"] == enemy)

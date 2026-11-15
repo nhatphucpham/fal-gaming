@@ -142,7 +142,7 @@ Keyword `amount` is 0..1000 and `min_cells` 0..20.
 
 `TacticsMapData` (`Data/Tactics/Maps/`): `width` x `height` (1..32),
 `rows` (one string of symbols per row, row 0 at the top), `legend_symbols`
-with the matching `legend_terrains`, `spawn_cells_a`/`_b`,
+(each symbol once) with the matching `legend_terrains`, `spawn_cells_a`/`_b`,
 `objective_cell` ((-1, -1) for none) held by `objective_side` to win,
 `facing_a`/`_b` (initial heading). `TacticsScenarioData`
 (`Data/Tactics/Scenarios/`): `rules`, `map`, `leaders_a`, `leaders_b`
@@ -189,7 +189,7 @@ error.
 
 | Member | Kind | Description |
 | --- | --- | --- |
-| `setup(rules, map) -> bool` | method | Starts a new battle setup; false when the data is invalid |
+| `setup(rules, map) -> bool` | method | Starts a new battle setup; false when the data is invalid or the battle already started |
 | `load_scenario(scenario) -> bool` | method | `setup` plus the scenario's leaders on the spawn cells |
 | `set_side_ai(side, is_ai)`, `is_side_ai(side)` | method | AI phases run on their own after the human's `end_phase()` |
 | `add_leader(side, leader, cell) -> int` | method | Adds the leader and its `squad`; returns the unit index or -1 |
@@ -210,7 +210,10 @@ error.
 | `battle_ended(winner, reason)` | signal | Once; `reason` is `rout`, `objective` or `time_limit` |
 
 Every event has `id`, `turn`, `round`, `type` and `cause` (the id of the
-event that caused it, 0 if none; ids start at 1). Types: `battle_started`, `phase_started`,
+event that caused it, 0 if none; ids start at 1). A command's own first
+event has cause 0; what follows from it points back: a squad's step to the
+leader's `unit_moved`, `engagement_started`, `skill_used` or
+`leader_waited`, a trail zone to the move, a pull to the engagement. Types: `battle_started`, `phase_started`,
 `phase_ended`, `unit_moved` (`kind` `move`, `squad`, `pull`),
 `order_changed`, `leader_waited`, `intent_declared`, `engagement_started`,
 `damage_dealt`, `engagement_ended`, `unit_died`, `skill_used`,

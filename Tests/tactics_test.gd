@@ -37,7 +37,7 @@ func _run() -> bool:
 		_check_armor_pierce, _check_cover, _check_flying, _check_heavy, _check_terrain_modifiers,
 		_check_ai_intent, _check_victory, _check_defeat, _check_time_limit, _check_determinism,
 		_check_hash_covers_setup, _check_forecast_after_end, _check_left_out_soldier, _check_data_ranges,
-		_check_dead_intent_dropped, _check_nothing_after_end,
+		_check_dead_intent_dropped, _check_nothing_after_end, _check_map_legend,
 	]
 	for check: Callable in checks:
 		if not check.call():
@@ -491,3 +491,13 @@ func _check_nothing_after_end() -> bool:
 	battle.start()
 	var events := battle.move_leader(leader, Vector2i(5, 3))
 	return Kit.expect("last event", events.back()["type"], &"battle_ended") and Kit.expect("no zone", battle.get_zones(), [])
+
+
+# A legend symbol listed twice is refused instead of mapping to one terrain.
+func _check_map_legend() -> bool:
+	var map := _kit.make_map(_kit.plain_rows())
+	map.legend_symbols = ".fhrdbt."
+	var battle := TacticsBattle.new()
+	_kit._battles.append(battle)
+	print("Tactics test: the next error (repeated legend symbol) is expected")
+	return Kit.expect("repeated symbol refused", battle.setup(_kit.catalog.rules, map), false)

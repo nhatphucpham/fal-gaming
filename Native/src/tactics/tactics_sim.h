@@ -87,8 +87,9 @@ public:
 	// Lowers hp, emits damage_dealt and, at 0, unit_died; returns the damage
 	// event id. Nothing happens to a unit that is already dead.
 	int deal_damage(int p_source, int p_target, int p_amount, const std::string &p_content_id, bool p_is_counter, int p_cause);
-	// Moves a unit and emits unit_moved; p_path includes both ends.
-	void relocate_unit(int p_unit, const std::vector<Cell> &p_path, const std::string &p_kind, int p_cause);
+	// Moves a unit and emits unit_moved; p_path includes both ends. Returns
+	// the event id, 0 when nothing moved.
+	int relocate_unit(int p_unit, const std::vector<Cell> &p_path, const std::string &p_kind, int p_cause);
 	// Both last p_duration_rounds rounds: until the start of the active
 	// side's phase that many rounds later (end_round and end_turn are set here).
 	void add_zone(ZoneState p_zone, int p_duration_rounds, int p_cause);
@@ -123,7 +124,8 @@ private:
 	bool check_leader_can_act(int p_unit, std::string *r_error) const;
 	bool check_leader_move(int p_unit, const Cell &p_cell, std::string *r_error) const;
 	void place_soldiers(int p_leader);
-	void apply_leader_move(int p_unit, const Cell &p_cell, int p_cause);
+	// Returns the leader's unit_moved event id.
+	int apply_leader_move(int p_unit, const Cell &p_cell, int p_cause);
 	void update_heading(int p_unit, const Cell &p_from, const Cell &p_to);
 	void finish_leader_action(int p_unit, int p_cause);
 	void run_squad_step(int p_leader, int p_cause);

@@ -138,6 +138,8 @@ struct Event {
 // The outcome of one engagement, as resolved or forecast.
 struct EngagementResult {
 	bool is_valid = false;
+	// The engagement_started event id.
+	int event_id = 0;
 	int attacker = NO_UNIT;
 	int defender = NO_UNIT;
 	AttackKind kind = AttackKind::MELEE;

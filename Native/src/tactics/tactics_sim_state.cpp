@@ -178,10 +178,10 @@ void TacticsSim::handle_death(int p_unit, int p_killer, int p_cause) {
 	check_victory(death_id);
 }
 
-void TacticsSim::relocate_unit(int p_unit, const std::vector<Cell> &p_path, const std::string &p_kind, int p_cause) {
+int TacticsSim::relocate_unit(int p_unit, const std::vector<Cell> &p_path, const std::string &p_kind, int p_cause) {
 	UnitState &unit = units[p_unit];
 	if (finished || p_path.size() < 2) {
-		return;
+		return 0;
 	}
 	const Cell from = unit.cell;
 	occupants[get_cell_index(from)] = NO_UNIT;
@@ -200,6 +200,7 @@ void TacticsSim::relocate_unit(int p_unit, const std::vector<Cell> &p_path, cons
 		trigger_skill_charge(*this, p_unit, ChargeTrigger::DISPLACED, 0, move_id);
 		check_victory(move_id);
 	}
+	return move_id;
 }
 
 void TacticsSim::add_zone(ZoneState p_zone, int p_duration_rounds, int p_cause) {

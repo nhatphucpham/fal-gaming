@@ -67,7 +67,8 @@ const SkillEffectHandler *find_skill_effect_handler(const std::string &p_id);
 void trigger_skill_charge(TacticsSim &p_sim, int p_leader, ChargeTrigger p_trigger, int p_amount, int p_cause);
 bool is_skill_ready(const UnitState &p_leader);
 // Casts the leader's skill at p_cell (charge checked by the caller); emits
-// skill_used, the effects' events and skill_resolved.
-bool cast_skill(TacticsSim &p_sim, int p_caster, const Cell &p_cell, int p_cause, std::string *r_error);
+// skill_used, the effects' events and skill_resolved. Returns the
+// skill_used event id, or 0 with r_error when p_cell is not a valid target.
+int cast_skill(TacticsSim &p_sim, int p_caster, const Cell &p_cell, int p_cause, std::string *r_error);
 
 } // namespace tactics

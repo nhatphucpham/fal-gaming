@@ -12,6 +12,11 @@ bool TacticsMapData::to_map_def(tactics::MapDef *r_def, std::string *r_error) co
 		return false;
 	}
 	for (int64_t index = 0; index < legend_terrains.size(); index++) {
+		// A repeated symbol would silently map every cell to its first terrain.
+		if (legend_symbols.find(String::chr(legend_symbols[index])) != index) {
+			*r_error = r_def->id + " has legend symbol '" + to_std_string(String::chr(legend_symbols[index])) + "' more than once";
+			return false;
+		}
 		const Ref<TacticsTerrainData> terrain = legend_terrains[index];
 		if (terrain.is_null()) {
 			*r_error = r_def->id + " has an empty legend terrain at " + std::to_string(index);
