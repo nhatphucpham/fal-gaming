@@ -4,7 +4,8 @@ extends SceneTree
 # has its own test, pose_animator_test.gd). The mesh cache: playing every
 # clip of every class from both sides, in both races, several times over,
 # keeps the cache under MESH_BUDGET and stops growing, and random poses
-# never grow it past RigPainter.MAX_MESHES. Drawing: every class (with the
+# never grow it past RigPainter.MAX_MESHES. The hit flash marks skip the
+# trail and the glow, and the flash material is set up early. Drawing: every class (with the
 # boss, the sage and an unknown one) x race (and an unknown one) draws
 # posed, unposed and as a bust without a script error. The rig: every
 # class, view and clip solves to finite bones at sampled times, and every
@@ -39,7 +40,7 @@ func _initialize() -> void:
 
 func _run() -> bool:
 	# The cache checks run first, before other checks fill the cache.
-	var checks: Array[Callable] = [_check_mesh_cache, _check_mesh_cap, _check_drawing, _check_clips_solve, _check_feet_on_ground]
+	var checks: Array[Callable] = [_check_mesh_cache, _check_mesh_cap, _check_flash_marks, _check_drawing, _check_clips_solve, _check_feet_on_ground]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Unit pose test failed in %s" % check.get_method())
@@ -93,6 +94,37 @@ func _check_mesh_cap() -> bool:
 		push_error("The mesh cache holds %d meshes, over its cap of %d" % [count, RigPainter.MAX_MESHES])
 		return false
 	return true
+
+
+# The hit flash leaves the weapon trail and the glow alone: paint() counts
+# them (they come first) so UnitPainter marks only the pieces. A rigged
+# figure gets its flash material as soon as it has a unit; the boss none.
+func _check_flash_marks() -> bool:
+	var kit := RigKit.get_kit(&"class.sword")
+	var look := _look(&"race.human")
+	var base := Transform2D(0.0, Vector2.ONE, 0.0, Vector2.ZERO)
+	var points := PackedVector2Array()
+	var colors := PackedColorArray()
+	var plain := RigPainter.paint(points, colors, kit, kit.stance[RigSolver.VIEW_BACK], RigSolver.VIEW_BACK, look, base)
+	points.clear()
+	colors.clear()
+	var glowing := RigPainter.paint(points, colors, kit, kit.stance[RigSolver.VIEW_BACK].merged({"glow": 1}), RigSolver.VIEW_BACK, look, base)
+	var ok := true
+	if plain != 0 or glowing <= 0 or glowing >= points.size():
+		push_error("paint() should count the glow's points before the pieces: %d without a glow, %d of %d with one" % [plain, glowing, points.size()])
+		ok = false
+	var figure := UnitFigure.new()
+	figure.unit = Kit.make_unit(&"class.archer")
+	var material := figure.material as ShaderMaterial
+	if material == null or material.shader != UnitFigure.FLASH_SHADER:
+		push_error("A rigged figure should get its flash material with its unit")
+		ok = false
+	figure.unit = Kit.make_unit(&"class.colossus")
+	if figure.material != null:
+		push_error("A figure outside the rig should have no flash material")
+		ok = false
+	figure.free()
+	return ok
 
 
 func _check_drawing() -> bool:
