@@ -23,8 +23,9 @@
   and synergy tests, `epiphany_test.gd` (Kỳ Ngộ), `boss_test.gd` (Cự Nham
   and Hóa Đá), `cutscene_test.gd` (the cutscene screen),
   `audio_test.gd` (the Audio autoload), and `unit_pose_test.gd`,
-  `pose_animator_test.gd` and `pose_cast_test.gd` (the unit figures' rig,
-  mesh cache, animator, casts and stone, sharing `pose_test_kit.gd`).
+  `pose_animator_test.gd`, `pose_cast_test.gd` and `pose_stone_test.gd`
+  (the unit figures' rig, mesh cache, animator, casts and stone, sharing
+  `pose_test_kit.gd`).
 - `Tools/` holds developer scripts that are not tests and not exported:
   `run_bot.gd`, the balance bot that plays whole runs (see
   [Run](systems/run.md)), and `make_sfx.gd`, which writes the sound files

@@ -88,7 +88,8 @@ After building, run the editor import, `Tests/smoke_test.gd`,
 `Tests/formation_battle_test.gd`, `Tests/synergy_ui_test.gd`,
 `Tests/epiphany_test.gd`, `Tests/boss_test.gd`, `Tests/cutscene_test.gd`,
 `Tests/audio_test.gd`, `Tests/unit_pose_test.gd`,
-`Tests/pose_animator_test.gd` and `Tests/pose_cast_test.gd` as shown in the
+`Tests/pose_animator_test.gd`, `Tests/pose_cast_test.gd` and
+`Tests/pose_stone_test.gd` as shown in the
 README. Tests that touch the
 settings file point `RunSettings.path` at `user://settings_test.json`, so
 the player's mute and preparation time are left alone.

@@ -11,9 +11,11 @@ cell signals, and keeps the player's formation. It does not run battles
 - Layer: presentation, plus one pure-data bridge class (`Lineup`).
 - `Scenes/Board/`: `board_view.gd` and `board_view.tscn` (`BoardView`),
   `unit_view.gd` (`UnitView`) with `unit_bar.gd` (`UnitBar`, its hp bar,
-  Khí bar and star pips) and `figure_tweens.gd` (`FigureTweens`, its
-  whole-figure squash and offset steps), `unit_figure.gd` (`UnitFigure`)
-  with `unit_flash.gdshader` (its hit flash),
+  Khí bar and star pips), `figure_tweens.gd` (`FigureTweens`, its
+  whole-figure squash and offset steps) and `board_motions.gd`
+  (`BoardMotions`, its glides, hops and the sold piece's flight),
+  `unit_figure.gd` (`UnitFigure`, which also knows its facing and the
+  pose's push) with `unit_flash.gdshader` (its hit flash),
   `unit_painter.gd` (`UnitPainter`, the entry point and race looks), the
   bone rig ported from [the approved sketch](../sketches/unit-rig/README.md):
   `unit_pose.gd` (`UnitPose`), `rig_solver.gd` (`RigSolver`),
@@ -24,7 +26,9 @@ cell signals, and keeps the player's formation. It does not run battles
   `rig_heads.gd` `RigHeads`, `rig_weapons.gd` `RigWeapons`, `rig_bow.gd`
   `RigBow`, `rig_horse.gd` `RigHorse`), the drawing (`rig_path.gd`
   `RigPath`, `rig_mesh.gd` `RigMesh`, `rig_palette.gd` `RigPalette`,
-  `rig_painter.gd` `RigPainter`) and `pose_animator.gd` (`PoseAnimator`);
+  `rig_painter.gd` `RigPainter`) and `pose_animator.gd` (`PoseAnimator`)
+  with `weapon_trail.gd` (`WeaponTrail`) and `pose_redraws.gd`
+  (`PoseRedraws`, when it redraws and blinks);
   `figure_brush.gd` (`FigureBrush`, outlined shapes for the figures outside
   the rig),
   `lineup_views.gd` (`LineupViews`),
@@ -152,18 +156,18 @@ pose otherwise.
 | `lunge(direction)`, `recoil(direction)` | `attack(aim)` | `attackUp` from behind, `attackDown` from the front; during a wind-up it is `release()` |
 | `wind_up(seconds)` | `wind_up(seconds)` | the first `RigKit.skill_wind_keys` keys of `skillUp`/`skillDown`, stretched over the cast; the last key is held, glowing and without breathing, until the next attack releases it, or it releases itself `RELEASE_GRACE_SEC` after the cast |
 | (next attack) | `release()` | the rest of the skill clip (the strike) |
-| `cancel_wind_up()` (stun) | `cancel_wind_up()` | none: the wind-up ends without its strike and settles to the stance from what shows |
-| `hit_flash()` | `hit()` | `hit` (a shield braces); ignored while winding up or running |
+| `cancel_wind_up()` (stun, the battle's end) | `cancel_wind_up()` | none: the wind-up ends without its strike and settles to the stance from what shows; during a run the figure keeps running. The boss straightens only if its wind-up squash still plays (a drop in goes on) |
+| `hit_flash()` | `hit()` | `hit` (a shield braces); ignored while winding up or running. A statue ignores it (no flash, no flinch): a hit landing late after the stone leaves it as it is |
 | `glide_to(..., &"walk")` | `walk(seconds, false)` | the run cycle (a gallop for the rider), blended in and settled out; drops the fight stance and cancels a wind-up |
 | `glide_to(..., &"charge")` | `walk(seconds, true)` | the run 1.5 times faster; keeps a wind-up glowing (its keys play on under the gallop), so Breakthrough's resolve (same tick) strikes while the horse gallops on; a charge that ends before the release settles to the stance; under a strike the gallop rises and slows smoothly (`WALK_BLEND_SEC`, `WALK_SETTLE_SEC`) |
 | `glide_to(..., &"knockback")` | `flinch_for(seconds)` | the first `hit` pose without the flash, held for the slide, then a settle |
 | `die()` | `die()` | `fall` (the first keys of `die`), held: the unit stays down, no idle |
 | `cheer()` | `cheer()` | `cheer` (weapon raised, happy eyes, a hop); ends a wind-up without its strike |
-| `set_petrified(bool)` | `set_frozen(bool)` | none: the pose and its redraws freeze as they are, without a hit's white flash (the view's too), the weapon trail or a wind-up's glow; a wind-up is cancelled, so after the thaw the figure settles to rest without a strike |
+| `set_petrified(bool)` | `set_frozen(bool)` | none: the pose and its redraws freeze as they are, without a hit's white flash (the view's too), the weapon trail or a wind-up's glow; a wind-up is cancelled (the boss's squash too) and the running clip ends there, even a strike released in the same frame, so after the thaw the figure settles from the stone pose to rest without a jump or a strike; a run goes on |
 | `setup()` | `set_class()`, `set_view()` | the idle pose |
 
 A pose's step toward the target (`dx`) moves the whole figure along the
-attack direction (`PUSH_PER_STEP` forward, `PULL_PER_STEP` back, like the
+attack direction (`UnitFigure.PUSH_PER_STEP` forward, `PULL_PER_STEP` back, like the
 sketch's board) instead of shifting the body inside it. Turning: the
 figure (only the figure: never the ring, bars, pips, stone or skill marks)
 is mirrored to face the target when the target is more than 6 px to the
@@ -182,8 +186,13 @@ calm figure (bench, dimmed line-up) only redraws when it blinks, and a
 held wind-up does not breathe at all. Blinks last 0.12 s of real time
 every 3.4 s, so the idle sampling sees them at any battle speed. While a
 clip, the run or a weapon trail plays it redraws at most 30 times a second
-of real time, and once more when it ends; the weapon trail takes a sample
-every frame. A petrified figure, a dead one after its fall, a boss and the sage
+of real time, and once more when it ends. The weapon trail holds a fixed
+number of samples (`WeaponTrail.SAMPLES`, 14), one taken every frame,
+so its length is in frames, as in the sketch. Each frame steps the clips by
+at most `PoseAnimator.MAX_STEP_SEC` (0.05 s, the sketch's cap) times the
+battle speed, so a long frame slows the animation instead of skipping a
+clip. `PoseAnimator.set_clock()` replaces the real-time clock of the
+redraws and blinks, for tests. A petrified figure, a dead one after its fall, a boss and the sage
 (they ignore poses, `UnitPainter.is_posable()`) never redraw on their own.
 
 `UnitPose` (RefCounted): the sketch's 48 pose fields in one
@@ -359,30 +368,46 @@ every standing pose plants each foot its leg can reach where the sketch
 puts it. It also checks that the hit flash marks skip the trail and the
 glow, and that a rigged figure gets its flash material with its unit.
 
-`Tests/pose_animator_test.gd` (headless, in CI; the three share
-`Tests/pose_test_kit.gd`) checks through `UnitView`, for every class from
+`Tests/pose_animator_test.gd` (headless, in CI; the four share
+`Tests/pose_test_kit.gd`, whose `Stepper` drives animators by hand at
+fixed 1/60 s frames with a clock of its own, so the timing checks do not
+depend on the machine's speed) checks through `UnitView`, for every class from
 both sides, that each action (attack, skill, hit, knockback, walk, cheer,
 and the event orders of real battles: a resolve followed one tick later by
 a walk or an attack, a cast then a cheer) ends at the rest pose with no
 clip, trail, glow, flash or step left and the figure unsquashed. It also
 checks that a dead unit, still shown, stays in its last fall pose with no
 redraws whatever comes next; that the boss and the sage never pose or
-redraw; that idle redraws stay near 10 a second at x1 and x4 and blinks
-still show at x4, swaying or calm; that a calm figure only blinks; that x4
-speed plays the clip four times as fast; that a glide or hop clears a
-knockback's lean; that the trail takes a sample every frame; and that an
-archer shooting straight ahead turns as the sketch does on both sides.
+redraw; that idle redraws stay at 10 a second (within one) at x1 and x4
+and blinks still show at x4, swaying or calm (both stepped); that a calm
+figure only blinks; that x4 speed plays the clip four times as fast; that
+a glide or hop clears a knockback's lean; that the trail takes a sample
+every frame; that a 1 s frame steps the clips by `MAX_STEP_SEC` times the
+speed; and that an archer shooting straight ahead turns as the sketch does
+on both sides.
 
-`Tests/pose_cast_test.gd` (headless, in CI) checks, sampling every frame,
+`Tests/pose_cast_test.gd` (headless, in CI) checks, stepping every frame,
 that a wind-up holds its last key glowing through the grace window (also
-with a charge during its keys) and then releases by itself; that a stun
-(`cancel_wind_up()`) or stone mid-cast never plays the strike (no trail, no
-step toward the target, no glow coming back), also after the thaw, for
-every class; that stone freezes the pose and redraws and drops the trail,
-and a statue made mid-hit keeps no flash in its pose or on its figure;
-that slowing from x4 to x1 mid-cast keeps the wind-up held; and that
-Breakthrough releases with the resolve while the horse gallops on, and the
-gallop never jumps under a strike.
+with a charge during its keys) and then releases by itself when the
+window ends; that a stun (`cancel_wind_up()`) mid-cast never plays the
+strike (no trail, no step toward the target, no glow coming back), for
+every class; that the battle's end cancels casts and their feet glow;
+that slowing from x4 to x1 mid-cast keeps the wind-up held; that
+Breakthrough's resolve, sent before the automatic release could come,
+releases the strike while the horse gallops on; that the gallop under a
+strike changes no faster than its blend (`1 / WALK_BLEND_SEC` a second,
+with a margin); and that the boss straightens from a wind-up cancelled
+by a stun or stone, while a cancel during its drop in leaves the drop in
+running.
+
+`Tests/pose_stone_test.gd` (headless, in CI) checks, stepping every frame,
+that stone mid-cast cancels it, for every class, and the thaw plays no
+strike; that stone freezes the pose and redraws and drops the trail, and a
+statue made mid-hit keeps no flash in its pose or on its figure; that a
+hit landing on a statue (rigged or the boss) neither flashes it nor makes
+it flinch; that the thaw starts from the stone pose (no jump); and that a
+strike released in the frame the stone came does not play after the
+thaw.
 
 ## Known limits
 

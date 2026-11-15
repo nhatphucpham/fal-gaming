@@ -195,6 +195,13 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
   legs no longer run behind the star pips.
 - Bosses and the sage no longer redraw 10 times a second while idle, and a
   unit that glides or hops right after a knockback is no longer left tilted.
+- A hit that lands after a unit turned to stone (an arrow in flight) no
+  longer flashes the statue white or makes the boss flinch; a strike
+  released just as the stone comes no longer plays after the thaw, and the
+  thaw no longer jumps the pose; a boss stunned as it drops in still
+  appears.
+- When the battle ends, a unit still casting no longer strikes into the
+  air before cheering, and its feet glow goes off.
 - The web build had no sound at all: the Music and Sfx buses were added
   at run time, which is silent in the browser. They now come from
   `default_bus_layout.tres`.
