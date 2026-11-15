@@ -141,7 +141,12 @@ blink: `set_dim()` sets it for the waiting enemy line-up and `PieceViews`
 for units on the bench. Side 0 faces up and right with a blue ring, side 1 faces down and
 left with a red ring. Rigged figures breathe and blink in their pose; the
 boss and the sage bob their scale (3.5%, phase per unit). `get_pose()`,
-`get_animator()` and `get_flip()` are for tests and tools.
+`get_animator()` and `get_flip()` are for tests and tools. Each frame the
+view works out its figure's scale, position and rotation but writes only
+the ones that changed: any write to a transform makes the renderer draw a
+frame, so an idle board would never let low processor mode skip one (see
+[Performance](performance.md)). `UnitBar` processes only while a full Khí
+bar pulses, and `SkillOverlay` only while its cast glow shows.
 
 Each view owns a `PoseAnimator` that plays the class's key-pose clips;
 the view's existing methods drive it, so callers need nothing new. Player

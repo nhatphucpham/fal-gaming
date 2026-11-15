@@ -32,10 +32,14 @@ func _init(view: UnitView) -> void:
 	}
 
 
+func _ready() -> void:
+	set_process(_is_casting)
+
+
+# Processes only while the cast glow shows (set_casting, clear).
 func _process(delta: float) -> void:
-	if _is_casting:
-		_cast_time += delta * _view.playback_speed
-		queue_redraw()
+	_cast_time += delta * _view.playback_speed
+	queue_redraw()
 
 
 ## True while the glow at the feet shows.
@@ -47,6 +51,7 @@ func is_casting() -> bool:
 func set_casting(is_casting: bool) -> void:
 	_is_casting = is_casting
 	_cast_time = 0.0
+	set_process(is_casting)
 	queue_redraw()
 
 
@@ -64,6 +69,7 @@ func remove_status(status: StringName) -> void:
 func clear() -> void:
 	_statuses.clear()
 	_is_casting = false
+	set_process(false)
 	queue_redraw()
 
 

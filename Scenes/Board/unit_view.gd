@@ -132,10 +132,17 @@ func _process(delta: float) -> void:
 	_time += delta
 	# A rigged figure breathes in its pose; the others bob their scale.
 	var breath := 0.0 if is_petrified or _is_rigged else sin(_time * BREATH_SPEED + _breath_phase) * BREATH_AMOUNT
-	_figure.scale = squash * Vector2((1.0 - breath * 0.4) * _figure.flip, 1.0 + breath) * FIGURE_SCALE * _size_scale
+	var figure_scale := squash * Vector2((1.0 - breath * 0.4) * _figure.flip, 1.0 + breath) * FIGURE_SCALE * _size_scale
 	var push := _figure.get_push() * FIGURE_SCALE * _size_scale if _is_rigged else Vector2.ZERO
-	_figure.position = FEET + anim_offset + Vector2(0.0, -bob) + push
-	_figure.rotation = lean
+	var figure_position := FEET + anim_offset + Vector2(0.0, -bob) + push
+	# Writing a transform, even an unchanged one, makes the renderer draw a
+	# frame: an idle board would never let low processor mode skip one.
+	if _figure.scale != figure_scale:
+		_figure.scale = figure_scale
+	if _figure.position != figure_position:
+		_figure.position = figure_position
+	if _figure.rotation != lean:
+		_figure.rotation = lean
 
 
 func _draw() -> void:
