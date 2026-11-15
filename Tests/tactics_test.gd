@@ -41,7 +41,7 @@ func _run() -> bool:
 		_check_catalog_references, _check_objective_needs_own_move, _check_side_bounds,
 		_check_failed_scenario_load, _check_catalog_loads_scenarios, _check_hash_covers_event_ids,
 		_check_unsigned_passive_amounts, _check_failed_reload, _check_catalog_terrain_ids,
-		_check_end_is_last,
+		_check_end_is_last, _check_path_matches_move,
 	]
 	for check: Callable in checks:
 		if not check.call():
@@ -688,3 +688,16 @@ func _check_end_is_last() -> bool:
 	return Kit.expect("attack ends with battle_ended", [battle.is_finished(), attacked.back()["type"]], [true, &"battle_ended"]) \
 		and Kit.expect("skill ends with battle_ended", [burner.is_finished(), cast.back()["type"]], [true, &"battle_ended"]) \
 		and Kit.expect("no zone, charge kept", [burner.get_zones(), burner.get_skill_charge(caster)["value"]], [[], 1])
+
+
+# get_path_to() agrees with move_leader(): no path to a cell the leader
+# cannot stop on (an ally passes through it but cannot end there).
+func _check_path_matches_move() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows())
+	var leader := _kit.add(battle, A, _kit.leader(MOON_SPEAR), Vector2i(5, 8))
+	_kit.add(battle, A, _kit.leader(THIET_NHA), Vector2i(5, 7))
+	_kit.add(battle, B, _kit.leader(THIET_NHA), Vector2i(11, 0))
+	battle.start()
+	return Kit.expect("no path onto an ally", battle.get_path_to(leader, Vector2i(5, 7)), []) \
+		and Kit.expect("path through it", battle.get_path_to(leader, Vector2i(5, 6)), [Vector2i(5, 8), Vector2i(5, 7), Vector2i(5, 6)]) \
+		and Kit.expect("own cell", battle.get_path_to(leader, Vector2i(5, 8)), [Vector2i(5, 8)])

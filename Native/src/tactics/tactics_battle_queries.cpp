@@ -131,6 +131,11 @@ Array TacticsBattle::get_path_to(int64_t p_unit, const Vector2i &p_cell) const {
 		return Array();
 	}
 	const int unit = static_cast<int>(p_unit);
+	// Only cells move_leader() could end on (an ally's cell is passed, not
+	// stopped on), so the path shown is one the move would take.
+	if (!tactics::can_stop_at(sim, unit, to_cell(p_cell))) {
+		return Array();
+	}
 	const tactics::PathField field = tactics::find_paths(sim, unit, sim.get_stats(unit).move_points, tactics::ZocMode::APPLY);
 	return tactics_cells_to_array(tactics::get_path(sim, field, to_cell(p_cell)));
 }

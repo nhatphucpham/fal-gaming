@@ -225,7 +225,7 @@ error.
 | `is_started`, `is_finished`, `get_winner`, `get_end_reason`, `get_round`, `get_turn`, `get_active_side` | method | Battle state |
 | `get_unit_count`, `get_unit_state(unit)`, `get_units()`, `get_zones()` | method | Unit and zone dictionaries |
 | `get_map_width`, `get_map_height`, `get_terrain_id(cell)` | method | Map |
-| `get_reachable_cells(unit)`, `get_path_to(unit, cell)` | method | Movement queries (empty for a dead unit) |
+| `get_reachable_cells(unit)`, `get_path_to(unit, cell)` | method | Cells the unit can end a move on this phase (without its own), and the path to one, both ends included (`[cell]` for its own cell); empty for a dead unit or a cell it cannot stop on |
 | `get_formation_slots(leader)` | method | The slot cells of the leader's order (empty for `hold`, `free` or a dead leader) |
 | `preview_squad(leader, cell)` | method | `[{unit, cell}]`: where the soldiers would stand after the leader moved there; `[]` and an error when that move would be refused |
 | `forecast_engagement(attacker, defender) -> Dictionary` | method | Hits, damage per hit and hp after, without changing state; any two units (an enemy's attack too, whoever's phase it is); `is_valid` false when either is dead, they are on the same side, the defender is out of range or the battle ended |
@@ -305,14 +305,16 @@ Format `[info][Tactics][t=<turn>] <event> key=value`, when logging is on.
 
 ## Tests
 
-`Tests/tactics_test.gd` (catalog, movement and zones of control,
-engagement and forecast, keywords, terrain, AI intent, victory, defeat and
-time limit, objective only by the leader's own move, a replay that must
-give the same state hash, what the hash
-covers, data range checks, map legends, dead units in queries and intents)
-and `Tests/tactics_squad_test.gd` (orders, anticipation, the five charge
-mechanisms, skills and zones, the five passive kinds, the side a zone
-affects, the AI casting a skill for its own side, side B durations and event causes), sharing
+`Tests/tactics_test.gd` (catalog checks, scenario loading and failed
+loads, movement, paths and zones of control, engagement and forecast,
+keywords, terrain, AI intent, victory, defeat and time limit, objective
+only by the leader's own move, `battle_ended` as the last event, a replay
+that must give the same state hash, what the hash covers, data range
+checks, side bounds, map legends, dead units in queries and intents) and
+`Tests/tactics_squad_test.gd` (orders, anticipation, slots of a dead
+leader, the five charge mechanisms, skills and zones, the AI casting a
+skill on an enemy and on its own side, the five passive kinds, the side a
+zone affects, side B durations and event causes), sharing
 `Tests/tactics_test_kit.gd`. Run:
 `godot --headless --path . --script res://Tests/tactics_test.gd` (and the
 squad test). Both are in CI.
