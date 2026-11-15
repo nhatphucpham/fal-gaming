@@ -2,8 +2,8 @@ class_name ExtraFigures
 extends RefCounted
 ## Figures that are not one of the six classes, drawn with a FigureBrush:
 ## the boss Cự Nham (a stone giant, `class.colossus`) and the sage
-## who speaks in Kỳ Ngộ cutscenes (`class.sage`, presentation only). Their
-## drawers are registered in UnitPainter's class registry.
+## who speaks in Kỳ Ngộ cutscenes (`class.sage`, presentation only),
+## registered by class id in DRAWERS, which UnitPainter checks first.
 
 const STONE := Color("8d8a83")
 const STONE_LIGHT := Color("b3aea3")
@@ -15,8 +15,9 @@ const BEARD := Color("f5f2ea")
 const STRAW := Color("d6b56a")
 ## A unit id for the sage, so cutscenes can draw it without catalog data.
 const SAGE_UNIT_ID: StringName = &"unit.sage"
-## The classes drawn here; they stand still and ignore a UnitPose.
-const CLASS_IDS: Array[StringName] = [&"class.colossus", &"class.sage"]
+## The drawer (a static method here) by class id. These figures stand
+## still and ignore a UnitPose.
+const DRAWERS: Dictionary[StringName, StringName] = {&"class.colossus": &"draw_colossus", &"class.sage": &"draw_sage"}
 
 
 ## A UnitData for the cutscene sage (not in the catalog, never in a battle).
@@ -53,7 +54,6 @@ static func draw_colossus(brush: FigureBrush) -> void:
 		brush.dot(Vector2(side * 4.5, -64 + brush.facing), 2.4, brush.tint(EMBER))
 	# Cracks in the chest.
 	brush.line(PackedVector2Array([Vector2(-4, -44), Vector2(0, -36), Vector2(-3, -28), Vector2(2, -20)]), Palette.INK, 1.5)
-	brush.crown_y = -76.0
 
 
 ## The sage: a long cream robe, a straw cone hat, a white beard and a staff.
@@ -64,12 +64,11 @@ static func draw_sage(brush: FigureBrush) -> void:
 	brush.stick(Vector2(0, -35), Vector2(0, -2), 2.0, Palette.OCHRE)
 	brush.stick(Vector2(-9, -33), Vector2(-15, -36), 4.0, ROBE)
 	brush.stick(Vector2(9, -33), Vector2(10, -20), 4.0, ROBE)
-	brush.circle(Vector2(0, -45), 8.5, UnitPainter.SKIN)
+	brush.circle(Vector2(0, -45), 8.5, RigPalette.SKIN)
 	brush.poly(PackedVector2Array([Vector2(-7, -42), Vector2(7, -42), Vector2(3, -26), Vector2(0, -22), Vector2(-3, -26)]), BEARD)
 	for side: float in [-1.0, 1.0]:
 		brush.dot(Vector2(side * 3.2, -46 + brush.facing), 1.3, Palette.INK)
 	brush.poly(PackedVector2Array([Vector2(-17, -49), Vector2(17, -49), Vector2(0, -64)]), STRAW)
-	brush.crown_y = -66.0
 
 
 static func _ellipse(center: Vector2, radius_x: float, radius_y: float) -> PackedVector2Array:

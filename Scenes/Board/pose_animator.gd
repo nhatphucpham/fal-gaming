@@ -1,368 +1,425 @@
 class_name PoseAnimator
 extends Node
-## Plays the pose animations of one figure: idle sway and blinks, walk and
-## gallop, attack, skill wind-up and release, hit, death and cheer. It owns
-## the UnitPose and asks the figure to redraw only when the pose changed:
-## at most ACTION_REDRAWS_PER_SEC while an action runs, about
-## IDLE_REDRAWS_PER_SEC (staggered per unit) while only idling, on blinks
+## Plays the key-pose clips of one rigged figure (port of the sketch's
+## actor: `play` and `update`): idle breathing and blinks, the run, attack,
+## skill wind-up and release, hit, knockback, death and cheer, each easing
+## from the pose it starts at. After a clip the figure settles to its rest
+## pose: the class's stance in a fight, its idle pose otherwise. It owns the
+## current UnitPose and the weapon trail, and asks the figure to redraw only
+## when the pose changes: at most ACTION_REDRAWS_PER_SEC while a clip runs,
+## about IDLE_REDRAWS_PER_SEC (staggered per unit) while idling, on blinks
 ## only while calm, never while frozen (stone) or after death.
-## Every pose field has its own track (one tween), so an animation only ever
-## restarts the fields it moves and each track ends at that field's rest;
-## the strike settles to the current stance whenever its track ends.
-## Tracks follow playback_speed (the battle speed), also while running.
-## UnitView owns one.
+## UnitView owns one; see the call table in Docs/systems/board.md.
 ## [codeblock]
 ## var animator := PoseAnimator.new(figure)
 ## animator.set_class(&"class.sword")
-## figure.pose = animator.pose
+## animator.set_view(RigSolver.VIEW_BACK)
 ## view.add_child(animator)
 ## animator.attack(PI / 2.0)
 ## [/codeblock]
 
-enum Ease { OUT, IN, IN_OUT, BACK }
-
 const IDLE_REDRAWS_PER_SEC: float = 10.0
-## Redraws a second while an action runs (a 60 fps screen skips every other).
+## Redraws a second while a clip runs (a 60 fps screen skips every other).
 const ACTION_REDRAWS_PER_SEC: float = 30.0
-const SWAY_SPEED: float = 1.7
-const BLINK_SEC: float = 0.12
-const BLINK_GAP_MIN_SEC: float = 2.0
-const BLINK_GAP_RANGE_SEC: float = 3.0
-const HURT_EYES_SEC: float = 0.3
-const HAPPY_EYES_SEC: float = 1.2
-## The weapon levelled while charging.
-const CHARGE_STRIKE: float = -0.6
-const GALLOP_SPEED: float = 9.0
-const CHARGE_GALLOP_SPEED: float = 17.0
 ## A wind-up with no release after this long past its end releases anyway.
 const RELEASE_GRACE_SEC: float = 0.1
-## The skill pose fields a wind-up raises and its release or cancel lowers.
-const WIND_UP_FIELDS: Array[StringName] = [&"crouch", &"raise", &"rear"]
-## How each class moves; unknown classes use DEFAULT_MOTION. "attack" names
-## the attack method, "stance" is the strike value held in a fight.
-const CLASS_MOTION: Dictionary[StringName, Dictionary] = {
-	&"class.archer": {"attack": &"_attack_shoot", "stance": -1.0, "step_speed": 11.0, "guards": false, "rears": false},
-	&"class.mage": {"attack": &"_attack_cast", "stance": -0.45, "step_speed": 11.0, "guards": false, "rears": false},
-	&"class.shield": {"attack": &"_attack_swing", "stance": -0.45, "step_speed": 11.0, "guards": true, "rears": false},
-	&"class.cavalry": {"attack": &"_attack_swing", "stance": -0.45, "step_speed": 9.0, "guards": false, "rears": true},
-}
-const DEFAULT_MOTION: Dictionary = {"attack": &"_attack_swing", "stance": -0.45, "step_speed": 11.0, "guards": false, "rears": false}
+## Strides a second running and galloping; a charge goes faster.
+const RUN_STRIDES_PER_SEC: float = 3.2
+const RIDE_STRIDES_PER_SEC: float = 2.6
+const CHARGE_STRIDE_FACTOR: float = 1.5
+const WALK_BLEND_SEC: float = 0.18
+const WALK_SETTLE_SEC: float = 0.22
+const REST_SETTLE_SEC: float = 0.3
+const BREATH_SPEED: float = 2.4
+const BLINK_PERIOD_SEC: float = 3.4
+const BLINK_SEC: float = 0.12
+const TRAIL_SAMPLES: int = 14
+const TRAIL_FADE_PER_SEC: float = 7.0
+const TRAIL_MIN: float = 0.03
+const KNOCKBACK_LEAN_SEC: float = 0.06
+const KNOCKBACK_SETTLE_SEC: float = 0.26
 
-var pose := UnitPose.new()
-## Multiplies the speed of every pose track and of the walk cycle; running
-## tracks change speed too.
-var playback_speed: float = 1.0:
-	set(value):
-		playback_speed = value
-		for property: StringName in _tracks:
-			_set_speed(_tracks[property])
-		_set_speed(_release_timer)
-		_set_speed(_eyes_tween)
-## In a fight the weapon stays half wound up (the bow drawn).
+## The pose drawn now. Replaced, never changed in place.
+var pose: UnitPose
+## Multiplies the speed of every clip and of the run; running clips change
+## speed too.
+var playback_speed: float = 1.0
+## In a fight the figure rests in its class's stance.
 var is_in_combat: bool = false
 var is_dead: bool = false
 ## Frozen (turned to stone): the pose holds exactly as it is.
 var is_frozen: bool = false
 ## True between wind_up() and its release (or cancel).
 var is_winding: bool = false
-## False holds the idle sway still: only blinks redraw (bench, the dimmed
-## waiting line-up).
+## False holds the idle breathing still: only blinks redraw (bench, the
+## dimmed waiting line-up).
 var is_swaying: bool = true
 ## False for figures that ignore poses (bosses, the sage): they never redraw
 ## while idle. A flag, because Godot re-enables processing on ready, so
 ## set_process(false) before the node enters the tree does not stick.
 var is_posed: bool = true
+## RigSolver.VIEW_BACK (player) or VIEW_FRONT (enemy): picks the clips.
+var view: StringName = RigSolver.VIEW_BACK
+## The weapon trail in figure space: (tip, inner edge) per sample, oldest
+## first, with a weight per sample.
+var trail := PackedVector2Array()
+var trail_weights := PackedFloat32Array()
 
 var _figure: CanvasItem
-var _motion: Dictionary = DEFAULT_MOTION
-var _time: float = 0.0
-var _phase: float = 0.0
+var _kit: RigKit
+var _from: UnitPose
+var _queue: Array[RigClips.ClipKey] = []
+var _key_time: float = 0.0
+var _walk_left: float = 0.0
+var _walk_time: float = 0.0
+var _walk_phase: float = 0.0
+var _is_charging: bool = false
+var _is_holding: bool = false
+var _release_left: float = 0.0
+var _clock: float = 0.0
 var _slot_offset: float = 0.0
 var _idle_slot: int = -1
 var _action_slot: int = -1
 var _was_active: bool = false
-var _blink_at: float = 0.0
-var _blink_end: float = 0.0
-var _is_charging: bool = false
-# One tween per pose field: an animation restarts only the fields it moves.
-var _tracks: Dictionary[StringName, Tween] = {}
-var _release_timer: Tween
-var _eyes_tween: Tween
+var _eyes_shown: int = 0
 
 
 func _init(figure: CanvasItem) -> void:
 	_figure = figure
-	_phase = randf() * TAU
 	_slot_offset = randf()
-	_time = randf() * 10.0
-	_blink_at = _time + 1.0 + randf() * 3.0
+	_clock = randf() * 5.0
 
 
-## Picks how the figure moves from its class id (CLASS_MOTION).
+## Picks the class kit from its class id; figures outside the rig (the
+## boss, the sage) get none and every action does nothing.
 func set_class(class_id: StringName) -> void:
-	_motion = CLASS_MOTION.get(class_id, DEFAULT_MOTION)
+	_kit = RigKit.get_kit(class_id) if UnitPainter.is_posable(class_id) else null
+	_rest_now()
 
 
-## The strike value a unit at rest holds: half wound up in a fight.
-func get_stance() -> float:
-	return _motion["stance"] if is_in_combat else 0.0
+## Seen from behind (the player's units) or from the front (the enemy's).
+func set_view(rig_view: StringName) -> void:
+	view = rig_view
+	_rest_now()
+
+
+## The rest pose the unit holds now: its stance in a fight, else idle.
+func get_stance() -> UnitPose:
+	if _kit == null:
+		return null
+	return _kit.stance[view] if is_in_combat else _kit.idle[view]
+
+
+## Seconds of animation time, for the idle sway of cloth and plumes.
+func get_clock() -> float:
+	return _clock
+
+
+## True while a clip, the run or a trail plays (not idle breathing).
+func is_animating() -> bool:
+	return not _queue.is_empty() or _walk_left > 0.0 or not trail_weights.is_empty()
+
+
+## True for classes that face the target with the off hand (archers).
+func aims_off_hand() -> bool:
+	return _kit != null and _kit.aims_off_hand
 
 
 func _process(delta: float) -> void:
-	var is_active := _is_animating()
+	if _kit == null:
+		return
+	var dt := delta * playback_speed
+	var is_active := _advance(dt)
+	_update_trail(dt)
+	is_active = is_active or not trail_weights.is_empty()
 	if is_dead:
 		_redraw_while(is_active)
 		if not is_active and not _was_active:
 			set_process(false)
 		return
-	_time += delta
-	if pose.stride > 0.01:
-		pose.step += delta * playback_speed * _motion["step_speed"]
-		pose.gallop += delta * playback_speed * (CHARGE_GALLOP_SPEED if _is_charging else GALLOP_SPEED)
-		is_active = true
 	if is_active or _was_active:
-		_update_idle()
 		_redraw_while(is_active)
 		return
 	if not is_posed:
 		return
-	var slot := floori(_time * IDLE_REDRAWS_PER_SEC + _slot_offset)
-	if slot != _idle_slot:
-		_idle_slot = slot
-		if _update_idle():
+	if is_swaying:
+		var slot := floori(_clock * IDLE_REDRAWS_PER_SEC + _slot_offset)
+		if slot != _idle_slot:
+			_idle_slot = slot
+			_breathe()
 			_figure.queue_redraw()
+	elif _get_blink() != _eyes_shown:
+		_breathe()
+		_figure.queue_redraw()
 
 
-## Puts the pose back at rest, out of combat; keeps the walk phases.
+## Back at the idle pose, out of a fight, alive and moving.
 func reset() -> void:
-	_kill_all()
-	var step := pose.step
-	var gallop := pose.gallop
-	pose.copy_from(UnitPose.get_rest())
-	pose.step = step
-	pose.gallop = gallop
+	_queue.clear()
+	_walk_left = 0.0
+	_is_holding = false
+	_release_left = 0.0
 	is_in_combat = false
 	is_dead = false
 	is_winding = false
 	_is_charging = false
+	trail.clear()
+	trail_weights.clear()
 	set_frozen(false)
 	set_process(true)
-	_figure.queue_redraw()
+	_rest_now()
 
 
-## Walks (legs cycle) for `seconds`, dropping the combat stance; a charge
-## gallops faster with the weapon levelled instead. A walk cancels a
-## wind-up; a charge keeps it (glowing, weapon levelled) for the release.
+## Runs for `seconds` (the run cycle), dropping the fight stance; a charge
+## runs (gallops) faster and keeps a wind-up glowing for its release. A
+## plain walk cancels a wind-up and any clip.
 func walk(seconds: float, is_charge: bool) -> void:
-	if is_dead:
+	if is_dead or _kit == null:
 		return
 	if is_winding and not is_charge:
 		_cancel_wind_up()
 	_is_charging = is_charge
 	if not is_charge:
 		is_in_combat = false
-	if is_winding:
-		for property: StringName in WIND_UP_FIELDS:
-			_to(_track(property), property, 0.0, 0.15)
-	_to(_track(&"strike"), &"strike", _rest_strike(), 0.15)
-	var stride := _track(&"stride")
-	_to(stride, &"stride", 1.0, 0.12)
-	_to(stride, &"stride", 0.0, 0.18, seconds, Ease.IN_OUT)
-	stride.tween_callback(_end_walk).set_delay(seconds)
+		_queue.clear()
+		_is_holding = false
+	if _queue.is_empty():
+		_from = pose
+		_walk_time = 0.0
+	_walk_left = seconds
 
 
-## A basic attack toward `aim` (figure angle, 0 up). During a wind-up it is
-## the skill's release instead.
-func attack(aim: float) -> void:
-	if is_dead:
+## A basic attack toward the enemy: the class's Up clip seen from behind,
+## its Down clip from the front (the flip turns it to the target, so the
+## aim angle is not needed). During a wind-up it is the skill's release.
+func attack(_aim: float) -> void:
+	if is_dead or _kit == null:
 		return
-	pose.aim = aim
 	is_in_combat = true
 	if is_winding:
 		release()
 		return
-	call(_motion["attack"])
+	if not _is_charging:
+		_walk_left = 0.0
+	_play(&"attackUp" if view == RigSolver.VIEW_BACK else &"attackDown")
 
 
-## The skill pose over `seconds`: crouch, weapon raised and glowing, a horse
-## rears. Holds until release() (the next attack), or releases by itself
-## shortly after `seconds`.
+## The skill clip's wind-up keys, stretched over `seconds` (the cast), then
+## held until release() (the next attack), or released by itself shortly
+## after `seconds`.
 func wind_up(seconds: float) -> void:
-	if is_dead:
+	if is_dead or _kit == null:
 		return
 	is_in_combat = true
 	is_winding = true
-	_to(_track(&"crouch"), &"crouch", 1.0, seconds * 0.5)
-	_to(_track(&"raise"), &"raise", 1.0, seconds * 0.8, 0.0, Ease.BACK)
-	_to(_track(&"glow"), &"glow", 1.0, seconds)
-	if _motion["rears"]:
-		_to(_track(&"rear"), &"rear", 1.0, seconds * 0.7, 0.0, Ease.BACK)
-	_release_timer = _restart(_release_timer)
-	_release_timer.tween_callback(release).set_delay(seconds + RELEASE_GRACE_SEC)
+	var keys := _skill_keys()
+	var wind_seconds := 0.0
+	for index: int in _kit.skill_wind_keys:
+		wind_seconds += keys[index].seconds
+	var stretch := seconds / wind_seconds if seconds > 0.0 else 1.0
+	_start(keys.slice(0, _kit.skill_wind_keys).map(func(key: RigClips.ClipKey) -> RigClips.ClipKey:
+		return RigClips.ClipKey.new(key.seconds * stretch, key.easing, key.pose)))
+	_is_holding = true
+	_release_left = seconds + RELEASE_GRACE_SEC
+	if not _is_charging:
+		_walk_left = 0.0
 
 
-## The skill's strike after a wind-up: the raised weapon comes down with a
-## smear and the glow fades. Does nothing without a wind-up.
+## The skill's strike after a wind-up: the rest of the skill clip. Does
+## nothing without a wind-up.
 func release() -> void:
 	if not is_winding or is_dead:
 		return
-	_end_wind_up(0.1)
-	var strike := _track(&"strike")
-	_to(strike, &"strike", 1.0, 0.08, 0.0, Ease.BACK)
-	# A charging rider levels the lance again quickly for the rest of the run.
-	_to(strike, &"strike", _rest_strike(), 0.25 if _is_charging else 0.3, 0.15 if _is_charging else 0.3, Ease.IN_OUT)
-	pose.trail = 1.0
-	_to(_track(&"trail"), &"trail", 0.0, 0.3, 0.05)
-	_to(_track(&"glow"), &"glow", 0.0, 0.5, 0.15)
+	is_winding = false
+	_release_left = 0.0
+	_is_holding = false
+	var keys := _skill_keys()
+	_start(keys.slice(_kit.skill_wind_keys))
 
 
-## Flinches back with hurt eyes; a shield raises its shield instead.
+## Flinches back with hurt eyes (a shield braces its shield). A wind-up or
+## a charge holds; only the view's flash shows the hit.
 func hit() -> void:
-	if is_dead or is_frozen:
+	if is_dead or is_frozen or _kit == null or is_winding or _walk_left > 0.0:
 		return
-	var guards: bool = _motion["guards"]
-	pose.eyes = UnitPose.Eyes.HURT
-	var flinch := _track(&"flinch")
-	_to(flinch, &"flinch", 0.35 if guards else 1.0, 0.04)
-	_to(flinch, &"flinch", 0.0, 0.26, 0.06, Ease.IN_OUT)
-	if guards:
-		var guard := _track(&"guard")
-		_to(guard, &"guard", 1.0, 0.04)
-		_to(guard, &"guard", 0.0, 0.25, 0.2, Ease.IN_OUT)
-	_eyes_after(HURT_EYES_SEC, 1.5)
+	_play(&"hit")
 
 
 ## Leans back for `seconds` (pushed by a knockback).
 func flinch_for(seconds: float) -> void:
-	if is_dead:
+	if is_dead or _kit == null or is_winding:
 		return
-	var flinch := _track(&"flinch")
-	_to(flinch, &"flinch", 0.6, 0.06)
-	_to(flinch, &"flinch", 0.0, 0.2, seconds, Ease.IN_OUT)
+	_walk_left = 0.0
+	var lean := _kit.get_clip(&"hit", view)[0].pose.merged({"flash": 0})
+	_start([
+		RigClips.ClipKey.new(KNOCKBACK_LEAN_SEC, RigClips.Easing.OUT, lean),
+		RigClips.ClipKey.new(seconds, RigClips.Easing.LINEAR, lean),
+		RigClips.ClipKey.new(KNOCKBACK_SETTLE_SEC, RigClips.Easing.IN_OUT, get_stance()),
+	])
 
 
-## Collapses limp with dead eyes; idle stops for good.
+## Falls and stays down with shut eyes; idle stops for good.
 func die() -> void:
-	_kill_all()
 	set_frozen(false)
 	is_dead = true
 	is_winding = false
 	_is_charging = false
-	pose.eyes = UnitPose.Eyes.DEAD
-	for property: StringName in [&"strike", &"raise", &"stride", &"glow", &"trail", &"guard", &"crouch", &"rear"]:
-		pose.set(property, 0.0)
-	var flinch := _track(&"flinch")
-	_to(flinch, &"flinch", 0.8, 0.06)
-	_to(flinch, &"flinch", 0.0, 0.2, 0.08)
-	_to(_track(&"limp"), &"limp", 1.0, 0.34, 0.05, Ease.IN)
-	_figure.queue_redraw()
+	_walk_left = 0.0
+	_release_left = 0.0
+	if _kit == null:
+		return
+	_play(&"fall")
+	set_process(true)
 
 
-## Weapon raised with happy eyes (a horse rears), for the winners. Ends a
+## Weapon raised with happy eyes and two hops, for the winners. Ends a
 ## wind-up without its strike.
 func cheer() -> void:
-	if is_dead:
+	if is_dead or _kit == null:
 		return
 	if is_winding:
 		_cancel_wind_up()
 	is_in_combat = false
 	_is_charging = false
-	pose.eyes = UnitPose.Eyes.HAPPY
-	_to(_track(&"strike"), &"strike", 0.0, 0.1)
-	var raise := _track(&"raise")
-	_to(raise, &"raise", 1.0, 0.18, 0.0, Ease.BACK)
-	_to(raise, &"raise", 0.0, 0.25, 0.9, Ease.IN_OUT)
-	if _motion["rears"]:
-		var rear := _track(&"rear")
-		_to(rear, &"rear", 1.0, 0.25, 0.0, Ease.BACK)
-		_to(rear, &"rear", 0.0, 0.2, 0.6)
-	_eyes_after(HAPPY_EYES_SEC, 0.0)
+	_walk_left = 0.0
+	_play(&"cheer")
 
 
-## Freezes the pose exactly as it is (no tween, sway or blink), or thaws it.
+## Freezes the pose exactly as it is (no clip, breathing or blink), or thaws it.
 func set_frozen(frozen: bool) -> void:
 	is_frozen = frozen
-	# Tweens made by this node pause with it.
+	# The node stops processing, so nothing moves.
 	process_mode = Node.PROCESS_MODE_DISABLED if frozen else Node.PROCESS_MODE_INHERIT
 
 
-func _attack_swing() -> void:
-	var strike := _track(&"strike")
-	_to(strike, &"strike", 1.0, 0.08, 0.0, Ease.BACK)
-	_to(strike, &"strike", _rest_strike(), 0.28, 0.2, Ease.IN_OUT)
-	pose.trail = 1.0
-	_to(_track(&"trail"), &"trail", 0.0, 0.22, 0.04)
+func _play(clip_name: StringName) -> void:
+	_start(_kit.get_clip(clip_name, view))
+	_is_holding = clip_name == &"fall"
 
 
-# Loose the arrow, then nock a new one and draw again.
-func _attack_shoot() -> void:
-	pose.arrow = 0.0
-	pose.strike = -1.0
-	var strike := _track(&"strike")
-	_to(strike, &"strike", 1.0, 0.06)
-	_to(strike, &"strike", 0.0, 0.16, 0.12, Ease.IN_OUT)
-	_to(strike, &"strike", _rest_strike(), 0.34, 0.36, Ease.IN_OUT)
-	_to(_track(&"arrow"), &"arrow", 1.0, 0.01, 0.34)
+func _start(keys: Array) -> void:
+	trail.clear()
+	trail_weights.clear()
+	_queue.assign(keys)
+	_from = pose
+	_key_time = 0.0
+	_is_holding = false
 
 
-func _attack_cast() -> void:
-	var strike := _track(&"strike")
-	_to(strike, &"strike", 1.0, 0.09, 0.0, Ease.BACK)
-	_to(strike, &"strike", _rest_strike(), 0.3, 0.2, Ease.IN_OUT)
-	pose.glow = 1.0
-	_to(_track(&"glow"), &"glow", 0.0, 0.35, 0.08)
+func _skill_keys() -> Array[RigClips.ClipKey]:
+	return _kit.get_clip(&"skillUp" if view == RigSolver.VIEW_BACK else &"skillDown", view)
 
 
-# Lowers the wind-up fields over `seconds`; the caller adds the strike.
-func _end_wind_up(seconds: float) -> void:
-	is_winding = false
-	_kill(_release_timer)
-	for property: StringName in WIND_UP_FIELDS:
-		_to(_track(property), property, 0.0, seconds * (1.4 if property == &"rear" else 1.0))
-
-
-# A wind-up that ends without its strike (moved away, the battle ended).
 func _cancel_wind_up() -> void:
-	_end_wind_up(0.15)
-	_to(_track(&"glow"), &"glow", 0.0, 0.25)
+	is_winding = false
+	_release_left = 0.0
+	_is_holding = false
+	_queue.clear()
 
 
-# The strike value to come back to: levelled while charging, else the stance.
-func _rest_strike() -> float:
-	return CHARGE_STRIKE if _is_charging else get_stance()
+# One step of the sketch's update(); true while a clip, the run or a
+# settle plays.
+func _advance(dt: float) -> bool:
+	_clock += dt
+	if _release_left > 0.0:
+		_release_left -= dt
+		if _release_left <= 0.0 and is_winding:
+			release()
+	if not _queue.is_empty():
+		_run_on(dt)
+		_play_key(dt)
+		if _walk_left > 0.0 and _kit.is_mounted:
+			# The horse keeps galloping under a strike made on the run.
+			pose = pose.merged({"hg": 1, "hph": _walk_phase})
+		return true
+	if _walk_left > 0.0:
+		_walk_time += dt
+		_run_on(dt)
+		var target := _kit.get_walk_pose(_walk_phase, view)
+		if is_winding:
+			target = target.merged({"glow": 1})
+		pose = UnitPose.blend(_from, target, RigClips.eased(RigClips.Easing.IN_OUT, minf(1.0, _walk_time / WALK_BLEND_SEC)))
+		if _walk_left <= 0.0:
+			_is_charging = false
+			_start([RigClips.ClipKey.new(WALK_SETTLE_SEC, RigClips.Easing.IN_OUT, get_stance())])
+			_is_holding = is_winding
+		return true
+	if _is_holding:
+		return false
+	if _from != get_stance():
+		_start([RigClips.ClipKey.new(REST_SETTLE_SEC, RigClips.Easing.IN_OUT, get_stance())])
+		return true
+	return false
 
 
-func _end_walk() -> void:
-	_is_charging = false
-	var strike: Tween = _tracks.get(&"strike")
-	if strike == null or not strike.is_valid() or not strike.is_running():
-		_settle_strike()
-
-
-# When the strike track ends, it eases to the stance that holds now (the
-# fight may have started or a charge ended while it ran).
-func _settle_strike() -> void:
-	if is_dead or absf(pose.strike - _rest_strike()) < 0.005:
+func _run_on(dt: float) -> void:
+	if _walk_left <= 0.0:
 		return
-	_to(_track(&"strike"), &"strike", _rest_strike(), 0.2, 0.0, Ease.IN_OUT)
+	_walk_left -= dt
+	var strides := RIDE_STRIDES_PER_SEC if _kit.is_mounted else RUN_STRIDES_PER_SEC
+	_walk_phase += dt * strides * (CHARGE_STRIDE_FACTOR if _is_charging else 1.0)
 
 
-# Sway, plume and orb follow the idle clock; the eyes blink now and then.
-# Returns true when the pose changed.
-func _update_idle() -> bool:
-	var changed := false
-	if is_swaying:
-		pose.sway = sin(_time * SWAY_SPEED + _phase)
-		changed = true
-	if pose.eyes == UnitPose.Eyes.OPEN and _time > _blink_at:
-		pose.eyes = UnitPose.Eyes.BLINK
-		_blink_end = _time + BLINK_SEC
-		changed = true
-	elif pose.eyes == UnitPose.Eyes.BLINK and _time > _blink_end:
-		pose.eyes = UnitPose.Eyes.OPEN
-		_blink_at = _time + BLINK_GAP_MIN_SEC + randf() * BLINK_GAP_RANGE_SEC
-		changed = true
-	return changed
+func _play_key(dt: float) -> void:
+	var key := _queue[0]
+	_key_time += dt
+	pose = UnitPose.blend(_from, key.pose, RigClips.eased(key.easing, minf(1.0, _key_time / key.seconds)))
+	if _key_time < key.seconds:
+		return
+	_from = key.pose
+	pose = key.pose
+	_key_time -= key.seconds
+	_queue.pop_front()
+	if _queue.is_empty() and _walk_left > 0.0:
+		_from = pose
+		_walk_time = 0.0
+
+
+# The rest pose breathing (the sketch's idle bob), with a blink now and then.
+func _breathe() -> void:
+	var rest := get_stance()
+	var bob := sin(_clock * BREATH_SPEED) if is_swaying else 0.0
+	var swing := sin(_clock * BREATH_SPEED - 0.6) if is_swaying else 0.0
+	_eyes_shown = _get_blink()
+	var v := rest.values
+	pose = rest.with_fields({
+		"torso": v[UnitPose.TORSO] + 0.8 * bob, "head": v[UnitPose.HEAD] - 0.6 * bob, "hip": v[UnitPose.HIP] - 0.25 * (1.0 + bob),
+		"uaF": v[UnitPose.UA_F] + 1.5 * bob, "uaB": v[UnitPose.UA_B] - 1.5 * bob, "blade": v[UnitPose.BLADE] + 1.5 * swing,
+		"eyes": _eyes_shown,
+	})
+
+
+func _get_blink() -> int:
+	return 1 if fmod(_clock, BLINK_PERIOD_SEC) < BLINK_SEC else 0
+
+
+func _rest_now() -> void:
+	if _kit == null:
+		pose = UnitPose.new()
+		_from = pose
+		return
+	pose = get_stance()
+	_from = pose
+	if _figure != null:
+		_figure.queue_redraw()
+
+
+# Samples the weapon tip while the pose swings (trail > 0), else fades.
+func _update_trail(dt: float) -> void:
+	if pose.values[UnitPose.TRAIL] > TRAIL_MIN:
+		var still := pose.merged({"dx": 0}) if pose.values[UnitPose.DX] != 0.0 else pose
+		trail.append_array(_kit.get_trail_points(RigSolver.solve(still, view), still))
+		trail_weights.append(1.0)
+	elif not trail_weights.is_empty():
+		for index: int in trail_weights.size():
+			trail_weights[index] -= dt * TRAIL_FADE_PER_SEC
+	var first := 0
+	while first < trail_weights.size() and trail_weights[first] <= 0.0:
+		first += 1
+	first = maxi(first, trail_weights.size() - TRAIL_SAMPLES)
+	if first > 0:
+		trail_weights = trail_weights.slice(first)
+		trail = trail.slice(first * 2)
 
 
 # Redraws at most ACTION_REDRAWS_PER_SEC while `is_active`, and once more
@@ -376,70 +433,3 @@ func _redraw_while(is_active: bool) -> void:
 	elif _was_active:
 		_figure.queue_redraw()
 	_was_active = is_active
-
-
-# Opens the eyes again after `seconds` of battle time, then waits
-# `blink_delay_sec` before the next blink.
-func _eyes_after(seconds: float, blink_delay_sec: float) -> void:
-	_eyes_tween = _restart(_eyes_tween)
-	_eyes_tween.tween_callback(func() -> void:
-		if not is_dead:
-			pose.eyes = UnitPose.Eyes.OPEN
-			_blink_at = _time + blink_delay_sec
-			_figure.queue_redraw()).set_delay(seconds)
-
-
-func _is_animating() -> bool:
-	for property: StringName in _tracks:
-		var tween := _tracks[property]
-		if tween.is_valid() and tween.is_running():
-			return true
-	return false
-
-
-# Kills the track of `property` and returns a fresh one at the playback speed.
-func _track(property: StringName) -> Tween:
-	var tween := _restart(_tracks.get(property))
-	_tracks[property] = tween
-	if property == &"strike":
-		tween.finished.connect(_settle_strike)
-	return tween
-
-
-func _to(tween: Tween, property: StringName, to: float, seconds: float, delay_sec: float = 0.0, curve: Ease = Ease.OUT) -> void:
-	var tweener := tween.tween_property(pose, NodePath(property), to, maxf(seconds, 0.0001)).set_delay(delay_sec)
-	match curve:
-		Ease.OUT:
-			tweener.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		Ease.IN:
-			tweener.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-		Ease.IN_OUT:
-			tweener.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
-		Ease.BACK:
-			tweener.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-
-
-# Kills `tween` and returns a fresh parallel one at the playback speed.
-func _restart(tween: Tween) -> Tween:
-	_kill(tween)
-	var fresh := create_tween().set_parallel(true)
-	fresh.set_speed_scale(playback_speed)
-	return fresh
-
-
-func _set_speed(tween: Tween) -> void:
-	if tween != null and tween.is_valid():
-		tween.set_speed_scale(playback_speed)
-
-
-func _kill(tween: Tween) -> void:
-	if tween != null and tween.is_valid():
-		tween.kill()
-
-
-func _kill_all() -> void:
-	for property: StringName in _tracks:
-		_kill(_tracks[property])
-	_tracks.clear()
-	_kill(_release_timer)
-	_kill(_eyes_tween)

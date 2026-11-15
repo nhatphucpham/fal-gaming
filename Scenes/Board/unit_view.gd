@@ -2,9 +2,11 @@ class_name UnitView
 extends Node2D
 ## One unit on the board: base ring, figure, hp bar, Khí bar and star pips,
 ## the skill marks (skill_overlay) and every animation a unit plays (drop in,
-## pop out, glide, lunge, wind up, hit, die, cheer). Whole-body moves are
-## tweens here; the limbs and weapon follow a PoseAnimator. Only the figure
-## turns toward its target (flips); bars, ring and marks never do.
+## pop out, glide, lunge, wind up, hit, die, cheer). A rigged figure moves
+## by its PoseAnimator's clips (the pose's step toward the target pushes the
+## whole figure); tweens here place the view and move figures outside the
+## rig (the boss). Only the figure turns toward its target (flips); bars,
+## ring and marks never do.
 ## Its origin is the centre of its cell. It never reads simulation state;
 ## callers tell it what happened. See Docs/systems/board.md.
 ## [codeblock]
@@ -30,8 +32,13 @@ const BOSS_SCALE: float = 1.6
 const STONE_TINT := Color(0.62, 0.6, 0.58)
 ## A target less than this far to the side keeps the current facing.
 const TURN_MIN_PX: float = 6.0
-## How long the limp collapse plays before the body falls over.
-const COLLAPSE_SEC: float = 0.3
+## How long a rigged figure lies still before it fades.
+const FALLEN_SEC: float = 1.1
+## How far a figure is pushed toward its target per unit of the pose's
+## step forward (dx > 0) or back, in figure units (the sketch's board push
+## of 4.6 and 2 px per dx at its 1.3 figure scale).
+const PUSH_PER_STEP: float = 3.54
+const PULL_PER_STEP: float = 1.54
 
 ## Multiplies the speed of every animation (the battle speed button);
 ## running moves and poses change speed too.
@@ -76,6 +83,9 @@ var _figure: UnitFigure
 var _animator: PoseAnimator
 # 1 faces right, -1 left (the figure is mirrored).
 var _flip: float = 1.0
+# Toward the target (unit vector): where a step of the pose pushes.
+var _aim_direction := Vector2.UP
+var _is_rigged: bool = false
 var _bar: Node2D
 var _hp_ratio: float = 1.0
 var _hp_trail: float = 1.0
@@ -99,7 +109,7 @@ func _init() -> void:
 	_figure.position = FEET
 	add_child(_figure)
 	_animator = PoseAnimator.new(_figure)
-	_figure.pose = _animator.pose
+	_figure.animator = _animator
 	add_child(_animator)
 	_stone = StoneLayer.new()
 	add_child(_stone)
@@ -121,9 +131,12 @@ func setup(unit_data: UnitData, unit_side: int, star_level: int) -> void:
 	_figure.unit = unit_data
 	_figure.facing = UnitPainter.FACING_UP if unit_side == 0 else UnitPainter.FACING_DOWN
 	_flip = 1.0 if unit_side == 0 else -1.0
+	_aim_direction = Vector2.UP if unit_side == 0 else Vector2.DOWN
 	_animator.set_class(unit_data.class_id)
+	_animator.set_view(UnitPainter.view_of(_figure.facing))
 	# Bosses and the sage stand still: no pose, no idle redraws.
-	_animator.is_posed = UnitPainter.is_posable(unit_data.class_id)
+	_is_rigged = UnitPainter.is_posable(unit_data.class_id)
+	_animator.is_posed = _is_rigged
 	_size_scale = BOSS_SCALE if unit_data.is_boss else 1.0
 	_stone.size_scale = _size_scale
 	_breath_phase = float(hash(unit_data.id) % 628) / 100.0 + randf() * 0.5
@@ -133,9 +146,10 @@ func setup(unit_data: UnitData, unit_side: int, star_level: int) -> void:
 
 func _process(delta: float) -> void:
 	_time += delta
-	var breath := 0.0 if is_petrified else sin(_time * BREATH_SPEED + _breath_phase) * BREATH_AMOUNT
+	# A rigged figure breathes in its pose; the others bob their scale.
+	var breath := 0.0 if is_petrified or _is_rigged else sin(_time * BREATH_SPEED + _breath_phase) * BREATH_AMOUNT
 	_figure.scale = squash * Vector2((1.0 - breath * 0.4) * _flip, 1.0 + breath) * FIGURE_SCALE * _size_scale
-	_figure.position = FEET + anim_offset + Vector2(0.0, -bob)
+	_figure.position = FEET + anim_offset + Vector2(0.0, -bob) + _get_push()
 	_figure.rotation = lean
 	if _qi_ratio >= 1.0 and is_hp_bar_shown:
 		_bar.queue_redraw()
@@ -199,6 +213,11 @@ func get_pose() -> UnitPose:
 	return _animator.pose
 
 
+## The pose animator, for tests and tools.
+func get_animator() -> PoseAnimator:
+	return _animator
+
+
 ## 1 when the figure faces right, -1 when it faces left.
 func get_flip() -> float:
 	return _flip
@@ -209,6 +228,8 @@ func get_flip() -> float:
 ## itself just after `seconds`).
 func wind_up(seconds: float) -> void:
 	_animator.wind_up(seconds)
+	if _is_rigged:
+		return
 	var tween := _new_figure_tween()
 	tween.tween_property(self, ^"squash", Vector2(1.18, 0.82), seconds * 0.6).set_ease(Tween.EASE_OUT)
 	tween.parallel().tween_property(self, ^"anim_offset", Vector2(0, 3), seconds * 0.6)
@@ -305,9 +326,10 @@ func glide_to(target: Vector2, duration_sec: float, kind: StringName) -> void:
 	var cells := maxf(1.0, from.distance_to(target) / 80.0)
 	match kind:
 		&"charge":
-			# Stretched toward the run and bobbing fast: a gallop.
+			# A rigged figure gallops in its pose; others stretch and bob fast.
 			_animator.walk(duration_sec, true)
-			squash = Vector2(0.9, 1.1)
+			if not _is_rigged:
+				squash = Vector2(0.9, 1.1)
 			_motion_tween.tween_method(_gallop_step.bind(from, target), 0.0, 1.0, duration_sec)
 			_motion_tween.tween_property(self, ^"squash", Vector2.ONE, 0.1)
 		&"knockback":
@@ -321,10 +343,15 @@ func glide_to(target: Vector2, duration_sec: float, kind: StringName) -> void:
 
 
 ## A quick lunge toward `direction` and back, for melee swings: the figure
-## turns to the target and strikes at it.
+## turns to the target and strikes at it (a rigged figure's clip steps in).
 func lunge(direction: Vector2) -> void:
 	_attack_toward(direction)
 	var tween := _new_figure_tween()
+	if _is_rigged:
+		# A recoil or wind-up cut short may have left the figure squashed.
+		tween.tween_property(self, ^"squash", Vector2.ONE, 0.08)
+		tween.parallel().tween_property(self, ^"anim_offset", Vector2.ZERO, 0.08)
+		return
 	tween.tween_property(self, ^"anim_offset", direction.normalized() * 14.0, 0.08).set_ease(Tween.EASE_OUT)
 	# A recoil or wind-up cut short may have left the figure squashed.
 	tween.parallel().tween_property(self, ^"squash", Vector2.ONE, 0.08)
@@ -336,6 +363,10 @@ func lunge(direction: Vector2) -> void:
 func recoil(direction: Vector2) -> void:
 	_attack_toward(direction)
 	var tween := _new_figure_tween()
+	if _is_rigged:
+		tween.tween_property(self, ^"squash", Vector2.ONE, 0.08)
+		tween.parallel().tween_property(self, ^"anim_offset", Vector2.ZERO, 0.08)
+		return
 	tween.tween_property(self, ^"squash", Vector2(1.12, 0.9), 0.06)
 	tween.parallel().tween_property(self, ^"anim_offset", -direction.normalized() * 4.0, 0.06)
 	tween.tween_property(self, ^"squash", Vector2.ONE, 0.12)
@@ -348,11 +379,14 @@ func hit_flash() -> void:
 	var tween := _new_tween()
 	_figure.flash = 1.0
 	tween.tween_property(_figure, ^"flash", 0.0, 0.2)
+	if _is_rigged:
+		return
 	tween.parallel().tween_property(self, ^"squash", Vector2(0.92, 1.06), 0.05)
 	tween.tween_property(self, ^"squash", Vector2.ONE, 0.1)
 
 
-## Collapses, falls over backwards and fades out; stays in the tree, hidden.
+## Falls (the rig lies down; the boss tips over) and fades out; stays in
+## the tree, hidden.
 func die() -> void:
 	is_dead = true
 	_stone.is_stone = false
@@ -360,11 +394,12 @@ func die() -> void:
 	_reset_tween(_motion_tween)
 	_animator.die()
 	var tween := _new_figure_tween()
-	var fall_side := -_flip
-	tween.tween_interval(COLLAPSE_SEC)
-	tween.tween_property(self, ^"lean", fall_side * 1.4, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tween.parallel().tween_property(self, ^"squash", Vector2.ONE, 0.1)
-	tween.parallel().tween_property(self, ^"anim_offset", Vector2(fall_side * 8.0, 2.0), 0.3)
+	tween.tween_property(self, ^"squash", Vector2.ONE, 0.1)
+	tween.parallel().tween_property(self, ^"anim_offset", Vector2.ZERO, 0.1)
+	if _is_rigged:
+		tween.tween_interval(FALLEN_SEC)
+	else:
+		tween.tween_property(self, ^"lean", -_flip * 1.4, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.tween_property(self, ^"modulate:a", 0.0, 0.35)
 	tween.tween_callback(hide)
 
@@ -399,9 +434,12 @@ func crumble() -> void:
 	tween.tween_callback(hide)
 
 
-## Two happy hops with the weapon raised, for the winners.
+## Two happy hops with the weapon raised, for the winners (a rigged
+## figure hops in its cheer clip).
 func cheer() -> void:
 	_animator.cheer()
+	if _is_rigged:
+		return
 	var tween := _new_figure_tween()
 	tween.tween_interval(randf() * 0.15)
 	for hop: int in 2:
@@ -442,16 +480,20 @@ func _draw_qi_bar(origin: Vector2) -> void:
 
 
 # Turns the figure toward `direction` (board pixels) and attacks along it.
+# Archers turn the bow (off) hand toward the target.
 func _attack_toward(direction: Vector2) -> void:
 	if absf(direction.x) > TURN_MIN_PX:
-		_flip = signf(direction.x)
+		_flip = signf(direction.x) * (-1.0 if _animator.aims_off_hand() else 1.0)
+	if direction.length() > 0.001:
+		_aim_direction = direction.normalized()
 	# The aim in the figure's own space: 0 up, PI / 2 straight ahead.
 	_animator.attack(atan2(absf(direction.x), -direction.y))
 
 
 func _walk_step(progress: float, from: Vector2, target: Vector2, cells: float) -> void:
 	position = from.lerp(target, progress)
-	bob = absf(sin(progress * PI * cells)) * 4.0
+	# A rigged figure bobs in its run cycle.
+	bob = 0.0 if _is_rigged else absf(sin(progress * PI * cells)) * 4.0
 
 
 func _hop_step(progress: float, from: Vector2, target: Vector2) -> void:
@@ -466,7 +508,17 @@ func _set_star_scale(value: float, index: int) -> void:
 
 func _gallop_step(progress: float, from: Vector2, target: Vector2) -> void:
 	position = from.lerp(target, progress)
-	bob = absf(sin(progress * PI * 2.0)) * 6.0
+	bob = 0.0 if _is_rigged else absf(sin(progress * PI * 2.0)) * 6.0
+
+
+# The pose's step toward the target (dx) as a push of the whole figure
+# along the attack direction, like the sketch's board.
+func _get_push() -> Vector2:
+	if not _is_rigged:
+		return Vector2.ZERO
+	var step := _animator.pose.values[UnitPose.DX]
+	var per_step := PUSH_PER_STEP if step > 0.0 else PULL_PER_STEP
+	return _aim_direction * step * per_step * FIGURE_SCALE * _size_scale
 
 
 func _set_shown_hp(value: float) -> void:

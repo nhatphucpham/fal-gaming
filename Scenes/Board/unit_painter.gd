@@ -1,74 +1,96 @@
 class_name UnitPainter
 extends RefCounted
-## Draws a unit as a small paper-cut figure with flat fills and ink outlines,
-## from its UnitData and a UnitPose: the class picks the figure and its
-## headgear (registries by class id, ClassFigures and FigureParts), the race
-## picks the head and palette, the cost the trim colour, pauldrons (3+), a
-## cape (4+) and a crown (5). Coordinates are figure units: feet at (0, 0),
-## about 64 up. Shared by the board pieces and the roster portraits; see
-## Docs/systems/board.md.
+## Draws a unit figure from its UnitData: the six classes (and any unknown
+## one) as the bone rig of the approved sketch (RigKit, RigPainter), seen
+## from behind for the player (FACING_UP) and from the front for the enemy
+## (FACING_DOWN), in a UnitPose (the class's idle pose when none is given);
+## the boss and the sage with their own drawers (ExtraFigures). The race
+## picks the colours and, for wolf folk, ears and a muzzle. Coordinates are
+## figure units: feet at (0, 0), about 60 up. Every figure is one triangle
+## array: one draw call. Shared by the board pieces, the cutscenes and the
+## portraits; see Docs/systems/board.md.
 ## [codeblock]
 ## func _draw(): UnitPainter.draw_figure(self, unit_data, UnitPainter.FACING_UP, 0.0)
 ## [/codeblock]
 
-## The figure looks toward the top of the screen (player side).
+## The figure looks toward the top of the screen (player side, seen from behind).
 const FACING_UP: int = -1
-## The figure looks toward the bottom of the screen (enemy side).
+## The figure looks toward the bottom of the screen (enemy side, seen from the front).
 const FACING_DOWN: int = 1
-## Figure units from the feet to the top of the head.
-const FIGURE_HEIGHT: float = 60.0
 ## The chest, where a bust portrait is centred.
 const BUST_FOCUS := Vector2(0.0, -38.0)
 const OUTLINE_PX: float = 2.0
 
-const SKIN := Color("e8b48a")
-const HAIR := Color("3a2a22")
 const FUR := Color("8f7f6e")
-const FUR_LIGHT := Color("d3c3aa")
-const EAR_PINK := Color("c98f8f")
-const HUMAN_TUNIC := Color("3c5a99")
+const FUR_DARK := Color("6b5d50")
 const WOLF_TUNIC := Color("8a5233")
-const TROUSERS := Color("4a3b33")
-const BOOT := Color("2f2622")
-const LEATHER := Color("5b3d2a")
-const STEEL_DARK := Color("8f98a3")
-const STRAW := Color("d6b56a")
-const HORSE := Color("a0643a")
+const WOLF_TUNIC_DARK := Color("6c3e25")
 const WOLF_HORSE := Color("6d625a")
-## Palette, head drawer (a FigureParts function) and fur by race id;
-## unknown races look human.
+const WOLF_HORSE_DARK := Color("524941")
+## Colours by race id (swapped for the sketch's human ones) and whether
+## the race has fur (wolf ears and muzzle); unknown races look human.
 const RACE_LOOKS: Dictionary[StringName, Dictionary] = {
-	&"race.human": {"skin": SKIN, "tunic": HUMAN_TUNIC, "mount": HORSE, "head": &"draw_human_head", "has_fur": false},
-	&"race.wolf": {"skin": FUR, "tunic": WOLF_TUNIC, "mount": WOLF_HORSE, "head": &"draw_wolf_head", "has_fur": true},
-}
-const ELEMENT_COLORS: Dictionary[StringName, Color] = {
-	&"element.fire": Color("ff7a3d"),
-	&"element.ice": Color("9fdcf5"),
-	&"element.wind": Color("8fe0a8"),
-	&"element.lightning": Color("ffe066"),
+	&"race.human": {
+		"skin": RigPalette.SKIN, "tunic": RigPalette.TUNIC, "tunic_dark": RigPalette.TUNIC_DARK, "mount": RigPalette.HORSE,
+		"mount_dark": RigPalette.HORSE_DARK, "hair": RigPalette.HAIR, "has_fur": false,
+	},
+	&"race.wolf": {
+		"skin": FUR, "tunic": WOLF_TUNIC, "tunic_dark": WOLF_TUNIC_DARK, "mount": WOLF_HORSE, "mount_dark": WOLF_HORSE_DARK,
+		"hair": FUR_DARK, "has_fur": true,
+	},
 }
 
-static var _class_drawers: Dictionary[StringName, Callable] = {}
-static var _headgear: Dictionary[StringName, Callable] = {}
+static var _no_indices := PackedInt32Array()
 
 
 ## Draws the whole figure on `canvas` around `origin` (the feet), scaled, in
-## `pose` (the rest pose when null). `flash` 0..1 blends every fill toward
-## white (hit flash).
-static func draw_figure(canvas: CanvasItem, unit: UnitData, facing: int, flash: float, origin: Vector2 = Vector2.ZERO, figure_scale: float = 1.0, pose: UnitPose = null) -> void:
+## `pose` (the class's idle pose when null). `flash` 0..1 blends every fill
+## toward white (hit flash). `animator`, when given, adds the weapon trail
+## and the idle sway clock.
+static func draw_figure(canvas: CanvasItem, unit: UnitData, facing: int, flash: float, origin: Vector2 = Vector2.ZERO, figure_scale: float = 1.0, pose: UnitPose = null, animator: PoseAnimator = null) -> void:
 	var base := Transform2D(0.0, Vector2(figure_scale, figure_scale), 0.0, origin)
-	var brush := FigureBrush.new(canvas, unit, facing, flash, pose, base)
-	brush.headgear = _get_headgear().get(unit.class_id, Callable())
-	var drawer: Callable = _get_drawers().get(unit.class_id, Callable(ClassFigures, &"draw_plain"))
-	drawer.call(brush)
-	# Figures outside the six classes do not place their own crown.
-	FigureParts.draw_crown(brush, 0.0)
-	brush.finish()
+	if not is_posable(unit.class_id):
+		var brush := FigureBrush.new(canvas, unit, facing, flash, base)
+		Callable(ExtraFigures, ExtraFigures.DRAWERS[unit.class_id]).call(brush)
+		brush.finish()
+		return
+	var kit := RigKit.get_kit(unit.class_id)
+	var view := view_of(facing)
+	var look := RigPainter.Look.new()
+	var race_id: StringName = unit.race_id if RACE_LOOKS.has(unit.race_id) else &"race.human"
+	look.race_id = race_id
+	look.palette = RigPalette.get_palette(race_id, RACE_LOOKS[race_id])
+	look.has_fur = RACE_LOOKS[race_id]["has_fur"]
+	look.flash = clampf(flash, 0.0, 1.0)
+	look.pixels_per_unit = absf(canvas.get_global_transform_with_canvas().get_scale().y) * figure_scale
+	if animator != null:
+		look.clock = animator.get_clock()
+		look.trail = animator.trail
+		look.trail_weights = animator.trail_weights
+	var shown := pose if pose != null else kit.idle[view]
+	# The board turns the pose's step toward the target into a push of the
+	# whole figure (UnitView), so the rig itself stays over its feet.
+	if shown.values[UnitPose.DX] != 0.0:
+		shown = shown.merged({"dx": 0})
+	var points := PackedVector2Array()
+	var colors := PackedColorArray()
+	RigPainter.paint(points, colors, kit, shown, view, look, base)
+	if points.is_empty():
+		return
+	# The points are already in canvas space.
+	canvas.draw_set_transform_matrix(Transform2D.IDENTITY)
+	RenderingServer.canvas_item_add_triangle_array(canvas.get_canvas_item(), _no_indices, points, colors)
 
 
-## True when the class's figure follows a UnitPose (not the boss or sage).
+## True when the class's figure is the bone rig and follows a UnitPose (not
+## the boss or the sage).
 static func is_posable(class_id: StringName) -> bool:
-	return not ExtraFigures.CLASS_IDS.has(class_id)
+	return not ExtraFigures.DRAWERS.has(class_id)
+
+
+## The rig view for a facing: the player's units are seen from behind.
+static func view_of(facing: int) -> StringName:
+	return RigSolver.VIEW_BACK if facing == FACING_UP else RigSolver.VIEW_FRONT
 
 
 ## Draws `count` star pips (gold diamonds) in a row centred on `center`.
@@ -86,34 +108,6 @@ static func draw_star_pips(canvas: CanvasItem, center: Vector2, count: int, radi
 		canvas.draw_polyline(pip, Palette.INK, maxf(1.5, radius / 3.0), true)
 
 
-## Draws the upper body centred on `center`, for portraits.
+## Draws the upper body centred on `center`, seen from the front, for portraits.
 static func draw_bust(canvas: CanvasItem, unit: UnitData, center: Vector2, bust_scale: float) -> void:
 	draw_figure(canvas, unit, FACING_DOWN, 0.0, center - BUST_FOCUS * bust_scale, bust_scale)
-
-
-static func _get_drawers() -> Dictionary[StringName, Callable]:
-	if _class_drawers.is_empty():
-		_class_drawers = {
-			&"class.shield": Callable(ClassFigures, &"draw_shield"),
-			&"class.sword": Callable(ClassFigures, &"draw_sword"),
-			&"class.spear": Callable(ClassFigures, &"draw_spear"),
-			&"class.cavalry": Callable(ClassFigures, &"draw_cavalry"),
-			&"class.archer": Callable(ClassFigures, &"draw_archer"),
-			&"class.mage": Callable(ClassFigures, &"draw_mage"),
-			&"class.colossus": Callable(ExtraFigures, &"draw_colossus"),
-			&"class.sage": Callable(ExtraFigures, &"draw_sage"),
-		}
-	return _class_drawers
-
-
-static func _get_headgear() -> Dictionary[StringName, Callable]:
-	if _headgear.is_empty():
-		_headgear = {
-			&"class.shield": Callable(FigureParts, &"draw_helmet"),
-			&"class.sword": Callable(FigureParts, &"draw_headband"),
-			&"class.spear": Callable(FigureParts, &"draw_war_hat"),
-			&"class.cavalry": Callable(FigureParts, &"draw_plumed_helmet"),
-			&"class.archer": Callable(FigureParts, &"draw_feather_band"),
-			&"class.mage": Callable(FigureParts, &"draw_pointed_hat"),
-		}
-	return _headgear
