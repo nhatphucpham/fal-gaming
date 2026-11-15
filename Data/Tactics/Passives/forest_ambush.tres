@@ -1,0 +1,10 @@
+[gd_resource type="TacticsPassiveData" format=3]
+
+[resource]
+id = &"tactics_passive.forest_ambush"
+name_key = "TACTICS_PASSIVE_FOREST_AMBUSH"
+description_key = "TACTICS_PASSIVE_FOREST_AMBUSH_DESC"
+handler = &"passive.stat_bonus"
+stat = &"stat.attack_pct"
+amount = 20
+condition_terrain_id = &"terrain.forest"

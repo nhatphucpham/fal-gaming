@@ -1,0 +1,8 @@
+[gd_resource type="TacticsRulesData" format=3]
+
+[resource]
+hits_per_engagement = 4
+anticipation_shift_cells = 1
+help_radius_cells = 4
+max_leaders_per_side = 5
+max_rounds = 30

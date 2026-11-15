@@ -1,0 +1,27 @@
+[gd_resource type="TacticsLeaderData" format=3]
+
+[ext_resource type="UnitData" path="res://Data/Units/ba_khac.tres" id="base_unit"]
+[ext_resource type="ClassData" path="res://Data/Classes/cavalry.tres" id="base_class"]
+[ext_resource type="TacticsKeywordData" path="res://Data/Tactics/Keywords/charge.tres" id="kw_charge"]
+[ext_resource type="TacticsPassiveData" path="res://Data/Tactics/Passives/warlord_growth.tres" id="passive_warlord_growth"]
+[ext_resource type="TacticsPassiveData" path="res://Data/Tactics/Passives/pack_fury.tres" id="passive_pack_fury"]
+[ext_resource type="TacticsSkillData" path="res://Data/Tactics/Skills/fire_rain.tres" id="skill"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/rider.tres" id="troop_rider"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/swordsman.tres" id="troop_swordsman"]
+
+[resource]
+id = &"leader.ba_khac"
+name_key = "LEADER_BA_KHAC"
+base_unit = ExtResource("base_unit")
+base_class = ExtResource("base_class")
+hp_pct = 150
+attack_pct = 120
+min_range_cells = 1
+max_range_cells = 1
+move_points = 6
+keywords = Array[TacticsKeywordData]([ExtResource("kw_charge")])
+lead_capacity = 3
+passives = Array[TacticsPassiveData]([ExtResource("passive_warlord_growth"), ExtResource("passive_pack_fury")])
+skill = ExtResource("skill")
+default_order = &"order.vanguard"
+squad = Array[TacticsTroopData]([ExtResource("troop_rider"), ExtResource("troop_rider"), ExtResource("troop_swordsman")])

@@ -1,0 +1,7 @@
+[gd_resource type="TacticsZoneData" format=3]
+
+[resource]
+id = &"zone.fire"
+name_key = "ZONE_FIRE"
+effect = &"zone_effect.burn"
+amount = 60

@@ -1,0 +1,12 @@
+[gd_resource type="TacticsPassiveData" format=3]
+
+[ext_resource type="TacticsZoneData" path="res://Data/Tactics/Zones/wind.tres" id="zone"]
+
+[resource]
+id = &"tactics_passive.wind_trail"
+name_key = "TACTICS_PASSIVE_WIND_TRAIL"
+description_key = "TACTICS_PASSIVE_WIND_TRAIL_DESC"
+handler = &"passive.trail_zone"
+zone = ExtResource("zone")
+radius_cells = 1
+duration_rounds = 1

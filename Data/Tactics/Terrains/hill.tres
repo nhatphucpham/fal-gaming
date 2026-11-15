@@ -1,0 +1,11 @@
+[gd_resource type="TacticsTerrainData" format=3]
+
+[resource]
+id = &"terrain.hill"
+name_key = "TERRAIN_HILL"
+move_cost = 2
+is_impassable = false
+armor_bonus = 5
+damage_taken_pct = 0
+ranged_damage_taken_pct = 0
+ranged_range_bonus = 1

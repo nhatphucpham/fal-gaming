@@ -1,0 +1,27 @@
+[gd_resource type="TacticsLeaderData" format=3]
+
+[ext_resource type="UnitData" path="res://Data/Units/lac_hong.tres" id="base_unit"]
+[ext_resource type="ClassData" path="res://Data/Classes/mage.tres" id="base_class"]
+[ext_resource type="TacticsPassiveData" path="res://Data/Tactics/Passives/drilled_ranks.tres" id="passive_drilled_ranks"]
+[ext_resource type="TacticsPassiveData" path="res://Data/Tactics/Passives/iron_will.tres" id="passive_iron_will"]
+[ext_resource type="TacticsSkillData" path="res://Data/Tactics/Skills/rally_banner.tres" id="skill"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/spearman.tres" id="troop_spearman"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/archer.tres" id="troop_archer"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/shieldman.tres" id="troop_shieldman"]
+
+[resource]
+id = &"leader.lac_hong"
+name_key = "LEADER_LAC_HONG"
+base_unit = ExtResource("base_unit")
+base_class = ExtResource("base_class")
+hp_pct = 150
+attack_pct = 120
+min_range_cells = 1
+max_range_cells = 2
+move_points = 4
+keywords = Array[TacticsKeywordData]([])
+lead_capacity = 4
+passives = Array[TacticsPassiveData]([ExtResource("passive_drilled_ranks"), ExtResource("passive_iron_will")])
+skill = ExtResource("skill")
+default_order = &"order.follow"
+squad = Array[TacticsTroopData]([ExtResource("troop_spearman"), ExtResource("troop_spearman"), ExtResource("troop_archer"), ExtResource("troop_shieldman")])

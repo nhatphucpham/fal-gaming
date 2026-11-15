@@ -1,0 +1,8 @@
+[gd_resource type="TacticsPassiveData" format=3]
+
+[resource]
+id = &"tactics_passive.hook_spear"
+name_key = "TACTICS_PASSIVE_HOOK_SPEAR"
+description_key = "TACTICS_PASSIVE_HOOK_SPEAR_DESC"
+handler = &"passive.pull_strike"
+amount = 1

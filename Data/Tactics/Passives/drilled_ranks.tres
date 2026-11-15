@@ -1,0 +1,13 @@
+[gd_resource type="TacticsPassiveData" format=3]
+
+[ext_resource type="TacticsKeywordData" path="res://Data/Tactics/Keywords/cover.tres" id="keyword"]
+
+[resource]
+id = &"tactics_passive.drilled_ranks"
+name_key = "TACTICS_PASSIVE_DRILLED_RANKS"
+description_key = "TACTICS_PASSIVE_DRILLED_RANKS_DESC"
+handler = &"passive.squad_bonus"
+stat = &"stat.attack_pct"
+amount = 10
+keyword = ExtResource("keyword")
+extra_capacity = 1
