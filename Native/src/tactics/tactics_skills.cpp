@@ -209,6 +209,10 @@ int cast_skill(TacticsSim &p_sim, int p_caster, const Cell &p_cell, int p_cause,
 	std::vector<SkillTargetResult> results;
 	for (const SkillEffectDef &effect : skill.effects) {
 		effect.handler->apply(p_sim, p_caster, effect, selection, cause, results);
+		// A kill that ended the battle: no later effect, result or charge.
+		if (p_sim.is_finished()) {
+			return cause;
+		}
 	}
 	Event resolved;
 	resolved.type = EventType::SKILL_RESOLVED;

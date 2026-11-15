@@ -74,8 +74,9 @@ bool is_skill_ready(const UnitState &p_leader);
 // (rally_banner), so the AI casts it on its own cell.
 bool is_skill_for_own_side(const SkillDef &p_skill);
 // Casts the leader's skill at p_cell (charge checked by the caller); emits
-// skill_used, the effects' events and skill_resolved. Returns the
-// skill_used event id, or 0 with r_error when p_cell is not a valid target.
+// skill_used, the effects' events and skill_resolved (not when an effect
+// ended the battle). Returns the skill_used event id, or 0 with r_error
+// when p_cell is not a valid target.
 int cast_skill(TacticsSim &p_sim, int p_caster, const Cell &p_cell, int p_cause, std::string *r_error);
 
 } // namespace tactics

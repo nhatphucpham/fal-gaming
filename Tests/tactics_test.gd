@@ -41,6 +41,7 @@ func _run() -> bool:
 		_check_catalog_references, _check_objective_needs_own_move, _check_side_bounds,
 		_check_failed_scenario_load, _check_catalog_loads_scenarios, _check_hash_covers_event_ids,
 		_check_unsigned_passive_amounts, _check_failed_reload, _check_catalog_terrain_ids,
+		_check_end_is_last,
 	]
 	for check: Callable in checks:
 		if not check.call():
@@ -663,3 +664,27 @@ func _check_catalog_terrain_ids() -> bool:
 	var unknown := Array(catalog.validate()).filter(func(problem: String) -> bool: return problem.contains("unknown terrain"))
 	return Kit.expect("unknown terrains reported", unknown.size(), 2) \
 		and Kit.expect("the sample catalog has none", _kit.catalog.validate(), PackedStringArray())
+
+
+# battle_ended is the last event however the battle ends: an engagement
+# that kills the last leader has no engagement_ended after it, and a skill
+# that does adds no zone and resets no charge.
+func _check_end_is_last() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows())
+	var spear := _kit.add(battle, A, _kit.leader(MOON_SPEAR, [], {"keywords": _kit.keywords([])}), Vector2i(5, 6))
+	var weak := _kit.add(battle, B, _kit.leader(THIET_NHA, [], {"hp_pct": 5}), Vector2i(5, 5))
+	battle.start()
+	var attacked := battle.attack(spear, weak)
+	var skill := _kit.catalog.get_leader(BA_KHAC).skill.duplicate() as TacticsSkillData
+	skill.charge = &"charge.turns"
+	skill.charge_threshold = 1
+	var burner := _kit.new_battle(_kit.plain_rows())
+	var caster := _kit.add(burner, A, _kit.leader(BA_KHAC, [], {"skill": skill}), Vector2i(5, 9))
+	_kit.add(burner, B, _kit.leader(THIET_NHA, [], {"hp_pct": 1}), Vector2i(5, 5))
+	burner.start()
+	burner.end_phase()
+	burner.end_phase()
+	var cast := burner.use_skill(caster, Vector2i(5, 5))
+	return Kit.expect("attack ends with battle_ended", [battle.is_finished(), attacked.back()["type"]], [true, &"battle_ended"]) \
+		and Kit.expect("skill ends with battle_ended", [burner.is_finished(), cast.back()["type"]], [true, &"battle_ended"]) \
+		and Kit.expect("no zone, charge kept", [burner.get_zones(), burner.get_skill_charge(caster)["value"]], [[], 1])

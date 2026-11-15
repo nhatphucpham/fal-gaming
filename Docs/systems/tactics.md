@@ -202,7 +202,10 @@ placed on the spawn cells in order. Sample: `scenario.river_crossing`.
   (`objective`); side B after `max_rounds` (`time_limit`). Being pulled or
   otherwise moved onto the objective does not win, and neither does
   starting the battle or a phase on it: such a leader must move off and
-  back on.
+  back on. `battle_ended` is the last event: an engagement or skill that
+  ends the battle stops at the death (no `engagement_ended`,
+  `skill_resolved`, later effect or charge change follows), and nothing
+  changes afterwards.
 
 ## Public API
 
@@ -317,6 +320,7 @@ squad test). Both are in CI.
 ## Known limits
 
 - No scene, input or presentation yet; no Locale rows for the name keys.
-- The AI is greedy (nearest enemy, one leader at a time) and does not use
-  orders.
+- The AI is greedy (nearest enemy, one leader at a time), does not use
+  orders, does not go for the objective, and casts a skill for its own
+  side as soon as it is ready, even with no soldier left to help.
 - Damage has no randomness; ties are broken by unit index and cell order.

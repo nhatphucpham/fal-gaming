@@ -143,6 +143,10 @@ EngagementResult resolve_engagement(TacticsSim &p_sim, int p_attacker, int p_def
 	result.defender_hp_after = defender.hp;
 	result.is_attacker_dead = !attacker.is_alive;
 	result.is_defender_dead = !defender.is_alive;
+	// A death that ended the battle ends the events too: battle_ended is last.
+	if (p_sim.is_finished()) {
+		return result;
+	}
 
 	if (!p_sim.is_leader(p_defender)) {
 		UnitState &soldier = p_sim.edit_unit(p_defender);

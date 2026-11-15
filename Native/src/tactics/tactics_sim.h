@@ -19,7 +19,8 @@ struct Stats {
 };
 
 // One turn-based tactics battle on a square grid (Docs/systems/tactics.md).
-// Commands change the state and append events; queries never do. The whole
+// Commands change the state and append events; queries never do. Once
+// battle_ended is emitted nothing changes and no event follows. The whole
 // object is a value: copying it gives an independent battle, which is how
 // forecasts and previews run the real rules without touching this one.
 //   sim.setup(rules, map, &error);

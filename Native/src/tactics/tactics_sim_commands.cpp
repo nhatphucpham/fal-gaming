@@ -184,8 +184,11 @@ bool TacticsSim::set_order(int p_unit, int p_order, std::string *r_error) {
 // Acting ends the leader's phase; a squad that has not stepped yet (the
 // leader did not move) steps right after the action, caused by p_cause.
 void TacticsSim::finish_leader_action(int p_unit, int p_cause) {
+	if (finished) {
+		return;
+	}
 	units[p_unit].has_acted = true;
-	if (!units[p_unit].has_squad_acted && !finished) {
+	if (!units[p_unit].has_squad_acted) {
 		run_squad_step(p_unit, p_cause);
 	}
 }

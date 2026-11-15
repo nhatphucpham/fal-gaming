@@ -283,7 +283,18 @@ func _check_charge_focus() -> bool:
 	values.append(battle.get_skill_charge(leader)["value"])
 	_rounds(battle, 1)
 	values.append(battle.get_skill_charge(leader)["value"])
-	return Kit.expect("focus", values, [1, 2, 0, 0])
+	if not Kit.expect("focus", values, [1, 2, 0, 0]):
+		return false
+	# Being pulled loses it too.
+	var pulled := _kit.new_battle(_kit.plain_rows())
+	var focused := _kit.add(pulled, A, _kit.leader(MOON_SPEAR), Vector2i(5, 8))
+	var hook: Array[TacticsPassiveData] = [_kit.catalog.get_passive(&"tactics_passive.hook_spear")]
+	var hooker := _kit.add(pulled, B, _kit.leader(MOON_SPEAR, hook, {"keywords": _kit.keywords([])}), Vector2i(5, 10))
+	pulled.start()
+	pulled.end_phase()
+	var before: int = pulled.get_skill_charge(focused)["value"]
+	pulled.attack(hooker, focused)
+	return Kit.expect("pulled", [before, Kit.cell_of(pulled, focused), pulled.get_skill_charge(focused)["value"]], [1, Vector2i(5, 9), 0])
 
 
 # charge.damage_taken (fire rain, 300): 4 hits of 6600 / 130 = 50, twice,
