@@ -95,7 +95,9 @@
   the battle status bars, the drag ghost and the pointer gesture helper, and
   for the run the shop, bench, sell zone, cost buttons, resource chips,
   icons drawn in code, the timer, reward cards and confetti, the Kỳ Ngộ
-  seal, the boss badge, bar and card, and the mute button.
+  seal, the boss badge, bar and card, and the mute button. `IdleTicks`
+  is the shared clock of idle animation (see
+  [Performance](systems/performance.md)).
 - `Locale/strings.csv` holds every player-facing text (columns `keys,vi,en`),
   imported into `strings.vi.translation` and `strings.en.translation` and
   registered in `project.godot`. The fallback locale is `vi`, and `Main`

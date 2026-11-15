@@ -28,6 +28,12 @@ project's coding standard; the points below are the ones most often missed.
   and typos.
 - Fill in the pull request template checklist. One concern per PR, Conventional
   Commits with the system as scope (`feat(combat): ...`).
+- **Smoothness, performance, energy.** Review every change for all three
+  (`Docs/conventions.md`, section 11): redraw only when the picture
+  changes, never write unchanged transforms every frame, batch small
+  shapes into one mesh, hide and stop what is off screen, put idle
+  animation on `IdleTicks`, stop loops while the app is hidden, and report
+  `Tools/perf_probe.gd` before and after in the pull request.
 - Keep the game light: GL Compatibility renderer, modest assets, and nothing
   that assumes a desktop-only GPU or input device. Do not add third-party
   plugins or addons without approval.

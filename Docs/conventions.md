@@ -235,6 +235,7 @@ What to update:
 | Build, toolchain, export or CI change | `Docs/build.md` (and `README.md` if setup steps change) |
 | Anything a player or tester would notice | `CHANGELOG.md` under `Unreleased` |
 | New or changed rule | This file and, if agents need it, `AGENTS.md` |
+| Anything that can change smoothness, performance or energy | The pull request's Performance section; `Docs/perf_budget.json` when numbers go down |
 
 A system page says what the system is for, its data, its public API and
 signals, its log events, how to extend it (add a unit, a skill), and how it is
@@ -271,3 +272,35 @@ it.
   builds.
 - Use short-lived feature branches and pull requests into `master`.
 - Do not add third-party plugins or addons without approval.
+
+## 11. Smoothness, performance and energy
+
+Every change is reviewed for three things: **smoothness** (no hitch: frame
+time and long frames), **performance** (CPU per frame, draw calls,
+primitives, redraws, memory, download size) and **energy** (frames drawn
+while idle, work while the app is hidden, per-frame work that changes
+nothing). The game runs as a web build on iPhones and weak Windows PCs; see
+[Performance](systems/performance.md) for how to measure.
+
+- No `queue_redraw()` every frame unless the picture changes that frame.
+  Redraw when a value changes, or while an animation runs, and once more
+  when it ends.
+- Never write an unchanged value to a transform, `modulate` or `visible`
+  every frame: any transform write makes the renderer draw a frame, even
+  when the value is the same. Compare first.
+- Many small shapes of one kind go into one mesh (a triangle array with
+  `RenderingServer.canvas_item_add_triangle_array`), not one
+  `draw_colored_polygon` or `draw_polyline` each: every such call is its
+  own draw call.
+- Hidden or off-screen nodes are not visible and do not process
+  (`visible = false`, `process_mode = PROCESS_MODE_DISABLED`); fading to
+  alpha 0 or sliding away is not hiding.
+- Anything that animates while the player is idle needs a reason and a
+  redraw rate, and redraws on the shared idle ticks (`IdleTicks`), so idle
+  screens change on few frames and low processor mode can skip the rest.
+- New loops that play by themselves (sounds, timers, JavaScript intervals)
+  stop while the app is hidden (`AppLifecycle`).
+- Every pull request runs the performance probe (`Tools/perf_probe.gd`,
+  headless and rendered) and reports before and after in its Performance
+  section. The budget in `Docs/perf_budget.json` is lowered when numbers
+  improve and never raised without a written reason.
