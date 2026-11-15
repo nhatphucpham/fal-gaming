@@ -7,7 +7,9 @@ extends SceneTree
 # after it. Checks: an idle unit view writes no transform, a full Khí bar
 # and a cast glow process only while they show; idle figures and card
 # pulses share the IdleTicks steps, so a board of them changes at most
-# IdleTicks.STEPS_PER_SEC frames a second.
+# IdleTicks.STEPS_PER_SEC frames a second; formation outlines redraw only
+# while a light, stamp, flash or shatter plays, and near-misses breathe on
+# the shared steps.
 
 const Kit := preload("res://Tests/pose_test_kit.gd")
 const SETTLE_SEC: float = 0.4
@@ -16,7 +18,7 @@ const IDLE_FIGURES: int = 12
 
 func _initialize() -> void:
 	var ok := true
-	var checks: Array[Callable] = [_check_still_view, _check_bar_and_overlay_processing, _check_shared_idle_frames]
+	var checks: Array[Callable] = [_check_still_view, _check_bar_and_overlay_processing, _check_shared_idle_frames, _check_still_outlines]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Idle frames test failed in %s" % check.get_method())
@@ -116,3 +118,43 @@ func _check_shared_idle_frames() -> bool:
 		push_error("Idle figures should still breathe; only %d of %d frames changed" % counts)
 		return false
 	return true
+
+
+# Outlines that are done animating leave every frame undrawn; a stamp and
+# a shatter animate and then stop (the shattered one is gone); near-miss
+# outlines breathe on the shared steps.
+func _check_still_outlines() -> bool:
+	var outlines := FormationOutlines.new()
+	root.add_child(outlines)
+	var cells: Array = [Vector2i(1, 1), Vector2i(2, 1), Vector2i(3, 1)]
+	var global_cells: Array = cells.map(func(cell: Vector2i) -> Vector2i: return Battle.local_to_global(Battle.SIDE_A, cell.x, cell.y))
+	outlines.show_side(Battle.SIDE_A, {"formations": [{"id": &"formation.idle_test", "cells": cells}]}, true)
+	await process_frame
+	var ok := true
+	if not outlines.is_animating():
+		push_error("A new formation should run its light and stamp its name")
+		ok = false
+	await create_timer(FormationOutlines.STAMP_SEC + 0.2).timeout
+	var counts := await count_changed_frames(0.5)
+	if outlines.is_animating() or counts[0] > 0:
+		push_error("Still outlines changed %d of %d frames" % counts)
+		ok = false
+	outlines.roll_call()
+	outlines.shatter(Battle.SIDE_A, &"formation.idle_test", global_cells)
+	if outlines.get_broken(Battle.SIDE_A).size() != 1:
+		push_error("The shattered outline should be listed while it fades")
+		ok = false
+	await create_timer(FormationOutlines.STAMP_SEC + 0.2).timeout
+	counts = await count_changed_frames(0.5)
+	if outlines.is_animating() or counts[0] > 0 or not outlines.get_broken(Battle.SIDE_A).is_empty():
+		push_error("After a roll call and a shatter the outlines changed %d of %d frames" % counts)
+		ok = false
+	var near := {"near_formations": [{"id": &"formation.idle_test", "cells": [Vector2i(1, 1), Vector2i(2, 1)], "missing_cell": Vector2i(3, 1), "needed_class": &""}]}
+	outlines.show_side(Battle.SIDE_A, near, false)
+	counts = await count_changed_frames(1.0)
+	if counts[0] > IdleTicks.STEPS_PER_SEC + 1 or counts[0] < IdleTicks.PER_SEC:
+		push_error("A near-miss outline should breathe on the shared steps; it changed %d of %d frames" % counts)
+		ok = false
+	outlines.queue_free()
+	await process_frame
+	return ok

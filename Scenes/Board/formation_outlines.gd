@@ -6,7 +6,9 @@ extends Node2D
 ## unit short, dimmer red-tinted lines for the enemy's. A formation that
 ## first completes gets a light running along its outline and its name
 ## stamped once; roll_call() flashes them all at battle start; shatter()
-## breaks one when the battle says it broke. Presentation only.
+## breaks one when the battle says it broke. It redraws only while one of
+## those plays; near-misses breathe on the shared IdleTicks steps.
+## Presentation only.
 ## [codeblock]
 ## outlines.setup(catalog)
 ## board.get_outline_layer().add_child(outlines)
@@ -46,6 +48,9 @@ var _is_previewing: bool = false
 var _known_own: Dictionary[StringName, bool] = {}
 # Names are drawn above the pieces: a child with a higher z_index.
 var _stamps: Node2D
+var _was_animating: bool = false
+var _was_stamping: bool = false
+var _breath_step: int = -1
 
 
 func _init() -> void:
@@ -174,14 +179,44 @@ func clear() -> void:
 	queue_redraw()
 
 
+# Redraws only while something moves: every frame during a run light,
+# roll-call flash or shatter (and once after, to draw the end), the names
+# only while a stamp shows, and near-miss outlines breathe on the shared
+# IdleTicks steps. Still outlines cost nothing per frame.
 func _process(delta: float) -> void:
 	_time += delta
 	for side: int in 2:
 		_by_side[side] = _by_side[side].filter(func(outline: Dictionary) -> bool:
 			return outline["broken_at"] < 0.0 or _time - outline["broken_at"] < SHATTER_SEC)
-	if not (_by_side[0].is_empty() and _by_side[1].is_empty()):
+	var is_animating := false
+	var is_stamping := false
+	var is_breathing := false
+	for side: int in 2:
+		for outline: Dictionary in _by_side[side]:
+			if outline["is_near"]:
+				is_breathing = is_breathing or not is_battle
+				continue
+			is_animating = is_animating or outline["broken_at"] >= 0.0 or _is_within(outline["run_at"], RUN_SEC) \
+					or _is_within(outline["flash_at"], ROLL_CALL_SEC)
+			# A roll call stamps later names after a delay: pending counts.
+			is_stamping = is_stamping or (outline["stamp_at"] >= 0.0 and _time - outline["stamp_at"] <= STAMP_SEC)
+	if is_animating or _was_animating:
 		queue_redraw()
+	elif is_breathing:
+		var step := IdleTicks.step_at(IdleTicks.engine_seconds())
+		if step != _breath_step:
+			_breath_step = step
+			queue_redraw()
+	if is_stamping or _was_stamping:
 		_stamps.queue_redraw()
+	_was_animating = is_animating
+	_was_stamping = is_stamping
+
+
+## True while a run light, flash, stamp or shatter plays and redraws every
+## frame, for tests.
+func is_animating() -> bool:
+	return _was_animating or _was_stamping
 
 
 func _draw() -> void:
@@ -324,6 +359,11 @@ static func _sorted_cells(cells: Array) -> Array[Vector2i]:
 	sorted.assign(cells)
 	sorted.sort()
 	return sorted
+
+
+# True from `start` until `seconds` after it; false when never started.
+func _is_within(start: float, seconds: float) -> bool:
+	return start >= 0.0 and _time - start <= seconds
 
 
 # 1 at `start`, easing to 0 over `seconds`; 0 when never started.
