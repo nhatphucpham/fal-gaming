@@ -4,14 +4,17 @@ extends SceneTree
 # without running the probe's scenes: the file parses, names only scenes
 # and metrics the probe emits in each section's mode (and scene) and no
 # frame times, results within it pass, and results over it, or missing a
-# budgeted metric, fail.
+# budgeted metric, fail; CI and the docs run the rendered probe at the
+# window the rendered budget is measured at.
 
 const BUDGET_PATH: String = "res://Docs/perf_budget.json"
+# Files that hold the rendered probe's command.
+const COMMAND_PATHS: Array[String] = ["res://.github/workflows/ci.yml", "res://Docs/build.md", "res://Docs/systems/performance.md"]
 
 
 func _initialize() -> void:
 	var ok := true
-	for check: Callable in [_check_file, _check_rejects_bad_budgets, _check_over_budget]:
+	for check: Callable in [_check_file, _check_rejects_bad_budgets, _check_over_budget, _check_rendered_window]:
 		if not check.call():
 			push_error("Perf budget test failed in %s" % check.get_method())
 			ok = false
@@ -77,3 +80,23 @@ func _check_over_budget() -> bool:
 		push_error("A budgeted metric that was not measured should fail")
 		return false
 	return PerfBudget.check(budget, {}, false).size() == 2
+
+
+# Draw calls depend on the window size, so every rendered probe command
+# uses PerfBudget.RENDERED_WINDOW (Docs/systems/performance.md).
+func _check_rendered_window() -> bool:
+	var ok := true
+	var wanted := "--resolution %dx%d" % [PerfBudget.RENDERED_WINDOW.x, PerfBudget.RENDERED_WINDOW.y]
+	for path: String in COMMAND_PATHS:
+		var text := FileAccess.get_file_as_string(path)
+		var commands := 0
+		for line: String in text.split("\n"):
+			if line.contains("--rendering-driver opengl3") and line.contains("perf_probe.gd"):
+				commands += 1
+				if not line.contains(wanted):
+					push_error("%s runs the rendered probe without %s" % [path, wanted])
+					ok = false
+		if commands == 0:
+			push_error("%s has no rendered probe command" % path)
+			ok = false
+	return ok

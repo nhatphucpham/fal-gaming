@@ -11,6 +11,12 @@ extends RefCounted
 
 const SECTION_HEADLESS: String = "headless"
 const SECTION_RENDERED: String = "rendered"
+## The window size the rendered section is measured at (--resolution).
+## Draw calls depend on it: below about half the design size (720 x 1280)
+## font oversampling rasterizes glyphs so small that they share fewer atlas
+## textures, so text breaks fewer batches. From this size up the counts are
+## those of the design size, and llvmpipe still draws the title at 60 fps.
+const RENDERED_WINDOW: Vector2i = Vector2i(360, 640)
 ## The scenes the probe measures, in order.
 const SCENES: Array[String] = ["title", "prep_full", "battle_x1", "battle_x4"]
 ## Numbers the probe emits in every mode.

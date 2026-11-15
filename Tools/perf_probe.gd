@@ -9,11 +9,13 @@ extends SceneTree
 # export preset) and not part of Tools/build_and_test.sh. Usage:
 #   godot --headless --path . --script res://Tools/perf_probe.gd -- [--json=<file>] [--budget=<file>] [--summary=<file>]
 # Headless gives CPU and redraw numbers; under a display (xvfb-run with
-# --rendering-driver opengl3) it also gives draw calls, primitives and
-# frames_drawn_share. With --budget it fails (exit 1) when a scene goes over
-# its budget (PerfBudget, Docs/perf_budget.json); --summary appends a
-# Markdown table (CI's job summary). Any error logged on the way also fails
-# it. See Docs/systems/performance.md.
+# --rendering-driver opengl3 --resolution 360x640) it also gives draw
+# calls, primitives and frames_drawn_share. With --budget it fails (exit 1)
+# when a scene goes over its budget (PerfBudget, Docs/perf_budget.json);
+# rendering at any other window it warns, and with --budget it refuses to
+# check (exit 1), since draw calls depend on the window size. --summary
+# appends a Markdown table (CI's job summary). Any error logged on the way
+# also fails it. See Docs/systems/performance.md.
 
 
 # Counts errors (not warnings) logged while the probe runs.
@@ -52,6 +54,8 @@ func _initialize() -> void:
 	Engine.max_fps = FPS
 	_is_rendering = DisplayServer.get_name() != "headless"
 	node_added.connect(_watch)
+	if not _is_budget_window():
+		push_warning("perf_probe: a %s window; draw calls are comparable with the budget only at --resolution %dx%d" % [DisplayServer.window_get_size(), PerfBudget.RENDERED_WINDOW.x, PerfBudget.RENDERED_WINDOW.y])
 	var ok := await _run()
 	RunSave.delete()
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(SETTINGS_PATH))
@@ -62,6 +66,10 @@ func _initialize() -> void:
 		if arg.begins_with("--summary="):
 			_append_summary(arg.trim_prefix("--summary="))
 		if arg.begins_with("--budget="):
+			if not _is_budget_window():
+				push_error("perf_probe: refusing to check the rendered budget at a %s window; it is measured at --resolution %dx%d" % [DisplayServer.window_get_size(), PerfBudget.RENDERED_WINDOW.x, PerfBudget.RENDERED_WINDOW.y])
+				ok = false
+				continue
 			for problem: String in PerfBudget.check(PerfBudget.load_file(arg.trim_prefix("--budget=")), _results, _is_rendering):
 				push_error(problem)
 				ok = false
@@ -71,6 +79,11 @@ func _initialize() -> void:
 		ok = false
 	OS.remove_logger(_errors)
 	quit(0 if ok else 1)
+
+
+## Headless, or rendering at the window the rendered budget is measured at.
+func _is_budget_window() -> bool:
+	return not _is_rendering or DisplayServer.window_get_size() == PerfBudget.RENDERED_WINDOW
 
 
 func _run() -> bool:

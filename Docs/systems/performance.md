@@ -45,13 +45,27 @@ godot --headless --path . --script res://Tools/perf_probe.gd -- --budget=Docs/pe
 ```
 
 Rendered, under a virtual display with Mesa's software OpenGL (adds draw
-calls, primitives and frames drawn). CI runs it at a tiny window, where
-the title reaches 60 fps in software and `frames_drawn_share` means
-something; draw calls and primitives do not depend on the window size:
+calls, primitives and frames drawn). The rendered numbers and their budget
+are for one window size, 360 x 640 (`PerfBudget.RENDERED_WINDOW`), and CI,
+this command and the measurements below all use it:
 
 ```bash
-xvfb-run -a -s "-screen 0 400x400x24" godot --rendering-driver opengl3 --audio-driver Dummy --resolution 90x160 --path . --script res://Tools/perf_probe.gd -- --budget=Docs/perf_budget.json
+xvfb-run -a -s "-screen 0 400x700x24" godot --rendering-driver opengl3 --audio-driver Dummy --resolution 360x640 --path . --script res://Tools/perf_probe.gd -- --budget=Docs/perf_budget.json
 ```
+
+Draw calls depend on the window size, primitives do not (so it is not
+culling: nothing is left out). The screen is designed at 720 x 1280 and
+stretched (`canvas_items`), and font oversampling rasterizes glyphs at the
+size they are shown. Below about half the design size the glyphs are so
+small that they share fewer font atlas textures, so text breaks fewer
+batches: at 90 x 160 the title has 46 draw calls and the preparation 635;
+at 360 x 640 and at 720 x 1280 they have 51 and 661, and with
+`gui/fonts/dynamic_fonts/use_oversampling` off 90 x 160 gives 51 and 661
+too. 360 x 640 counts like the design size and is still small enough for
+llvmpipe to draw the title at 60 fps, so `frames_drawn_share` means
+something (at 720 x 1280 it cannot keep up and draws 0.95 of the title's
+frames). Rendering at any other size the probe warns, and with `--budget`
+it refuses to check (exit 1).
 
 Options after `--`: `--json=<file>` writes the results, `--budget=<file>`
 fails (exit 1) on any metric over budget, `--summary=<file>` appends a
@@ -128,25 +142,29 @@ How the pieces of this round work:
 ## Measurements
 
 Worst case: stage 11, eight board units, six on the bench, eight enemies.
-Headless on the build machine (one run; CPU varies by about 10% between
-runs). Rendered: Mesa llvmpipe under xvfb at 720 x 1280, where frame
-times are meaningless.
+Headless on the build machine (CPU varies by about 10% between runs).
+Rendered: Mesa llvmpipe under xvfb at 360 x 640, as above, where frame
+times are meaningless. The before column was measured at 720 x 1280,
+which on this round's build gives the same title and preparation draw
+calls as 360 x 640. A battle's most draw calls in a frame depend on
+which frames the effects fall on, so they vary between runs, most when
+the machine is slower (two probes at once gave the 772 of x4).
 
 | Scene | Metric | Before (master) | After this round |
 | --- | --- | ---: | ---: |
 | title | draw calls | 323 | 51 |
 | title | CPU ms per frame (headless) | 1.8 | 1.8 |
 | title | redraws per second (headless) | 66 | 65 |
-| title | frames changed / drawn while idle | 1.0 / 1.0 | 0.52 / 0.56 |
+| title | frames changed / drawn while idle | 1.0 / 1.0 | 0.51-0.52 / 0.54-0.55 |
 | prep_full | draw calls | 933 | 661 |
 | prep_full | primitives | 135k | 135k |
 | prep_full | CPU ms per frame (headless) | 2.6 | 2.4 |
 | prep_full | redraws per second (headless) | 448 | 240 |
-| prep_full | frames changed while idle (headless) | 1.0 | 0.5 |
-| battle_x1 | draw calls | ~990 | ~716 |
+| prep_full | frames changed while idle (headless) | 1.0 | 0.49-0.52 |
+| battle_x1 | draw calls | ~990 | 708-716 |
 | battle_x1 | CPU ms per frame (headless) | 6.1-6.6 | 5.9-6.1 |
 | battle_x1 | redraws per second (headless) | 1940 | 1615 |
-| battle_x4 | draw calls | ~990 | ~730 |
+| battle_x4 | draw calls | ~990 | 716-772 |
 | battle_x4 | CPU ms per frame (headless) | 6.7-7.8 | 7.3 |
 | battle_x4 | redraws per second (headless) | 2260 | 2030 |
 
@@ -168,7 +186,8 @@ a second at most there); the headless changed-frames share stands in.
 
 - `Tests/perf_budget_test.gd`: the budget file parses and names only
   scenes and metrics the probe emits; the over-budget check fails when it
-  should.
+  should; CI, `Docs/build.md` and this page run the rendered probe at
+  `PerfBudget.RENDERED_WINDOW`.
 - `Tests/idle_frames_test.gd`: an idle unit view writes no transform, the
   Khí bar and cast glow process only while they show, twelve idle figures
   and a pulsing shop card change at most 31 frames in a second (30 steps,

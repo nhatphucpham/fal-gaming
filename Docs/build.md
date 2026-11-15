@@ -136,7 +136,7 @@ and put both numbers in the pull request:
 
 ```bash
 godot --headless --path . --script res://Tools/perf_probe.gd -- --budget=Docs/perf_budget.json
-xvfb-run -a -s "-screen 0 400x400x24" godot --rendering-driver opengl3 --audio-driver Dummy --resolution 90x160 --path . --script res://Tools/perf_probe.gd -- --budget=Docs/perf_budget.json
+xvfb-run -a -s "-screen 0 400x700x24" godot --rendering-driver opengl3 --audio-driver Dummy --resolution 360x640 --path . --script res://Tools/perf_probe.gd -- --budget=Docs/perf_budget.json
 ```
 
 What each number means, the budget and its rules are in

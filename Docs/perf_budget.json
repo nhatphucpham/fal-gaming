@@ -1,5 +1,5 @@
 {
-	"_comment": "Max per scene and metric for Tools/perf_probe.gd --budget. headless: plain headless run; rendered: xvfb-run with --rendering-driver opengl3 --resolution 90x160, as CI runs it. Lower it when a change makes things better; never raise it without a written reason in the pull request. See Docs/systems/performance.md.",
+	"_comment": "Max per scene and metric for Tools/perf_probe.gd --budget. headless: plain headless run; rendered: xvfb-run with --rendering-driver opengl3 --resolution 360x640 (PerfBudget.RENDERED_WINDOW), as CI runs it. Lower it when a change makes things better; never raise it without a written reason in the pull request. See Docs/systems/performance.md.",
 	"headless": {
 		"title": {
 			"cpu_ms_per_frame": 4.6,
@@ -26,23 +26,23 @@
 	},
 	"rendered": {
 		"title": {
-			"draw_calls_max": 49,
+			"draw_calls_max": 54,
 			"primitives_max": 24094,
 			"nodes": 66,
 			"frames_drawn_share": 0.7
 		},
 		"prep_full": {
-			"draw_calls_max": 667,
+			"draw_calls_max": 694,
 			"primitives_max": 141911,
 			"nodes": 312
 		},
 		"battle_x1": {
-			"draw_calls_max": 728,
+			"draw_calls_max": 752,
 			"primitives_max": 142062,
 			"nodes": 314
 		},
 		"battle_x4": {
-			"draw_calls_max": 772,
+			"draw_calls_max": 810,
 			"primitives_max": 143780,
 			"nodes": 314
 		}
