@@ -58,11 +58,5 @@ int get_order_count();
 std::vector<Cell> get_formation_slots(const TacticsSim &p_sim, int p_leader);
 void move_squad(TacticsSim &p_sim, int p_leader, int p_cause);
 void attack_with_squad(TacticsSim &p_sim, int p_leader, int p_cause);
-// The enemy the soldier attacks now, or NO_UNIT (Docs/systems/tactics.md,
-// Soldiers): never one whose counter kills it unless it kills the target or
-// its order risks soldiers; first a kill, then one its squad can finish
-// this step, then one that can reach its leader next phase, then the best
-// damage trade, the lowest hp, the lowest index.
-int pick_soldier_target(const TacticsSim &p_sim, int p_soldier);
 
 } // namespace tactics

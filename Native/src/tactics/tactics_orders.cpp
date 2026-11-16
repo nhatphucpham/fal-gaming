@@ -636,29 +636,15 @@ void move_squad(TacticsSim &p_sim, int p_leader, int p_cause) {
 	}
 }
 
-int pick_soldier_target(const TacticsSim &p_sim, int p_soldier) {
-	const int leader = p_sim.get_units()[p_soldier].leader;
-	std::vector<int> mates;
-	if (leader != NO_UNIT) {
-		for (int mate : p_sim.get_units()[leader].soldiers) {
-			if (mate != p_soldier && p_sim.get_units()[mate].is_alive) {
-				mates.push_back(mate);
-			}
-		}
-	}
-	const bool risks = leader != NO_UNIT && does_risk_soldiers(p_sim, leader);
-	const std::vector<int> threats = leader != NO_UNIT && can_strike_anyone(p_sim, p_soldier) ? find_leader_threats(p_sim, leader) : std::vector<int>();
-	const int living_leader = leader != NO_UNIT && p_sim.get_units()[leader].is_alive ? leader : NO_UNIT;
-	return choose_target(p_sim, p_soldier, mates, risks, living_leader, threats);
-}
-
 void attack_with_squad(TacticsSim &p_sim, int p_leader, int p_cause) {
 	const std::vector<int> soldiers = p_sim.get_units()[p_leader].soldiers;
 	const bool risks = does_risk_soldiers(p_sim, p_leader);
+	// A wavering soldier hesitates: it neither strikes nor counts as a
+	// squadmate that will strike (Docs/systems/tactics.md, Incidents).
 	std::vector<int> remaining;
 	bool any_strike = false;
 	for (int soldier : soldiers) {
-		if (p_sim.get_units()[soldier].is_alive) {
+		if (p_sim.get_units()[soldier].is_alive && p_sim.get_units()[soldier].stage != IncidentStage::WAVERING) {
 			remaining.push_back(soldier);
 			any_strike = any_strike || can_strike_anyone(p_sim, soldier);
 		}
@@ -668,7 +654,7 @@ void attack_with_squad(TacticsSim &p_sim, int p_leader, int p_cause) {
 	}
 	const std::vector<int> threats = find_leader_threats(p_sim, p_leader);
 	const int living_leader = p_sim.get_units()[p_leader].is_alive ? p_leader : NO_UNIT;
-	for (int soldier : soldiers) {
+	for (int soldier : remaining) {
 		if (p_sim.is_finished() || !p_sim.get_units()[soldier].is_alive) {
 			continue;
 		}

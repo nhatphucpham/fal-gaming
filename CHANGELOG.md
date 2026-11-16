@@ -269,6 +269,8 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Fixed
 
+- Chiến Dịch: a wavering soldier now really hesitates, as its card says:
+  it no longer strikes in the phase it wavers.
 - The end screen's portraits cut the unit off at the panel's edge, so its
   legs no longer run behind the star pips.
 - Bosses and the sage no longer redraw 10 times a second while idle, and a

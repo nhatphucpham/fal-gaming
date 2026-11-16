@@ -37,7 +37,7 @@ func _run() -> bool:
 	if not _kit.load_catalog():
 		return false
 	var checks: Array[Callable] = [
-		_check_rescue, _check_rescue_fades, _check_stand, _check_stand_calmed, _check_surge,
+		_check_rescue, _check_rescue_fades, _check_stand, _check_stand_calmed, _check_hesitates, _check_surge,
 		_check_discontent, _check_discontent_calmed, _check_riot, _check_riot_calmed,
 		_check_flee, _check_flee_calmed, _check_betray, _check_betray_calmed, _check_enemy_defects,
 		_check_no_incidents_without_rules, _check_seeds_from_seed, _check_determinism,
@@ -212,6 +212,22 @@ func _check_stand_calmed() -> bool:
 	var events := battle.end_phase()
 	return Kit.expect_true("wavered first", is_wavering) and Kit.expect("calmed", _first(events, &"incident_calmed").get("reason"), &"faded") \
 		and Kit.expect("no incident", Kit.of_type(events, &"incident_fired").size(), 0)
+
+
+# A wavering soldier hesitates: next to two enemies it could hit for free,
+# it neither steps nor strikes in that phase.
+func _check_hesitates() -> bool:
+	var parts := _stand_battle()
+	var battle: TacticsBattle = parts[0]
+	var leader: int = parts[1]
+	var soldier: int = parts[2]
+	_pass_round(battle)
+	var is_wavering: bool = _state(battle, soldier)["wavering"] == &"incident.stand"
+	var cell := Kit.cell_of(battle, soldier)
+	var events := battle.wait(leader)
+	var strikes := Kit.of_type(events, &"engagement_started").filter(func(event: Dictionary) -> bool: return event["unit"] == soldier)
+	return Kit.expect_true("wavered first", is_wavering) and Kit.expect("no strike while wavering", strikes.size(), 0) \
+		and Kit.expect("no step while wavering", Kit.cell_of(battle, soldier), cell)
 
 
 # A comrade next to it falls; it surges, even with its leader beside it.
