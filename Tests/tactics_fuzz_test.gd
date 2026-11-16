@@ -12,7 +12,12 @@ extends SceneTree
 # battle_ended is last, and a replay of the commands gives the same hashes.
 # Strikes (get_strike_cell, then a move there and the attack) land what
 # forecast_move_attack() said; an undo is offered exactly after a plain
-# human move and gives back the hash from before it.
+# human move and gives back the hash from before it, and every query from
+# before it too (units, incident seeds and stages, karma, the report,
+# intents, zones). A second replay leaves out each undone move (and the
+# refused commands between it and its undo): every later command must give
+# the same events and hash, so nothing outside the hash (the incident
+# generator, event ids) differs after an undo either.
 # Every other seed plays with incidents, most soldiers seeded with a random
 # one: the events must account for flights and defections too.
 
@@ -43,6 +48,13 @@ var _zone_count: int = 0
 var _incident_counts: Dictionary = {}
 ## Per leader: the hash before its last accepted move.
 var _move_hashes: Dictionary = {}
+## Per leader: every query's answer before its last accepted move.
+var _move_snapshots: Dictionary = {}
+## Per leader: the command index of its last accepted move.
+var _move_indexes: Dictionary = {}
+## [first, last] command indexes of each undone move and its undo.
+var _undone_spans: Array = []
+var _command_index: int = 0
 var _undos: int = 0
 ## The leader the last command moved, else -1 (an undo is likelier next).
 var _last_moved: int = -1
@@ -93,7 +105,11 @@ func _run_seed() -> void:
 	_apply_model(battle, events)
 	var commands: Array = []
 	var hashes: Array[String] = []
+	var event_texts: Array[String] = []
+	_undone_spans.clear()
+	_move_indexes.clear()
 	while commands.size() < MAX_COMMANDS and not battle.is_finished():
+		_command_index = commands.size()
 		var before := battle.get_state_hash()
 		_check_queries(battle)
 		if battle.get_state_hash() != before:
@@ -107,8 +123,10 @@ func _run_seed() -> void:
 		_check_board(battle)
 		commands.append(command)
 		hashes.append(battle.get_state_hash())
+		event_texts.append(var_to_str(events))
 	if battle.is_finished():
 		_check_nothing_after_end(battle)
+	_replay_without_undone(rows, objective, ai_sides, placements, seeds, commands, hashes, event_texts)
 	var replay := _new_battle(rows, objective, ai_sides)
 	for placement: Array in placements:
 		replay.add_leader(placement[0], placement[1], placement[2])
@@ -119,6 +137,42 @@ func _run_seed() -> void:
 		if replay.get_state_hash() != hashes[index]:
 			_fail("replay differs after command %d %s" % [index, commands[index]])
 			return
+
+
+## Replays the commands without the undone moves (and what lay between each
+## one and its undo): from each undo on, the same events and hashes.
+func _replay_without_undone(rows: PackedStringArray, objective: Vector2i, ai_sides: Array[bool], placements: Array, seeds: Array, commands: Array, hashes: Array[String], event_texts: Array[String]) -> void:
+	if _undone_spans.is_empty():
+		return
+	var skipped: Dictionary = {}
+	for span: Array in _undone_spans:
+		for index: int in range(span[0], span[1] + 1):
+			skipped[index] = true
+	var replay := _new_battle(rows, objective, ai_sides)
+	for placement: Array in placements:
+		replay.add_leader(placement[0], placement[1], placement[2])
+	_apply_incidents(replay, seeds)
+	replay.start()
+	for index: int in commands.size():
+		if skipped.has(index):
+			continue
+		var events := _run(replay, commands[index])
+		if index > _undone_spans[0][1] and (replay.get_state_hash() != hashes[index] or var_to_str(events) != event_texts[index]):
+			_fail("without the undone moves, command %d %s gives other %s" % [index, commands[index], "events" if replay.get_state_hash() == hashes[index] else "hash"])
+			return
+
+
+## Every query's answer that must come back with an undo.
+func _snapshot(battle: TacticsBattle) -> Dictionary:
+	return {
+		"units": var_to_str(battle.get_units()),
+		"zones": var_to_str(battle.get_zones()),
+		"seeds": var_to_str(battle.get_incident_seeds()),
+		"karma": var_to_str([battle.get_karma(TacticsBattle.SIDE_A), battle.get_karma(TacticsBattle.SIDE_B)]),
+		"report": var_to_str(battle.get_battle_report()),
+		"intents": var_to_str(battle.get_enemy_intents()),
+		"round": [battle.get_round(), battle.get_turn(), battle.get_active_side()],
+	}
 
 
 ## On even seeds: incident rules and a random incident on most soldiers;
@@ -349,9 +403,12 @@ func _run_checked(battle: TacticsBattle, command: Array) -> Array:
 		_:
 			expected = is_commandable
 	var hash_before := battle.get_state_hash()
+	var snapshot := _snapshot(battle) if command[0] == &"move" else {}
 	var events := _run(battle, command)
 	if command[0] == &"move" and not events.is_empty():
 		_move_hashes[unit] = hash_before
+		_move_snapshots[unit] = snapshot
+		_move_indexes[unit] = _command_index
 		_last_moved = unit
 		var is_plain := not battle.is_finished() and not battle.is_side_ai(state["side"])
 		for event: Dictionary in events:
@@ -388,6 +445,12 @@ func _run_undo(battle: TacticsBattle, unit: int) -> Array:
 		_undos += 1
 		if battle.get_state_hash() != _move_hashes.get(unit, ""):
 			_fail("undo_move(%d) did not give back the hash before the move" % unit)
+		var before: Dictionary = _move_snapshots.get(unit, {})
+		var after := _snapshot(battle)
+		for key: String in after:
+			if before.get(key) != after[key]:
+				_fail("undo_move(%d) did not give back the %s from before the move" % [unit, key])
+		_undone_spans.append([_move_indexes[unit], _command_index])
 		if battle.can_undo_move(unit):
 			_fail("undo_move(%d) can be taken twice" % unit)
 		_reset_model(battle)

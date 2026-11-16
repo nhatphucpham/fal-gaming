@@ -524,7 +524,9 @@ forecast, skills what `preview_skill()` said, the events account for every cell,
 change, one unit per cell, `battle_ended` last, and a replay gives the
 same hashes; strikes from `get_strike_cell()` land what
 `forecast_move_attack()` said, and an undo is offered exactly after a
-plain human move and gives back the hash before it) and
+plain human move and gives back the hash and every query's answer from
+before it; a second replay that leaves the undone moves out must give the
+same events and hashes afterwards) and
 `Tests/tactics_query_test.gd` (a scenario loaded with
 other squads and refused ones, `can_move` / `can_act`, attack targets, skill
 cells, `preview_skill()` against the real cast for damage and support, the
