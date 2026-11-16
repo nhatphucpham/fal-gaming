@@ -671,7 +671,7 @@ TACTICS_WEATHER_SOON_FORMAT,Vòng tới: %s,Next round: %s
 TACTICS_FOG_LINE,"Sương chiến: chỉ thấy quanh quân ta; ? là chỗ thấy địch lần cuối.","Fog of war: we see only around our troops; ? marks where an enemy was last seen."
 TACTICS_TIP_SELECT,"Tướng đi đâu, toán binh dàn quanh đó.","Where the leader goes, its squad forms up."
 TACTICS_TIP_MOVE,Còn điểm thì đi tiếp. Xong thì bấm Chờ.,Points left? Keep moving. Tap Wait when done.
-TACTICS_TIP_UNDO,Đi nhầm? Hoàn tác lùi từng bước tới khi đánh hay đổi lệnh.,Wrong cell? Undo steps back until you attack or change orders.
+TACTICS_TIP_UNDO,"Đi nhầm? Hoàn tác lùi từng bước tới khi đánh, đổi lệnh hay thấy địch.","Wrong cell? Undo steps back until you attack, change orders or spot an enemy."
 TACTICS_TIP_ORDER,"Đổi lệnh không mất lượt: tướng vẫn đi, đánh được.",Orders are free: the leader can still move and strike.
 TACTICS_TURN_FORMAT,Còn %d/%d điểm đi · %s,%d/%d move points left · %s
 TACTICS_TURN_ATTACK_READY,còn đòn đánh,can strike

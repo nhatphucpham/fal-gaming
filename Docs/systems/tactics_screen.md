@@ -180,7 +180,7 @@ with a bad incident, one line slides up in a
 gold-edged box just above the panel with the text-blip sound, stays 4.5 s
 and fades ("Tướng đi đâu, toán binh dàn quanh đó.", "Còn điểm thì đi
 tiếp. Xong thì bấm Chờ.", "Đi nhầm? Hoàn tác lùi từng bước
-tới khi đánh hay đổi lệnh.", "Đổi lệnh không mất lượt: tướng vẫn đi,
+tới khi đánh, đổi lệnh hay thấy địch.", "Đổi lệnh không mất lượt: tướng vẫn đi,
 đánh được.", "Dấu ! đỏ: binh sắp gây chuyện. Đưa tướng lại gần nó.", or
 for a soldier out of its leader's sight "Binh khuất mắt tướng chỉ yên
 khi tướng thấy nó: đưa tướng tới."; the `TACTICS_TIP_*` rows). A tip that comes while another shows waits for it.

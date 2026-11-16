@@ -45,6 +45,8 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Fixed
 
+- Chiến Dịch: the undo tip says a move that shows an enemy cannot be
+  taken back.
 - Chiến Dịch: the weather and time chip moves to the map's top-left
   corner; it covered the "whole map" button.
 - Chiến Dịch: a leader that has walked all its points with no enemy in
