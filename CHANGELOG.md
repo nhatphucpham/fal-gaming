@@ -77,6 +77,10 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Added
 
+- Chiến Dịch: four one-line tips for a first battle, the first time you
+  select a leader, move one, change an order and see a soldier waver.
+  Each slides in with a sound, fades after a few seconds and is never
+  shown again.
 - Chiến Dịch, Biến cố và Sổ quân: soldiers now have their own minds. A
   few carry a hidden incident; when its moment comes the soldier wavers (a
   gold star or a red "!" over it, and the hint says to bring its leader

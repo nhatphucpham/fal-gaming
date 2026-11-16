@@ -40,6 +40,7 @@ after each command.
   - `tactics_skill_look.gd` (`TacticsSkillLook`),
     `tactics_skill_look_set.gd` (`TacticsSkillLookSet`): skill look data.
   - `tactics_banner.gd` (`TacticsBanner`): "Lượt ta" / "Lượt địch".
+  - `tactics_tip.gd` (`TacticsTip`): the first-time tips over the map.
   - `tactics_text.gd` (`TacticsText`): player-facing names from the catalog,
     plus runtime leaders (`register_unit`) and roster names (`person_names`).
   - `tactics_face.gd` (`TacticsFace`): a soldier's face drawn from its
@@ -144,6 +145,17 @@ Taps (the flow a phone player uses):
 - Tap any unit for its card: hp, a leader's skill and charge, its order
   (an enemy leader's declared intent instead), and its passives and
   keywords with what they do ("Vũ khí dài: Bị áp sát thì ra đòn trước.").
+
+First-time tips: the first time the player selects a leader of ours,
+moves one (a move that can be taken back), changes an order and sees a
+soldier of ours waver with a bad incident, one line slides up in a
+gold-edged box just above the panel with the text-blip sound, stays 4.5 s
+and fades ("Tướng đi đâu, toán binh dàn quanh đó.", "Đi nhầm? Hoàn tác
+được tới khi đánh hay đổi lệnh.", "Đổi lệnh không mất lượt: tướng vẫn đi,
+đánh được.", "Dấu ! đỏ: binh sắp làm loạn, đưa tướng lại sát nó."; the
+`TACTICS_TIP_*` rows). A tip that comes while another shows waits for it.
+Each is saved as shown (`RunSettings.save_seen_tip("tactics.<id>")`) and
+never offered again. Tips never catch taps.
 
 Map camera: it opens at the zoom that fits eight columns across (90 layout
 px a cell, 45 px on a 360-px-wide phone), centred on our leaders; one
@@ -312,7 +324,9 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   ghosts, the forecast against the battle), skills aimed, previewed and
   cast (the preview's damage checked against the cast), the hint of each
   step, and a scripted policy that wins; it counts close-ups and presses
-  the result's button.
+  the result's button. The first select, move and order change each offer
+  their tip once, the shown one with its text, and a new tip view never
+  shows a saved tip again.
 - `Tests/tactics_feel_test.gd`: the default zoom (a cell at least 88
   layout px), an idle map with a leader selected drawing no frame and no
   layer, a one-finger drag through the viewport panning without a redraw

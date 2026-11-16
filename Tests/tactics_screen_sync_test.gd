@@ -42,6 +42,9 @@ var _incident_events: int = 0
 
 func _initialize() -> void:
 	TranslationServer.set_locale("vi")
+	# First-time tips are remembered here, never in the player's settings.
+	RunSettings.path = "user://settings_tactics_screen_sync_test.json"
+	DirAccess.remove_absolute(RunSettings.path)
 	TacticsRoster.path = "user://tactics_roster_sync_test.json"
 	TacticsRoster.delete()
 	OS.add_logger(_errors)

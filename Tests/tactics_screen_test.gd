@@ -11,10 +11,13 @@ extends SceneTree
 # policy (skill when ready, else strike a leader, else a soldier, else
 # march on the nearest enemy leader). Playback runs in instant mode; every
 # close-up is still counted. The result banner's button asks for the title.
+# The first select, move and order change offer their first-time tip once,
+# remembered in the settings.
 
 const SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/river_crossing.tres"
 const MAX_PHASES: int = 40
 const MAX_FRAMES_IDLE: int = 600
+const SETTINGS_PATH: String = "user://settings_tactics_screen_test.json"
 
 var _screen: TacticsScreen
 var _went_home: bool = false
@@ -24,10 +27,13 @@ var _attacks: int = 0
 
 func _initialize() -> void:
 	TranslationServer.set_locale("vi")
+	RunSettings.path = SETTINGS_PATH
+	DirAccess.remove_absolute(SETTINGS_PATH)
 	var ok := await _run()
 	if _screen != null:
 		_screen.queue_free()
 	await process_frame
+	DirAccess.remove_absolute(SETTINGS_PATH)
 	if ok:
 		print("Tactics screen test passed")
 		quit(0)
@@ -50,7 +56,7 @@ func _run() -> bool:
 	await process_frame
 	if not await _idle():
 		return false
-	var checks: Array[Callable] = [_check_start, _check_undo, _check_move, _check_forecast_and_order, _check_battle_to_victory]
+	var checks: Array[Callable] = [_check_start, _check_undo, _check_move, _check_forecast_and_order, _check_tips, _check_battle_to_victory]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Tactics screen test failed in %s" % check.get_method())
@@ -215,6 +221,35 @@ func _check_forecast_and_order() -> bool:
 		push_error("The map should show the flank slots %s, not %s" % [_battle().get_formation_slots(leader), slots])
 		return false
 	return true
+
+
+# The commands above met three tips: the first on screen with its sound
+# and text, the others waiting; each is saved when it shows and a new
+# screen never offers a saved one again.
+func _check_tips() -> bool:
+	var tips := _screen.get_tips()
+	var met: Array = RunSettings.load_seen_tips().map(func(id: String) -> StringName: return StringName(id.trim_prefix(TacticsTip.SETTINGS_PREFIX)))
+	met.append_array(tips.get_pending())
+	if met != [&"select", &"move", &"order"]:
+		push_error("The first select, move and order should each offer their tip once, got %s" % [met])
+		return false
+	if tips.get_shown() == &"select" and tips.get_text() != tr("TACTICS_TIP_SELECT"):
+		push_error("The select tip should read \"%s\", not \"%s\"" % [tr("TACTICS_TIP_SELECT"), tips.get_text()])
+		return false
+	var again := TacticsTip.new()
+	root.add_child(again)
+	again.offer(&"select")
+	var shown := again.get_shown()
+	again.free()
+	if shown != &"":
+		push_error("A tip already shown should not show again")
+		return false
+	return tr("TACTICS_TIP_WAVER") != "TACTICS_TIP_WAVER" or _fail("The waver tip has no text")
+
+
+func _fail(message: String) -> bool:
+	push_error(message)
+	return false
 
 
 func _check_battle_to_victory() -> bool:

@@ -33,6 +33,9 @@ var _close_ups: Array[PackedStringArray] = []
 
 func _initialize() -> void:
 	TranslationServer.set_locale("vi")
+	# First-time tips are remembered here, never in the player's settings.
+	RunSettings.path = "user://settings_tactics_screen_input_test.json"
+	DirAccess.remove_absolute(RunSettings.path)
 	OS.add_logger(_errors)
 	var ok := await _run()
 	if _screen != null:

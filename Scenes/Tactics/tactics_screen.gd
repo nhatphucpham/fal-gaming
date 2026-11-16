@@ -64,6 +64,7 @@ var _text: TacticsText
 var _map: TacticsMapView
 var _panel: TacticsPanel
 var _banner: TacticsBanner
+var _tips: TacticsTip
 var _close_up: TacticsCloseUp
 var _result: ResultBanner
 var _playback: TacticsPlayback
@@ -184,6 +185,7 @@ func select_unit(unit: int) -> void:
 	if _is_commandable(unit):
 		_set_hint(_selected_hint(unit))
 		_panel.show_order_row(state["order"], _text)
+		_tips.offer(&"select")
 	else:
 		_panel.hide_order_row()
 		if state["role"] == &"leader" and state["side"] != player_side:
@@ -330,6 +332,11 @@ func get_retreat_button() -> PressButton:
 	return _retreat_button
 
 
+## The first-time tips over the map.
+func get_tips() -> TacticsTip:
+	return _tips
+
+
 ## The after-battle summary once a campaign battle ended, else null.
 func get_summary() -> TacticsSummaryView:
 	return _summary
@@ -369,6 +376,9 @@ func _build() -> void:
 	_panel.action_pressed.connect(_on_action)
 	_panel.order_chosen.connect(choose_order)
 	add_child(_panel)
+	_tips = TacticsTip.new()
+	_tips.bottom_px = PANEL_PX
+	add_child(_tips)
 	_banner = TacticsBanner.new()
 	add_child(_banner)
 	# A tap anywhere under the top bar skips the step that plays; the bar
@@ -477,6 +487,7 @@ func _after_playback() -> void:
 	else:
 		_go_idle()
 	_update_hold_cells()
+	_offer_tips(keep, was_order)
 	_maybe_auto_end()
 	became_idle.emit()
 
@@ -982,6 +993,17 @@ func _wavering_hint() -> String:
 				return "TACTICS_HINT_WAVERING"
 			hint = "TACTICS_HINT_WAVERING_GOOD"
 	return hint
+
+
+# First-time tips after our command played: the first move that can be
+# taken back, the first order change, the first soldier that wavers badly.
+func _offer_tips(unit: int, was_order: bool) -> void:
+	if _can_undo(unit):
+		_tips.offer(&"move")
+	if was_order:
+		_tips.offer(&"order")
+	if _wavering_hint() == "TACTICS_HINT_WAVERING":
+		_tips.offer(&"waver")
 
 
 # A leader of ours with nothing left to do: it acted, or it moved and has

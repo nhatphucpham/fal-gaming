@@ -161,7 +161,8 @@ file path and otherwise uses the static `RunSave.path`
 (`user://run_save.json`), which only tests change. `RunSettings` (static):
 `load_prep_seconds()`, `save_prep_seconds(seconds)`,
 `next_prep_seconds(seconds)` over 60, 90 and 0 (unlimited), `load_muted()`,
-`save_muted(muted)`. Both settings share `user://settings.json` (a save
+`save_muted(muted)`, `load_seen_tips()` and `save_seen_tip(id)` (the
+first-time tips already shown, as `seen_tips`). The settings share `user://settings.json` (a save
 rewrites the file with the other setting kept); the static
 `RunSettings.path` moves it, and the tests that open screens set it.
 
