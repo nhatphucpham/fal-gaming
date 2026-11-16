@@ -489,7 +489,7 @@ INTENT_SKILL_FORMAT,Ý đồ: dùng %s,Intent: use %s
 INTENT_WAIT,Ý đồ: đứng chờ,Intent: wait
 INTENT_MARCH,Ý đồ: hành quân,Intent: march
 FORECAST_HITS_FORMAT,%d đòn × %d,%d hits × %d
-FORECAST_HP_FORMAT,Máu %d → %d,HP %d → %d
+FORECAST_HP_FORMAT,Máu %d còn %d,HP %d to %d
 FORECAST_NO_COUNTER,Không với tới để phản đòn,Cannot reach to counter
 FORECAST_FIRST_STRIKE_FORMAT,%s ra đòn trước,%s strikes first
 FORECAST_DIES,ngã,falls
@@ -520,7 +520,7 @@ CLOSEUP_FIRST_STRIKE,Ra đòn trước!,First strike!
 CLOSEUP_COUNTER,Phản đòn,Counter
 CLOSEUP_FALLEN,Ngã!,Down!
 FORECAST_SIDE_FORMAT,%s: %s,%s: %s
-SKILL_PREVIEW_HIT_FORMAT,%s −%d → %d,%s −%d → %d
+SKILL_PREVIEW_HIT_FORMAT,%s mất %d còn %d,%s -%d to %d
 TACTICS_TERRAIN_FORMAT,Đứng trên: %s,Standing on: %s
 INCIDENT_RESCUE,Cứu trợ,Rescue
 INCIDENT_RESCUE_DESC,Tướng còn dưới 40% máu và ở gần: lao tới đỡ mọi đòn nhắm vào tướng đến hết lượt địch.,Leader under 40% hp and near: dashes in and takes every hit aimed at the leader until the enemy phase ends.
