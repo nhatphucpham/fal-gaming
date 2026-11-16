@@ -7,7 +7,9 @@ extends SceneTree
 # a hurt leader; a free soldier holding outside a wall of enemies), the
 # leader's strike cell and move-and-attack forecast, taking a move back,
 # and the same hashes for the same commands. Side B is played by hand
-# unless a check says otherwise. Cells are (col, row).
+# unless a check says otherwise. Cells are (col, row). Last, river
+# crossings with every formation order on both sides: no archer or kite
+# scout ever steps next to a living enemy (it cannot shoot it there).
 
 const Kit := preload("res://Tests/tactics_test_kit.gd")
 const MOON_SPEAR: StringName = &"leader.moon_spear"
@@ -39,7 +41,7 @@ func _run() -> bool:
 	var checks: Array[Callable] = [
 		_check_steps_out_and_returns, _check_leash, _check_ranged_rear, _check_focus_kill, _check_no_deadly_strike,
 		_check_vanguard_risks, _check_falls_back, _check_shields_leader, _check_free_wall, _check_strike_cell,
-		_check_undo, _check_undo_refused, _check_determinism,
+		_check_undo, _check_undo_refused, _check_determinism, _check_ranged_keep_clear,
 	]
 	for check: Callable in checks:
 		if not check.call():
@@ -381,3 +383,98 @@ func _check_determinism() -> bool:
 				trail.append(battle.get_state_hash())
 		hashes.append(trail)
 	return Kit.expect("same hashes", hashes[0], hashes[1])
+
+
+# The river crossing, side A marching on the nearest enemy leader and
+# striking when it can, side B the AI, both under each formation order
+# (and the AI's own): a ranged soldier that stood clear of the enemy never
+# ends its step next to a living enemy.
+func _check_ranged_keep_clear() -> bool:
+	var scenario := load("res://Data/Tactics/Scenarios/river_crossing.tres") as TacticsScenarioData
+	var troops: Array = _kit.catalog.troops
+	for order: StringName in [&"order.follow", &"order.vanguard", &"order.flank"]:
+		for seed_value: int in range(1, 6):
+			var rng := RandomNumberGenerator.new()
+			rng.seed = seed_value
+			var battle := TacticsBattle.new()
+			battle.set_side_ai(B, true)
+			var squads: Array = []
+			for leader: TacticsLeaderData in scenario.leaders_a:
+				var squad: Array[TacticsTroopData] = []
+				for slot: int in leader.lead_capacity:
+					squad.append(troops[rng.randi_range(0, troops.size() - 1)])
+				squads.append(squad)
+			if not battle.load_scenario_with_squads(scenario, A, squads):
+				battle.free()
+				return Kit.expect_true("the river crossing loads", false)
+			battle.start()
+			for unit: Dictionary in battle.get_units():
+				if unit["role"] == &"leader" and unit["side"] == A:
+					battle.set_order(unit["index"], order)
+			for command: int in 200:
+				if battle.is_finished():
+					break
+				var before := battle.get_units()
+				var leader := _next_leader(battle)
+				if leader >= 0:
+					_march_and_strike(battle, leader)
+				else:
+					battle.end_phase()
+				var where := "%s seed %d round %d" % [order, seed_value, battle.get_round()]
+				if not _ranged_kept_clear(before, battle.get_units(), where):
+					battle.free()
+					return false
+			battle.free()
+	return true
+
+
+func _next_leader(battle: TacticsBattle) -> int:
+	for unit: Dictionary in battle.get_units():
+		if unit["role"] == &"leader" and unit["side"] == A and battle.can_act(unit["index"]):
+			return unit["index"]
+	return -1
+
+
+func _march_and_strike(battle: TacticsBattle, leader: int) -> void:
+	var targets := battle.get_strike_targets(leader)
+	if not targets.is_empty():
+		var cell := battle.get_strike_cell(leader, targets[0])
+		if cell != Kit.cell_of(battle, leader):
+			battle.move_leader(leader, cell)
+		if not battle.is_finished() and battle.get_attack_targets(leader).has(targets[0]):
+			battle.attack(leader, targets[0])
+			return
+	else:
+		var here := Kit.cell_of(battle, leader)
+		var goal := here
+		for unit: Dictionary in battle.get_units():
+			if unit["alive"] and unit["side"] == B and unit["role"] == &"leader" and (goal == here or _distance(unit["cell"], here) < _distance(goal, here)):
+				goal = unit["cell"]
+		var best := here
+		for cell: Vector2i in battle.get_reachable_cells(leader):
+			if _distance(cell, goal) < _distance(best, goal):
+				best = cell
+		if best != here:
+			battle.move_leader(leader, best)
+	if not battle.is_finished() and battle.can_act(leader):
+		battle.wait(leader)
+
+
+# An enemy stands next to `unit` (one that `before` puts on the same cell
+# when given: an enemy pushed there afterwards is not the soldier's doing).
+static func _next_to_enemy(units: Array, unit: Dictionary, before: Array = []) -> bool:
+	for other: Dictionary in units:
+		var has_stayed: bool = before.is_empty() or before[other["index"]]["cell"] == other["cell"]
+		if other["alive"] and other["side"] != unit["side"] and _distance(other["cell"], unit["cell"]) == 1 and has_stayed:
+			return true
+	return false
+
+
+static func _ranged_kept_clear(before: Array, after: Array, where: String) -> bool:
+	for unit: Dictionary in after:
+		var was: Dictionary = before[unit["index"]]
+		if unit["role"] != &"soldier" or not unit["alive"] or not (unit["is_ranged"] or int(unit["max_range"]) > 1) or unit["cell"] == was["cell"]:
+			continue
+		if was["side"] == unit["side"] and not _next_to_enemy(before, was) and _next_to_enemy(after, unit, before):
+			return Kit.expect_true("%s: ranged soldier %d stepped next to an enemy (%s -> %s, hp %d/%d, leader %s, holds %s, free %s)" % [where, unit["index"], was["cell"], unit["cell"], unit["hp"], unit["max_hp"], after[unit["leader"]]["cell"] if unit["leader"] >= 0 else "-", unit["holds_ground"], unit["acts_free"]], false)
+	return true

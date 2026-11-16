@@ -242,6 +242,11 @@ use the same rules. All numbers are in `TacticsRulesData` (above).
   soldier walks to its slot, or to the reachable free cell nearest it; on a
   tie the better terrain (`get_terrain_fit`: +3 range bonus for ranged, +2
   or +1 less ranged damage, +2 armor, -3 more damage taken) wins.
+- Ranged keep clear: a ranged soldier never steps onto a cell next to a
+  living enemy (it cannot shoot an enemy there and is struck for free),
+  unless the strike from that cell kills the only enemy beside it. Its
+  slot, a step-out strike and a free soldier's approach all skip such
+  cells; with no other cell it stays where it is.
 - Stepping out (follow, vanguard, flank): a soldier may stop on any
   reachable cell within its order's leash of the leader (2, 4, 4 cells)
   to make a favourable strike. It prefers its slot cell, then a kill, then

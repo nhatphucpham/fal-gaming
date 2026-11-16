@@ -269,6 +269,9 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Fixed
 
+- Chiến Dịch: archers and kite scouts no longer walk up next to an enemy
+  (where they cannot shoot and get cut down) to take a shot or to keep
+  their place beside an engaged leader.
 - Chiến Dịch: a wavering soldier now really hesitates, as its card says:
   it no longer strikes in the phase it wavers.
 - The end screen's portraits cut the unit off at the panel's edge, so its

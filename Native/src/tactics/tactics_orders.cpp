@@ -263,6 +263,33 @@ bool has_target_from(const TacticsSim &p_sim, int p_unit, const Cell &p_cell) {
 	return false;
 }
 
+// A ranged soldier next to a living enemy cannot shoot it and is struck
+// for free: it never steps onto such a cell. p_spared is an enemy the
+// strike from there kills (it no longer counts).
+bool is_exposed(const TacticsSim &p_sim, int p_soldier, const Cell &p_cell, int p_spared) {
+	if (!is_ranged(p_sim, p_soldier)) {
+		return false;
+	}
+	const int side = p_sim.get_units()[p_soldier].side;
+	for (const UnitState &unit : p_sim.get_units()) {
+		if (unit.is_alive && unit.side != side && unit.index != p_spared && p_sim.is_on_map(unit.cell) && get_manhattan(unit.cell, p_cell) == 1) {
+			return true;
+		}
+	}
+	return false;
+}
+
+// The strikes that do not leave a ranged soldier next to an enemy.
+std::vector<Strike> drop_exposed(const TacticsSim &p_sim, int p_soldier, const std::vector<Strike> &p_strikes) {
+	std::vector<Strike> kept;
+	for (const Strike &strike : p_strikes) {
+		if (!is_exposed(p_sim, p_soldier, strike.cell, strike.result.is_defender_dead ? strike.target : NO_UNIT)) {
+			kept.push_back(strike);
+		}
+	}
+	return kept;
+}
+
 int get_reach_at(const SquadContext &p_context, const TacticsSim &p_sim, const Cell &p_cell) {
 	return p_context.reach.empty() ? 0 : p_context.reach[p_sim.get_cell_index(p_cell)];
 }
@@ -318,11 +345,13 @@ void move_in_formation(TacticsSim &p_sim, const SquadContext &p_context, int p_s
 		fall_back(p_sim, p_context, p_soldier, field, p_slot, p_cause);
 		return;
 	}
-	// The slot, or the nearest free cell to it, the better terrain on a tie.
+	// The slot, or the nearest free cell to it, the better terrain on a tie;
+	// a ranged soldier keeps clear of enemies (its own cell always is).
 	const Cell slot_cell = pick_reachable_cell(p_sim, p_soldier, field, [&](const Cell &p_cell) {
-		return get_manhattan(p_cell, p_slot) * CELL_WEIGHT - get_terrain_fit(p_sim, p_soldier, p_cell);
+		const int exposed = is_exposed(p_sim, p_soldier, p_cell, NO_UNIT) ? FAR_PENALTY : 0;
+		return exposed + get_manhattan(p_cell, p_slot) * CELL_WEIGHT - get_terrain_fit(p_sim, p_soldier, p_cell);
 	});
-	const std::vector<Strike> strikes = list_strikes(p_sim, p_soldier, field, [&](const Cell &p_cell) { return is_in_leash(p_context, p_cell); });
+	const std::vector<Strike> strikes = drop_exposed(p_sim, p_soldier, list_strikes(p_sim, p_soldier, field, [&](const Cell &p_cell) { return is_in_leash(p_context, p_cell); }));
 	const Strike *best = pick_strike(strikes, [&](const Strike &p_strike) {
 		return std::vector<int>{
 			p_strike.cell == slot_cell ? 0 : 1,
@@ -410,7 +439,7 @@ void move_free(TacticsSim &p_sim, const SquadContext &p_context, int p_soldier, 
 		return;
 	}
 	const int answer = find_enemy_to_answer(p_sim, p_soldier);
-	const std::vector<Strike> strikes = list_strikes(p_sim, p_soldier, field, [](const Cell &) { return true; });
+	const std::vector<Strike> strikes = drop_exposed(p_sim, p_soldier, list_strikes(p_sim, p_soldier, field, [](const Cell &) { return true; }));
 	const Strike *best = pick_strike(strikes, [&](const Strike &p_strike) {
 		return std::vector<int>{
 			p_strike.result.is_defender_dead ? 0 : 1,
@@ -437,7 +466,8 @@ void move_free(TacticsSim &p_sim, const SquadContext &p_context, int p_soldier, 
 	const Cell cell = pick_reachable_cell(p_sim, p_soldier, field, [&](const Cell &p_cell) {
 		const int reach = get_reach_at(p_context, p_sim, p_cell);
 		const bool is_walled = reach >= limit && reach > count_allies_near(p_sim, p_soldier, p_cell);
-		return (is_walled ? FAR_PENALTY : 0) + distance[p_sim.get_cell_index(p_cell)];
+		const bool is_unsafe = is_walled || is_exposed(p_sim, p_soldier, p_cell, NO_UNIT);
+		return (is_unsafe ? FAR_PENALTY : 0) + distance[p_sim.get_cell_index(p_cell)];
 	});
 	walk_to(p_sim, p_soldier, field, cell, p_cause);
 }
