@@ -159,7 +159,7 @@ attacks that killed or dealt more than they took
 change to the soldiers' rules or `Data/Tactics/Rules/tactics_rules.tres`:
 
 ```
-godot --headless --path . --script res://Tools/tactics_brain_probe.gd -- --battles=200
+godot --headless --path . --script res://Tools/tactics_brain_probe.gd -- --battles=200 [--scenario=night_raid] [--policy=idle] [--no-fog]
 ```
 
 ## Balance bot

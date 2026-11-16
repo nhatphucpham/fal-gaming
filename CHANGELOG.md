@@ -7,6 +7,37 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ## Unreleased
 
+### Added
+
+- Chiến Dịch: fog of war. Each side sees only around its units (further
+  from hills, not through woods and hills); cells you saw stay dimmed,
+  cells never seen stay dark. Enemies you do not see are not drawn, their
+  intents are hidden, and a dimmed "?" token marks where you last saw one.
+  Enemies in woods are hidden unless you stand next to them or a scout
+  sees them. Walking into a hidden enemy stops you short: an ambush. A
+  move that shows an enemy cannot be taken back. The enemy plays by the
+  same sight.
+- Chiến Dịch: scouts (kite scouts, Liễu Mi) see further, see hidden
+  units and read enemy intents nearby even at night.
+- Chiến Dịch: weather (clear, rain, fog, wind) and times of day (day,
+  dusk, night) from the scenario, shown on the muster and on the map with
+  their icons; a tap says what they do. The weather may turn once, with a
+  banner a round ahead. Night darkens the map except around camps,
+  villages and leaders.
+- Chiến Dịch: soldiers out of their leader's sight are likelier to flee
+  or betray, more so at night and in fog, and cannot be calmed until the
+  leader sees them again; a mark on the edge of the map points at a
+  wavering soldier you cannot see.
+- Chiến Dịch: a second battle, "Đột kích đêm" (night raid): through the
+  woods and over a ford to a lit enemy camp, in fog that turns to rain,
+  with its own soldiers. The campaign alternates it with the river
+  crossing.
+
+### Changed
+
+- Chiến Dịch: the river crossing is played with fog of war in clear
+  daylight, and a third enemy leader, Lang Vương, holds its fort.
+
 ### Fixed
 
 - Chiến Dịch: Liễu Mi's wind trail is laid once a phase where she stops;

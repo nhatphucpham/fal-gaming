@@ -166,7 +166,14 @@ Keyword `amount` is 0..1000 and `min_cells` 0..20.
 `facing_a`/`_b` (initial heading), `guard_cells` (posts the side defending
 the objective holds; on the map, checked on load). `TacticsScenarioData`
 (`Data/Tactics/Scenarios/`): `rules`, `map`, `leaders_a`, `leaders_b`
-placed on the spawn cells in order. Sample: `scenario.river_crossing`.
+placed on the spawn cells in order (side A with the scenario's
+`supplied_troops` when it gives them), and the environment: fog of war,
+weather and times of day (see [Tactics vision](tactics_vision.md)).
+Scenarios: `scenario.river_crossing` (clear day, fog of war on; three enemy
+leaders, Lang Vương the third) and `scenario.night_raid` (woods and a ford
+to a lit camp; night from round 1, dusk from round 5, day from round 9; fog
+turning to rain in round 5; three kite scouts among its supplied
+soldiers).
 
 ## Rules
 
@@ -338,6 +345,10 @@ use the same rules. All numbers are in `TacticsRulesData` (above).
   that can reach it next phase, then the best trade, the lowest hp, the
   lower index. It never takes a fight that kills it without killing,
   except under `vanguard`, which risks its soldiers.
+
+Since fog of war (milestone 4) the probe plays by sight and takes
+`--scenario=`; see [Tactics vision](tactics_vision.md), Balance, for the
+current numbers. The numbers below are from before it.
 
 The probe `Tools/tactics_brain_probe.gd` plays seeded river crossings
 (side A scripted with random squads and orders: each leader walks to the

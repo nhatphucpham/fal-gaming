@@ -198,7 +198,40 @@ to the first one.
 
 Campaign flow: muster (roster soldiers fill the squads; named soldiers are
 extra leaders of ours, returning traitors extra enemy leaders) → battle →
-summary (also after a retreat) → "Tiếp tục" back to the muster.
+summary (also after a retreat) → "Tiếp tục" back to the muster. The
+campaign takes the catalog's scenarios in turn, one per battle fought:
+the river crossing, then the night raid, then the river again.
+
+Fog, weather and night (see [Tactics vision](tactics_vision.md)):
+
+- One `TextureRect` over the terrain and under the zones and marks holds an
+  `ImageTexture` of one pixel a cell, drawn with linear filtering so the
+  edges are soft: never-seen cells near black, seen ones dimmed, visible
+  ones clear; at dusk and night the visible cells take the night tint
+  (`darkness_pct`) except the lit ones, which glow warm. A change blends
+  the old colours to the new over 0.35 s (one texture write a frame while
+  it lasts, `fog_change_count` blends) with the soft `fog_reveal` sound;
+  nothing is written while nothing changes. No shader, no node per cell.
+- Hidden enemies have no piece shown; one seen walking out of sight fades
+  at the end of its walk, and a hidden enemy's move plays at once. A
+  "last seen" ghost (a dimmed token with "?") stands where the battle
+  remembers each enemy; it goes when that enemy is seen again or its cell
+  is seen empty.
+- An ambush: the hidden enemy bursts into sight with a ring and "Phục
+  kích!", the walker shakes, sound `ambush`; the camera follows.
+- A wavering soldier of ours out of view gets a mark on the edge of the
+  map view pointing at it; its card says when it is out of its leader's
+  sight ("Ngoài tầm mắt tướng: để dao động, chưa trấn an được").
+- The weather and time chip (top right of the map, 132 x 88): their icons;
+  a tap shows both descriptions, the coming weather change and the fog
+  line on the panel. A round before the weather turns, a banner says so;
+  each change of weather or time plays a banner with its one-line
+  description (wrapped onto a taller band when it does not fit) and the
+  `weather_turn` sound.
+- The first battle with fog offers the fog tip ("Ô tối: chưa thấy...").
+- Muster: a "Trời đất" panel under our forces with the weather and time
+  icons and lines, the weather change, the time cycle, the fog line and
+  the scouts we bring; scouts carry an eye badge on their chips.
 
 ## Public API
 
