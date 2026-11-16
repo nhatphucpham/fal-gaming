@@ -106,11 +106,16 @@ bool is_guard_side(const TacticsSim &p_sim, int p_side) {
 	return p_sim.get_map().has_objective && p_sim.get_map().objective_side != p_side;
 }
 
-// The guard side has grown strong enough to leave its posts.
+// The guard side has grown strong enough to leave its posts. Under fog it
+// weighs the enemies it sees or remembers; seeing none, it does not know
+// it is stronger and keeps its posts.
 bool is_advancing(const TacticsSim &p_sim, int p_side) {
 	const Rules &rules = p_sim.get_rules();
 	const int ours = sum_strength(p_sim, p_side, p_side, NO_CELL, -1);
 	const int theirs = sum_strength(p_sim, p_side, 1 - p_side, NO_CELL, -1);
+	if (theirs == 0 && p_sim.has_fog_of_war()) {
+		return false;
+	}
 	return static_cast<int64_t>(ours) * 100 >= static_cast<int64_t>(theirs) * rules.ai_advance_ratio_pct;
 }
 
