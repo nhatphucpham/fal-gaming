@@ -78,6 +78,7 @@ func _check_scenario_squads() -> bool:
 	]) and Kit.expect("Lạc Hồng capacity", lac_hong["capacity"], 5) \
 		and Kit.expect("side B keeps its squads", _squads_of(battle, B), [
 			[&"troop.rider", &"troop.rider", &"troop.swordsman"], [&"troop.spearman", &"troop.archer", &"troop.kite_scout"],
+			[&"troop.shieldman", &"troop.spearman", &"troop.archer", &"troop.spearman"],
 		]) and Kit.expect("starts", battle.start()[0]["type"], &"battle_started")
 
 

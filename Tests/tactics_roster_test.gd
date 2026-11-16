@@ -43,7 +43,7 @@ func _run() -> bool:
 		_check_save_round_trip, _check_bad_saves, _check_muster_fill, _check_report, _check_naming, _check_biography_battles,
 		_check_named_leader, _check_traitor_returns, _check_karma_carry, _check_real_battle,
 		_check_atomic_save, _check_unreadable_kept, _check_unique_names, _check_named_leader_dies, _check_all_named,
-		_check_leader_cap, _check_long_campaign,
+		_check_leader_cap, _check_long_campaign, _check_next_scenario,
 	]
 	for check: Callable in checks:
 		if not check.call():
@@ -238,7 +238,7 @@ func _check_named_leader() -> bool:
 
 
 # A spearman goes over to the enemy with two marks; the next river crossing
-# has him as a third enemy leader, with a record the report gives back.
+# has him as a fourth enemy leader, with a record the report gives back.
 func _check_traitor_returns() -> bool:
 	var roster := TacticsRoster.create(17)
 	var campaign := TacticsCampaign.new(roster, _catalog, _scenario)
@@ -254,7 +254,7 @@ func _check_traitor_returns() -> bool:
 	battle.start()
 	var report := battle.get_battle_report()
 	var entry: Dictionary = report["units"].filter(func(unit: Dictionary) -> bool: return unit["id"] == enemy.id)[0]
-	return _expect("status", traitor["status"], "traitor") and _expect("third enemy leader", again.scenario.leaders_b.size(), 3) \
+	return _expect("status", traitor["status"], "traitor") and _expect("fourth enemy leader", again.scenario.leaders_b.size(), 4) \
 		and _expect("named on return", traitor["is_named"], true) and _expect("enemy side", entry["side"], 1) and _expect("record", entry["record_id"], traitor["id"]) \
 		and _expect("his squad", enemy.squad.size(), 2) and _expect("his keywords", enemy.keywords, _catalog.get_troop(SPEARMAN).keywords)
 
@@ -455,3 +455,33 @@ func _check_long_campaign() -> bool:
 	print("Tactics roster test: after 100 battles %d people, %d bytes" % [roster.people.size(), bytes])
 	return _expect("battles", roster.battles, 100) and _expect("unmarked fallen kept", unmarked_fallen.size() <= TacticsRoster.UNMARKED_FALLEN_KEPT + slots, true) \
 		and _expect("people bounded", roster.people.size() < 120, true) and _expect("file under 32 KB", bytes < 32768, true)
+
+
+# The campaign takes the catalog's scenarios in turn, one per battle fought:
+# the river crossing, then the night raid with the soldiers it supplies
+# (scouts among them), then the river again.
+func _check_next_scenario() -> bool:
+	var roster := TacticsRoster.create(41)
+	var ids: Array[StringName] = []
+	for battles: int in 3:
+		roster.battles = battles
+		ids.append(TacticsCampaign.next_scenario(roster, _catalog).id)
+	roster.battles = 1
+	var night := TacticsCampaign.new(roster, _catalog, TacticsCampaign.next_scenario(roster, _catalog))
+	var supplied: Array[StringName] = []
+	for squad: Array in night.squads:
+		for troop: TacticsTroopData in squad:
+			supplied.append(troop.id)
+	var expected: Array[StringName] = []
+	var base := night.scenario
+	for slot: int in base.supplied_sizes.size():
+		for troop: TacticsTroopData in base.get_squad(0, slot):
+			expected.append(troop.id)
+	var battle := _battle_for(night)
+	if not night.prepare_battle(battle, night.people):
+		return false
+	battle.start()
+	return _expect("in turn", ids, [&"scenario.river_crossing", &"scenario.night_raid", &"scenario.river_crossing"]) \
+		and _expect("the supplied soldiers fill the squads", supplied, expected) \
+		and _expect("scouts are supplied", supplied.count(&"troop.kite_scout"), 3) \
+		and _expect("the night raid has fog, night and fog weather", [battle.has_fog_of_war(), battle.get_daytime_id(1), battle.get_weather_id(1), battle.get_weather_id(base.weather_change_round)], [true, &"daytime.night", &"weather.fog", &"weather.rain"])

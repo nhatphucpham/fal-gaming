@@ -335,7 +335,10 @@ func _check_fog_weather() -> bool:
 	_kit.add(battle, A, _leader(MOON_SPEAR), Vector2i(0, 5))
 	_kit.add(battle, B, _leader(THIET_NHA), Vector2i(11, 11))
 	battle.start()
-	return Kit.expect("sight 3", _visible(battle, [Vector2i(3, 5), Vector2i(4, 5)]), [true, false])
+	# A leader sees 5 cells; fog takes its vision_delta off (the data's).
+	var sight: int = 5 + _kit.catalog.get_weather(&"weather.fog").vision_delta
+	return Kit.expect_true("fog shortens sight", sight < 5) \
+		and Kit.expect("sight %d" % sight, _visible(battle, [Vector2i(sight, 5), Vector2i(sight + 1, 5)]), [true, false])
 
 
 # Rain halves what a fire zone burns.
@@ -361,8 +364,8 @@ func _check_burn_in_rain() -> bool:
 		and Kit.expect("half in rain", hp[1], hp[0] * 50 / 100)
 
 
-# Night: vision -3, but lit cells (around villages and leaders) are seen
-# as far as by day.
+# Night: vision shorter by the night's vision_delta, but lit cells (around
+# villages and leaders) are seen as far as by day.
 func _check_night_and_lights() -> bool:
 	var night: Array[StringName] = [&"daytime.night"]
 	var battle := _battle(_rows({5: "....v......."}), _env(true, &"weather.clear", night))
@@ -370,7 +373,9 @@ func _check_night_and_lights() -> bool:
 	var lit_leader := _kit.add(battle, B, _leader(THIET_NHA), Vector2i(0, 9))
 	battle.start()
 	var lit := battle.get_lit_cells()
-	return Kit.expect("night sight 2 off the light", _visible(battle, [Vector2i(2, 5), Vector2i(0, 3), Vector2i(0, 2)]), [true, true, false]) \
+	var sight: int = 5 + _kit.catalog.get_daytime(&"daytime.night").vision_delta
+	return Kit.expect_true("night shortens sight below the village", sight < 4) \
+		and Kit.expect("night sight %d off the light" % sight, _visible(battle, [Vector2i(0, 5 - sight), Vector2i(0, 4 - sight)]), [true, false]) \
 		and Kit.expect("lit village seen", _visible(battle, [Vector2i(3, 5), Vector2i(4, 5), Vector2i(7, 5)]), [true, true, false]) \
 		and Kit.expect("village and leader lights", [lit[5 * 12 + 6], lit[9 * 12 + 0], lit[0]], [1, 1, 0]) \
 		and Kit.expect("enemy leader seen by its own torch", battle.is_unit_seen(A, lit_leader), true)

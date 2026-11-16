@@ -33,6 +33,8 @@ class ErrorLog extends Logger:
 var _errors := ErrorLog.new()
 var _screen: TacticsScreen
 var _taps: int = 0
+## Taps that closed a leader that struck with move points left.
+var _closing_taps: int = 0
 
 
 func _initialize() -> void:
@@ -432,6 +434,10 @@ func _play_our_turn() -> bool:
 			return true
 		if _battle().can_act(leader) and _screen.get_selected() == leader and _screen.get_map().get_piece(leader).is_done == false:
 			_taps += 1
+			# A leader that struck with move points left may still walk
+			# (the open turn): closing it is one more tap.
+			if _battle().has_attacked(leader) and _battle().can_move(leader):
+				_closing_taps += 1
 			_screen.press_button(&"wait")
 			if not await _wait_idle():
 				return false
@@ -470,17 +476,25 @@ func _check_tap_count() -> bool:
 			if _battle().get_strike_targets(leader).is_empty():
 				all_strike = false
 		_taps = 0
+		_closing_taps = 0
 		var round_number := _battle().get_round()
+		# Under fog a strike's walk may stop at a hidden enemy (an ambush):
+		# that turn is not a plain three-strike turn.
+		var ambushes := [0]
+		var count_ambush := func(type: StringName) -> void: ambushes[0] += 1 if type == &"ambushed" else 0
+		_screen.get_playback().step_started.connect(count_ambush)
 		if not await _play_our_turn():
 			return false
+		_screen.get_playback().step_started.disconnect(count_ambush)
+		all_strike = all_strike and ambushes[0] == 0
 		for frame: int in MAX_FRAMES:
 			if _battle().is_finished() or (_battle().get_round() > round_number and _battle().get_active_side() == 0 and not _screen.is_busy()):
 				break
 			await process_frame
-		print("Round %d: %d leaders, %s, %d taps for the whole turn" % [round_number, leaders.size(), "each strikes" if all_strike else "some only walk", _taps])
+		print("Round %d: %d leaders, %s, %d taps for the whole turn%s" % [round_number, leaders.size(), "each strikes" if all_strike else "some only walk", _taps, ", ambushed" if ambushes[0] > 0 else ""])
 		if all_strike:
-			if _taps != 9:
-				push_error("Three move-and-attack orders should take 9 taps, took %d" % _taps)
+			if _taps != 9 + _closing_taps:
+				push_error("Three move-and-attack orders should take 9 taps (and %d to close leaders with points left), took %d" % [_closing_taps, _taps])
 				return false
 			return true
 	print("No turn had all three leaders able to strike; counts above")
