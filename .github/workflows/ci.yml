@@ -159,6 +159,8 @@ jobs:
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/tactics_screen_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/tactics_screen_sync_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/tactics_screen_input_test.gd
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/tactics_brain_test.gd
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/tactics_feel_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/muster_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --quit-after 2
       - name: Install a virtual display
@@ -290,6 +292,15 @@ jobs:
           test -s build/web/index.html
           test -s build/web/index.wasm
           find build/web -name 'libfalemag.web.template_release.wasm32.nothreads.wasm' | grep -q .
+          # A reload must fetch this build, not one a cache kept: the page
+          # loads index.js, the wasm files and index.pck with ?v=<commit>,
+          # and drops stale service workers and caches when version.txt
+          # names another build. The tool exits non-zero when Godot's page
+          # does not look as it expects; the checks below make sure.
+          python3 Tools/web_cache_bust.py build/web "$GITHUB_SHA"
+          grep -q "<script src=\"index.js?v=$GITHUB_SHA\"></script>" build/web/index.html
+          grep -q "var build = \"$GITHUB_SHA\"" build/web/index.html
+          test "$(cat build/web/version.txt)" = "$GITHUB_SHA"
           du -sh build/web
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
