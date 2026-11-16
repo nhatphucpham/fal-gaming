@@ -101,16 +101,29 @@ func _check_unknown_id() -> bool:
 	return true
 
 
-# The same id twice at once plays once; spaced past the cooldown it stacks
-# up to four voices and no more.
+# The same id twice at once plays once, and once more just inside the
+# cooldown; spaced by the cooldown it stacks up to four voices and no more.
+# The service's clock is held by the test: real waits made this flaky on a
+# loaded machine (a preempted test saw 2 voices "at once", or a slow timer
+# let the 1 s sound end before the fourth voice).
 func _check_limits() -> bool:
+	var now: Array[int] = [Time.get_ticks_msec()]
+	_audio.clock_msec = func() -> int: return now[0]
+	var ok := _limits_hold(now)
+	_audio.clock_msec = Time.get_ticks_msec
+	return ok
+
+
+func _limits_hold(now: Array[int]) -> bool:
 	Sound.play(&"win")
+	Sound.play(&"win")
+	now[0] += AudioService.COOLDOWN_MSEC - 1
 	Sound.play(&"win")
 	if _audio.count_voices(&"win") != 1:
 		push_error("The cooldown should stop a second voice at once, got %d" % _audio.count_voices(&"win"))
 		return false
 	for attempt: int in 6:
-		await create_timer(float(AudioService.COOLDOWN_MSEC + 15) / 1000.0).timeout
+		now[0] += AudioService.COOLDOWN_MSEC
 		Sound.play(&"win")
 	var voices := _audio.count_voices(&"win")
 	if voices != AudioService.MAX_VOICES_PER_ID:

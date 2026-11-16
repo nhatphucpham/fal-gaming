@@ -73,6 +73,7 @@ write it, so the loops are WAV. The files are tracked with Git LFS.
 | `Sound.play_music(id)` | static | Starts a loop; `&""` stops it. |
 | `Sound.set_battle_speed(speed)`, `Sound.toggle_muted() -> bool`, `Sound.is_muted()`, `Sound.unlock()`, `Sound.is_unlocked()` | static | |
 | `AudioService.count_voices(id)`, `get_music_id()`, `set_bank(bank)`, `set_muted(muted)` | methods | For tests. |
+| `AudioService.clock_msec` | property | The milliseconds the cooldown is measured in (`Time.get_ticks_msec`); the test holds it still. |
 
 Presentation code calls `Sound`, not `Audio`: scripts run with `--script`
 (the tests) do not know autoload names when they compile.
@@ -86,7 +87,8 @@ can be dropped in `Assets/Sfx/` and listed in the bank instead.
 ## Tests
 
 `Tests/audio_test.gd`: the bank (24 + 2, looping music), an unknown id
-warning once, the cooldown and voice limit, the web lock, mute saved and
+warning once, the cooldown and voice limit (on a clock the test holds, so
+a loaded machine cannot break it), the web lock, mute saved and
 read back (to a test settings file). Nobody has listened to the sounds; the
 generator's output was checked by header, length, peak and silence only.
 
