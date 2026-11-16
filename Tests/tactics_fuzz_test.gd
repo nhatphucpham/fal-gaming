@@ -10,6 +10,9 @@ extends SceneTree
 # preview_skill() said, the
 # events account for every cell, hp and charge change, one unit per cell,
 # battle_ended is last, and a replay of the commands gives the same hashes.
+# Strikes (get_strike_cell, then a move there and the attack) land what
+# forecast_move_attack() said; an undo is offered exactly after a plain
+# human move and gives back the hash from before it.
 # Every other seed plays with incidents, most soldiers seeded with a random
 # one: the events must account for flights and defections too.
 
@@ -38,6 +41,12 @@ var _model: Dictionary = {}
 var _zone_count: int = 0
 ## Incident events seen over all seeds, by type.
 var _incident_counts: Dictionary = {}
+## Per leader: the hash before its last accepted move.
+var _move_hashes: Dictionary = {}
+var _undos: int = 0
+## The leader the last command moved, else -1 (an undo is likelier next).
+var _last_moved: int = -1
+var _strikes: int = 0
 
 
 func _initialize() -> void:
@@ -53,7 +62,7 @@ func _initialize() -> void:
 	Engine.print_error_messages = true
 	for failure: String in _failures.slice(0, 20):
 		printerr("Tactics fuzz test: %s" % failure)
-	print("Tactics fuzz test: incident events %s" % _incident_counts)
+	print("Tactics fuzz test: incident events %s, %d strikes, %d undos" % [_incident_counts, _strikes, _undos])
 	if _incident_counts.get(&"incident_fired", 0) == 0:
 		_failures.append("no incident fired on any seed")
 	if _failures.is_empty():
@@ -91,7 +100,7 @@ func _run_seed() -> void:
 			_fail("queries changed the hash before command %d" % commands.size())
 		var command := _pick_command(battle)
 		events = _run_checked(battle, command)
-		if events.is_empty() and battle.get_state_hash() != before:
+		if events.is_empty() and battle.get_state_hash() != before and command[0] != &"undo":
 			_fail("refused %s changed the hash" % [command])
 		_check_events(battle, events)
 		_apply_model(battle, events)
@@ -213,6 +222,10 @@ func _unit_at(battle: TacticsBattle, cell: Vector2i) -> int:
 ## A command for a random leader of the active side (now and then another
 ## unit, a dead leader or a cell off the map), mostly picked from queries.
 func _pick_command(battle: TacticsBattle) -> Array:
+	var moved := _last_moved
+	_last_moved = -1
+	if moved >= 0 and _rng.randf() < 0.3:
+		return [&"undo", moved, null]
 	var leaders: Array[int] = []
 	for unit: Dictionary in battle.get_units():
 		if unit["role"] == &"leader" and unit["side"] == battle.get_active_side() and (unit["alive"] or _rng.randf() < 0.1):
@@ -244,9 +257,15 @@ func _pick_command(battle: TacticsBattle) -> Array:
 			if unit["alive"] and absi(cell.x - own.x) + absi(cell.y - own.y) <= 4:
 				cells.append(cell)
 		return [&"skill", leader, cells[_rng.randi_range(0, cells.size() - 1)] if _rng.randf() < 0.85 else off_map]
-	if roll < 0.75:
+	if roll < 0.69:
 		return [&"wait", leader, null]
-	if roll < 0.8:
+	if roll < 0.71:
+		return [&"undo", leader, null]
+	if roll < 0.79 and is_leader:
+		var strike_targets: Array = battle.get_strike_targets(leader)
+		var target: int = strike_targets[_rng.randi_range(0, strike_targets.size() - 1)] if not strike_targets.is_empty() else any_unit
+		return [&"strike", leader, target, battle.get_strike_cell(leader, target)]
+	if roll < 0.83:
 		return [&"order", leader, ORDERS[_rng.randi_range(0, ORDERS.size() - 1)]]
 	return [&"end_phase", -1, null]
 
@@ -263,12 +282,35 @@ func _run(battle: TacticsBattle, command: Array) -> Array:
 			return battle.wait(command[1])
 		&"order":
 			return battle.set_order(command[1], command[2])
+		&"undo":
+			battle.undo_move(command[1])
+			return []
+		&"strike":
+			return _strike(battle, command[1], command[2], command[3])
 		_:
 			return battle.end_phase()
 
 
+## A move to the strike cell (unless the leader stands on it) and the attack.
+func _strike(battle: TacticsBattle, leader: int, target: int, cell: Vector2i) -> Array:
+	if cell == Vector2i(-1, -1):
+		return []
+	var events: Array = []
+	if cell != battle.get_unit_state(leader)["cell"]:
+		events = battle.move_leader(leader, cell).duplicate()
+		if events.is_empty():
+			return []
+	if not battle.is_finished() and battle.get_unit_state(target)["alive"]:
+		events.append_array(battle.attack(leader, target))
+	return events
+
+
 ## Runs the command and checks it against what the queries said before.
 func _run_checked(battle: TacticsBattle, command: Array) -> Array:
+	if command[0] == &"undo":
+		return _run_undo(battle, command[1])
+	if command[0] == &"strike":
+		return _run_strike(battle, command)
 	if command[0] == &"end_phase":
 		var ended := battle.end_phase()
 		if ended.is_empty():
@@ -306,7 +348,16 @@ func _run_checked(battle: TacticsBattle, command: Array) -> Array:
 			expected = can_act
 		_:
 			expected = is_commandable
+	var hash_before := battle.get_state_hash()
 	var events := _run(battle, command)
+	if command[0] == &"move" and not events.is_empty():
+		_move_hashes[unit] = hash_before
+		_last_moved = unit
+		var is_plain := not battle.is_finished() and not battle.is_side_ai(state["side"])
+		for event: Dictionary in events:
+			is_plain = is_plain and event["type"] in [&"unit_moved", &"skill_charge_changed"]
+		if battle.can_undo_move(unit) != is_plain:
+			_fail("after %s can_undo_move is %s, the move was plain=%s" % [command, battle.can_undo_move(unit), is_plain])
 	if command[0] == &"skill":
 		if not events.is_empty() and not (can_act and is_ready):
 			_fail("%s accepted without a ready skill or with the leader done" % [command])
@@ -323,6 +374,51 @@ func _run_checked(battle: TacticsBattle, command: Array) -> Array:
 		_check_move(battle, events, path, preview)
 	elif command[0] == &"attack":
 		_check_engagement(events, forecast)
+	return events
+
+
+## An undo: taken exactly when can_undo_move said so, back to the hash
+## before that move; the event model starts again from the battle.
+func _run_undo(battle: TacticsBattle, unit: int) -> Array:
+	var expected := battle.can_undo_move(unit)
+	var is_undone := battle.undo_move(unit)
+	if is_undone != expected:
+		_fail("undo_move(%d) gave %s, can_undo_move said %s" % [unit, is_undone, expected])
+	if is_undone:
+		_undos += 1
+		if battle.get_state_hash() != _move_hashes.get(unit, ""):
+			_fail("undo_move(%d) did not give back the hash before the move" % unit)
+		if battle.can_undo_move(unit):
+			_fail("undo_move(%d) can be taken twice" % unit)
+		_reset_model(battle)
+		_zone_count = battle.get_zones().size()
+	return []
+
+
+## A strike from get_strike_cell(): its forecast must be the attack's.
+func _run_strike(battle: TacticsBattle, command: Array) -> Array:
+	var leader: int = command[1]
+	var target: int = command[2]
+	var cell: Vector2i = command[3]
+	var targets: Array = battle.get_strike_targets(leader)
+	if targets.has(target) != (cell != Vector2i(-1, -1)):
+		_fail("get_strike_targets(%d) and get_strike_cell disagree about %d (%s)" % [leader, target, cell])
+	if cell == Vector2i(-1, -1):
+		return []
+	var forecast := battle.forecast_move_attack(leader, cell, target)
+	var events := _strike(battle, leader, target, cell)
+	if events.is_empty():
+		_fail("strike %s refused" % [command])
+		return events
+	_strikes += 1
+	if forecast.get("target_gone", false) or battle.is_finished():
+		return events
+	for index: int in events.size():
+		var event: Dictionary = events[index]
+		if event["type"] == &"engagement_started" and event["unit"] == leader and event["target"] == target:
+			_check_engagement(events.slice(index), forecast)
+			return events
+	_fail("strike %s never attacked" % [command])
 	return events
 
 
@@ -414,6 +510,14 @@ func _check_queries(battle: TacticsBattle) -> void:
 	for cell: Vector2i in battle.get_skill_cells(leader):
 		battle.preview_skill(leader, cell)
 	battle.get_attack_targets(leader)
+	battle.can_undo_move(leader)
+	for target: int in battle.get_strike_targets(leader):
+		var cell := battle.get_strike_cell(leader, target)
+		if cell != state["cell"] and not reachable.has(cell):
+			_fail("strike cell %s of %d against %d is not reachable" % [cell, leader, target])
+		var forecast := battle.forecast_move_attack(leader, cell, target)
+		if not forecast.get("is_valid", false) and not forecast.get("target_gone", false):
+			_fail("forecast_move_attack(%d, %s, %d) is not valid" % [leader, cell, target])
 
 
 func _check_events(battle: TacticsBattle, events: Array) -> void:
