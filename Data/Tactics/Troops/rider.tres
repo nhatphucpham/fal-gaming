@@ -14,4 +14,5 @@ attack_pct = 100
 min_range_cells = 1
 max_range_cells = 1
 move_points = 6
+vision_cells = 4
 keywords = Array[TacticsKeywordData]([ExtResource("kw_charge")])

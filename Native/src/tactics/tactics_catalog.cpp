@@ -231,6 +231,16 @@ void TacticsCatalog::validate_scenarios(PackedStringArray &r_problems) const {
 				}
 			}
 		}
+		const bool is_weather_unlisted = (scenario->get_weather().is_valid() && !contains(weathers, scenario->get_weather())) ||
+				(scenario->get_weather_after().is_valid() && !contains(weathers, scenario->get_weather_after()));
+		const TypedArray<TacticsDaytimeData> cycle = scenario->get_daytimes();
+		bool is_daytime_unlisted = false;
+		for (int64_t daytime = 0; daytime < cycle.size(); daytime++) {
+			is_daytime_unlisted = is_daytime_unlisted || !contains(daytimes, cycle[daytime]);
+		}
+		if (is_weather_unlisted || is_daytime_unlisted) {
+			r_problems.push_back(vformat("TacticsCatalog: %s uses a weather or daytime not listed in the catalog", where(scenario)));
+		}
 		std::string error;
 		if (!try_load_scenario(scenario, &error)) {
 			r_problems.push_back(vformat("TacticsCatalog: %s does not load: %s", where(scenario), to_godot_string(error)));
@@ -243,7 +253,8 @@ void TacticsCatalog::validate_scenarios(PackedStringArray &r_problems) const {
 bool TacticsCatalog::try_load_scenario(const Ref<TacticsScenarioData> &p_scenario, std::string *r_error) const {
 	tactics::MapDef map;
 	tactics::TacticsSim sim;
-	if (!p_scenario->get_map()->to_map_def(&map, r_error) || !sim.setup(p_scenario->get_rules()->to_rules(), map, r_error)) {
+	if (!p_scenario->get_map()->to_map_def(&map, r_error) || !sim.setup(p_scenario->get_rules()->to_rules(), map, r_error) ||
+			!sim.set_environment(p_scenario->to_environment_def(), r_error)) {
 		return false;
 	}
 	for (int side = 0; side < tactics::SIDE_COUNT; side++) {
@@ -313,6 +324,8 @@ PackedStringArray TacticsCatalog::validate() const {
 	validate_ids(maps, "map.", false, problems);
 	validate_ids(scenarios, "scenario.", false, problems);
 	validate_ids(traits, "trait.", true, problems);
+	validate_ids(weathers, "weather.", true, problems);
+	validate_ids(daytimes, "daytime.", true, problems);
 	validate_units(problems);
 	validate_references(problems);
 	validate_maps(problems);
@@ -331,6 +344,8 @@ Ref<TacticsLeaderData> TacticsCatalog::get_leader(const StringName &p_id) const 
 Ref<TacticsMapData> TacticsCatalog::get_map(const StringName &p_id) const { return find_by_id(maps, p_id); }
 Ref<TacticsScenarioData> TacticsCatalog::get_scenario(const StringName &p_id) const { return find_by_id(scenarios, p_id); }
 Ref<TacticsTraitData> TacticsCatalog::get_trait(const StringName &p_id) const { return find_by_id(traits, p_id); }
+Ref<TacticsWeatherData> TacticsCatalog::get_weather(const StringName &p_id) const { return find_by_id(weathers, p_id); }
+Ref<TacticsDaytimeData> TacticsCatalog::get_daytime(const StringName &p_id) const { return find_by_id(daytimes, p_id); }
 
 Ref<TacticsIncidentData> TacticsCatalog::get_incident(const StringName &p_id) const {
 	return incident_rules.is_valid() ? incident_rules->get_incident(p_id) : Ref<TacticsIncidentData>();
@@ -348,6 +363,8 @@ void TacticsCatalog::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_map", "id"), &TacticsCatalog::get_map);
 	ClassDB::bind_method(D_METHOD("get_scenario", "id"), &TacticsCatalog::get_scenario);
 	ClassDB::bind_method(D_METHOD("get_trait", "id"), &TacticsCatalog::get_trait);
+	ClassDB::bind_method(D_METHOD("get_weather", "id"), &TacticsCatalog::get_weather);
+	ClassDB::bind_method(D_METHOD("get_daytime", "id"), &TacticsCatalog::get_daytime);
 	ClassDB::bind_method(D_METHOD("get_incident", "id"), &TacticsCatalog::get_incident);
 	BATTLE_BIND_ACCESSORS(TacticsCatalog, rules);
 	BATTLE_BIND_ACCESSORS(TacticsCatalog, terrains);
@@ -360,6 +377,8 @@ void TacticsCatalog::_bind_methods() {
 	BATTLE_BIND_ACCESSORS(TacticsCatalog, maps);
 	BATTLE_BIND_ACCESSORS(TacticsCatalog, scenarios);
 	BATTLE_BIND_ACCESSORS(TacticsCatalog, traits);
+	BATTLE_BIND_ACCESSORS(TacticsCatalog, weathers);
+	BATTLE_BIND_ACCESSORS(TacticsCatalog, daytimes);
 	BATTLE_BIND_ACCESSORS(TacticsCatalog, incident_rules);
 
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "rules", PROPERTY_HINT_RESOURCE_TYPE, "TacticsRulesData"), "set_rules", "get_rules");
@@ -373,5 +392,7 @@ void TacticsCatalog::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "maps", PROPERTY_HINT_ARRAY_TYPE, "TacticsMapData"), "set_maps", "get_maps");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "scenarios", PROPERTY_HINT_ARRAY_TYPE, "TacticsScenarioData"), "set_scenarios", "get_scenarios");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "traits", PROPERTY_HINT_ARRAY_TYPE, "TacticsTraitData"), "set_traits", "get_traits");
+	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "weathers", PROPERTY_HINT_ARRAY_TYPE, "TacticsWeatherData"), "set_weathers", "get_weathers");
+	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "daytimes", PROPERTY_HINT_ARRAY_TYPE, "TacticsDaytimeData"), "set_daytimes", "get_daytimes");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "incident_rules", PROPERTY_HINT_RESOURCE_TYPE, "TacticsIncidentRulesData"), "set_incident_rules", "get_incident_rules");
 }

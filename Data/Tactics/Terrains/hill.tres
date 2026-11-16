@@ -9,3 +9,7 @@ armor_bonus = 5
 damage_taken_pct = 0
 ranged_damage_taken_pct = 0
 ranged_range_bonus = 1
+vision_bonus = 2
+sight_block = 2
+hides_units = false
+light_cells = 0

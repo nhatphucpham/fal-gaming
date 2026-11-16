@@ -1,0 +1,14 @@
+[gd_resource type="TacticsDaytimeData" format=3]
+
+[ext_resource type="Texture2D" path="res://Assets/Tactics/Icons/night.svg" id="icon"]
+
+[resource]
+id = &"daytime.night"
+name_key = "DAYTIME_NIGHT"
+description_key = "DAYTIME_NIGHT_DESC"
+icon = ExtResource("icon")
+vision_delta = -3
+uses_lights = true
+hides_intents = true
+waver_pct = 10
+darkness_pct = 60

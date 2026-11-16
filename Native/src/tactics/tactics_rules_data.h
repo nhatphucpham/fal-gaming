@@ -54,6 +54,14 @@ public:
 	int get_ai_advance_ratio_pct() const { return rules.ai_advance_ratio_pct; }
 	void set_ai_hold_radius_cells(int64_t p_value) { rules.ai_hold_radius_cells = clamp_to_int(p_value); }
 	int get_ai_hold_radius_cells() const { return rules.ai_hold_radius_cells; }
+	void set_leader_light_cells(int64_t p_value) { rules.leader_light_cells = clamp_to_int(p_value); }
+	int get_leader_light_cells() const { return rules.leader_light_cells; }
+	void set_intent_read_cells(int64_t p_value) { rules.intent_read_cells = clamp_to_int(p_value); }
+	int get_intent_read_cells() const { return rules.intent_read_cells; }
+	void set_reveal_cells(int64_t p_value) { rules.reveal_cells = clamp_to_int(p_value); }
+	int get_reveal_cells() const { return rules.reveal_cells; }
+	void set_attack_reveal_phases(int64_t p_value) { rules.attack_reveal_phases = clamp_to_int(p_value); }
+	int get_attack_reveal_phases() const { return rules.attack_reveal_phases; }
 };
 
 } // namespace godot

@@ -3,6 +3,7 @@
 [ext_resource type="UnitData" path="res://Data/Units/wolf_archer.tres" id="base_unit"]
 [ext_resource type="ClassData" path="res://Data/Classes/archer.tres" id="base_class"]
 [ext_resource type="TacticsKeywordData" path="res://Data/Tactics/Keywords/flying.tres" id="kw_flying"]
+[ext_resource type="TacticsKeywordData" path="res://Data/Tactics/Keywords/scout.tres" id="kw_scout"]
 
 [resource]
 id = &"troop.kite_scout"
@@ -14,4 +15,5 @@ attack_pct = 70
 min_range_cells = 2
 max_range_cells = 2
 move_points = 5
-keywords = Array[TacticsKeywordData]([ExtResource("kw_flying")])
+vision_cells = 6
+keywords = Array[TacticsKeywordData]([ExtResource("kw_flying"), ExtResource("kw_scout")])

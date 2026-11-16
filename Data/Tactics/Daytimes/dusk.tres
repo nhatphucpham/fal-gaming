@@ -1,0 +1,14 @@
+[gd_resource type="TacticsDaytimeData" format=3]
+
+[ext_resource type="Texture2D" path="res://Assets/Tactics/Icons/dusk.svg" id="icon"]
+
+[resource]
+id = &"daytime.dusk"
+name_key = "DAYTIME_DUSK"
+description_key = "DAYTIME_DUSK_DESC"
+icon = ExtResource("icon")
+vision_delta = -1
+uses_lights = true
+hides_intents = false
+waver_pct = 0
+darkness_pct = 30

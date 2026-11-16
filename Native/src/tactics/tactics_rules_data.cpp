@@ -19,6 +19,10 @@ void TacticsRulesData::_bind_methods() {
 	BATTLE_BIND_ACCESSORS(TacticsRulesData, ai_attack_ratio_pct);
 	BATTLE_BIND_ACCESSORS(TacticsRulesData, ai_advance_ratio_pct);
 	BATTLE_BIND_ACCESSORS(TacticsRulesData, ai_hold_radius_cells);
+	BATTLE_BIND_ACCESSORS(TacticsRulesData, leader_light_cells);
+	BATTLE_BIND_ACCESSORS(TacticsRulesData, intent_read_cells);
+	BATTLE_BIND_ACCESSORS(TacticsRulesData, reveal_cells);
+	BATTLE_BIND_ACCESSORS(TacticsRulesData, attack_reveal_phases);
 
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "hits_per_engagement", PROPERTY_HINT_RANGE, "1,10,1"), "set_hits_per_engagement", "get_hits_per_engagement");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "anticipation_shift_cells", PROPERTY_HINT_RANGE, "0,20,1"), "set_anticipation_shift_cells", "get_anticipation_shift_cells");
@@ -36,4 +40,8 @@ void TacticsRulesData::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "ai_attack_ratio_pct", PROPERTY_HINT_RANGE, "0,1000,1"), "set_ai_attack_ratio_pct", "get_ai_attack_ratio_pct");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "ai_advance_ratio_pct", PROPERTY_HINT_RANGE, "0,1000,1"), "set_ai_advance_ratio_pct", "get_ai_advance_ratio_pct");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "ai_hold_radius_cells", PROPERTY_HINT_RANGE, "0,64,1"), "set_ai_hold_radius_cells", "get_ai_hold_radius_cells");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "leader_light_cells", PROPERTY_HINT_RANGE, "0,16,1"), "set_leader_light_cells", "get_leader_light_cells");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "intent_read_cells", PROPERTY_HINT_RANGE, "0,16,1"), "set_intent_read_cells", "get_intent_read_cells");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "reveal_cells", PROPERTY_HINT_RANGE, "0,16,1"), "set_reveal_cells", "get_reveal_cells");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "attack_reveal_phases", PROPERTY_HINT_RANGE, "0,16,1"), "set_attack_reveal_phases", "get_attack_reveal_phases");
 }

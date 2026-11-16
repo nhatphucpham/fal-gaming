@@ -6,6 +6,7 @@
 [ext_resource type="TacticsSkillData" path="res://Data/Tactics/Skills/chain_arrows.tres" id="skill"]
 [ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/archer.tres" id="troop_archer"]
 [ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/shieldman.tres" id="troop_shieldman"]
+[ext_resource type="TacticsKeywordData" path="res://Data/Tactics/Keywords/scout.tres" id="kw_scout"]
 
 [resource]
 id = &"leader.lieu_mi"
@@ -17,7 +18,8 @@ attack_pct = 120
 min_range_cells = 2
 max_range_cells = 4
 move_points = 4
-keywords = Array[TacticsKeywordData]([])
+vision_cells = 5
+keywords = Array[TacticsKeywordData]([ExtResource("kw_scout")])
 lead_capacity = 3
 passives = Array[TacticsPassiveData]([ExtResource("passive_wind_trail")])
 skill = ExtResource("skill")

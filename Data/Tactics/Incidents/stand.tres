@@ -11,6 +11,7 @@ seeds_ai_side = false
 threshold_pct = 0
 threshold_count = 2
 radius_cells = 0
+unseen_waver_pct = 0
 calm_radius_cells = 0
 amount = 30
 secondary_amount = 0

@@ -29,6 +29,8 @@ class TacticsCatalog : public Resource {
 	TypedArray<TacticsMapData> maps;
 	TypedArray<TacticsScenarioData> scenarios;
 	TypedArray<TacticsTraitData> traits;
+	TypedArray<TacticsWeatherData> weathers;
+	TypedArray<TacticsDaytimeData> daytimes;
 	Ref<TacticsIncidentRulesData> incident_rules;
 
 	void validate_ids(const Array &p_entries, const String &p_prefix, bool p_needs_description, PackedStringArray &r_problems) const;
@@ -57,6 +59,8 @@ public:
 	Ref<TacticsMapData> get_map(const StringName &p_id) const;
 	Ref<TacticsScenarioData> get_scenario(const StringName &p_id) const;
 	Ref<TacticsTraitData> get_trait(const StringName &p_id) const;
+	Ref<TacticsWeatherData> get_weather(const StringName &p_id) const;
+	Ref<TacticsDaytimeData> get_daytime(const StringName &p_id) const;
 	// The incident with this id from incident_rules, or null.
 	Ref<TacticsIncidentData> get_incident(const StringName &p_id) const;
 
@@ -82,6 +86,10 @@ public:
 	TypedArray<TacticsScenarioData> get_scenarios() const { return scenarios; }
 	void set_traits(const TypedArray<TacticsTraitData> &p_value) { traits = p_value; }
 	TypedArray<TacticsTraitData> get_traits() const { return traits; }
+	void set_weathers(const TypedArray<TacticsWeatherData> &p_value) { weathers = p_value; }
+	TypedArray<TacticsWeatherData> get_weathers() const { return weathers; }
+	void set_daytimes(const TypedArray<TacticsDaytimeData> &p_value) { daytimes = p_value; }
+	TypedArray<TacticsDaytimeData> get_daytimes() const { return daytimes; }
 	void set_incident_rules(const Ref<TacticsIncidentRulesData> &p_value) { incident_rules = p_value; }
 	Ref<TacticsIncidentRulesData> get_incident_rules() const { return incident_rules; }
 };

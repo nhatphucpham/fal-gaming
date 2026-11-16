@@ -5,6 +5,7 @@
 #include "tactics_orders.h"
 #include "tactics_paths.h"
 #include "tactics_skills.h"
+#include "tactics_vision.h"
 
 #include <godot_cpp/core/error_macros.hpp>
 
@@ -108,6 +109,9 @@ Dictionary TacticsBattle::get_unit_state(int64_t p_unit) const {
 	state["has_waited"] = unit.has_waited;
 	state["has_squad_struck"] = unit.has_squad_struck;
 	state["move_points_left"] = sim.get_move_budget(index);
+	state["vision"] = unit.def.vision_cells;
+	state["is_scout"] = tactics::is_scout(sim, index);
+	state["is_out_of_leader_sight"] = sim.is_out_of_leader_sight(index);
 	// Incidents: only what the player may see (a wavering soldier shows its
 	// incident; a dormant seed stays hidden).
 	const bool is_wavering = unit.stage == tactics::IncidentStage::WAVERING;
@@ -305,6 +309,11 @@ Dictionary TacticsBattle::get_skill_charge(int64_t p_leader) const {
 Array TacticsBattle::get_enemy_intents() const {
 	Array intents;
 	for (const tactics::Intent &intent : sim.get_intents()) {
+		// Under fog an intent shows only while the other side reads it
+		// (Docs/systems/tactics_vision.md, Intents).
+		if (!sim.is_intent_known(1 - sim.get_units()[intent.leader].side, intent.leader)) {
+			continue;
+		}
 		Dictionary entry;
 		entry["unit"] = intent.leader;
 		entry["to"] = to_vector2i(intent.destination);

@@ -21,6 +21,7 @@
 #include "synergy/synergy_tier_data.h"
 #include "tactics/tactics_battle.h"
 #include "tactics/tactics_catalog.h"
+#include "tactics/tactics_environment_data.h"
 #include "tactics/tactics_incident_data.h"
 #include "tactics/tactics_keyword_data.h"
 #include "tactics/tactics_map_data.h"
@@ -59,6 +60,8 @@ void initialize_falemag_module(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(TacticsRulesData);
 	GDREGISTER_CLASS(TacticsTerrainData);
 	GDREGISTER_CLASS(TacticsMapData);
+	GDREGISTER_CLASS(TacticsWeatherData);
+	GDREGISTER_CLASS(TacticsDaytimeData);
 	GDREGISTER_CLASS(TacticsKeywordData);
 	GDREGISTER_CLASS(TacticsZoneData);
 	GDREGISTER_CLASS(TacticsPassiveData);

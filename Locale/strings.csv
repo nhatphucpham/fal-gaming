@@ -365,6 +365,22 @@ KEYWORD_COVER,Che chắn,Cover
 KEYWORD_COVER_DESC,Đồng đội đứng kề chịu đòn tầm xa ít hơn 30%.,Allies next to it take 30% less ranged damage.
 KEYWORD_FLYING,Bay,Flying
 KEYWORD_FLYING_DESC,"Bay qua mọi địa hình, không bị chặn đường.",Ignores terrain and zones of control.
+KEYWORD_SCOUT,Trinh sát,Scout
+KEYWORD_SCOUT_DESC,"Nhìn xa, thấy quân nấp trong rừng, đọc ý địch gần dù đêm hay sương.","Sees far, spots units hidden in forest, reads nearby enemy intents at night or in fog."
+WEATHER_CLEAR,Trời quang,Clear
+WEATHER_CLEAR_DESC,Trời quang: nhìn rõ như thường.,Clear: normal sight.
+WEATHER_RAIN,Mưa,Rain
+WEATHER_RAIN_DESC,"Mưa: tầm nhìn và tầm bắn -1, lửa cháy yếu, lội sông khó hơn.","Rain: sight and range -1, fire weaker, river crossings cost more."
+WEATHER_FOG,Sương mù,Fog
+WEATHER_FOG_DESC,"Sương mù: tầm nhìn -2, chỉ đọc được ý địch ở gần.","Fog: sight -2, enemy intents read only up close."
+WEATHER_WIND,Gió,Wind
+WEATHER_WIND_DESC,"Gió đông: bắn xuôi gió xa thêm 1, ngược gió kém 1.","East wind: shots with the wind reach 1 further, against it 1 less."
+DAYTIME_DAY,Ngày,Day
+DAYTIME_DAY_DESC,Ban ngày: nhìn rõ như thường.,Day: normal sight.
+DAYTIME_DUSK,Hoàng hôn,Dusk
+DAYTIME_DUSK_DESC,"Hoàng hôn: tầm nhìn -1, ô có đèn vẫn thấy rõ.","Dusk: sight -1, lit cells still seen clearly."
+DAYTIME_NIGHT,Đêm,Night
+DAYTIME_NIGHT_DESC,"Đêm: tầm nhìn -3, chỉ ô có đèn (trại, làng, tướng) thấy rõ; ý địch chỉ đọc được ở gần.","Night: sight -3, only lit cells (camps, villages, leaders) are seen clearly; enemy intents read only up close."
 KEYWORD_HEAVY,Nặng,Heavy
 KEYWORD_HEAVY_DESC,Vào rừng và chỗ cạn tốn thêm 1 bước.,Forests and fords cost 1 more.
 TACTICS_PASSIVE_DRILLED_RANKS,Luyện binh,Drilled ranks

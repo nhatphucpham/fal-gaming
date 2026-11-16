@@ -23,6 +23,10 @@ class TacticsTerrainData : public Resource {
 	int damage_taken_pct = 0;
 	int ranged_damage_taken_pct = 0;
 	int ranged_range_bonus = 0;
+	int vision_bonus = 0;
+	int sight_block = 0;
+	bool hides_units = false;
+	int light_cells = 0;
 
 protected:
 	static void _bind_methods();
@@ -46,6 +50,14 @@ public:
 	int get_ranged_damage_taken_pct() const { return ranged_damage_taken_pct; }
 	void set_ranged_range_bonus(int64_t p_value) { ranged_range_bonus = clamp_to_int(p_value); }
 	int get_ranged_range_bonus() const { return ranged_range_bonus; }
+	void set_vision_bonus(int64_t p_value) { vision_bonus = clamp_to_int(p_value); }
+	int get_vision_bonus() const { return vision_bonus; }
+	void set_sight_block(int64_t p_value) { sight_block = clamp_to_int(p_value); }
+	int get_sight_block() const { return sight_block; }
+	void set_hides_units(bool p_value) { hides_units = p_value; }
+	bool get_hides_units() const { return hides_units; }
+	void set_light_cells(int64_t p_value) { light_cells = clamp_to_int(p_value); }
+	int get_light_cells() const { return light_cells; }
 };
 
 } // namespace godot

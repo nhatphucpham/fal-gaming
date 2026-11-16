@@ -17,6 +17,7 @@ bool TacticsIncidentData::to_incident_def(tactics::IncidentDef *r_def, std::stri
 	r_def->threshold_count = threshold_count;
 	r_def->radius_cells = radius_cells;
 	r_def->calm_radius_cells = calm_radius_cells;
+	r_def->unseen_waver_pct = unseen_waver_pct;
 	r_def->amount = amount;
 	r_def->secondary_amount = secondary_amount;
 	r_def->duration_rounds = duration_rounds;
@@ -39,6 +40,7 @@ void TacticsIncidentData::_bind_methods() {
 	BATTLE_BIND_ACCESSORS(TacticsIncidentData, threshold_count);
 	BATTLE_BIND_ACCESSORS(TacticsIncidentData, radius_cells);
 	BATTLE_BIND_ACCESSORS(TacticsIncidentData, calm_radius_cells);
+	BATTLE_BIND_ACCESSORS(TacticsIncidentData, unseen_waver_pct);
 	BATTLE_BIND_ACCESSORS(TacticsIncidentData, amount);
 	BATTLE_BIND_ACCESSORS(TacticsIncidentData, secondary_amount);
 	BATTLE_BIND_ACCESSORS(TacticsIncidentData, duration_rounds);
@@ -53,6 +55,7 @@ void TacticsIncidentData::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "threshold_count", PROPERTY_HINT_RANGE, "0,8,1"), "set_threshold_count", "get_threshold_count");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "radius_cells", PROPERTY_HINT_RANGE, "0,64,1"), "set_radius_cells", "get_radius_cells");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "calm_radius_cells", PROPERTY_HINT_RANGE, "0,64,1"), "set_calm_radius_cells", "get_calm_radius_cells");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "unseen_waver_pct", PROPERTY_HINT_RANGE, "0,100,1"), "set_unseen_waver_pct", "get_unseen_waver_pct");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "amount"), "set_amount", "get_amount");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "secondary_amount"), "set_secondary_amount", "get_secondary_amount");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "duration_rounds", PROPERTY_HINT_RANGE, "0,100,1"), "set_duration_rounds", "get_duration_rounds");

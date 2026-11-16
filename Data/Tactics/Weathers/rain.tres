@@ -1,0 +1,18 @@
+[gd_resource type="TacticsWeatherData" format=3]
+
+[ext_resource type="Texture2D" path="res://Assets/Tactics/Icons/rain.svg" id="icon"]
+
+[resource]
+id = &"weather.rain"
+name_key = "WEATHER_RAIN"
+description_key = "WEATHER_RAIN_DESC"
+icon = ExtResource("icon")
+vision_delta = -1
+ranged_range_delta = -1
+burn_pct = 50
+cost_terrain_ids = Array[StringName]([&"terrain.ford", &"terrain.river"])
+cost_delta = 1
+hides_intents = false
+wind = Vector2i(0, 0)
+wind_range_delta = 0
+waver_pct = 0
