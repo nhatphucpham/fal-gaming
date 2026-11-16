@@ -1,0 +1,17 @@
+[gd_resource type="TacticsTroopData" format=3]
+
+[ext_resource type="UnitData" path="res://Data/Units/light_rider.tres" id="base_unit"]
+[ext_resource type="ClassData" path="res://Data/Classes/cavalry.tres" id="base_class"]
+[ext_resource type="TacticsKeywordData" path="res://Data/Tactics/Keywords/charge.tres" id="kw_charge"]
+
+[resource]
+id = &"troop.rider"
+name_key = "TROOP_RIDER"
+base_unit = ExtResource("base_unit")
+base_class = ExtResource("base_class")
+hp_pct = 40
+attack_pct = 100
+min_range_cells = 1
+max_range_cells = 1
+move_points = 6
+keywords = Array[TacticsKeywordData]([ExtResource("kw_charge")])

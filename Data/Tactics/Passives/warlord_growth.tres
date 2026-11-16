@@ -1,0 +1,8 @@
+[gd_resource type="TacticsPassiveData" format=3]
+
+[resource]
+id = &"tactics_passive.warlord_growth"
+name_key = "TACTICS_PASSIVE_WARLORD_GROWTH"
+description_key = "TACTICS_PASSIVE_WARLORD_GROWTH_DESC"
+handler = &"passive.skill_growth"
+amount = 1

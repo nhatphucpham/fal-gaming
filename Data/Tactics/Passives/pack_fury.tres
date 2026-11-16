@@ -1,0 +1,10 @@
+[gd_resource type="TacticsPassiveData" format=3]
+
+[resource]
+id = &"tactics_passive.pack_fury"
+name_key = "TACTICS_PASSIVE_PACK_FURY"
+description_key = "TACTICS_PASSIVE_PACK_FURY_DESC"
+handler = &"passive.stat_bonus"
+stat = &"stat.attack_pct"
+amount = 20
+condition_adjacent_allies = 2

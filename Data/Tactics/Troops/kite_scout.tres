@@ -1,0 +1,17 @@
+[gd_resource type="TacticsTroopData" format=3]
+
+[ext_resource type="UnitData" path="res://Data/Units/wolf_archer.tres" id="base_unit"]
+[ext_resource type="ClassData" path="res://Data/Classes/archer.tres" id="base_class"]
+[ext_resource type="TacticsKeywordData" path="res://Data/Tactics/Keywords/flying.tres" id="kw_flying"]
+
+[resource]
+id = &"troop.kite_scout"
+name_key = "TROOP_KITE_SCOUT"
+base_unit = ExtResource("base_unit")
+base_class = ExtResource("base_class")
+hp_pct = 30
+attack_pct = 70
+min_range_cells = 2
+max_range_cells = 2
+move_points = 5
+keywords = Array[TacticsKeywordData]([ExtResource("kw_flying")])

@@ -1,0 +1,11 @@
+[gd_resource type="TacticsTerrainData" format=3]
+
+[resource]
+id = &"terrain.plain"
+name_key = "TERRAIN_PLAIN"
+move_cost = 1
+is_impassable = false
+armor_bonus = 0
+damage_taken_pct = 0
+ranged_damage_taken_pct = 0
+ranged_range_bonus = 0

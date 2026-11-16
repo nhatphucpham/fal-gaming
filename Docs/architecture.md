@@ -29,7 +29,9 @@
   `pose_animator_test.gd`, `pose_cast_test.gd` and `pose_stone_test.gd`
   (the unit figures' rig, mesh cache, animator, casts and stone, sharing
   `pose_test_kit.gd`). `voice_test.gd` tests the Voice autoload against a
-  fake server on localhost.
+  fake server on localhost. `tactics_test.gd`, `tactics_squad_test.gd` and
+  `tactics_fuzz_test.gd` test the tactics simulation (sharing
+  `tactics_test_kit.gd`).
 - `Tools/` holds developer scripts that are not tests and not exported:
   `run_bot.gd`, the balance bot that plays whole runs (see
   [Run](systems/run.md)), `make_sfx.gd`, which writes the sound files
@@ -50,6 +52,10 @@
   `Data/Audio/sounds.tres` (the sound bank) and `Data/catalog.tres`, which lists every
   unit, class, skill, passive and stage file explicitly so nothing scans directories at runtime (that breaks in
   exported and web builds).
+- `Data/Tactics/` holds the turn-based tactics mode's content (rules,
+  terrains, keywords, zones, passives, skills, troops, leaders, maps and
+  scenarios), listed in its own `Data/Tactics/tactics_catalog.tres` (see
+  [Tactics](systems/tactics.md)).
 - `Systems/` holds GDScript bridge services and data scripts, one folder per
   system. `Systems/Content/` has `Catalog` (lookup and validation),
   `SandboxData`, `UnitStats` (player-facing stats, derived through
@@ -203,6 +209,18 @@ without a battle, for the preparation screen's info row, outlines and drag
 preview; `Battle.set_synergy()` applies the same evaluation to both sides at
 `start()`. See [Synergy](systems/synergy.md) and
 [Formation](systems/formation.md).
+
+`Native/src/tactics/` is the turn-based tactics mode, separate from the
+auto-battle: leaders with squads of soldiers on a terrain grid, alternating
+side phases, Dijkstra movement with zones of control, four-hit engagements
+with a counter, keywords, orders, passives, charged leader skills, zones and
+an AI that declares its intent. The simulation (`TacticsSim`, namespace
+`tactics`) is plain C++17 with integer math and registries of keywords,
+zones, passives, charge mechanisms, skill targets and effects keyed by ids
+in `Data/Tactics/`; it reuses the battle system's damage formula. Its
+resources (`TacticsCatalog`, `TacticsMapData`, `TacticsLeaderData`, ...) and
+the `TacticsBattle` node are the bridge. No scene uses it yet. See
+[Tactics](systems/tactics.md).
 
 ## Layers and documentation
 

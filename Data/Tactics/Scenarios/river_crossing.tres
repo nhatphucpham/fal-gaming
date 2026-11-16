@@ -1,0 +1,17 @@
+[gd_resource type="TacticsScenarioData" format=3]
+
+[ext_resource type="TacticsRulesData" path="res://Data/Tactics/Rules/tactics_rules.tres" id="rules"]
+[ext_resource type="TacticsMapData" path="res://Data/Tactics/Maps/river_crossing.tres" id="map"]
+[ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/lac_hong.tres" id="leader_lac_hong"]
+[ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/moon_spear.tres" id="leader_moon_spear"]
+[ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/lieu_mi.tres" id="leader_lieu_mi"]
+[ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/ba_khac.tres" id="leader_ba_khac"]
+[ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/thiet_nha.tres" id="leader_thiet_nha"]
+
+[resource]
+id = &"scenario.river_crossing"
+name_key = "SCENARIO_RIVER_CROSSING"
+rules = ExtResource("rules")
+map = ExtResource("map")
+leaders_a = Array[TacticsLeaderData]([ExtResource("leader_lac_hong"), ExtResource("leader_moon_spear"), ExtResource("leader_lieu_mi")])
+leaders_b = Array[TacticsLeaderData]([ExtResource("leader_ba_khac"), ExtResource("leader_thiet_nha")])

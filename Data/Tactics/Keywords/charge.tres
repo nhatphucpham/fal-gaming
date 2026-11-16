@@ -1,0 +1,9 @@
+[gd_resource type="TacticsKeywordData" format=3]
+
+[resource]
+id = &"keyword.charge"
+name_key = "KEYWORD_CHARGE"
+description_key = "KEYWORD_CHARGE_DESC"
+amount = 30
+min_cells = 3
+terrain_ids = Array[StringName]([])

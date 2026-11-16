@@ -1,0 +1,7 @@
+[gd_resource type="TacticsZoneData" format=3]
+
+[resource]
+id = &"zone.wind"
+name_key = "ZONE_WIND"
+effect = &"zone_effect.ranged_ward"
+amount = 50

@@ -1,0 +1,18 @@
+[gd_resource type="TacticsTroopData" format=3]
+
+[ext_resource type="UnitData" path="res://Data/Units/shield_guard.tres" id="base_unit"]
+[ext_resource type="ClassData" path="res://Data/Classes/shield.tres" id="base_class"]
+[ext_resource type="TacticsKeywordData" path="res://Data/Tactics/Keywords/cover.tres" id="kw_cover"]
+[ext_resource type="TacticsKeywordData" path="res://Data/Tactics/Keywords/heavy.tres" id="kw_heavy"]
+
+[resource]
+id = &"troop.shieldman"
+name_key = "TROOP_SHIELDMAN"
+base_unit = ExtResource("base_unit")
+base_class = ExtResource("base_class")
+hp_pct = 40
+attack_pct = 100
+min_range_cells = 1
+max_range_cells = 1
+move_points = 3
+keywords = Array[TacticsKeywordData]([ExtResource("kw_cover"), ExtResource("kw_heavy")])

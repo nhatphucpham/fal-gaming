@@ -1,0 +1,25 @@
+[gd_resource type="TacticsMapData" format=3]
+
+[ext_resource type="TacticsTerrainData" path="res://Data/Tactics/Terrains/plain.tres" id="terrain_plain"]
+[ext_resource type="TacticsTerrainData" path="res://Data/Tactics/Terrains/forest.tres" id="terrain_forest"]
+[ext_resource type="TacticsTerrainData" path="res://Data/Tactics/Terrains/hill.tres" id="terrain_hill"]
+[ext_resource type="TacticsTerrainData" path="res://Data/Tactics/Terrains/river.tres" id="terrain_river"]
+[ext_resource type="TacticsTerrainData" path="res://Data/Tactics/Terrains/ford.tres" id="terrain_ford"]
+[ext_resource type="TacticsTerrainData" path="res://Data/Tactics/Terrains/bridge.tres" id="terrain_bridge"]
+[ext_resource type="TacticsTerrainData" path="res://Data/Tactics/Terrains/fort.tres" id="terrain_fort"]
+[ext_resource type="TacticsTerrainData" path="res://Data/Tactics/Terrains/village.tres" id="terrain_village"]
+
+[resource]
+id = &"map.river_crossing"
+name_key = "MAP_RIVER_CROSSING"
+width = 12
+height = 16
+rows = PackedStringArray("..hh....hh..", "..f..tt..f..", "ff.......ff.", "....v.......", ".hh......f..", ".....ff.....", "..........hh", "rrrbrrrrdrrr", "............", "..ff....hh..", "............", ".f....v....f", "............", "..h......h..", "............", "....f..f....")
+legend_symbols = ".fhrdbtv"
+legend_terrains = Array[TacticsTerrainData]([ExtResource("terrain_plain"), ExtResource("terrain_forest"), ExtResource("terrain_hill"), ExtResource("terrain_river"), ExtResource("terrain_ford"), ExtResource("terrain_bridge"), ExtResource("terrain_fort"), ExtResource("terrain_village")])
+spawn_cells_a = Array[Vector2i]([Vector2i(3, 13), Vector2i(6, 14), Vector2i(8, 12)])
+spawn_cells_b = Array[Vector2i]([Vector2i(3, 3), Vector2i(7, 3)])
+objective_cell = Vector2i(5, 1)
+objective_side = 0
+facing_a = Vector2i(0, -1)
+facing_b = Vector2i(0, 1)

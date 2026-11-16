@@ -1,0 +1,9 @@
+[gd_resource type="TacticsKeywordData" format=3]
+
+[resource]
+id = &"keyword.flying"
+name_key = "KEYWORD_FLYING"
+description_key = "KEYWORD_FLYING_DESC"
+amount = 0
+min_cells = 0
+terrain_ids = Array[StringName]([])
