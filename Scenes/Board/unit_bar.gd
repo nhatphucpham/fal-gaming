@@ -20,6 +20,7 @@ var playback_speed: float = 1.0:
 var is_hp_bar_shown: bool = true:
 	set(value):
 		is_hp_bar_shown = value
+		_update_pulsing()
 		queue_redraw()
 ## The hp fill: the side's colour.
 var hp_color: Color = Palette.PLAYER_HP
@@ -43,11 +44,19 @@ func _init() -> void:
 	show_behind_parent = true
 
 
+func _ready() -> void:
+	_update_pulsing()
+
+
+# Only a full Khí bar pulses; any other bar redraws when its values change.
 func _process(delta: float) -> void:
 	_time += delta
-	# A full Khí bar pulses.
-	if _qi_ratio >= 1.0 and is_hp_bar_shown:
-		queue_redraw()
+	queue_redraw()
+
+
+## True while a full Khí bar pulses (the only time the bar processes).
+func is_pulsing() -> bool:
+	return _qi_ratio >= 1.0 and is_hp_bar_shown
 
 
 ## Shows hp as a share of max, 0..1; the bar slides down with a pale trail.
@@ -64,6 +73,7 @@ func set_hp_ratio(ratio: float) -> void:
 ## Shows Khí as `qi` of `qi_max`; a qi_max of 0 hides the Khí bar.
 func set_qi(qi: int, qi_max: int) -> void:
 	_qi_ratio = clampf(float(qi) / qi_max, 0.0, 1.0) if qi_max > 0 else -1.0
+	_update_pulsing()
 	queue_redraw()
 
 
@@ -127,6 +137,10 @@ func _set_hp_trail(value: float) -> void:
 func _set_star_scale(value: float, index: int) -> void:
 	_star_scales[index] = value
 	queue_redraw()
+
+
+func _update_pulsing() -> void:
+	set_process(is_pulsing())
 
 
 func _new_tween() -> Tween:

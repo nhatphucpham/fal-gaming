@@ -45,6 +45,7 @@ var _music_id: StringName = &""
 var _last_played_msec: Dictionary[StringName, int] = {}
 var _warned_ids: Dictionary[StringName, bool] = {}
 var _is_muted: bool = false
+var _is_suspended: bool = false
 
 
 func _enter_tree() -> void:
@@ -100,7 +101,7 @@ func unlock() -> void:
 ## same id is skipped within COOLDOWN_MSEC and past MAX_VOICES_PER_ID.
 func play(id: StringName) -> void:
 	var sound := _find(id)
-	if sound == null or not is_unlocked or _is_muted or is_silent:
+	if sound == null or not is_unlocked or _is_muted or is_silent or _is_suspended:
 		return
 	var now := Time.get_ticks_msec()
 	if now - _last_played_msec.get(id, -COOLDOWN_MSEC) < COOLDOWN_MSEC or count_voices(id) >= MAX_VOICES_PER_ID:
@@ -129,7 +130,7 @@ func play_music(id: StringName) -> void:
 
 func set_muted(muted: bool) -> void:
 	_is_muted = muted
-	AudioServer.set_bus_mute(0, muted)
+	AudioServer.set_bus_mute(0, muted or _is_suspended)
 	if muted:
 		for player: AudioStreamPlayer in _players:
 			player.stop()
@@ -140,6 +141,21 @@ func set_muted(muted: bool) -> void:
 
 func is_muted() -> bool:
 	return _is_muted
+
+
+## Holds every sound where it is while the app is hidden (AppLifecycle):
+## the Master bus goes silent and the players pause; false resumes them
+## and gives the bus back the player's own mute. This node always
+## processes, so the tree's pause alone would not stop it.
+func set_suspended(suspended: bool) -> void:
+	_is_suspended = suspended
+	AudioServer.set_bus_mute(0, suspended or _is_muted)
+	for player: AudioStreamPlayer in _players + [_music]:
+		player.stream_paused = suspended
+
+
+func is_suspended() -> bool:
+	return _is_suspended
 
 
 ## Flips mute and saves it in the settings.
@@ -168,6 +184,7 @@ func _start_music(id: StringName) -> void:
 	_music.stream = sound.stream
 	_music.volume_db = sound.volume_db
 	_music.play()
+	_music.stream_paused = _is_suspended
 
 
 func _find(id: StringName) -> SoundData:

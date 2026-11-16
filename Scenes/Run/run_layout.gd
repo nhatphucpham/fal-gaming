@@ -81,22 +81,26 @@ func _init() -> void:
 	_build_overlay()
 
 
-## Slides the bench, shop and buttons away and the battle bars in.
+## Slides the bench, shop and buttons away and the battle bars in. Once the
+## slide ends the preparation panel is hidden and stops processing.
 func show_battle_layout() -> void:
 	_restart_phase_tween()
+	_set_panel_active(_battle_panel, true)
 	_phase_tween.tween_property(_prep_panel, ^"position:y", SLIDE_PX, 0.3).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	_phase_tween.parallel().tween_property(_prep_panel, ^"modulate:a", 0.0, 0.25)
 	# The battle bars count the units; the board counter would say it twice.
 	_phase_tween.parallel().tween_property(capacity_chip, ^"modulate:a", 0.0, 0.2)
 	_phase_tween.parallel().tween_property(_battle_panel, ^"position:y", 0.0, 0.3).set_delay(0.15).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_phase_tween.parallel().tween_property(_battle_panel, ^"modulate:a", 1.0, 0.2).set_delay(0.15)
-	_battle_panel.visible = true
 	_battle_panel.mouse_filter = Control.MOUSE_FILTER_PASS
+	_phase_tween.chain().tween_callback(_set_panel_active.bind(_prep_panel, false))
 
 
-## Slides the preparation layout back.
+## Slides the preparation layout back (shown and processing again before
+## it moves); the battle panel is hidden and stops once it is away.
 func show_prep_layout() -> void:
 	_restart_phase_tween()
+	_set_panel_active(_prep_panel, true)
 	# The slid-away battle panel still overlaps the fight button on short
 	# screens: it must not take presses meant for the preparation.
 	_battle_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -105,7 +109,17 @@ func show_prep_layout() -> void:
 	_phase_tween.parallel().tween_property(_prep_panel, ^"position:y", 0.0, 0.3).set_delay(0.1).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	_phase_tween.parallel().tween_property(_prep_panel, ^"modulate:a", 1.0, 0.2).set_delay(0.1)
 	_phase_tween.parallel().tween_property(capacity_chip, ^"modulate:a", 1.0, 0.2)
-	_phase_tween.chain().tween_callback(_battle_panel.set_visible.bind(false))
+	_phase_tween.chain().tween_callback(_set_panel_active.bind(_battle_panel, false))
+
+
+## True while the bench, shop and buttons show (and process).
+func is_prep_panel_active() -> bool:
+	return _prep_panel.visible and _prep_panel.can_process()
+
+
+## True while the battle bars show (and process).
+func is_battle_panel_active() -> bool:
+	return _battle_panel.visible and _battle_panel.can_process()
 
 
 func _build_top_bar() -> Control:
@@ -246,7 +260,7 @@ func _build_battle_panel() -> Control:
 	_battle_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_battle_panel.position.y = SLIDE_PX
 	_battle_panel.modulate.a = 0.0
-	_battle_panel.visible = false
+	_set_panel_active(_battle_panel, false)
 	battle_status = BattleStatus.new()
 	battle_status.custom_minimum_size = Vector2(0, 2 * BattleStatus.ROW_HEIGHT_PX)
 	_battle_panel.add_child(battle_status)
@@ -323,6 +337,13 @@ func _spacer(height: int) -> Control:
 	spacer.custom_minimum_size = Vector2(0, height)
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	return spacer
+
+
+# A panel slid away is hidden and stops processing (its gestures, the shop
+# cards' pulses), so it costs nothing while the other layout shows.
+func _set_panel_active(panel: Control, is_active: bool) -> void:
+	panel.visible = is_active
+	panel.process_mode = Node.PROCESS_MODE_INHERIT if is_active else Node.PROCESS_MODE_DISABLED
 
 
 func _restart_phase_tween() -> void:

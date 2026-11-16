@@ -116,11 +116,18 @@ formation part of its result:
 | `shatter(side, id, cells)` | method | Breaks and fades the outline of the instance with these global member cells (as `formation_broken` reports them) |
 | `is_battle` | property | Hides near-misses and fades outlines while units walk away |
 | `get_formation_ids(side)`, `get_near_ids()`, `get_broken(side)` | methods | What is drawn, for tests |
+| `is_animating()` | method | True while a light, flash, stamp or shatter plays, for tests |
 
 Active outlines are a glowing line in the formation's colour around the
 members' cells; the enemy's are tinted red and dimmer; a near-miss is a
 dashed line over the members and the missing cell, with a ghost "+" marker
 in the needed class's colour on the missing cell.
+
+The outlines redraw only while something moves: every frame during a run
+light, a roll-call flash or a shatter (and once after it, to draw the end),
+the names only while a stamp shows, and the near-misses' breathing on the
+shared idle steps (`IdleTicks`, 30 a second, the frames idle figures redraw
+on). Still outlines cost nothing per frame.
 
 ## Log events
 

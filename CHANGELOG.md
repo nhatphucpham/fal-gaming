@@ -9,6 +9,18 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Changed
 
+- Lighter on phones and weak PCs: the title and the preparation draw about
+  30 frames a second instead of 60 while nothing moves (power saving, off
+  during battles), the background, formation outlines and cutscene
+  backdrops cost far less to draw (a full preparation went from about 930
+  to 660 draw calls), and the bench and shop stop working while a battle
+  is shown. Nothing looks different.
+- The game and its sound pause while the browser tab or the app is in the
+  background, and pick up where they were when it comes back (a desktop
+  window that only loses focus keeps playing).
+- For testers: every pull request reports the performance probe
+  (`Tools/perf_probe.gd`), and CI fails a scene over its budget in
+  `Docs/perf_budget.json`.
 - Cavalry charges with sense: a rider charges only an enemy in its lane
   (its own column, else the nearest in a neighbouring column, stopping
   diagonally in front of it); with nobody in its lane it walks instead of

@@ -32,15 +32,15 @@ var facing: int = UnitPainter.FACING_UP:
 		queue_redraw()
 ## 0..1, the hit flash: how far the figure is blended toward white (80% at
 ## most for a rigged figure, like the sketch). A figure outside the rig
-## redraws for it, at most PoseRedraws.ACTION_PER_SEC and once at
-## the end.
+## redraws for it once per IdleTicks step (PoseRedraws.ACTION_PER_SEC a
+## second) and once at the end.
 var flash: float = 0.0:
 	set(value):
 		flash = value
 		if _is_rigged():
 			_update_flash()
 			return
-		var slot := floori(Time.get_ticks_msec() * 0.001 * PoseRedraws.ACTION_PER_SEC)
+		var slot := IdleTicks.current_step()
 		if slot != _flash_slot or value <= 0.0 or value >= 1.0:
 			_flash_slot = slot
 			queue_redraw()

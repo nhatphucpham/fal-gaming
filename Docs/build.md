@@ -89,7 +89,9 @@ After building, run the editor import, `Tests/smoke_test.gd`,
 `Tests/epiphany_test.gd`, `Tests/boss_test.gd`, `Tests/cutscene_test.gd`,
 `Tests/audio_test.gd`, `Tests/unit_pose_test.gd`,
 `Tests/pose_animator_test.gd`, `Tests/pose_cast_test.gd`,
-`Tests/pose_stone_test.gd` and `Tests/voice_test.gd` as shown in the
+`Tests/pose_stone_test.gd`, `Tests/voice_test.gd`,
+`Tests/perf_budget_test.gd`, `Tests/idle_frames_test.gd` and
+`Tests/app_lifecycle_test.gd` as shown in the
 README. Tests that touch the
 settings file point `RunSettings.path` at `user://settings_test.json`, so
 the player's mute and preparation time are left alone.
@@ -118,7 +120,27 @@ Android arm64 and arm32, and the web (wasm32 without threads), and uploads
 them as workflow artifacts. It then runs the import, the smoke, battle,
 sandbox, run and run flow tests with the Linux library, and checks that the Android and Web
 exports contain theirs.
+After the tests it runs the performance probe twice, headless and under a
+virtual display (`xvfb-run`, Mesa's software OpenGL), each time with
+`--budget=Docs/perf_budget.json`, and writes the per-scene table to the job
+summary; a scene over its budget fails the job.
 These checks do not replace testing an exported build on the target device.
+
+## Performance probe
+
+`Tools/perf_probe.gd` plays the title, a full stage-11 preparation and that
+battle at x1 and x4, and prints per scene the CPU time per frame, redraws,
+draw calls, frames drawn, nodes and memory. It is a separate command, not
+part of `Tools/build_and_test.sh` or `.bat`; run it before and after a change
+and put both numbers in the pull request:
+
+```bash
+godot --headless --path . --script res://Tools/perf_probe.gd -- --budget=Docs/perf_budget.json
+xvfb-run -a -s "-screen 0 400x700x24" godot --rendering-driver opengl3 --audio-driver Dummy --resolution 360x640 --path . --script res://Tools/perf_probe.gd -- --budget=Docs/perf_budget.json
+```
+
+What each number means, the budget and its rules are in
+[Performance](systems/performance.md).
 
 ## Balance bot
 

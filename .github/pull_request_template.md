@@ -6,6 +6,16 @@
 
 <!-- What a reviewer should run or try by hand. -->
 
+## Performance
+
+<!-- Run Tools/perf_probe.gd headless and rendered before and after (see
+Docs/systems/performance.md). Fill in all three lines: numbers before ->
+after, or "no change expected because ...". -->
+
+- Smoothness:
+- Performance:
+- Energy:
+
 ## Checklist
 
 - [ ] One concern; refactors and behavior changes are in separate commits.
@@ -21,6 +31,8 @@
 - [ ] `CHANGELOG.md` entry under `Unreleased`, if a player or tester would
       notice the change.
 - [ ] Tests added or updated; import, smoke test and native build pass.
+- [ ] Performance section filled in from the probe; `Docs/perf_budget.json`
+      lowered if numbers went down, raised only with a written reason.
 
 ## No docs needed?
 
