@@ -30,6 +30,8 @@ constexpr int MAX_BUFF_PCT = 1000;
 constexpr int MAX_ADJACENT_CELLS = 4;
 constexpr int MAX_TRAITS = 2;
 constexpr int MAX_INCIDENT_WEIGHT = 1000;
+// Vision radii, terrain vision changes, sight blocks and lights.
+constexpr int MAX_VISION_CELLS = 16;
 
 bool validate_rules(const Rules &p_rules, std::string *r_error);
 bool validate_map(const MapDef &p_map, std::string *r_error);
@@ -37,5 +39,8 @@ bool validate_map(const MapDef &p_map, std::string *r_error);
 bool validate_unit_def(const UnitDef &p_unit, std::string *r_error);
 // Seed counts, odds and every incident's numbers; each incident once.
 bool validate_incident_rules(const IncidentRules &p_rules, std::string *r_error);
+// Weathers (ranges, a wind along an axis), the weather change round and
+// the times of day.
+bool validate_environment(const EnvironmentDef &p_environment, std::string *r_error);
 
 } // namespace tactics

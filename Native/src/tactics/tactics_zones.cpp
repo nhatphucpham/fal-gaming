@@ -15,9 +15,13 @@ void ranged_ward_incoming(const ZoneDef &p_zone, const HitContext &p_context, Hi
 }
 
 // zone_effect.burn (fire): `amount` damage, not mitigated, to each enemy of
-// the maker standing in it at the start of that enemy's phase.
+// the maker standing in it at the start of that enemy's phase; the
+// weather's burn_pct of it (rain dampens fire).
 void burn_phase_start(TacticsSim &p_sim, const ZoneState &p_zone, int p_unit, int p_cause) {
-	p_sim.deal_damage(p_zone.source, p_unit, p_zone.def.amount, p_zone.def.id, false, p_cause);
+	const int amount = static_cast<int>(static_cast<int64_t>(p_zone.def.amount) * p_sim.get_weather().burn_pct / 100);
+	if (amount > 0) {
+		p_sim.deal_damage(p_zone.source, p_unit, amount, p_zone.def.id, false, p_cause);
+	}
 }
 
 const ZoneHandler ZONE_HANDLERS[] = {

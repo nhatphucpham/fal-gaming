@@ -22,10 +22,12 @@ void mark_reach(const TacticsSim &p_sim, int p_enemy, std::vector<char> &r_marks
 			continue;
 		}
 		const Cell from = p_sim.get_cell_at(static_cast<int>(index));
-		if (from != enemy.cell && !can_stop_at(p_sim, p_enemy, from)) {
+		if (from != enemy.cell && !can_plan_stop_at(p_sim, p_enemy, from)) {
 			continue;
 		}
-		const int reach = stats.max_range_cells;
+		// The weather may lengthen a shot along the wind.
+		const WeatherDef &weather = p_sim.get_weather();
+		const int reach = stats.max_range_cells + (enemy.def.is_ranged ? weather.wind_range_delta + (weather.ranged_range_delta > 0 ? weather.ranged_range_delta : 0) : 0);
 		for (int rows = -reach; rows <= reach; rows++) {
 			const int span = reach - abs_int(rows);
 			for (int cols = -span; cols <= span; cols++) {
@@ -33,7 +35,7 @@ void mark_reach(const TacticsSim &p_sim, int p_enemy, std::vector<char> &r_marks
 				if (cell.col < 0 || cell.row < 0 || cell.col >= map.width || cell.row >= map.height) {
 					continue;
 				}
-				if (abs_int(rows) + abs_int(cols) >= stats.min_range_cells) {
+				if (is_in_range_from(p_sim, p_enemy, from, cell)) {
 					r_marks[p_sim.get_cell_index(cell)] = 1;
 				}
 			}
@@ -41,8 +43,10 @@ void mark_reach(const TacticsSim &p_sim, int p_enemy, std::vector<char> &r_marks
 	}
 }
 
-bool is_enemy_of(const UnitState &p_unit, int p_side) {
-	return p_unit.is_alive && p_unit.side != p_side && !p_unit.has_fled;
+// An enemy p_side knows of: what a side does not see, it does not fear
+// (fog of war).
+bool is_enemy_of(const TacticsSim &p_sim, const UnitState &p_unit, int p_side) {
+	return p_unit.is_alive && p_unit.side != p_side && !p_unit.has_fled && p_sim.is_unit_seen_by(p_side, p_unit.index);
 }
 
 } // namespace
@@ -52,7 +56,7 @@ std::vector<int> count_enemy_reach(const TacticsSim &p_sim, int p_side, const Ce
 	std::vector<int> counts(cell_count, 0);
 	std::vector<char> marks;
 	for (const UnitState &unit : p_sim.get_units()) {
-		if (!is_enemy_of(unit, p_side) || !p_sim.is_on_map(unit.cell)) {
+		if (!is_enemy_of(p_sim, unit, p_side) || !p_sim.is_on_map(unit.cell)) {
 			continue;
 		}
 		marks.assign(cell_count, 0);
@@ -75,7 +79,7 @@ std::vector<int> find_enemies_reaching(const TacticsSim &p_sim, int p_side, cons
 	const int cell_count = p_sim.get_map().width * p_sim.get_map().height;
 	std::vector<char> marks;
 	for (const UnitState &unit : p_sim.get_units()) {
-		if (!is_enemy_of(unit, p_side) || !p_sim.is_on_map(unit.cell)) {
+		if (!is_enemy_of(p_sim, unit, p_side) || !p_sim.is_on_map(unit.cell)) {
 			continue;
 		}
 		marks.assign(cell_count, 0);
@@ -109,7 +113,7 @@ std::vector<Strike> list_strikes(const TacticsSim &p_sim, int p_unit, const Path
 	const int near = stats.move_points + stats.max_range_cells + TERRAIN_RANGE_SLACK;
 	std::vector<int> enemies;
 	for (const UnitState &other : p_sim.get_units()) {
-		if (is_enemy_of(other, unit.side) && p_sim.is_on_map(other.cell) && get_manhattan(other.cell, unit.cell) <= near) {
+		if (is_enemy_of(p_sim, other, unit.side) && p_sim.is_on_map(other.cell) && get_manhattan(other.cell, unit.cell) <= near) {
 			enemies.push_back(other.index);
 		}
 	}
@@ -119,7 +123,7 @@ std::vector<Strike> list_strikes(const TacticsSim &p_sim, int p_unit, const Path
 	TacticsSim scratch = p_sim;
 	for (size_t index = 0; index < p_field.cost.size(); index++) {
 		const Cell cell = p_sim.get_cell_at(static_cast<int>(index));
-		if (p_field.cost[index] == UNREACHABLE || !can_stop_at(p_sim, p_unit, cell) || !p_allow(cell)) {
+		if (p_field.cost[index] == UNREACHABLE || !can_plan_stop_at(p_sim, p_unit, cell) || !p_allow(cell)) {
 			continue;
 		}
 		bool is_placed = false;

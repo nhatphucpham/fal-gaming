@@ -156,6 +156,12 @@ bool TacticsSim::start(std::string *r_error) {
 	if (incident_rules.enabled) {
 		plant_incident_seeds(*this);
 	}
+	if (environment.fog_of_war) {
+		for (SideVision &side : vision) {
+			side.seen.assign(map.width * map.height, 0);
+			side.last_seen.assign(units.size(), NO_CELL);
+		}
+	}
 	begin_phase(SIDE_A);
 	run_ai_phases();
 	return true;
@@ -204,6 +210,11 @@ void TacticsSim::begin_phase(int p_side) {
 	event.type = EventType::PHASE_STARTED;
 	event.side = p_side;
 	const int cause = emit(event);
+	if (p_side == SIDE_A) {
+		announce_environment(cause);
+	}
+	// A new round may bring night or fog; attackers seen last phase fade.
+	refresh_vision(cause);
 	expire_timed_effects(cause);
 	for (UnitState &unit : units) {
 		if (unit.side == p_side) {

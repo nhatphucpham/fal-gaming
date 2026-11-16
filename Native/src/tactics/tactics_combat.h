@@ -16,6 +16,11 @@ class TacticsSim;
 AttackKind get_attack_kind(const UnitState &p_unit);
 // p_target stands within the attacker's range from p_from.
 bool is_in_range_from(const TacticsSim &p_sim, int p_attacker, const Cell &p_from, const Cell &p_target);
+// The attacker's max range from p_from toward p_target: its stats, and for
+// a ranged unit the weather (rain, wind along or against the shot).
+int get_max_range_toward(const TacticsSim &p_sim, int p_attacker, const Cell &p_from, const Cell &p_target);
+// In range of a living enemy, whether its side sees it or not (counters).
+bool can_reach_target(const TacticsSim &p_sim, int p_attacker, int p_target);
 bool can_attack(const TacticsSim &p_sim, int p_attacker, int p_target);
 // One hit's damage with every modifier (at least 1). For SKILL hits,
 // p_coefficient_pct and p_kind come from the skill effect.

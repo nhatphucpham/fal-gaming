@@ -77,6 +77,9 @@ void TacticsSim::hash_unit(uint64_t *r_hash, const UnitState &p_unit) const {
 	hash_value(r_hash, p_unit.guard_end_turn);
 	hash_value(r_hash, p_unit.hold_end_turn);
 	hash_value(r_hash, p_unit.free_end_turn);
+	hash_value(r_hash, p_unit.revealed_end_turn);
+	hash_value(r_hash, p_unit.is_unseen_waver ? 1 : 0);
+	hash_value(r_hash, p_unit.def.vision_cells);
 	hash_value(r_hash, static_cast<int64_t>(p_unit.soldiers.size()));
 	for (int soldier : p_unit.soldiers) {
 		hash_value(r_hash, soldier);
@@ -151,6 +154,31 @@ void TacticsSim::hash_setup(uint64_t *r_hash) const {
 	}
 }
 
+// The environment (it decides vision, ranges and costs) and what each side
+// remembers; what it sees now follows from the rest of the state.
+void TacticsSim::hash_vision(uint64_t *r_hash) const {
+	hash_value(r_hash, environment.fog_of_war ? 1 : 0);
+	hash_text(r_hash, environment.weather.id);
+	hash_value(r_hash, environment.has_weather_change ? environment.weather_change_round : 0);
+	hash_text(r_hash, environment.has_weather_change ? environment.weather_after.id : std::string());
+	hash_value(r_hash, static_cast<int64_t>(environment.daytimes.size()));
+	for (const DaytimeDef &daytime : environment.daytimes) {
+		hash_text(r_hash, daytime.id);
+	}
+	hash_value(r_hash, environment.daytime_step_rounds);
+	hash_value(r_hash, environment.daytime_start_index);
+	for (const SideVision &side : vision) {
+		hash_value(r_hash, static_cast<int64_t>(side.seen.size()));
+		for (uint8_t value : side.seen) {
+			hash_value(r_hash, value);
+		}
+		hash_value(r_hash, static_cast<int64_t>(side.last_seen.size()));
+		for (const Cell &cell : side.last_seen) {
+			hash_cell(r_hash, cell);
+		}
+	}
+}
+
 uint64_t TacticsSim::get_state_hash() const {
 	uint64_t hash = FNV_OFFSET_BASIS;
 	hash_setup(&hash);
@@ -165,6 +193,7 @@ uint64_t TacticsSim::get_state_hash() const {
 	// The next event's id: it numbers every later event and cause.
 	hash_value(&hash, next_event_id);
 	hash_incidents(&hash);
+	hash_vision(&hash);
 	hash_value(&hash, static_cast<int64_t>(units.size()));
 	for (const UnitState &unit : units) {
 		hash_unit(&hash, unit);

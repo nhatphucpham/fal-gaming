@@ -48,6 +48,11 @@ std::vector<Cell> get_path(const TacticsSim &p_sim, const PathField &p_field, co
 // The unit may end a move here: on the map, passable for it, and free (or
 // its own cell).
 bool can_stop_at(const TacticsSim &p_sim, int p_unit, const Cell &p_cell);
+// can_stop_at() as the unit's side knows the map: an enemy it does not see
+// does not take the cell (fog of war; walking there is an ambush).
+bool can_plan_stop_at(const TacticsSim &p_sim, int p_unit, const Cell &p_cell);
+// The cost for the unit to step onto p_cell: terrain, keywords, weather.
+int get_step_cost(const TacticsSim &p_sim, int p_unit, const Cell &p_cell);
 // Cells the unit can end a move on with the move points it may spend now,
 // without its own cell, in row-major order.
 std::vector<Cell> get_reachable_cells(const TacticsSim &p_sim, int p_unit);

@@ -238,7 +238,7 @@ int get_threat_rank(const TacticsSim &p_sim, int p_enemy, int p_leader, const st
 int get_nearest_enemy_distance(const TacticsSim &p_sim, int p_side, const Cell &p_cell) {
 	int nearest = SAFE_DISTANCE_CELLS;
 	for (const UnitState &unit : p_sim.get_units()) {
-		if (unit.is_alive && unit.side != p_side && p_sim.is_on_map(unit.cell)) {
+		if (unit.is_alive && unit.side != p_side && p_sim.is_on_map(unit.cell) && p_sim.is_unit_seen_by(p_side, unit.index)) {
 			const int distance = get_manhattan(unit.cell, p_cell);
 			nearest = distance < nearest ? distance : nearest;
 		}
@@ -249,7 +249,7 @@ int get_nearest_enemy_distance(const TacticsSim &p_sim, int p_side, const Cell &
 bool has_target_from(const TacticsSim &p_sim, int p_unit, const Cell &p_cell) {
 	const int side = p_sim.get_units()[p_unit].side;
 	for (const UnitState &unit : p_sim.get_units()) {
-		if (unit.is_alive && unit.side != side && p_sim.is_on_map(unit.cell) && is_in_range_from(p_sim, p_unit, p_cell, unit.cell)) {
+		if (unit.is_alive && unit.side != side && p_sim.is_on_map(unit.cell) && p_sim.is_unit_seen_by(side, unit.index) && is_in_range_from(p_sim, p_unit, p_cell, unit.cell)) {
 			return true;
 		}
 	}
@@ -265,7 +265,7 @@ bool is_exposed(const TacticsSim &p_sim, int p_soldier, const Cell &p_cell, int 
 	}
 	const int side = p_sim.get_units()[p_soldier].side;
 	for (const UnitState &unit : p_sim.get_units()) {
-		if (unit.is_alive && unit.side != side && unit.index != p_spared && p_sim.is_on_map(unit.cell) && get_manhattan(unit.cell, p_cell) == 1) {
+		if (unit.is_alive && unit.side != side && unit.index != p_spared && p_sim.is_on_map(unit.cell) && p_sim.is_unit_seen_by(side, unit.index) && get_manhattan(unit.cell, p_cell) == 1) {
 			return true;
 		}
 	}
@@ -389,7 +389,7 @@ int find_nearest_enemy_by_path(const TacticsSim &p_sim, int p_soldier) {
 	int best = NO_UNIT;
 	int best_cost = UNREACHABLE;
 	for (const UnitState &enemy : p_sim.get_units()) {
-		if (!enemy.is_alive || enemy.side == p_sim.get_units()[p_soldier].side) {
+		if (!enemy.is_alive || enemy.side == p_sim.get_units()[p_soldier].side || !p_sim.is_unit_seen_by(p_sim.get_units()[p_soldier].side, enemy.index)) {
 			continue;
 		}
 		for (const Cell &cell : get_attack_cells(p_sim, p_soldier, enemy.index)) {

@@ -5,6 +5,8 @@
 
 #include "tactics_types.h"
 
+#include <cstdint>
+
 namespace tactics {
 
 // Where a soldier's seed stands: hidden, shown as wavering, or spent.
@@ -91,6 +93,24 @@ struct UnitState {
 	int hold_end_turn = 0;
 	int free_end_turn = 0;
 	std::vector<MarkState> marks;
+	// Vision: it attacked, so the other side sees it while turn is below
+	// this, wherever it stands.
+	int revealed_end_turn = 0;
+	// Incidents: its seed wavered only because it was out of its leader's
+	// sight (the unseen trigger, Docs/systems/tactics_vision.md).
+	bool is_unseen_waver = false;
+};
+
+// What one side sees: the cells it sees now and has ever seen, the cells
+// its scouts see (where hidden units show), which units it sees now, and
+// where it last saw each enemy (NO_CELL: never, or the cell was seen empty
+// since). Indexed by cell (row-major) or by unit.
+struct SideVision {
+	std::vector<uint8_t> visible;
+	std::vector<uint8_t> seen;
+	std::vector<uint8_t> scout_visible;
+	std::vector<uint8_t> unit_visible;
+	std::vector<Cell> last_seen;
 };
 
 struct ZoneState {
@@ -161,6 +181,10 @@ enum class EventType {
 	UNIT_DEFECTED,
 	KARMA_CHANGED,
 	BATTLE_ENDED,
+	VISION_CHANGED,
+	AMBUSHED,
+	WEATHER_CHANGED,
+	DAYTIME_CHANGED,
 };
 
 struct SkillTargetResult {
@@ -194,7 +218,11 @@ struct Event {
 	Cell from;
 	Cell to;
 	std::vector<Cell> cells;
+	// vision_changed: the cells no longer seen; units: enemies now seen.
+	std::vector<Cell> other_cells;
 	std::vector<int> units;
+	// vision_changed: enemies no longer seen.
+	std::vector<int> other_units;
 	// A content or handler id: skill, passive, zone, order or buff stat.
 	std::string content_id;
 	// A small name: move kind, attack kind, intent action, end reason,

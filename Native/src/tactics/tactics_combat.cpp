@@ -83,16 +83,39 @@ AttackKind get_attack_kind(const UnitState &p_unit) {
 	return p_unit.def.is_ranged ? AttackKind::RANGED : AttackKind::MELEE;
 }
 
+int get_max_range_toward(const TacticsSim &p_sim, int p_attacker, const Cell &p_from, const Cell &p_target) {
+	const Stats stats = p_sim.get_stats_at(p_attacker, p_from);
+	if (!p_sim.get_units()[p_attacker].def.is_ranged) {
+		return stats.max_range_cells;
+	}
+	// Rain shortens shots; a wind lengthens those along it and shortens
+	// those against it, by the longer axis of the shot.
+	const WeatherDef &weather = p_sim.get_weather();
+	int range = stats.max_range_cells + weather.ranged_range_delta;
+	const Cell delta = p_target - p_from;
+	const Cell axis = abs_int(delta.col) >= abs_int(delta.row) ? Cell{ delta.col > 0 ? 1 : (delta.col < 0 ? -1 : 0), 0 } : Cell{ 0, delta.row > 0 ? 1 : -1 };
+	if (weather.wind != Cell{ 0, 0 } && axis == weather.wind) {
+		range += weather.wind_range_delta;
+	} else if (weather.wind != Cell{ 0, 0 } && axis == Cell{ -weather.wind.col, -weather.wind.row }) {
+		range -= weather.wind_range_delta;
+	}
+	return range < stats.min_range_cells ? stats.min_range_cells : range;
+}
+
 bool is_in_range_from(const TacticsSim &p_sim, int p_attacker, const Cell &p_from, const Cell &p_target) {
 	const Stats stats = p_sim.get_stats_at(p_attacker, p_from);
 	const int distance = get_manhattan(p_from, p_target);
-	return distance >= stats.min_range_cells && distance <= stats.max_range_cells;
+	return distance >= stats.min_range_cells && distance <= get_max_range_toward(p_sim, p_attacker, p_from, p_target);
 }
 
-bool can_attack(const TacticsSim &p_sim, int p_attacker, int p_target) {
+bool can_reach_target(const TacticsSim &p_sim, int p_attacker, int p_target) {
 	const UnitState &attacker = p_sim.get_units()[p_attacker];
 	const UnitState &target = p_sim.get_units()[p_target];
 	return attacker.is_alive && target.is_alive && attacker.side != target.side && is_in_range_from(p_sim, p_attacker, attacker.cell, target.cell);
+}
+
+bool can_attack(const TacticsSim &p_sim, int p_attacker, int p_target) {
+	return can_reach_target(p_sim, p_attacker, p_target) && p_sim.is_unit_seen_by(p_sim.get_units()[p_attacker].side, p_target);
 }
 
 int compute_hit_damage(const TacticsSim &p_sim, int p_attacker, int p_defender, AttackKind p_kind, bool p_is_counter, int p_coefficient_pct, DamageKind p_damage_kind) {
@@ -130,7 +153,8 @@ EngagementResult plan_engagement(const TacticsSim &p_sim, int p_attacker, int p_
 	result.attacker = p_attacker;
 	result.defender = p_defender;
 	result.kind = get_attack_kind(attacker);
-	result.can_counter = can_attack(p_sim, p_defender, p_attacker);
+	// The defender answers where the blow came from, seen or not.
+	result.can_counter = can_reach_target(p_sim, p_defender, p_attacker);
 	result.is_first_strike = result.can_counter && has_first_strike(p_sim, p_defender, result.kind);
 	result.attacker_damage_per_hit = compute_hit_damage(p_sim, p_attacker, p_defender, result.kind, false, BASIC_COEFFICIENT_PCT, attacker.def.damage_kind);
 	if (result.can_counter) {
@@ -213,6 +237,8 @@ EngagementResult predict_engagement(const TacticsSim &p_sim, int p_attacker, int
 }
 
 EngagementResult resolve_engagement(TacticsSim &p_sim, int p_attacker, int p_defender, int p_cause) {
+	// Striking shows the attacker to the other side (fog of war).
+	p_sim.reveal_attacker(p_attacker);
 	EngagementResult result = plan_engagement(p_sim, p_attacker, p_defender);
 	Event started;
 	started.type = EventType::ENGAGEMENT_STARTED;
