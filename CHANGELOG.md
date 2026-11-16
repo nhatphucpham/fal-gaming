@@ -269,6 +269,9 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Fixed
 
+- Chiến Dịch: your phase starts with one of your leaders on screen; the
+  camera no longer stays where the enemy's last move (or your drag) left
+  it, with none of your troops in sight.
 - Chiến Dịch: retreating while the enemy moves no longer lets its moves,
   hits and sounds go on behind the after-battle summary.
 - Chiến Dịch menus on a phone: the muster, the roster, the character sheet

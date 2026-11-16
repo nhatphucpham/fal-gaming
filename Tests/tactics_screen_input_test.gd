@@ -5,7 +5,8 @@ extends SceneTree
 # runs change nothing but the step, a tap skips a close-up (and a second
 # one does no harm), "Rút" works while the enemy plays, the skill close-up
 # says what a support skill did to allies for our side and for the enemy,
-# the enemy's phase and intents read right, and so do the skill outcome
+# the enemy's phase and intents read right, our phase starts with a leader
+# of ours on screen wherever the camera was, and so do the skill outcome
 # lines and the growth float. With a campaign, "Rút" during the enemy's
 # phase shows the summary and nothing plays on behind it. No error may be
 # logged, also after the screen is freed in the middle of a playback.
@@ -53,7 +54,7 @@ func _run() -> bool:
 	if not ClassDB.class_exists("TacticsBattle"):
 		push_error("TacticsBattle is missing: build the GDExtension (scons) before importing")
 		return false
-	var checks: Array[Callable] = [_check_outcome_lines, _check_enemy_phase_texts, _check_busy_taps, _check_our_rally, _check_enemy_rally, _check_retreat_while_busy, _check_campaign_retreat_stops_playback]
+	var checks: Array[Callable] = [_check_outcome_lines, _check_enemy_phase_texts, _check_our_phase_in_view, _check_busy_taps, _check_our_rally, _check_enemy_rally, _check_retreat_while_busy, _check_campaign_retreat_stops_playback]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Tactics screen input test failed in %s" % check.get_method())
@@ -166,6 +167,42 @@ func _check_enemy_phase_texts() -> bool:
 	if not _screen.get_round_text().ends_with(enemy) or _screen.get_panel().get_card_texts()[0] != enemy:
 		push_error("During the enemy's phase the top bar reads \"%s\" and the panel \"%s\"" % [_screen.get_round_text(), _screen.get_panel().get_card_texts()[0]])
 		return false
+	return await _wait_idle()
+
+
+# Our phase starts with a leader of ours on screen, wherever the camera was
+# left (the enemy's moves, or the player's own drag) when it began: the
+# hint asks to tap one.
+func _check_our_phase_in_view() -> bool:
+	await _open(0)
+	if not await _wait_idle():
+		return false
+	var map := _screen.get_map()
+	var far := Vector2i(map.map_width - 1, 0)
+	var ours: Array[int] = []
+	for unit: Dictionary in _battle().get_units():
+		if unit["role"] == &"leader" and unit["side"] == 0:
+			ours.append(unit["index"])
+			if (unit["cell"] - far).length() < 6.0:
+				push_error("The far corner %s should be away from our leaders" % far)
+				return false
+	_screen.press_button(&"end_turn")
+	for round_number: int in 2:
+		map.center_on(map.cell_to_local(far))
+		if not await _wait_idle():
+			return false
+		for frame: int in 60:
+			if not map.is_camera_moving():
+				break
+			await process_frame
+		var seen := false
+		for unit: int in ours:
+			var piece := map.get_piece(unit)
+			seen = seen or (piece.visible and map.is_in_view(piece.position))
+		if not seen:
+			push_error("Round %d: our phase began with no leader of ours on screen (camera at %s)" % [_battle().get_round(), map.get_camera_offset()])
+			return false
+		_screen.press_button(&"end_turn")
 	return await _wait_idle()
 
 

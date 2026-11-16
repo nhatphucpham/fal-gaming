@@ -525,10 +525,24 @@ func _on_phase_shown(side: int, round_number: int) -> void:
 	if side == player_side:
 		_set_hint("TACTICS_HINT_IDLE")
 		_show_our_phase_card(round_number)
+		_bring_ours_into_view()
 		return
 	_set_hint("TACTICS_HINT_ENEMY_PHASE")
 	var lines: Array[String] = [tr("TACTICS_HINT_ENEMY_PHASE"), "", ""]
 	_panel.show_card(tr("TACTICS_PHASE_ENEMY"), TacticsPainter.ENEMY_FILL.lightened(0.35), tr("TACTICS_ROUND_FORMAT") % [round_number, scenario.rules.max_rounds], lines)
+
+
+# Our phase asks to tap a leader of ours: if the enemy's moves or a drag
+# left none on screen, the camera glides back to the first one.
+func _bring_ours_into_view() -> void:
+	var first := NO_CELL
+	for state: Dictionary in _battle.get_units():
+		if state["alive"] and state["role"] == &"leader" and state["side"] == player_side:
+			if _map.is_in_view(_map.cell_to_local(state["cell"])):
+				return
+			first = state["cell"] if first == NO_CELL else first
+	if first != NO_CELL:
+		_map.follow(_map.cell_to_local(first))
 
 
 func _go_idle() -> void:

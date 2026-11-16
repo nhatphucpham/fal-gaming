@@ -150,7 +150,9 @@ tap), two fingers pinch it between the whole board and 1.4x that zoom
 (the mouse wheel too), and "Toàn cảnh" / "Phóng to" switches to the whole
 board and back. Selecting a unit and every leader move, attack and soldier
 fight in the playback bring it into view (0.28 s glide) unless it is
-already well inside.
+already well inside. When our phase begins with no leader of ours on
+screen (the enemy's moves or a drag took the camera away), it glides back
+to the first one.
 
 Campaign flow: muster (roster soldiers fill the squads; named soldiers are
 extra leaders of ours, returning traitors extra enemy leaders) → battle →
@@ -330,7 +332,8 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   through the viewport: taps during a playback send nothing, a tap skips
   the close-up, the enemy card's intent words ("hành quân" when its arrow
   moves, "đứng chờ" when it stays), the top bar and panel during the
-  enemy's phase, the rally's close-up line for our side and the enemy's,
+  enemy's phase, a leader of ours on screen when our phase starts after
+  the camera was moved away, the rally's close-up line for our side and the enemy's,
   every skill outcome line, "Rút" during the enemy's phase (and its hint
   coming back after 3 s), with a campaign a double "Rút" while the enemy
   plays opening the summary with nothing playing on behind it, and no
