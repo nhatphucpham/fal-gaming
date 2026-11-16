@@ -1,14 +1,17 @@
 class_name TacticsPlayback
 extends Node
 ## Plays the events a TacticsBattle command returned on the map, in order,
-## with a sound for every change: phase banners, leader moves along their
-## path, squads stepping together, soldier fights batched (about 0.3 s
-## each, staggered so a squad stays under about 2 s), deaths, charge pips,
-## zones, buffs, passives, intents and incidents (a soldier wavering, the
-## incident firing with its name over the soldier, calming, fleeing,
-## defecting, a mark earned). A leader's attack or skill opens the
-## close-up. A tap skips the step that plays now. It never changes the
-## battle; the screen syncs the map from the battle once it is done.
+## with a sound for every change: phase banners, a leader's move with its
+## squad stepping along at the same time, soldier fights of a squad
+## together (about 0.3 s each, staggered so a squad stays under about
+## 1 s), a leader's attack on the map (a lunge or a shot, a flash, the
+## numbers, a heavy hit), deaths, charge pips, zones, buffs, passives,
+## intents and incidents (a soldier wavering, the incident firing with its
+## name over the soldier, calming, fleeing, defecting, a mark earned). The
+## close-up opens only for a skill and for a blow that kills a leader. The
+## camera follows what plays. A tap skips the step that plays now. It
+## never changes the battle; the screen syncs the map from the battle once
+## it is done.
 ## See Docs/systems/tactics_screen.md.
 ## [codeblock]
 ## playback.reset(battle.get_zones())
@@ -27,8 +30,10 @@ const SQUAD_MOVE_MAX_SEC: float = 0.55
 const FIGHT_SEC: float = 0.3
 ## Soldier fights of one batch start at most this far apart, and all of
 ## them start within FIGHT_BATCH_SEC.
-const FIGHT_STAGGER_SEC: float = 0.28
-const FIGHT_BATCH_SEC: float = 1.1
+const FIGHT_STAGGER_SEC: float = 0.14
+const FIGHT_BATCH_SEC: float = 0.6
+## A leader's attack on the map: lunge, hit, counter.
+const LEADER_FIGHT_SEC: float = 0.5
 const BANNER_SEC: float = 0.85
 const HIT_COLOR := Color("ffd27a")
 const COUNTER_COLOR := Color("f3e6c8")
@@ -158,38 +163,60 @@ func _play_move(events: Array, index: int) -> int:
 	var piece := _piece(event["unit"])
 	var tween := _new_step()
 	var path: Array = event["path"]
+	map.follow(map.cell_to_local(event["to"]))
 	if event["kind"] == &"pull":
 		Sound.play(&"block")
 		tween.tween_property(piece, ^"position", map.cell_to_local(event["to"]), 0.22).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	else:
-		Sound.play(&"charge")
-		for step: int in range(1, path.size()):
-			tween.tween_property(piece, ^"position", map.cell_to_local(path[step]), MOVE_SEC_PER_CELL)
-		if path.size() < 2:
-			tween.tween_interval(0.05)
+		await _finish(tween)
+		return index + 1
+	Sound.play(&"charge")
+	tween.set_parallel()
+	for step: int in range(1, path.size()):
+		tween.tween_property(piece, ^"position", map.cell_to_local(path[step]), MOVE_SEC_PER_CELL).set_delay(MOVE_SEC_PER_CELL * (step - 1))
+	tween.tween_interval(maxf(MOVE_SEC_PER_CELL * (path.size() - 1), 0.05))
+	# The squad steps right after its leader: it sets off one step behind.
+	var end := index + 1
+	if _is_leader(event["unit"]):
+		var squad_end := end
+		while squad_end < events.size() and events[squad_end]["type"] == &"skill_charge_changed":
+			squad_end += 1
+		if squad_end < events.size() and events[squad_end]["type"] == &"unit_moved" and events[squad_end]["kind"] == &"squad":
+			for at: int in range(end, squad_end):
+				_play_charge(events, at)
+			end = _add_squad_moves(tween, events, squad_end, MOVE_SEC_PER_CELL)
+			Sound.play(&"card_flip")
 	await _finish(tween)
-	return index + 1
+	return end
 
 
 # Consecutive squad steps move together, each soldier along its own path.
 func _play_squad_moves(events: Array, index: int) -> int:
+	var tween := _new_step()
+	tween.set_parallel()
+	var end := _add_squad_moves(tween, events, index, 0.0)
+	Sound.play(&"card_flip")
+	await _finish(tween)
+	return end
+
+
+# Adds the run of squad steps from `index` to a parallel tween, starting
+# after `delay`; returns the index after the run.
+func _add_squad_moves(tween: Tween, events: Array, index: int, delay: float) -> int:
 	var end := index
 	var longest := 1
 	while end < events.size() and events[end]["type"] == &"unit_moved" and events[end]["kind"] == &"squad":
 		longest = maxi(longest, (events[end]["path"] as Array).size() - 1)
 		end += 1
 	var per_cell := minf(MOVE_SEC_PER_CELL * 0.9, SQUAD_MOVE_MAX_SEC / longest)
-	var tween := _new_step()
-	tween.set_parallel()
 	for step_index: int in range(index, end):
 		var event: Dictionary = events[step_index]
 		var piece := _piece(event["unit"])
+		if piece == null:
+			continue
 		var path: Array = event["path"]
 		for step: int in range(1, path.size()):
-			tween.tween_property(piece, ^"position", map.cell_to_local(path[step]), per_cell).set_delay(per_cell * (step - 1))
-	tween.tween_interval(per_cell * longest)
-	Sound.play(&"card_flip")
-	await _finish(tween)
+			tween.tween_property(piece, ^"position", map.cell_to_local(path[step]), per_cell).set_delay(delay + per_cell * (step - 1))
+	tween.tween_interval(delay + per_cell * longest)
 	return end
 
 
@@ -224,6 +251,9 @@ func _play_engagement(events: Array, index: int) -> int:
 
 
 func _play_soldier_fights(events: Array, spans: Array[Vector2i]) -> void:
+	var first := _piece(events[spans[0].x]["target"])
+	if first != null:
+		map.follow(first.position)
 	var tween := _new_step()
 	tween.set_parallel()
 	var stagger := minf(FIGHT_STAGGER_SEC, FIGHT_BATCH_SEC / maxf(spans.size() - 1, 1))
@@ -237,7 +267,7 @@ func _play_soldier_fights(events: Array, spans: Array[Vector2i]) -> void:
 
 # One soldier fight on the map: the attacker lunges (or shoots), the
 # target flashes with the total it took, then the counter, then deaths.
-func _add_fight(tween: Tween, events: Array, span: Vector2i, delay: float) -> void:
+func _add_fight(tween: Tween, events: Array, span: Vector2i, delay: float, is_leader_fight: bool = false) -> void:
 	var started: Dictionary = events[span.x]
 	var attacker := _piece(started["unit"])
 	var defender := _piece(started["target"])
@@ -256,18 +286,25 @@ func _add_fight(tween: Tween, events: Array, span: Vector2i, delay: float) -> vo
 		else:
 			taken += int(event["amount"])
 	var home := attacker.position
-	var toward: Vector2 = home + (defender.position - home) * 0.3
+	# A leader lunges further and hits harder, with its counter later.
+	var reach := 0.45 if is_leader_fight else 0.3
+	var beat := 1.6 if is_leader_fight else 1.0
+	var toward: Vector2 = home + (defender.position - home) * reach
 	var is_ranged: bool = started["kind"] == &"ranged"
-	tween.tween_callback(Sound.play.bind(&"arrow" if is_ranged else &"hit_light")).set_delay(delay)
+	var blow: StringName = &"hit_heavy" if is_leader_fight else &"hit_light"
+	tween.tween_callback(Sound.play.bind(&"arrow" if is_ranged else blow)).set_delay(delay)
 	if not is_ranged:
-		tween.tween_property(attacker, ^"position", toward, 0.1).set_delay(delay)
-		tween.tween_property(attacker, ^"position", home, 0.12).set_delay(delay + 0.1)
+		tween.tween_property(attacker, ^"position", toward, 0.1 * beat).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN).set_delay(delay)
+		tween.tween_property(attacker, ^"position", home, 0.12 * beat).set_delay(delay + 0.1 * beat)
 	else:
 		tween.tween_callback(_shoot.bind(attacker.position, defender.position)).set_delay(delay)
-	tween.tween_callback(_hit.bind(started["target"], dealt, int(hp_after.get(started["target"], defender.hp)), HIT_COLOR)).set_delay(delay + 0.12)
+	tween.tween_callback(_hit.bind(started["target"], dealt, int(hp_after.get(started["target"], defender.hp)), HIT_COLOR)).set_delay(delay + 0.12 * beat)
+	if is_leader_fight and is_ranged:
+		tween.tween_callback(Sound.play.bind(blow)).set_delay(delay + 0.12 * beat)
 	if taken > 0:
-		tween.tween_callback(_hit.bind(started["unit"], taken, int(hp_after.get(started["unit"], attacker.hp)), COUNTER_COLOR)).set_delay(delay + 0.22)
-	tween.tween_interval(delay + FIGHT_SEC)
+		tween.tween_callback(Sound.play.bind(&"block")).set_delay(delay + 0.22 * beat)
+		tween.tween_callback(_hit.bind(started["unit"], taken, int(hp_after.get(started["unit"], attacker.hp)), COUNTER_COLOR)).set_delay(delay + 0.22 * beat)
+	tween.tween_interval(delay + (LEADER_FIGHT_SEC if is_leader_fight else FIGHT_SEC))
 
 
 func _shoot(from: Vector2, to: Vector2) -> void:
@@ -333,12 +370,27 @@ func _fall(unit: int) -> void:
 		tween.custom_step(1000.0)
 
 
+# A leader's attack plays on the map; only a blow that kills a leader
+# opens the close-up.
 func _play_leader_engagement(events: Array, index: int, span_end: int) -> void:
 	var started: Dictionary = events[index]
 	var hits: Array = []
+	var kills_leader := false
 	for at: int in range(index, span_end):
 		if events[at]["type"] == &"damage_dealt":
 			hits.append(events[at])
+		elif events[at]["type"] == &"unit_died" and _is_leader(events[at]["unit"]):
+			kills_leader = true
+	var target_piece := _piece(started["target"])
+	if target_piece != null:
+		map.follow(target_piece.position)
+	if not kills_leader:
+		var tween := _new_step()
+		tween.set_parallel()
+		_add_fight(tween, events, Vector2i(index, span_end), 0.0, true)
+		await _finish(tween)
+		await _apply_span(events, index + 1, span_end, true)
+		return
 	var attacker := _actor(started["unit"])
 	var defender := _actor(started["target"])
 	close_up_count += 1
