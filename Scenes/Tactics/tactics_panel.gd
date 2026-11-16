@@ -4,9 +4,11 @@ extends PanelContainer
 ## unit card or an engagement or skill forecast; under it, while one of our
 ## leaders is selected, the row of five order buttons (the current one
 ## outlined, its one-line description below); then one row of up to four
-## buttons. Every button is at least 84 px tall (42 px on a 360-wide
-## phone; the order and action buttons are 88 px or more). It emits what
-## was pressed; the screen decides what that means.
+## buttons. Every button is at least 88 px tall (44 px on a 360-wide
+## phone). No text is smaller than GameTheme.SMALL_FONT_SIZE, and no line
+## is cut: a card line wraps, and lines that no longer fit are left out
+## from the last one up. It emits what was pressed; the screen decides
+## what that means.
 ## [codeblock]
 ## panel.show_card("Lạc Hồng", Palette.GOLD, "Máu 900/900", lines, hint)
 ## panel.set_buttons([{"action": &"end_turn", "text": "BUTTON_END_TURN"}])
@@ -17,7 +19,7 @@ extends PanelContainer
 signal action_pressed(action: StringName)
 signal order_chosen(order: StringName)
 
-const CONTENT_HEIGHT_PX: float = 120.0
+const CONTENT_HEIGHT_PX: float = 150.0
 const BUTTON_HEIGHT_PX: float = 92.0
 const ORDER_BUTTON_HEIGHT_PX: float = 88.0
 ## Lines a card shows under its title.
@@ -65,6 +67,16 @@ func show_card(title: String, title_color: Color, side_note: String, lines: Arra
 	_card_side.text = side_note
 	for index: int in _card_lines.size():
 		_card_lines[index].text = lines[index] if index < lines.size() else ""
+	_fit_card()
+
+
+## The card lines shown whole now (a line left out for room is not).
+func get_shown_card_lines() -> PackedStringArray:
+	var shown := PackedStringArray()
+	for line: Label in _card_lines:
+		if line.visible and line.text != "":
+			shown.append(line.text)
+	return shown
 
 
 ## The forecast: two columns ([name, line, line] each, the attacker
@@ -170,22 +182,54 @@ func _build_card(content: Control) -> void:
 	_card = VBoxContainer.new()
 	_card.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_card.add_theme_constant_override(&"separation", 2)
+	content.resized.connect(_fit_card)
 	content.add_child(_card)
 	var head := HBoxContainer.new()
 	_card.add_child(head)
 	_card_title = _label(28, Palette.GOLD)
 	_card_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(_card_title)
-	_card_side = _label(22, Palette.CREAM)
+	_card_side = _label(GameTheme.SMALL_FONT_SIZE + 2, Palette.CREAM)
 	_card_side.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	# Its text is short and must show whole; the title gives way instead.
 	_card_side.clip_text = false
 	_card_side.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	head.add_child(_card_side)
 	for index: int in CARD_LINES:
-		var line := _label(20, Palette.TEXT if index < CARD_LINES - 1 else Palette.TEXT_DIM)
+		var line := _label(GameTheme.SMALL_FONT_SIZE, Palette.TEXT if index < CARD_LINES - 1 else Palette.TEXT_DIM)
+		line.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		line.clip_text = false
+		line.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 		_card.add_child(line)
 		_card_lines.append(line)
+
+
+# Shows the card lines in order while they fit whole under the title; the
+# first that would not fit and every line after it are left out, so no
+# line is ever cut. Only visibility changes, so nothing redraws for nothing.
+func _fit_card() -> void:
+	# The card grows with its lines; the room is its clipping parent's.
+	var content := _card.get_parent() as Control
+	var width := content.size.x
+	if width <= 0.0:
+		return
+	var room := content.size.y - _card_title.get_combined_minimum_size().y
+	var separation := float(_card.get_theme_constant(&"separation"))
+	var is_room_left := true
+	for line: Label in _card_lines:
+		var font := line.get_theme_font(&"font")
+		var font_px := line.get_theme_font_size(&"font_size")
+		var height := 0.0
+		if line.text != "":
+			var text_size := font.get_multiline_string_size(line.text, HORIZONTAL_ALIGNMENT_LEFT, width, font_px, -1, TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND | TextServer.BREAK_ADAPTIVE)
+			var row_px := font.get_height(font_px)
+			var rows := maxi(roundi(text_size.y / row_px), 1)
+			height = rows * row_px + (rows - 1) * line.get_theme_constant(&"line_spacing") + separation
+		is_room_left = is_room_left and height <= room
+		var is_shown := is_room_left and line.text != ""
+		if line.visible != is_shown:
+			line.visible = is_shown
+		room -= height if is_shown else 0.0
 
 
 func _build_forecast(content: Control) -> void:
@@ -202,11 +246,11 @@ func _build_forecast(content: Control) -> void:
 		column.add_theme_constant_override(&"separation", 0)
 		columns.add_child(column)
 		for index: int in 3:
-			var line := _label(24 if index == 0 else 21, Palette.GOLD if index == 0 else Palette.TEXT)
+			var line := _label(24 if index == 0 else GameTheme.SMALL_FONT_SIZE, Palette.GOLD if index == 0 else Palette.TEXT)
 			line.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if side == 0 else HORIZONTAL_ALIGNMENT_RIGHT
 			column.add_child(line)
 		_forecast_columns.append(column)
-	_forecast_note = _label(18, Palette.TEXT_DIM)
+	_forecast_note = _label(GameTheme.SMALL_FONT_SIZE, Palette.TEXT_DIM)
 	_forecast_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	# A clipped label asks for no height; this one needs its two lines.
 	_forecast_note.clip_text = false
@@ -223,7 +267,7 @@ func _build_orders(rows: VBoxContainer) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override(&"separation", 8)
 	_orders.add_child(row)
-	_order_note = _label(19, Palette.TEXT_DIM)
+	_order_note = _label(GameTheme.SMALL_FONT_SIZE, Palette.TEXT_DIM)
 	_order_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_orders.add_child(_order_note)
 	for order: StringName in TacticsText.ORDERS:
@@ -274,6 +318,6 @@ class _OrderFace extends Control:
 			draw_rect(Rect2(Vector2(4, 4), size - Vector2(8, 10)), Palette.GOLD, false, 4.0)
 		TacticsPainter.draw_order_icon(self, order, Vector2(size.x / 2.0, size.y * 0.36), minf(size.x * 0.5, size.y * 0.5), color)
 		var font := get_theme_default_font()
-		var font_px := 18
+		var font_px := GameTheme.SMALL_FONT_SIZE
 		var width := minf(font.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, font_px).x, size.x - 8.0)
 		draw_string(font, Vector2((size.x - width) / 2.0, size.y - 14.0), caption, HORIZONTAL_ALIGNMENT_LEFT, size.x - 8.0, font_px, color)

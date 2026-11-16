@@ -34,7 +34,7 @@ enum Mode {IDLE, SELECTED, MOVE_PREVIEW, FORECAST, SKILL_TARGET, SKILL_PREVIEW, 
 const CATALOG_PATH: String = "res://Data/Tactics/tactics_catalog.tres"
 const LOOKS_PATH: String = "res://Data/Tactics/Looks/skill_looks.tres"
 const TOP_BAR_PX: float = 92.0
-const PANEL_PX: float = 400.0
+const PANEL_PX: float = 430.0
 const RETREAT_ARM_SEC: float = 3.0
 ## The beat between the last leader being done and the phase ending.
 const AUTO_END_SEC: float = 1.0
@@ -419,7 +419,7 @@ func _build_top_bar() -> void:
 	row.add_child(texts)
 	_round_label = _bar_label(28, Palette.GOLD)
 	texts.add_child(_round_label)
-	_hint_label = _bar_label(21, Palette.CREAM)
+	_hint_label = _bar_label(GameTheme.SMALL_FONT_SIZE, Palette.CREAM)
 	texts.add_child(_hint_label)
 	_retreat_button = PressButton.new()
 	_retreat_button.text = "BUTTON_RETREAT"
@@ -539,7 +539,8 @@ func _go_idle() -> void:
 	_map.set_marks({})
 	_panel.hide_order_row()
 	var is_all_done := _are_all_done()
-	_set_hint("TACTICS_HINT_WAVERING" if _has_wavering() else "TACTICS_HINT_ALL_DONE" if is_all_done else "TACTICS_HINT_IDLE")
+	var wavering_hint := _wavering_hint()
+	_set_hint(wavering_hint if wavering_hint != "" else "TACTICS_HINT_ALL_DONE" if is_all_done else "TACTICS_HINT_IDLE")
 	_show_our_phase_card(_battle.get_round())
 	_panel.set_buttons(_end_turn_button(is_all_done))
 	_update_hold_cells()
@@ -953,14 +954,18 @@ func _people() -> Array:
 	return squad_people if not squad_people.is_empty() else campaign.people
 
 
-# One of our soldiers wavers in our phase: the hint says what to do.
-func _has_wavering() -> bool:
+# One of our soldiers wavers in our phase: the hint says what to do, to
+# calm a bad incident first; a good one is best left alone. Empty if none.
+func _wavering_hint() -> String:
 	if _battle.get_active_side() != player_side:
-		return false
+		return ""
+	var hint := ""
 	for state: Dictionary in _units:
 		if state["alive"] and state["side"] == player_side and state["wavering"] != &"":
-			return true
-	return false
+			if not state["is_wavering_good"]:
+				return "TACTICS_HINT_WAVERING"
+			hint = "TACTICS_HINT_WAVERING_GOOD"
+	return hint
 
 
 # A leader of ours with nothing left to do: it acted, or it moved and has

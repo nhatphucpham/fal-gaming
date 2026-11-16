@@ -10,7 +10,9 @@ extends SceneTree
 # ours is done the phase ends by itself after a beat, and a tap during the
 # beat holds it. It also counts the taps a full turn takes: tap the
 # leader, tap the enemy, tap it again (or the leader and a cell when no
-# enemy is near), and no "Kết lượt".
+# enemy is near), and no "Kết lượt". On a 720-px-wide layout no hint,
+# card line, order name or button is cut and no text is under the game's
+# small font size; every button is at least 88 px tall.
 
 const SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/river_crossing.tres"
 const MAX_FRAMES: int = 3000
@@ -51,7 +53,7 @@ func _run() -> bool:
 	if not ClassDB.class_exists("TacticsBattle"):
 		push_error("TacticsBattle is missing: build the GDExtension (scons) before importing")
 		return false
-	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_auto_end, _check_tap_count]
+	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_auto_end, _check_tap_count, _check_text_fits]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Tactics feel test failed in %s" % check.get_method())
@@ -420,3 +422,99 @@ func _check_tap_count() -> bool:
 			return true
 	print("No turn had all three leaders able to strike; counts above")
 	return true
+
+
+# Nothing on the screen is cut or too small: every hint fits the top bar,
+# every unit's card shows its first two lines whole (a wavering soldier's
+# line included), order names fit their buttons, every visible label is at
+# least GameTheme.SMALL_FONT_SIZE and every button at least 88 px tall.
+func _check_text_fits() -> bool:
+	await _open(true)
+	var hint_keys: Array[String] = []
+	var file := FileAccess.open("res://Locale/strings.csv", FileAccess.READ)
+	while not file.eof_reached():
+		var key := file.get_csv_line()[0]
+		if key.begins_with("TACTICS_HINT_") or key.begins_with("TACTICS_END_") or key == "TACTICS_RETREAT_CONFIRM":
+			hint_keys.append(key)
+	var hint := _hint_label()
+	for key: String in hint_keys:
+		if not _fits_one_line(hint, tr(key)):
+			return _fail("the hint %s fits the top bar: %s" % [key, tr(key)])
+	var panel := _screen.get_panel()
+	for unit: Dictionary in _battle().get_units():
+		_screen.select_unit(unit["index"])
+		await process_frame
+		var shown := panel.get_shown_card_lines()
+		var texts := panel.get_card_texts()
+		if shown.size() < 2 or shown[0] != texts[2] or shown[1] != texts[3]:
+			return _fail("unit %d's card shows its first two lines whole: %s" % [unit["index"], texts])
+		if not await _check_labels():
+			return false
+	var lines: Array[String] = [tr("TACTICS_SOLDIER_OF_FORMAT") % "Nguyệt Thương", "", tr("KEYWORD_LONG_WEAPON") + ": " + tr("KEYWORD_LONG_WEAPON_DESC"), tr("TACTICS_TERRAIN_FORMAT") % "Đồng bằng (Đi 1)"]
+	for incident: TacticsIncidentData in _screen.catalog.incident_rules.incidents:
+		lines[1] = tr("TACTICS_WAVERING_LINE_FORMAT") % [tr(incident.name_key), tr(String(incident.name_key) + "_HINT")]
+		panel.show_card("Binh khiên", Color.WHITE, "Máu 284/440 · Dấu: 2", lines)
+		await process_frame
+		var shown := panel.get_shown_card_lines()
+		if shown.size() < 2 or shown[1] != lines[1]:
+			return _fail("the wavering line shows whole: %s" % lines[1])
+	return await _check_labels()
+
+
+func _hint_label() -> Label:
+	for label: Label in _screen.find_children("*", "Label", true, false):
+		if label.text == _screen.get_hint():
+			return label
+	return null
+
+
+func _fits_one_line(label: Label, text: String) -> bool:
+	var font := label.get_theme_font(&"font")
+	return font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, label.get_theme_font_size(&"font_size")).x <= label.size.x + 0.5
+
+
+# Every visible label is big enough and, if it is one line, shows its text
+# whole; every visible button is tall enough and fits its text.
+func _check_labels() -> bool:
+	await process_frame
+	for node: Node in _screen.find_children("*", "Control", true, false):
+		var control := node as Control
+		if not control.is_visible_in_tree() or control.get_global_rect().size.x <= 0.0:
+			continue
+		var label := control as Label
+		if label != null and label.text != "":
+			var font_px := label.get_theme_font_size(&"font_size")
+			if font_px < GameTheme.SMALL_FONT_SIZE:
+				return _fail("%s is %d px, under %d" % [label.text, font_px, GameTheme.SMALL_FONT_SIZE])
+			if label.autowrap_mode == TextServer.AUTOWRAP_OFF and not _fits_one_line(label, label.text):
+				return _fail("%s fits its label" % label.text)
+			if label.autowrap_mode != TextServer.AUTOWRAP_OFF and label.max_lines_visible > 0 and label.get_line_count() > label.max_lines_visible:
+				return _fail("%s fits in %d lines" % [label.text, label.max_lines_visible])
+			var clip := _clipping_parent(label)
+			if clip != null and not clip.get_global_rect().grow(1.0).encloses(label.get_global_rect()):
+				return _fail("%s is cut by %s (%s outside %s)" % [label.text, clip.name, label.get_global_rect(), clip.get_global_rect()])
+		var button := control as Button
+		if button != null:
+			if button.size.y < 88.0:
+				return _fail("the button %s is %.0f px tall, under 88" % [button.text, button.size.y])
+			var font := button.get_theme_font(&"font")
+			if button.text != "" and font.get_string_size(tr(button.text), HORIZONTAL_ALIGNMENT_LEFT, -1, button.get_theme_font_size(&"font_size")).x > button.size.x - 8.0:
+				return _fail("the button %s shows its text whole" % tr(button.text))
+	for order: StringName in _screen.get_panel().get_order_buttons():
+		var button := _screen.get_panel().get_order_buttons()[order]
+		var name := tr("ORDER_" + String(order).get_slice(".", 1).to_upper())
+		if button.is_visible_in_tree() and button.get_theme_default_font().get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, GameTheme.SMALL_FONT_SIZE).x > button.size.x - 8.0:
+			return _fail("the order %s fits its button" % name)
+	return true
+
+
+func _fail(message: String) -> bool:
+	push_error("Tactics feel test: " + message)
+	return false
+
+
+func _clipping_parent(control: Control) -> Control:
+	var parent := control.get_parent() as Control
+	while parent != null and not parent.clip_contents:
+		parent = parent.get_parent() as Control
+	return parent

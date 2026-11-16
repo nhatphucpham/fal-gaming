@@ -269,6 +269,11 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Fixed
 
+- Chiến Dịch on a phone: the bottom panel's text is bigger (no smaller
+  than the rest of the game) and is never cut with "…": a long card line
+  wraps, the wavering line always shows whole, and the hint fits the top
+  bar. While only a good incident stirs, the hint says to leave the
+  soldier be instead of calling its leader over.
 - A named soldier's biography no longer repeats a sentence when two of its
   marks came alike from two battles: each line says which battle.
 - Chiến Dịch: archers and kite scouts no longer walk up next to an enemy

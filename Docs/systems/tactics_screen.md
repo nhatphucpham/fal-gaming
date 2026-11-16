@@ -95,9 +95,10 @@ Incidents on the map:
 
 - A wavering soldier gets a bubble over its token: a gold star when the
   incident is good, a red "!" when it is bad, with a float of the
-  incident's name and "?" and a tick. While one of ours wavers the hint
-  line says "Binh dao động: kéo tướng lại gần nó." and its card adds
-  "Dao động: <incident> — <what it means and what calms it>". Dormant
+  incident's name and "?" and a tick. While one of ours wavers with a bad
+  incident the hint line says "Binh dao động: kéo tướng lại gần nó."; with
+  only good ones it says "Binh sắp lập công: cứ để nó.". Its card adds
+  "Dao động (<incident>): <what it means and what calms it>". Dormant
   seeds are never shown.
 - `incident_calmed`: the bubble goes, a float ("Đã yên", or "Tướng trấn
   an" when its leader did it), a soft sound.
@@ -223,14 +224,18 @@ signals `cell_tapped(cell)` (press and release on the same cell within
 24 px), `cell_held(cell)` (a press on a hold cell, then each new cell under
 the finger), `hold_released(cell)`, `hold_cancelled()`.
 
-`TacticsPanel` (PanelContainer, 400 layout px tall): `show_card(title,
-color, side_note, lines)` (four lines), `get_card_texts()`,
+`TacticsPanel` (PanelContainer, 430 layout px tall): `show_card(title,
+color, side_note, lines)` (up to four lines, each wrapped; the lines that
+no longer fit are left out from the last one up, never cut),
+`get_card_texts()`, `get_shown_card_lines()`,
 `show_forecast(left, right, note)`, `show_order_row(current, text,
 enabled)`, `hide_order_row()`, `is_order_row_shown()`,
 `get_current_order()`, `get_order_note()`, `set_buttons([{action, text,
 enabled, primary}])`, `get_buttons()`, `get_order_buttons()`; signals
 `action_pressed(action)`, `order_chosen(order)`. Order buttons are 88 px
-tall, action buttons 92 px.
+tall, action buttons 92 px (44 and 46 px on a 360-px-wide phone); no text
+on the screen is under `GameTheme.SMALL_FONT_SIZE` (22 layout px, 11 px on
+that phone).
 
 `TacticsPlayback` (Node): `reset(units, zones)`, `await play(events)`,
 `skip_step()`, `close_up_count`; signal `played` when the last step is
@@ -298,8 +303,12 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   layer, a one-finger drag through the viewport panning without a redraw
   or a selection, a tap and a press-drag-lift on a leader through the
   viewport, a pinch, "Toàn cảnh" and back, the auto end (held by a tap in
-  its beat, then ending a phase without "Kết lượt"), and the taps of full
-  turns (9 for three leaders that each walk and strike).
+  its beat, then ending a phase without "Kết lượt"), the taps of full
+  turns (9 for three leaders that each walk and strike), and that nothing
+  is cut or too small at 720 layout px wide: every hint fits the top bar,
+  every unit's card shows its first two lines whole (each incident's
+  wavering line too), no label is clipped by its panel, no text is under
+  the small font size and every button is at least 88 px tall.
 - `Tests/tactics_screen_sync_test.gd`: random taps (cells, leaders, drags,
   enabled buttons with undo, the order row) on six seeds in instant mode,
   with the auto end on (waited out); after every
