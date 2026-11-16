@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="TacticsSkillLook" format=3]
+
+[ext_resource type="Script" path="res://Scenes/Tactics/tactics_skill_look.gd" id="script"]
+
+[resource]
+script = ExtResource("script")
+skill_id = &"tactics_skill.fire_rain"
+color_main = Color(0.886, 0.333, 0.165, 1)
+color_accent = Color(1, 0.824, 0.353, 1)
+motif = &"motif.flame"
+aura = &"aura.sigil"
+path = &"path.fall"
+path_order = &"together"
+impact = &"impact.burst"
+cast_sec = 0.8
+path_sec = 0.7
+impact_sec = 1.1
+motif_count = 9
+shake_px = 6.0
+path_sound = &"spell"
+impact_sound = &"hit_heavy"

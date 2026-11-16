@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="TacticsSkillLook" format=3]
+
+[ext_resource type="Script" path="res://Scenes/Tactics/tactics_skill_look.gd" id="script"]
+
+[resource]
+script = ExtResource("script")
+skill_id = &"tactics_skill.chain_arrows"
+color_main = Color(0.122, 0.62, 0.561, 1)
+color_accent = Color(0.89, 0.698, 0.235, 1)
+motif = &"motif.feather"
+aura = &"aura.swirl"
+path = &"path.arc"
+path_order = &"chain"
+impact = &"impact.burst"
+cast_sec = 0.8
+path_sec = 0.9
+impact_sec = 0.9
+motif_count = 8
+shake_px = 0.0
+path_sound = &"arrow"
+impact_sound = &"hit_light"
