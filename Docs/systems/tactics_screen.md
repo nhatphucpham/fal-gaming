@@ -216,7 +216,10 @@ Fog, weather and night (see [Tactics vision](tactics_vision.md)):
   at the end of its walk, and a hidden enemy's move plays at once. A
   "last seen" ghost (a dimmed token with "?") stands where the battle
   remembers each enemy; it goes when that enemy is seen again or its cell
-  is seen empty.
+  is seen empty. A hidden enemy's own steps (its charge, buffs, passives,
+  order, wait, wavering, incident, mark, a hit or its death:
+  `TacticsPlayback.PRIVATE_STEPS`) play no sound, ring, word or pause;
+  they only set its hidden piece. One that defects to us fades in.
 - An ambush: the hidden enemy bursts into sight with a ring and "Phục
   kích!", the walker shakes, sound `ambush`; the camera follows.
 - A wavering soldier of ours out of view gets a mark on the edge of the
@@ -404,7 +407,8 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   wavering line too), no label is clipped by its panel, no text is under
   the small font size and every button is at least 88 px tall; a float
   at the corner of a zoomed view is drawn inside it, and one asked for
-  at 18 px is drawn at the small font size.
+  at 18 px is drawn at the small font size; a hidden enemy's incident,
+  wait and hit play no step and add no effect, a seen one's do.
 - `Tests/tactics_screen_sync_test.gd`: random taps (cells, leaders and
   marches toward the enemy, drags,
   enabled buttons with undo, the order row) on six seeds in instant mode,

@@ -60,7 +60,7 @@ func _run() -> bool:
 	if not ClassDB.class_exists("TacticsBattle"):
 		push_error("TacticsBattle is missing: build the GDExtension (scons) before importing")
 		return false
-	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_fog_redraws, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_auto_end, _check_tap_count, _check_text_fits, _check_floats]
+	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_fog_redraws, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_auto_end, _check_tap_count, _check_text_fits, _check_floats, _check_hidden_steps]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Tactics feel test failed in %s" % check.get_method())
@@ -620,6 +620,50 @@ func _check_floats() -> bool:
 	if font_px < GameTheme.SMALL_FONT_SIZE:
 		return _fail("a float is %d px, under %d" % [font_px, GameTheme.SMALL_FONT_SIZE])
 	return true
+
+
+# An enemy we do not see gives nothing away while the enemy plays: its
+# incident, charge, wait or death plays no step (no ring, word, sound or
+# pause), while the same steps of a unit we see play.
+func _check_hidden_steps() -> bool:
+	await _open(true)
+	var hidden := -1
+	var seen := -1
+	for unit: int in _battle().get_unit_count():
+		var state := _battle().get_unit_state(unit)
+		if state["side"] == 0 or not state["alive"] or state["role"] == &"leader":
+			continue
+		if hidden < 0 and not _battle().is_unit_seen(0, unit):
+			hidden = unit
+		if seen < 0 and _battle().is_unit_seen(0, unit):
+			seen = unit
+	if hidden < 0:
+		return _fail("the river crossing should open with an enemy soldier out of sight")
+	var playback := _screen.get_playback()
+	var played: Array[StringName] = []
+	var on_step := func(type: StringName) -> void: played.append(type)
+	playback.step_started.connect(on_step)
+	var fx_before := _map().get_fx_layer().get_child_count()
+	await playback.play(_private_steps(hidden))
+	var hidden_played := played.duplicate()
+	var fx_after := _map().get_fx_layer().get_child_count()
+	played.clear()
+	if seen >= 0:
+		await playback.play(_private_steps(seen))
+	playback.step_started.disconnect(on_step)
+	if not hidden_played.is_empty() or fx_after != fx_before:
+		return _fail("a hidden enemy's steps played %s and added %d effects" % [hidden_played, fx_after - fx_before])
+	if seen >= 0 and played.is_empty():
+		return _fail("a seen enemy's steps should play")
+	return true
+
+
+func _private_steps(unit: int) -> Array:
+	return [
+		{"type": &"incident_fired", "unit": unit, "incident": &"incident.flee", "is_good": false},
+		{"type": &"leader_waited", "unit": unit},
+		{"type": &"damage_dealt", "source": -1, "target": unit, "amount": 5, "hp_after": 10, "source_id": &"zone.fire"},
+	]
 
 
 func _fail(message: String) -> bool:

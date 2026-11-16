@@ -11,8 +11,9 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 - Chiến Dịch: fog of war. Each side sees only around its units (further
   from hills, not through woods and hills); cells you saw stay dimmed,
-  cells never seen stay dark. Enemies you do not see are not drawn, their
-  intents are hidden, and a dimmed "?" token marks where you last saw one.
+  cells never seen stay dark. Enemies you do not see are not drawn and
+  nothing they do out of sight is heard or shown, their intents are
+  hidden, and a dimmed "?" token marks where you last saw one.
   Enemies in woods are hidden unless you stand next to them or a scout
   sees them. Walking into a hidden enemy stops you short: an ambush. A
   move that shows an enemy, or passes one in sight, cannot be taken back.

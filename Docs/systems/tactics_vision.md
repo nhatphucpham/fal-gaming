@@ -148,8 +148,8 @@ unseen wavering, its odds and calming, no environment, determinism. The
 fuzz test plays every third seed under fog with weathers and times; the
 screen tests play the river crossing with fog on (the sync test checks fog,
 ghosts and hidden pieces after every playback; the feel test checks that
-the fog texture is written only on a change and that an idle map draws
-nothing).
+the fog texture is written only on a change, that an idle map draws
+nothing and that a hidden enemy's own steps play nothing).
 
 ## Balance
 

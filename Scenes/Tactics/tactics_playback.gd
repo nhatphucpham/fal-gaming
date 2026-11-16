@@ -52,6 +52,14 @@ const AMBUSH_SEC: float = 0.75
 const FADE_SEC: float = 0.2
 ## The beat after an enemy comes into sight, so the eye finds it.
 const SPOTTED_SEC: float = 0.25
+## Steps about one unit and nothing else (the unit hit, for damage): for
+## an enemy our side does not see they only set its hidden piece, with no
+## sound, ring, word or pause to give it away.
+const PRIVATE_STEPS: Array[StringName] = [
+	&"skill_charge_changed", &"skill_grew", &"buff_applied", &"buff_ended", &"passive_triggered",
+	&"order_changed", &"leader_waited", &"soldier_wavered", &"incident_calmed", &"incident_fired",
+	&"mark_earned", &"damage_dealt", &"unit_died",
+]
 ## The close-up backdrop for the terrain the fight is on.
 const BACKDROPS: Dictionary[StringName, StringName] = {
 	&"terrain.forest": &"backdrop.mountain", &"terrain.hill": &"backdrop.mountain",
@@ -111,7 +119,10 @@ func play(events: Array) -> void:
 	while index < events.size() and not _is_stopped:
 		var event: Dictionary = events[index]
 		var handler: Callable = _handlers.get(event["type"], Callable())
-		if handler.is_valid():
+		if _is_hidden_step(event):
+			_apply_quietly(event)
+			index += 1
+		elif handler.is_valid():
 			step_started.emit(event["type"])
 			index = await handler.call(events, index)
 		else:
@@ -392,7 +403,11 @@ func _apply_span(events: Array, from: int, to: int, sets_hp: bool) -> void:
 				index += 1
 			_:
 				var handler: Callable = _handlers.get(event["type"], Callable())
-				index = await handler.call(events, index) if handler.is_valid() else index + 1
+				if _is_hidden_step(event):
+					_apply_quietly(event)
+					index += 1
+				else:
+					index = await handler.call(events, index) if handler.is_valid() else index + 1
 	if died:
 		Sound.play(&"death")
 		var tween := _new_step()
@@ -756,6 +771,11 @@ func _play_defected(events: Array, index: int) -> int:
 	_units[unit]["side"] = new_side
 	var is_to_us := new_side == player_side
 	var tween := _new_step()
+	# An enemy we did not see joins us: it comes into sight as it turns.
+	if piece != null and is_to_us and not piece.visible:
+		piece.modulate.a = 0.0
+		piece.visible = true
+		tween.parallel().tween_property(piece, ^"modulate:a", 1.0, FADE_SEC)
 	if piece != null:
 		tween.tween_property(piece, ^"scale", Vector2(0.15, 1.1), 0.18)
 		tween.tween_callback(piece.set_side.bind(new_side))
@@ -765,6 +785,37 @@ func _play_defected(events: Array, index: int) -> int:
 	tween.tween_interval(0.35)
 	await _finish(tween)
 	return index + 1
+
+
+# A step that would show only an enemy our side does not see.
+func _is_hidden_step(event: Dictionary) -> bool:
+	if not PRIVATE_STEPS.has(event["type"]):
+		return false
+	var unit: int = event["target"] if event["type"] == &"damage_dealt" else event["unit"]
+	var piece := _piece(unit)
+	return piece != null and not piece.visible and int(_units[unit]["side"]) != player_side
+
+
+# What a hidden step leaves on the hidden piece, shown once it is seen.
+func _apply_quietly(event: Dictionary) -> void:
+	var unit: int = event["target"] if event["type"] == &"damage_dealt" else event["unit"]
+	var piece := _piece(unit)
+	match event["type"]:
+		&"skill_charge_changed":
+			piece.set_charge(event["value"], event["threshold"])
+		&"soldier_wavered":
+			piece.wavering = TacticsPieceView.Wavering.GOOD if event["is_good"] else TacticsPieceView.Wavering.BAD
+			piece.wavering_scale = 1.0
+		&"incident_calmed", &"incident_fired":
+			piece.wavering = TacticsPieceView.Wavering.NONE
+		&"mark_earned":
+			piece.mark_count += 1
+		&"damage_dealt":
+			piece.hp = event["hp_after"]
+		&"unit_died":
+			piece.is_dead = true
+			piece.hp = 0
+			_forget(unit)
 
 
 # Text rising over a unit, unless our side does not see it.
