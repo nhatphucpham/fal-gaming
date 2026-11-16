@@ -7,6 +7,14 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ## Unreleased
 
+### Fixed
+
+- Chiến Dịch: a quick double tap on an enemy near the edge of the map now
+  strikes it; the map no longer slides away under the second tap.
+- Chiến Dịch: dragging the map with a finger that starts on one of your
+  leaders pans the map instead of moving that leader; only the selected
+  leader can be dragged to a cell.
+
 ### Changed
 
 - Chiến Dịch is quicker to play: tap an empty cell to move a selected

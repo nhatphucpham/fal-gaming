@@ -123,9 +123,11 @@ Taps (the flow a phone player uses):
   card-flip sound). It is offered only while the battle allows it: after a
   move whose events were only moves and charge changes, until anything
   else is done.
-- Press on one of our leaders and drag: the ghosts of the leader and its
+- Press on the selected leader and drag: the ghosts of the leader and its
   squad follow the finger over blue cells, with the path; lifting on a
-  blue cell moves there, anywhere else (or a pinch) cancels.
+  blue cell moves there, anywhere else (or a pinch) cancels. A finger
+  that lands on any other piece and slides pans the map, so a pan never
+  moves a leader.
 - Tap a red-ringed enemy: the battle picks the cell to strike from
   (`get_strike_cell`: not dying, fewest enemies able to reach it, least
   counter, better terrain, shortest walk) and the forecast shows the walk
@@ -148,9 +150,11 @@ px a cell, 45 px on a 360-px-wide phone), centred on our leaders; one
 finger drags it (a press that slides more than 24 px is a drag, not a
 tap), two fingers pinch it between the whole board and 1.4x that zoom
 (the mouse wheel too), and "Toàn cảnh" / "Phóng to" switches to the whole
-board and back. Selecting a unit and every leader move, attack and soldier
-fight in the playback bring it into view (0.28 s glide) unless it is
-already well inside. When our phase begins with no leader of ours on
+board and back. Every leader move, attack and soldier fight in the
+playback brings it into view (0.28 s glide) unless it is already well
+inside. A tap never moves the camera while what it tapped is in view
+(`reveal`), so a second tap lands on the same piece: a fast double tap on
+an enemy strikes it. When our phase begins with no leader of ours on
 screen (the enemy's moves or a drag took the camera away), it glides back
 to the first one.
 
@@ -224,6 +228,7 @@ panel): `setup(battle, objective_cell)`, `cell_to_local` and
 `slots`, `ghosts`; an equal value is ignored), `set_intents(intents)`,
 `set_zones(zones)` (likewise), `float_text(...)` (stacks above text still
 rising from the same spot); camera: `center_on(point)`, `follow(point)`,
+`reveal(point)` (only when it is out of view),
 `zoom_to(zoom, point, smooth)`, `toggle_whole_map()`, `get_zoom()`,
 `get_default_zoom()`, `get_whole_zoom()`, `get_max_zoom()`,
 `get_cell_px()`, `get_camera_offset()`, `is_whole_map()`, `is_in_view()`,
@@ -339,6 +344,13 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   coming back after 3 s), with a campaign a double "Rút" while the enemy
   plays opening the summary with nothing playing on behind it, and no
   error after the screen is freed mid-playback.
+- `Tests/tactics_touch_test.gd`: touches pushed as a phone sends them
+  (the first finger's emulated mouse event and touch, a second finger's
+  touch) with real camera glides: a slide from a leader that is not
+  selected pans and moves no one, a drag of the selected leader lifted
+  over the panel or on a cell it cannot reach moves nothing, a pinch begun
+  on the selected leader zooms and moves nothing, and a fast double tap on
+  an enemy in the view's outer row strikes it without the camera moving.
 - `Tests/muster_test.gd`: Main's title "Chiến Dịch" to the muster screen,
   squads and capacities, a soldier moved and one refused, "Xuất quân" to the
   tactics screen with those squads, a double "Rút" to the summary (the

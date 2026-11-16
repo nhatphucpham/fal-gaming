@@ -7,7 +7,7 @@ extends Control
 ## one of our leaders selects it; a tap on a blue cell moves it at once
 ## ("Hoàn tác" takes the move back); a tap on a red-ringed enemy shows the
 ## forecast from the safest cell that can strike it, and a second tap (or
-## "Đánh") walks there and attacks. Pressing on a leader and dragging shows
+## "Đánh") walks there and attacks. Pressing on the selected leader and dragging shows
 ## the ghosts under the finger and moves where it lifts. Once every leader
 ## of ours is done, the phase ends by itself after a short beat. The screen
 ## sends commands to its TacticsBattle and plays the events back through
@@ -188,7 +188,7 @@ func select_unit(unit: int) -> void:
 		_panel.hide_order_row()
 		if state["role"] == &"leader" and state["side"] != player_side:
 			_set_hint("TACTICS_HINT_IDLE")
-	_map.follow(_map.cell_to_local(state["cell"]))
+	_map.reveal(_map.cell_to_local(state["cell"]))
 	_update_hold_cells()
 	_show_unit_card(unit)
 	_panel.set_buttons(_unit_buttons(unit))
@@ -674,13 +674,13 @@ func _on_hold_cancelled() -> void:
 		select_unit(_selected)
 
 
-# Only a leader of ours that can still move starts a drag.
+# Only the selected leader, while it can still move, starts a drag: a
+# finger that lands on any other piece and slides pans the map, so a pan
+# never moves a leader by surprise.
 func _update_hold_cells() -> void:
 	var cells: Array = []
-	if _mode != Mode.BUSY and _mode != Mode.ENDED and _battle.get_active_side() == player_side:
-		for state: Dictionary in _units:
-			if _is_commandable(state["index"]) and _battle.can_move(state["index"]):
-				cells.append(state["cell"])
+	if _mode != Mode.BUSY and _mode != Mode.ENDED and _is_commandable(_selected) and _battle.can_move(_selected):
+		cells.append(_units[_selected]["cell"])
 	_map.hold_cells = cells
 
 
@@ -741,7 +741,7 @@ func _show_forecast(target: int) -> void:
 				ghosts.append({"cell": placement["cell"], "from": _units[placement["unit"]]["cell"], "side": player_side, "is_leader": false})
 		marks["ghosts"] = ghosts
 	_map.set_marks(marks)
-	_map.follow(_map.cell_to_local(defender["cell"]))
+	_map.reveal(_map.cell_to_local(defender["cell"]))
 	var notes: PackedStringArray = [tr("FORECAST_WALK_FORMAT") % walk if walk > 0 else tr("FORECAST_STAY")]
 	if forecast.get("target_gone", false):
 		var gone_left: Array[String] = [_text.unit_name(attacker), notes[0], ""]

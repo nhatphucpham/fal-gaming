@@ -251,6 +251,14 @@ func follow(board_point: Vector2) -> void:
 	_move_camera(size / 2.0 - board_point * _zoom, _zoom, true)
 
 
+## Brings a board point into view only when it is outside the view now.
+## What a finger just tapped is in view, so the board stays still under a
+## second tap (a double tap on an enemy lands on that enemy).
+func reveal(board_point: Vector2) -> void:
+	if not is_in_view(board_point):
+		follow(board_point)
+
+
 ## Is the board point inside the view now?
 func is_in_view(board_point: Vector2) -> bool:
 	return Rect2(Vector2.ZERO, size).has_point(board_to_view(board_point))
