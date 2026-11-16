@@ -343,7 +343,8 @@ func _find_contact() -> Array:
 	for phase: int in 12:
 		for leader: int in _our_leaders():
 			var targets: Array = _battle().get_strike_targets(leader)
-			if _battle().can_move(leader) and not targets.is_empty():
+			# One with a free cell a step away, for the step before the strike.
+			if _battle().can_move(leader) and not targets.is_empty() and _has_free_step(leader):
 				return [leader, targets[0]]
 		for leader: int in _our_leaders():
 			if not _battle().can_move(leader):
@@ -363,6 +364,14 @@ func _find_contact() -> Array:
 		if _battle().is_finished():
 			return []
 	return []
+
+
+func _has_free_step(leader: int) -> bool:
+	var home := _cell(leader)
+	for cell: Vector2i in _battle().get_reachable_cells(leader):
+		if absi(cell.x - home.x) + absi(cell.y - home.y) == 1 and _unit_at(cell) < 0:
+			return true
+	return false
 
 
 func _fail(message: String) -> bool:

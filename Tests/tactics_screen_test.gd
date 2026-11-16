@@ -100,9 +100,24 @@ func _check_start() -> bool:
 	if _screen.get_map().get_pieces().size() != _battle().get_unit_count():
 		push_error("Every unit should have a piece")
 		return false
-	if _screen.get_map().get_intents().is_empty():
-		push_error("The enemy's intents should be shown in our phase")
+	# The river crossing has fog of war: the intents shown are those of the
+	# enemy leaders we see, and every hidden enemy is off the board. The
+	# intents of a clear battle are checked in the input test.
+	if _screen.get_map().get_intents().size() != _battle().get_enemy_intents().size():
+		push_error("The enemy's known intents should be shown in our phase: %d shown, %d known" % [_screen.get_map().get_intents().size(), _battle().get_enemy_intents().size()])
 		return false
+	if _screen.get_map().get_fog() != _battle().get_fog_cells(0):
+		push_error("The fog on the map should be the battle's")
+		return false
+	if not _screen.get_map().get_fog().has(0):
+		push_error("The river crossing should open with cells never seen")
+		return false
+	for piece: TacticsPieceView in _screen.get_map().get_pieces():
+		var unit := piece.unit_index
+		var seen: bool = _battle().get_unit_state(unit)["side"] == 0 or _battle().is_unit_seen(0, unit)
+		if piece.visible != seen:
+			push_error("Unit %d is seen=%s but its piece visible=%s" % [unit, seen, piece.visible])
+			return false
 	return _screen.get_mode() == TacticsScreen.Mode.IDLE
 
 
@@ -273,15 +288,22 @@ func _check_tips() -> bool:
 	var tips := _screen.get_tips()
 	var met: Array = RunSettings.load_seen_tips().map(func(id: String) -> StringName: return StringName(id.trim_prefix(TacticsTip.SETTINGS_PREFIX)))
 	met.append_array(tips.get_pending())
-	if met != [&"select", &"move", &"order"]:
-		push_error("The first select, move and order should each offer their tip once, got %s" % [met])
+	# The river crossing has fog of war: its tip comes with our first phase.
+	if met != [&"fog", &"select", &"move", &"order"]:
+		push_error("The fog, then the first select, move and order should each offer their tip once, got %s" % [met])
+		return false
+	if tr("TACTICS_TIP_FOG") == "TACTICS_TIP_FOG":
+		return _fail("The fog tip has no text")
+	if tips.get_shown() == &"fog" and tips.get_text() != tr("TACTICS_TIP_FOG"):
+		push_error("The fog tip should read \"%s\", not \"%s\"" % [tr("TACTICS_TIP_FOG"), tips.get_text()])
 		return false
 	if tips.get_shown() == &"select" and tips.get_text() != tr("TACTICS_TIP_SELECT"):
 		push_error("The select tip should read \"%s\", not \"%s\"" % [tr("TACTICS_TIP_SELECT"), tips.get_text()])
 		return false
 	var again := TacticsTip.new()
 	root.add_child(again)
-	again.offer(&"select")
+	# The first tip has been shown (and saved) by now.
+	again.offer(met[0])
 	var shown := again.get_shown()
 	again.free()
 	if shown != &"":

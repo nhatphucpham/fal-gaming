@@ -58,7 +58,7 @@ func _run() -> bool:
 	if not ClassDB.class_exists("TacticsBattle"):
 		push_error("TacticsBattle is missing: build the GDExtension (scons) before importing")
 		return false
-	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_auto_end, _check_tap_count, _check_text_fits, _check_floats]
+	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_fog_redraws, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_auto_end, _check_tap_count, _check_text_fits, _check_floats]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Tactics feel test failed in %s" % check.get_method())
@@ -180,6 +180,64 @@ func _check_idle_frames() -> bool:
 		push_error("An idle tactics map redrew its layers")
 		return false
 	print("Idle map: %d of %d frames changed" % counts)
+	return true
+
+
+# The fog texture is written only when what we see changes: a tap or an
+# idle map writes nothing; a walk that reveals blends in a few writes, then
+# the map is still again.
+func _check_fog_redraws() -> bool:
+	await _open(false)
+	var map := _map()
+	for frame: int in MAX_FRAMES:
+		if not map.is_fog_blending():
+			break
+		await process_frame
+	if map.get_fog().is_empty() or map.get_fog() != _battle().get_fog_cells(0):
+		push_error("The river crossing should open with the battle's fog")
+		return false
+	var writes := map.fog_write_count
+	var changes := map.fog_change_count
+	var leader := _our_leaders()[0]
+	_screen.select_unit(leader)
+	await create_timer(0.6).timeout
+	var counts := await _count_changed_frames(0.5)
+	if map.fog_write_count != writes or counts[0] > 0:
+		push_error("A selection on an idle map wrote the fog %d times and changed %d frames" % [map.fog_write_count - writes, counts[0]])
+		return false
+	var before := _battle().get_fog_cells(0)
+	var far := _cell(leader)
+	for cell: Vector2i in _battle().get_reachable_cells(leader):
+		if _unit_at(cell) < 0 and cell.y < far.y:
+			far = cell
+	var sights := [0]
+	_screen.get_playback().step_started.connect(func(type: StringName) -> void: sights[0] += 1 if type == &"vision_changed" else 0)
+	_screen.move_to(far)
+	for frame: int in MAX_FRAMES:
+		if not _screen.is_busy() and not map.is_fog_blending():
+			break
+		await process_frame
+	if _battle().get_fog_cells(0) == before:
+		push_error("The walk to %s should have revealed cells" % far)
+		return false
+	# A blend writes once a frame for FOG_BLEND_SEC; a squad's walk blends
+	# once for each piece whose sight changed (the reveal follows them), and
+	# never more.
+	var blend_writes := map.fog_write_count - writes
+	var blends := map.fog_change_count - changes
+	if blends < 1 or blends > sights[0] or blend_writes < 2:
+		push_error("A reveal should blend once a sight change, got %d blends for %d changes (%d writes)" % [blends, sights[0], blend_writes])
+		return false
+	if map.get_fog() != _battle().get_fog_cells(0):
+		push_error("After the walk the fog shown should be the battle's")
+		return false
+	writes = map.fog_write_count
+	await create_timer(0.6).timeout
+	counts = await _count_changed_frames(0.5)
+	if map.fog_write_count != writes or counts[0] > 0:
+		push_error("After the reveal the map should be still: %d fog writes, %d frames changed" % [map.fog_write_count - writes, counts[0]])
+		return false
+	print("Fog: %d blends for %d sight changes (%d writes, headless frames), none idle" % [blends, sights[0], blend_writes])
 	return true
 
 

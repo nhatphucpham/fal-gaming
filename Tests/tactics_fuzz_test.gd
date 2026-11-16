@@ -23,7 +23,9 @@ extends SceneTree
 # must give the same events and hash, so nothing outside the hash (the
 # incident generator, event ids) differs after an undo either.
 # Every other seed plays with incidents, most soldiers seeded with a random
-# one: the events must account for flights and defections too.
+# one: the events must account for flights and defections too. Every third
+# seed plays under fog of war with a weather (turning on some) and times of
+# day: a walk may stop at an ambush, and the rest must hold as well.
 
 const Kit := preload("res://Tests/tactics_test_kit.gd")
 const SEED_COUNT: int = 24
@@ -50,6 +52,8 @@ var _model: Dictionary = {}
 var _zone_count: int = 0
 ## Incident events seen over all seeds, by type.
 var _incident_counts: Dictionary = {}
+## Sight and sky events seen on the fog seeds.
+var _sight_counts: Dictionary = {}
 ## The moves that can still be taken back, the last on top: each
 ## {hash, snapshot, index, budget} from before the move; and whose they are.
 var _undo_stack: Array[Dictionary] = []
@@ -85,6 +89,10 @@ func _initialize() -> void:
 	for failure: String in _failures.slice(0, 20):
 		printerr("Tactics fuzz test: %s" % failure)
 	print("Tactics fuzz test: incident events %s, %d strikes, %d undos (up to %d moves deep)" % [_incident_counts, _strikes, _undos, _deepest_undo])
+	print("Tactics fuzz test: sight events %s" % _sight_counts)
+	for type: StringName in [&"vision_changed", &"weather_changed", &"daytime_changed"]:
+		if _sight_counts.get(type, 0) == 0:
+			_failures.append("no %s on any fog seed" % type)
 	if _incident_counts.get(&"incident_fired", 0) == 0:
 		_failures.append("no incident fired on any seed")
 	if _deepest_undo < 3:
@@ -193,6 +201,17 @@ func _snapshot(battle: TacticsBattle) -> Dictionary:
 	}
 
 
+## The path of `leader` to `cell` passes a cell an enemy it does not see
+## stands on.
+func _crosses_unseen(battle: TacticsBattle, leader: int, cell: Vector2i) -> bool:
+	var side: int = battle.get_unit_state(leader)["side"]
+	for step: Vector2i in battle.get_path_to(leader, cell):
+		for unit: Dictionary in battle.get_units():
+			if unit["alive"] and unit["side"] != side and unit["cell"] == step and not battle.is_unit_seen(side, unit["index"]):
+				return true
+	return false
+
+
 ## On even seeds: incident rules and a random incident on most soldiers;
 ## returns [unit, incident] pairs ([[-1]] for incidents without forced
 ## seeds, [] without incidents) so the replay can do the same.
@@ -228,7 +247,30 @@ func _random_rows(width: int, height: int) -> PackedStringArray:
 func _new_battle(rows: PackedStringArray, objective: Vector2i, ai_sides: Array[bool]) -> TacticsBattle:
 	var battle := _kit.new_battle(rows, ai_sides[1], null, objective)
 	battle.set_side_ai(TacticsBattle.SIDE_A, ai_sides[0])
+	var environment := _environment()
+	if environment != null and not battle.set_environment(environment):
+		_fail("the environment was refused")
 	return battle
+
+
+## On every third seed: fog of war, a weather (that may turn) and a cycle
+## of times of day, all picked from the seed alone so a replay has the same.
+func _environment() -> TacticsScenarioData:
+	if _seed % 3 != 0:
+		return null
+	var weathers: Array[StringName] = [&"weather.clear", &"weather.rain", &"weather.fog", &"weather.wind"]
+	var scenario := TacticsScenarioData.new()
+	scenario.id = &"scenario.fuzz"
+	scenario.fog_of_war = true
+	scenario.weather = _kit.catalog.get_weather(weathers[_seed % weathers.size()])
+	if _seed % 2 == 0:
+		scenario.weather_change_round = 2 + _seed % 3
+		scenario.weather_after = _kit.catalog.get_weather(weathers[(_seed + 1 + _seed / 3) % weathers.size()])
+	var cycle: Array[TacticsDaytimeData] = [_kit.catalog.get_daytime(&"daytime.night"), _kit.catalog.get_daytime(&"daytime.day"), _kit.catalog.get_daytime(&"daytime.dusk")]
+	scenario.daytimes = cycle
+	scenario.daytime_start_index = _seed % cycle.size()
+	scenario.daytime_step_rounds = 1 + _seed % 2
+	return scenario
 
 
 ## Adds 1 to 3 leaders per side on random cells; returns [side, data, cell]
@@ -428,8 +470,11 @@ func _run_checked(battle: TacticsBattle, command: Array) -> Array:
 	if command[0] == &"move" and not events.is_empty():
 		_last_moved = unit
 		var is_plain := not battle.is_finished() and not battle.is_side_ai(state["side"])
+		# Cells coming into sight keep it plain; an enemy coming into sight
+		# (or an ambush) does not.
 		for event: Dictionary in events:
-			is_plain = is_plain and event["type"] in [&"unit_moved", &"skill_charge_changed"]
+			var is_quiet_sight: bool = event["type"] == &"vision_changed" and (event["units"] as Array).is_empty()
+			is_plain = is_plain and (event["type"] in [&"unit_moved", &"skill_charge_changed"] or is_quiet_sight)
 		if battle.can_undo_move(unit) != is_plain:
 			_fail("after %s can_undo_move is %s, the move was plain=%s" % [command, battle.can_undo_move(unit), is_plain])
 		if is_plain:
@@ -554,7 +599,11 @@ func _check_engagement(events: Array, forecast: Dictionary) -> void:
 
 ## The cast hit and buffed what preview_skill() said.
 func _check_skill(events: Array, skill_preview: Dictionary) -> void:
-	var used: Dictionary = events[0]
+	# Under fog the caster is shown first (a sight change), then it casts.
+	var first := 0
+	while first < events.size() - 1 and events[first]["type"] == &"vision_changed":
+		first += 1
+	var used: Dictionary = events[first]
 	if used["type"] != &"skill_used" or Array(used["cells"]) != Array(skill_preview["cells"]) or Array(used["targets"]) != Array(skill_preview["targets"]):
 		_fail("skill %s differs from its preview %s" % [used, skill_preview])
 		return
@@ -613,7 +662,9 @@ func _check_queries(battle: TacticsBattle) -> void:
 		if cell != state["cell"] and not reachable.has(cell):
 			_fail("strike cell %s of %d against %d is not reachable" % [cell, leader, target])
 		var forecast := battle.forecast_move_attack(leader, cell, target)
-		if not forecast.get("is_valid", false) and not forecast.get("target_gone", false):
+		# Under fog a walk through a cell an unseen enemy stands on stops
+		# there; nothing else may make the forecast fail.
+		if not forecast.get("is_valid", false) and not forecast.get("target_gone", false) and not _crosses_unseen(battle, leader, cell):
 			_fail("forecast_move_attack(%d, %s, %d) is not valid" % [leader, cell, target])
 
 
@@ -693,6 +744,8 @@ func _apply_model(battle: TacticsBattle, events: Array) -> void:
 				_zone_count += 1
 			&"zone_expired":
 				_zone_count -= 1
+		if String(event["type"]) in ["vision_changed", "ambushed", "weather_changed", "daytime_changed"]:
+			_sight_counts[event["type"]] = int(_sight_counts.get(event["type"], 0)) + 1
 		if String(event["type"]) in ["soldier_wavered", "incident_calmed", "incident_fired", "mark_earned", "unit_fled", "unit_defected"]:
 			_incident_counts[event["type"]] = int(_incident_counts.get(event["type"], 0)) + 1
 	for unit: Dictionary in battle.get_units():

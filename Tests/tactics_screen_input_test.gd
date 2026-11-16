@@ -65,12 +65,17 @@ func _run() -> bool:
 	return true
 
 
-func _open(player_side: int) -> void:
+# has_fog false opens the river crossing in clear sight, to read every
+# enemy's card.
+func _open(player_side: int, has_fog: bool = true) -> void:
 	if _screen != null:
 		_screen.queue_free()
 	_close_ups.clear()
 	_screen = TacticsScreen.new()
 	_screen.scenario = load(SCENARIO_PATH) as TacticsScenarioData
+	if not has_fog:
+		_screen.scenario = _screen.scenario.duplicate()
+		_screen.scenario.fog_of_war = false
 	_screen.player_side = player_side
 	_screen.size = Vector2(720, 1280)
 	_screen.home_requested.connect(func() -> void: _went_home += 1)
@@ -142,8 +147,11 @@ func _check_outcome_lines() -> bool:
 # The enemy's card says it marches when its intent arrow moves; while the
 # enemy plays, the top bar and the panel say it is the enemy's phase.
 func _check_enemy_phase_texts() -> bool:
-	await _open(0)
+	await _open(0, false)
 	if not await _wait_idle():
+		return false
+	if _screen.get_map().get_intents().is_empty() or _screen.get_map().get_intents().size() != _battle().get_enemy_intents().size():
+		push_error("Without fog the enemy's intents should all be shown in our phase")
 		return false
 	var marches := 0
 	for intent: Dictionary in _battle().get_enemy_intents():

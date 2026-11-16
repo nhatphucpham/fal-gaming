@@ -5,6 +5,8 @@ extends SceneTree
 # hills, hills seeing further, the union of a side's sight, the three fog
 # states, forest hiding units from all but neighbours and scouts, an
 # attacker showing itself, the ambush stop, undo refused after a reveal,
+# cells passed in sight told by the events, forecasts that keep a hidden
+# zone of control secret,
 # the AI not using what it cannot see, last-seen ghosts, each weather,
 # night and lights, read intents, incidents out of the leader's sight,
 # a battle without an environment unchanged, and determinism. Side B is
@@ -41,7 +43,7 @@ func _run() -> bool:
 	var checks: Array[Callable] = [
 		_check_line_of_sight, _check_hill_sees_far, _check_union, _check_fog_states,
 		_check_forest_hides, _check_attacker_shows, _check_ambush, _check_undo_after_reveal,
-		_check_vision_event, _check_ai_blind, _check_last_seen, _check_rain, _check_wind,
+		_check_vision_event, _check_walk_sight_told, _check_forecast_keeps_secret, _check_ai_blind, _check_last_seen, _check_rain, _check_wind,
 		_check_fog_weather, _check_burn_in_rain, _check_night_and_lights, _check_daytime_cycle,
 		_check_weather_change, _check_intents_at_night, _check_unseen_waver, _check_unseen_calm,
 		_check_unseen_odds, _check_no_environment, _check_determinism,
@@ -218,6 +220,46 @@ func _check_vision_event() -> bool:
 		and Kit.expect("sees the enemy", events[0]["units"].has(enemy), true) \
 		and Kit.expect_true("new cells", events[0]["cells"].has(Vector2i(9, 5))) \
 		and Kit.expect_true("lost cells", events[0]["lost_cells"].has(Vector2i(0, 10)))
+
+
+# A walk remembers what it passed in sight of; the events tell every fog
+# cell that changed, so the screen can follow them alone.
+func _check_walk_sight_told() -> bool:
+	var battle := _battle(_kit.plain_rows(), _env())
+	var spear := _kit.add(battle, A, _leader(MOON_SPEAR), Vector2i(0, 5))
+	_kit.add(battle, B, _leader(THIET_NHA), Vector2i(11, 11))
+	battle.start()
+	var fog := battle.get_fog_cells(A)
+	var width := battle.get_map_width()
+	var events := battle.move_leader(spear, Vector2i(4, 5))
+	for event: Dictionary in Kit.of_type(events, &"vision_changed"):
+		if event["side"] != A:
+			continue
+		for cell: Vector2i in event["cells"]:
+			fog[cell.y * width + cell.x] = VISIBLE
+		for cell: Vector2i in event["lost_cells"]:
+			fog[cell.y * width + cell.x] = SEEN
+	# (1, 0) is in sight from (1, 5) only, a cell the walk passed.
+	return Kit.expect("passed in sight", _fog_at(battle, A, Vector2i(1, 0)), SEEN) \
+		and Kit.expect_true("the events tell the fog", fog == battle.get_fog_cells(A))
+
+
+# A zone of control the side cannot see does not show in a strike's
+# forecast: the forecast is the walk as planned; the walk itself stops.
+func _check_forecast_keeps_secret() -> bool:
+	var battle := _battle(_rows({4: ".....f......"}), _env())
+	var spear := _kit.add(battle, A, _leader(MOON_SPEAR, {"keywords": _kit.keywords([])}), Vector2i(2, 5))
+	var target := _kit.add(battle, B, _leader(THIET_NHA), Vector2i(7, 5))
+	var hidden := _kit.add(battle, B, _leader(LIEU_MI, {"keywords": _kit.keywords([])}), Vector2i(5, 4))
+	battle.start()
+	if not Kit.expect("the guard is hidden", battle.is_unit_seen(A, hidden), false):
+		return false
+	var cell := Vector2i(6, 5)
+	var forecast := battle.forecast_move_attack(spear, cell, target)
+	var events := battle.move_leader(spear, cell)
+	return Kit.expect("forecast as planned", forecast.get("is_valid", false), true) \
+		and Kit.expect("the walk is ambushed", Kit.of_type(events, &"ambushed").size(), 1) \
+		and Kit.expect_true("short of the cell", Kit.cell_of(battle, spear) != cell)
 
 
 # The AI does not plan around a unit it cannot see: with fog off it goes

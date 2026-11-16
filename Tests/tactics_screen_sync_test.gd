@@ -9,7 +9,8 @@ extends SceneTree
 # map must already show what the battle has (tokens, hp, deaths, charge
 # pips, zones), so nothing jumps silently; after every tap the synced screen
 # must agree with the battle's queries (marks, buttons, intents, the done
-# look) and no error may be logged. Odd seeds play with the roster and
+# look, the fog and the last-seen ghosts) and no error may be logged; an
+# enemy we do not see has no piece shown. Odd seeds play with the roster and
 # incidents (most soldiers seeded): the pieces must also show each unit's
 # side, wavering mark and marks as the battle has them.
 
@@ -231,6 +232,7 @@ func _check_played() -> void:
 	_played += 1
 	_check_pieces("before the sync", false)
 	_check_zones("before the sync")
+	_check_fog("before the sync")
 	var phase := tr("TACTICS_PHASE_PLAYER") if _battle().get_active_side() == 0 else tr("TACTICS_PHASE_ENEMY")
 	var round_text := "%s · %s" % [tr("TACTICS_ROUND_FORMAT") % [_battle().get_round(), _screen.scenario.rules.max_rounds], phase]
 	if not _battle().is_finished() and _screen.get_round_text() != round_text:
@@ -247,6 +249,7 @@ func _check_synced(what: String) -> void:
 		return
 	_check_pieces(what, true)
 	_check_zones(what)
+	_check_fog(what)
 	_check_intents(what)
 	_check_marks(what)
 	_check_buttons(what)
@@ -261,8 +264,10 @@ func _check_pieces(what: String, is_synced: bool) -> void:
 			_problems.append("%s: unit %d has no piece" % [what, unit])
 			continue
 		var is_alive: bool = state["alive"]
-		if piece.visible != is_alive or piece.is_dead == is_alive:
-			_problems.append("%s: unit %d alive=%s but its piece visible=%s dead=%s" % [what, unit, is_alive, piece.visible, piece.is_dead])
+		# Under fog an enemy we do not see is off the board.
+		var is_seen: bool = int(state["side"]) == 0 or _battle().is_unit_seen(0, unit)
+		if piece.visible != (is_alive and is_seen) or piece.is_dead == is_alive:
+			_problems.append("%s: unit %d alive=%s seen=%s but its piece visible=%s dead=%s" % [what, unit, is_alive, is_seen, piece.visible, piece.is_dead])
 		if not is_alive:
 			continue
 		if piece.position != map.cell_to_local(state["cell"]):
@@ -304,6 +309,26 @@ func _check_zones(what: String) -> void:
 	real.sort()
 	if shown != real:
 		_problems.append("%s: zones shown %s, battle has %s" % [what, shown, real])
+
+
+# The fog and the last-seen ghosts are what our side sees and remembers.
+func _check_fog(what: String) -> void:
+	var map := _screen.get_map()
+	if not _battle().has_fog_of_war():
+		_problems.append("%s: the river crossing should have fog of war" % what)
+		return
+	if map.get_fog() != _battle().get_fog_cells(0):
+		_problems.append("%s: the fog shown differs from what side 0 sees" % what)
+	var shown: Array[String] = []
+	for ghost: Dictionary in map.get_last_seen():
+		shown.append("%d %s" % [ghost["unit"], ghost["cell"]])
+	var real: Array[String] = []
+	for ghost: Dictionary in _battle().get_last_seen(0):
+		real.append("%d %s" % [ghost["unit"], ghost["cell"]])
+	shown.sort()
+	real.sort()
+	if shown != real:
+		_problems.append("%s: ghosts shown %s, battle remembers %s" % [what, shown, real])
 
 
 func _check_intents(what: String) -> void:
