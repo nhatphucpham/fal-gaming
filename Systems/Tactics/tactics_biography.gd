@@ -47,10 +47,17 @@ func biography(person: Dictionary) -> Array[String]:
 	var lines: Array[String] = []
 	lines.append(tr("BIO_OPENING_FORMAT") % [text.unit_name(person["troop"]), _number_word(int(person["number"]), "NAME_ORDINAL_%d"), leader_name(person["first_leader"])])
 	var marks: Array = person["marks"]
-	for index: int in mini(marks.size(), marks_to_name):
+	var count := mini(marks.size(), marks_to_name)
+	# Marks from several battles say which battle, so two alike never read
+	# as the same sentence twice.
+	var is_one_battle := true
+	for index: int in count:
+		is_one_battle = is_one_battle and int(marks[index].get("battle", 0)) == int(marks[0].get("battle", 0))
+	for index: int in count:
 		var mark: Dictionary = marks[index]
 		var key := "BIO_MARK_%s_FORMAT" % _key_tail(mark["incident"])
-		lines.append(tr(key) % [int(mark["round"]), text.terrain_name(mark["terrain"]).to_lower(), leader_name(mark["leader_id"])])
+		var when: String = tr("BIO_WHEN_ROUND_FORMAT") % int(mark["round"]) if is_one_battle else tr("BIO_WHEN_BATTLE_FORMAT") % [int(mark.get("battle", 0)), int(mark["round"])]
+		lines.append(tr(key) % [when, text.terrain_name(mark["terrain"]).to_lower(), leader_name(mark["leader_id"])])
 	lines.append(tr("BIO_CLOSING_FORMAT") % person_name(person))
 	return lines
 

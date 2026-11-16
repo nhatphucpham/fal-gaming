@@ -37,7 +37,7 @@ func _run() -> bool:
 	_catalog = load(CATALOG_PATH) as TacticsCatalog
 	_scenario = load(SCENARIO_PATH) as TacticsScenarioData
 	var checks: Array[Callable] = [
-		_check_save_round_trip, _check_bad_saves, _check_muster_fill, _check_report, _check_naming,
+		_check_save_round_trip, _check_bad_saves, _check_muster_fill, _check_report, _check_naming, _check_biography_battles,
 		_check_named_leader, _check_traitor_returns, _check_karma_carry, _check_real_battle,
 	]
 	for check: Callable in checks:
@@ -181,6 +181,27 @@ func _check_naming() -> bool:
 		and _expect("first mark", lines[1], "Vòng 2, ở cầu, lao ra đỡ đòn thay Liễu Mi.") and _expect("closing", lines[-1], "Người trong toán gọi là Bảy Cầu.") \
 		and _expect("lines", lines.size(), 5) and _expect("stable name", campaign.bio.person_name(person), name) \
 		and _expect("stable biography", campaign.bio.biography(person), lines)
+
+
+# Marks alike but from two battles (same incident, round, ground and
+# leader) read as two different lines that say which battle: the
+# biography never repeats a sentence.
+func _check_biography_battles() -> bool:
+	var roster := TacticsRoster.create(17)
+	var campaign := TacticsCampaign.new(roster, _catalog, _scenario)
+	var person := roster.recruit(SPEARMAN, &"leader.lac_hong")
+	for battle_number: int in [1, 2, 3]:
+		var mark := _mark(&"incident.stand", &"terrain.plain", 2)
+		mark["battle"] = battle_number
+		person["marks"].append(mark)
+	var lines := campaign.bio.biography(person)
+	var seen := {}
+	for line: String in lines:
+		if seen.has(line):
+			return _expect("a repeated biography line", line, "")
+		seen[line] = true
+	return _expect("battle and round", lines[1], "Trận 1, vòng 2, ở đồng bằng, một mình đứng chặn khi toán của Liễu Mi đã lùi.") \
+		and _expect("the later battle", lines[3], "Trận 3, vòng 2, ở đồng bằng, một mình đứng chặn khi toán của Liễu Mi đã lùi.")
 
 
 # A named soldier musters as a leader of its own: two places, its troop's

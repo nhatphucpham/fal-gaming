@@ -551,14 +551,16 @@ NAME_PLACE_FORT,Đồn,Fort
 NAME_PLACE_VILLAGE,Làng,Village
 ROSTER_PLAIN_NAME_FORMAT,%s số %d,%s no. %d
 BIO_OPENING_FORMAT,%s thứ %s của toán %s.,"%s, the %s of %s's squad."
-BIO_MARK_RESCUE_FORMAT,"Vòng %d, ở %s, lao ra đỡ đòn thay %s.","Round %d, at the %s, took the blows meant for %s."
-BIO_MARK_STAND_FORMAT,"Vòng %d, ở %s, một mình đứng chặn khi toán của %s đã lùi.","Round %d, at the %s, stood alone when %s's squad fell back."
-BIO_MARK_SURGE_FORMAT,"Vòng %d, ở %s, thấy đồng đội gục, xông lên dưới cờ %s.","Round %d, at the %s, saw a comrade fall and charged under %s's banner."
-BIO_MARK_DISCONTENT_FORMAT,"Vòng %d, ở %s, bị đem làm mồi mãi, cãi lệnh %s.","Round %d, at the %s, tired of being bait, defied %s."
-BIO_MARK_RIOT_FORMAT,"Vòng %d, ở %s, làm loạn khi toán của %s tan tác.","Round %d, at the %s, ran riot as %s's squad broke."
-BIO_MARK_FLEE_FORMAT,"Vòng %d, ở %s, bỏ %s mà chạy.","Round %d, at the %s, left %s and ran."
-BIO_MARK_BETRAY_FORMAT,"Vòng %d, ở %s, bỏ %s theo giặc.","Round %d, at the %s, left %s for the enemy."
+BIO_MARK_RESCUE_FORMAT,"%s, ở %s, lao ra đỡ đòn thay %s.","%s, at the %s, took the blows meant for %s."
+BIO_MARK_STAND_FORMAT,"%s, ở %s, một mình đứng chặn khi toán của %s đã lùi.","%s, at the %s, stood alone when %s's squad fell back."
+BIO_MARK_SURGE_FORMAT,"%s, ở %s, thấy đồng đội gục, xông lên dưới cờ %s.","%s, at the %s, saw a comrade fall and charged under %s's banner."
+BIO_MARK_DISCONTENT_FORMAT,"%s, ở %s, bị đem làm mồi mãi, cãi lệnh %s.","%s, at the %s, tired of being bait, defied %s."
+BIO_MARK_RIOT_FORMAT,"%s, ở %s, làm loạn khi toán của %s tan tác.","%s, at the %s, ran riot as %s's squad broke."
+BIO_MARK_FLEE_FORMAT,"%s, ở %s, bỏ %s mà chạy.","%s, at the %s, left %s and ran."
+BIO_MARK_BETRAY_FORMAT,"%s, ở %s, bỏ %s theo giặc.","%s, at the %s, left %s for the enemy."
 BIO_CLOSING_FORMAT,Người trong toán gọi là %s.,The squad calls them %s.
+BIO_WHEN_ROUND_FORMAT,Vòng %d,Round %d
+BIO_WHEN_BATTLE_FORMAT,"Trận %d, vòng %d","Battle %d, round %d"
 ROSTER_MARK_LINE_FORMAT,%s · %s · vòng %d · dưới cờ %s,%s · %s · round %d · under %s
 TACTICS_FLOAT_ARMOR_FORMAT,+%d Giáp,+%d Armor
 TACTICS_FLOAT_WAVERING_FORMAT,%s?,%s?

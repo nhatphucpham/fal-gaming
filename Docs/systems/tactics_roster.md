@@ -98,9 +98,12 @@ The roster numbers come from `TacticsIncidentRulesData`
   the earliest wins a tie). Example: "Bảy Cầu", the seventh spearman, two
   marks at the bridge.
 - Biography: `BIO_OPENING_FORMAT` ("Binh giáo thứ bảy của toán Liễu
-  Mi."), one `BIO_MARK_<INCIDENT>_FORMAT` line per first mark (round,
+  Mi."), one `BIO_MARK_<INCIDENT>_FORMAT` line per first mark (when,
   terrain, leader), then `BIO_CLOSING_FORMAT` ("Người trong toán gọi là
-  Bảy Cầu."). Later marks change neither the name nor the biography.
+  Bảy Cầu."). "When" is `BIO_WHEN_ROUND_FORMAT` ("Vòng 2") when those
+  marks are from one battle, else `BIO_WHEN_BATTLE_FORMAT` ("Trận 1, vòng
+  2"), so two alike marks from two battles never read as one sentence
+  twice. Later marks change neither the name nor the biography.
 
 ## Public API
 
@@ -128,7 +131,7 @@ None. A save that cannot be read or written is reported once with
 
 - Another name or biography line: add Locale rows (`NAME_PLACE_<TERRAIN>`
   for a new terrain, `BIO_MARK_<INCIDENT>_FORMAT` for a new incident, with
-  round, place and leader in that order).
+  when, place and leader in that order).
 - A new save field: bump `VERSION`, write it in `to_save_data()` and read
   it in `_read()`. Older saves are then replaced by an empty roster.
 - A second scenario: build a `TacticsCampaign` with it; spare spawn cells
@@ -142,7 +145,8 @@ None. A save that cannot be read or written is reported once with
 - The muster fill: recruits, the marked soldier first, the dead left out.
 - A report writing deaths, desertions, defections and a defector recruit.
 - Naming at three marks: "Bảy Cầu" with its biography, unchanged by a
-  fourth mark.
+  fourth mark; alike marks from three battles give three different lines
+  that name the battle.
 - A named leader's capacity, passive, skill and name.
 - A traitor returning as the third enemy leader, with his record in the
   report.

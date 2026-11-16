@@ -269,6 +269,8 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Fixed
 
+- A named soldier's biography no longer repeats a sentence when two of its
+  marks came alike from two battles: each line says which battle.
 - Chiến Dịch: archers and kite scouts no longer walk up next to an enemy
   (where they cannot shoot and get cut down) to take a shot or to keep
   their place beside an engaged leader.
