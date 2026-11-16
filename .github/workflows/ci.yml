@@ -154,6 +154,8 @@ jobs:
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/tactics_squad_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/tactics_fuzz_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/tactics_query_test.gd
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/tactics_incident_test.gd
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/tactics_roster_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/tactics_screen_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/tactics_screen_sync_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/tactics_screen_input_test.gd

@@ -486,8 +486,8 @@ func _bad_share(battle_setup: Callable, side: int) -> float:
 			if battle.get_unit_state(seed_entry["unit"])["side"] == side:
 				total += 1
 				bad += 1 if BAD.has(seed_entry["incident"]) else 0
-		battle.free()
 		_kit._battles.erase(battle)
+		battle.free()
 	return float(bad) / maxf(total, 1)
 
 
@@ -511,8 +511,8 @@ func _check_mark_odds() -> bool:
 		for seed_entry: Dictionary in battle.get_incident_seeds():
 			marked_count += 1 if seed_entry["unit"] == 1 else 0
 			other_count += 1 if seed_entry["unit"] == 2 else 0
-		battle.free()
 		_kit._battles.erase(battle)
+		battle.free()
 	return Kit.expect_true("marked %d vs %d" % [marked_count, other_count], marked_count > other_count * 3)
 
 
@@ -529,8 +529,8 @@ func _check_trait_odds() -> bool:
 			if seeds.has(leader_id):
 				seeds[leader_id] += 1
 				flee[leader_id] += 1 if seed_entry["incident"] == &"incident.flee" else 0
-		battle.free()
 		_kit._battles.erase(battle)
+		battle.free()
 	var strict := float(flee[MOON_SPEAR]) / maxf(seeds[MOON_SPEAR], 1)
 	var plain := float(flee[LIEU_MI]) / maxf(seeds[LIEU_MI], 1)
 	return Kit.expect_true("strict leader's soldiers flee less (%.2f vs %.2f)" % [strict, plain], strict < plain * 0.7)
@@ -544,8 +544,8 @@ func _check_ai_side_pool() -> bool:
 			var is_enemy: bool = battle.get_unit_state(seed_entry["unit"])["side"] == B
 			if is_enemy and not [&"incident.flee", &"incident.betray"].has(seed_entry["incident"]):
 				return Kit.expect_true("enemy seed %s" % seed_entry["incident"], false)
-		battle.free()
 		_kit._battles.erase(battle)
+		battle.free()
 	return true
 
 

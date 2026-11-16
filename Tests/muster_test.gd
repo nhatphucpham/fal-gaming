@@ -4,7 +4,9 @@ extends SceneTree
 # title's "Chiến Dịch" opens it, it lists our leaders with their squads and
 # capacities (from the battle rules), a soldier moves between leaders
 # while there is room and is refused when the leader is full, and
-# "Xuất quân" opens the tactics screen with the squads as mustered. With
+# "Xuất quân" opens the tactics screen with the squads as mustered;
+# retreating writes the battle into the roster and shows the summary,
+# whose "Tiếp tục" opens the muster again. With
 # touch, taps on a soldier chip and a leader card move a soldier, and a
 # drag that starts on a card or a chip scrolls the page instead.
 
@@ -15,10 +17,13 @@ var _main: Node
 
 func _initialize() -> void:
 	RunSettings.path = "user://settings_muster_test.json"
+	TacticsRoster.path = "user://tactics_roster_muster_test.json"
+	TacticsRoster.delete()
 	var ok := await _run()
 	if _main != null:
 		_main.queue_free()
 	await process_frame
+	TacticsRoster.delete()
 	if ok:
 		print("Muster test passed")
 		quit(0)
@@ -198,8 +203,22 @@ func _check_muster(muster: MusterScreen) -> bool:
 		return false
 	screen.retreat()
 	screen.retreat()
+	var summary := screen.get_summary()
+	if summary == null:
+		push_error("Retreating twice should show the after-battle summary")
+		return false
+	if TacticsRoster.load_roster().battles != 1:
+		push_error("The retreat should be written into the roster")
+		return false
+	summary.continue_requested.emit()
+	await create_timer(SLIDE_WAIT_SEC).timeout
+	var again := _main.current_screen as MusterScreen
+	if again == null:
+		push_error("The summary's Tiếp tục should open the muster again")
+		return false
+	again.back_requested.emit()
 	await create_timer(SLIDE_WAIT_SEC).timeout
 	if not _main.current_screen is TitleScreen:
-		push_error("Retreating twice should go back to the title")
+		push_error("Về should go back to the title")
 		return false
 	return true

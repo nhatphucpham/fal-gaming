@@ -6,11 +6,17 @@ extends SceneTree
 # map must already show what the battle has (tokens, hp, deaths, charge
 # pips, zones), so nothing jumps silently; after every tap the synced screen
 # must agree with the battle's queries (marks, buttons, intents, the done
-# look) and no error may be logged.
+# look) and no error may be logged. Odd seeds play with the roster and
+# incidents (most soldiers seeded): the pieces must also show each unit's
+# side, wavering mark and marks as the battle has them.
 
 const SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/river_crossing.tres"
 const SEED_COUNT: int = 6
 const MAX_TAPS: int = 500
+const CATALOG_PATH: String = "res://Data/Tactics/tactics_catalog.tres"
+const INCIDENTS: Array[StringName] = [
+	&"incident.rescue", &"incident.stand", &"incident.surge", &"incident.discontent", &"incident.riot", &"incident.flee", &"incident.betray",
+]
 
 
 class ErrorLog extends Logger:
@@ -27,13 +33,19 @@ var _rng := RandomNumberGenerator.new()
 var _problems: Array[String] = []
 var _played: int = 0
 var _phase_began: bool = false
+## Unit index -> marks its roster person carried in (campaign seeds).
+var _carried: Dictionary = {}
+var _incident_events: int = 0
 
 
 func _initialize() -> void:
 	TranslationServer.set_locale("vi")
+	TacticsRoster.path = "user://tactics_roster_sync_test.json"
+	TacticsRoster.delete()
 	OS.add_logger(_errors)
 	var ok := await _run()
 	OS.remove_logger(_errors)
+	TacticsRoster.delete()
 	if ok:
 		print("Tactics screen sync test passed")
 		quit(0)
@@ -58,7 +70,10 @@ func _run() -> bool:
 			finished += 1
 		_screen.queue_free()
 		await process_frame
-	print("%d playbacks checked, %d of %d battles finished" % [_played, finished, SEED_COUNT])
+	print("%d playbacks checked, %d of %d battles finished, %d incident steps" % [_played, finished, SEED_COUNT, _incident_events])
+	if _incident_events == 0:
+		push_error("Tactics screen sync test: no incident was played")
+		return false
 	return true
 
 
@@ -66,11 +81,27 @@ func _play_seed(seed_value: int) -> bool:
 	_rng.seed = seed_value
 	_screen = TacticsScreen.new()
 	_screen.scenario = load(SCENARIO_PATH) as TacticsScenarioData
+	_carried.clear()
+	if seed_value % 2 == 1:
+		var campaign := TacticsCampaign.new(TacticsRoster.load_roster(), load(CATALOG_PATH) as TacticsCatalog, _screen.scenario)
+		for ids: Array in campaign.people:
+			for id: int in ids:
+				if _rng.randf() < 0.8:
+					campaign.forced_seeds[id] = INCIDENTS[_rng.randi_range(0, INCIDENTS.size() - 1)]
+		_screen.scenario = campaign.scenario
+		_screen.squads = campaign.squads
+		_screen.campaign = campaign
 	_screen.is_instant = true
 	_screen.size = Vector2(720, 1280)
 	root.add_child(_screen)
 	await process_frame
 	_screen.get_playback().played.connect(_check_played)
+	_screen.get_playback().step_started.connect(func(type: StringName) -> void:
+		_incident_events += 1 if String(type) in ["soldier_wavered", "incident_fired", "incident_calmed"] else 0)
+	if _screen.campaign != null:
+		for state: Dictionary in _battle().get_units():
+			var person := _screen.campaign.get_person(state["record_id"])
+			_carried[state["index"]] = (person["marks"] as Array).size() if not person.is_empty() else 0
 	_screen.get_playback().phase_shown.connect(func(_side: int, _round_number: int) -> void: _phase_began = true)
 	_check_synced("start")
 	for tap: int in MAX_TAPS:
@@ -189,6 +220,15 @@ func _check_pieces(what: String, is_synced: bool) -> void:
 			_problems.append("%s: unit %d has hp %d but its piece shows %d" % [what, unit, state["hp"], piece.hp])
 		if piece.scale != Vector2.ONE or piece.modulate.a < 1.0:
 			_problems.append("%s: living unit %d is drawn fallen" % [what, unit])
+		if piece.side != int(state["side"]):
+			_problems.append("%s: unit %d fights for side %d but its piece shows %d" % [what, unit, state["side"], piece.side])
+		var wavering := TacticsPieceView.Wavering.NONE
+		if state["wavering"] != &"":
+			wavering = TacticsPieceView.Wavering.GOOD if state["is_wavering_good"] else TacticsPieceView.Wavering.BAD
+		if piece.wavering != wavering:
+			_problems.append("%s: unit %d wavering %s but its piece shows %d" % [what, unit, state["wavering"], piece.wavering])
+		if piece.mark_count != int(_carried.get(unit, 0)) + int(state["marks"]):
+			_problems.append("%s: unit %d has %d marks but its piece shows %d" % [what, unit, int(_carried.get(unit, 0)) + int(state["marks"]), piece.mark_count])
 		if state["role"] == &"leader":
 			var charge := _battle().get_skill_charge(unit)
 			if piece.charge_value != int(charge.get("value", 0)) or piece.charge_threshold != int(charge.get("threshold", 0)):
