@@ -211,9 +211,19 @@ Fog, weather and night (see [Tactics vision](tactics_vision.md)):
   edges are soft: never-seen cells near black, seen ones dimmed, visible
   ones clear; at dusk and night the visible cells take the night tint
   (`darkness_pct`) except the lit ones, which glow warm. A change blends
-  the old colours to the new over 0.35 s (one texture write a frame while
-  it lasts, `fog_change_count` blends) with the soft `fog_reveal` sound;
+  the old colours to the new (one write a frame of only the cells that
+  change, `fog_change_count` blends) with the soft `fog_reveal` sound;
   nothing is written while nothing changes. No shader, no node per cell.
+  A walk's sight changes (the leader's and each soldier's, which the
+  battle sends between the steps) are folded into the walk: the squad
+  still steps with its leader, the fog blends once over the walk's own
+  time (at least 0.15 s), and enemies spotted show after it; alone (a
+  death, a flight) a change blends over 0.25 s. So a walk under fog draws
+  about as many frames as one without: on the web build (Chromium,
+  iPhone 13, software GL, where every drawn frame costs about 100 ms) a
+  river walk went from 11-13 drawn frames (22.1-23.3 ms average, p95
+  100 ms) to 5-9 (19.2-21.2 ms, p95 16.8 ms on three of four walks); an
+  idle map still draws nothing.
 - Hidden enemies have no piece shown; one seen walking out of sight fades
   at the end of its walk, and a hidden enemy's move plays at once. A
   "last seen" ghost (a dimmed token with "?") stands where the battle

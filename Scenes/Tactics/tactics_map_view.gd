@@ -57,7 +57,9 @@ const FOG_NEVER_COLOR := Color(0.04, 0.05, 0.08, 0.88)
 const FOG_SEEN_COLOR := Color(0.07, 0.08, 0.12, 0.55)
 const NIGHT_COLOR := Color(0.02, 0.04, 0.16, 0.62)
 const LIGHT_COLOR := Color(1.0, 0.7, 0.32, 0.1)
-const FOG_BLEND_SEC: float = 0.35
+## A fog change blends over this long unless told otherwise (a walk blends
+## over its own frames).
+const FOG_BLEND_SEC: float = 0.25
 const EDGE_MARK_PX: float = 30.0
 
 var map_width: int = 0
@@ -83,6 +85,8 @@ var _fog_texture: ImageTexture
 var _fog_colors := PackedColorArray()
 var _fog_from := PackedColorArray()
 var _fog_to := PackedColorArray()
+## The cells the running blend changes; only they are written each frame.
+var _fog_blend_cells := PackedInt32Array()
 var _fog_tween: Tween
 var _fog_states := PackedByteArray()
 var _lit_cells := PackedByteArray()
@@ -434,8 +438,8 @@ func get_layer_draw_count() -> int:
 ## Fog of war and the time of day: one state per cell (0 never seen, 1 seen
 ## before, 2 visible), the lit cells (1) and the night's darkness (0..1).
 ## An empty `states` shows everything. The texture is rewritten only when
-## a colour changes, blending over a moment when `smooth`.
-func set_fog(states: PackedByteArray, lit: PackedByteArray, darkness: float, smooth: bool) -> void:
+## a colour changes, blending over `seconds` when `smooth`.
+func set_fog(states: PackedByteArray, lit: PackedByteArray, darkness: float, smooth: bool, seconds: float = FOG_BLEND_SEC) -> void:
 	if states == _fog_states and lit == _lit_cells and is_equal_approx(darkness, _darkness) and _fog_image != null:
 		return
 	_fog_states = states
@@ -459,21 +463,26 @@ func set_fog(states: PackedByteArray, lit: PackedByteArray, darkness: float, smo
 	if _fog_tween != null and _fog_tween.is_valid():
 		_fog_tween.kill()
 	fog_change_count += 1
+	# A blend cut short starts from where it got to.
 	_fog_from = _fog_colors.duplicate()
 	_fog_to = target
+	_fog_blend_cells.clear()
+	for index: int in count:
+		if _fog_from[index] != target[index]:
+			_fog_blend_cells.append(index)
 	_fog_rect.visible = true
 	if not smooth or is_instant or not is_inside_tree():
 		_blend_fog(1.0)
 		_fog_rect.visible = not is_clear
 		return
 	_fog_tween = create_tween()
-	_fog_tween.tween_method(_blend_fog, 0.0, 1.0, FOG_BLEND_SEC).set_trans(Tween.TRANS_SINE)
+	_fog_tween.tween_method(_blend_fog, 0.0, 1.0, seconds).set_trans(Tween.TRANS_SINE)
 	_fog_tween.tween_callback(func() -> void: _fog_rect.visible = not is_clear)
 
 
-## New fog states, the lights and the night kept.
-func update_fog_states(states: PackedByteArray, smooth: bool) -> void:
-	set_fog(states, _lit_cells, _darkness, smooth)
+## New fog states, the lights and the night kept, blending over `seconds`.
+func update_fog_states(states: PackedByteArray, smooth: bool, seconds: float = FOG_BLEND_SEC) -> void:
+	set_fog(states, _lit_cells, _darkness, smooth, seconds)
 
 
 ## New lights and darkness (a new time of day, a leader that moved), the
@@ -537,7 +546,7 @@ func _fog_color(index: int) -> Color:
 
 
 func _blend_fog(weight: float) -> void:
-	for index: int in _fog_to.size():
+	for index: int in _fog_blend_cells:
 		var color := _fog_from[index].lerp(_fog_to[index], weight)
 		_fog_colors[index] = color
 		_fog_image.set_pixel(index % map_width, index / map_width, color)

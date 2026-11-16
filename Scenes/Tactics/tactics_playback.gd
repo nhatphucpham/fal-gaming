@@ -52,6 +52,9 @@ const AMBUSH_SEC: float = 0.75
 const FADE_SEC: float = 0.2
 ## The beat after an enemy comes into sight, so the eye finds it.
 const SPOTTED_SEC: float = 0.25
+## The fog blends over the walk that changed it, at least this long; alone
+## (a death, a unit fleeing) over TacticsMapView.FOG_BLEND_SEC.
+const FOG_MIN_BLEND_SEC: float = 0.15
 ## Steps about one unit and nothing else (the unit hit, for damage): for
 ## an enemy our side does not see they only set its hidden piece, with no
 ## sound, ring, word or pause to give it away.
@@ -203,8 +206,9 @@ func _play_move(events: Array, index: int) -> int:
 		return index + 1
 	var tween := _new_step()
 	var path: Array = event["path"]
+	var walk_sec := maxf(MOVE_SEC_PER_CELL * (path.size() - 1), 0.05)
 	map.follow(map.cell_to_local(event["to"]))
-	_fade_with_sight(tween, piece, event, maxf(MOVE_SEC_PER_CELL * (path.size() - 1), FADE_SEC))
+	_fade_with_sight(tween, piece, event, maxf(walk_sec, FADE_SEC))
 	if event["kind"] == &"pull":
 		Sound.play(&"block")
 		tween.tween_property(piece, ^"position", map.cell_to_local(event["to"]), 0.22).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
@@ -214,50 +218,73 @@ func _play_move(events: Array, index: int) -> int:
 	tween.set_parallel()
 	for step: int in range(1, path.size()):
 		tween.tween_property(piece, ^"position", map.cell_to_local(path[step]), MOVE_SEC_PER_CELL).set_delay(MOVE_SEC_PER_CELL * (step - 1))
-	tween.tween_interval(maxf(MOVE_SEC_PER_CELL * (path.size() - 1), 0.05))
-	# The squad steps right after its leader: it sets off one step behind.
+	tween.tween_interval(walk_sec)
+	# What the walk shows clears while it walks, and the squad steps right
+	# after its leader, one step behind: one span of frames, not three.
 	var end := index + 1
+	var visions: Array[int] = []
 	if _is_leader(event["unit"]):
-		var squad_end := end
-		while squad_end < events.size() and events[squad_end]["type"] == &"skill_charge_changed":
-			squad_end += 1
-		if squad_end < events.size() and events[squad_end]["type"] == &"unit_moved" and events[squad_end]["kind"] == &"squad":
-			for at: int in range(end, squad_end):
-				_play_charge(events, at)
-			end = _add_squad_moves(tween, events, squad_end, MOVE_SEC_PER_CELL)
+		var charges: Array[int] = []
+		while end < events.size() and events[end]["type"] in [&"skill_charge_changed", &"vision_changed"]:
+			(charges if events[end]["type"] == &"skill_charge_changed" else visions).append(end)
+			end += 1
+		for at: int in charges:
+			_play_charge(events, at)
+		if end < events.size() and events[end]["type"] == &"unit_moved" and events[end]["kind"] == &"squad":
+			var squad_sec: Array[float] = [0.0]
+			end = _add_squad_moves(tween, events, end, MOVE_SEC_PER_CELL, visions, squad_sec)
+			walk_sec = maxf(walk_sec, squad_sec[0])
 			Sound.play(&"card_flip")
+	_blend_sight(events, visions, walk_sec)
 	await _finish(tween)
-	return end
+	return await _show_sight(events, visions, end)
 
 
-# Consecutive squad steps move together, each soldier along its own path.
+# Consecutive squad steps move together, each soldier along its own path;
+# what they show clears as they walk.
 func _play_squad_moves(events: Array, index: int) -> int:
+	var visions: Array[int] = []
+	var squad_sec: Array[float] = [0.0]
 	var end := index
 	var is_any_shown := false
-	while end < events.size() and events[end]["type"] == &"unit_moved" and events[end]["kind"] == &"squad":
-		var piece := _piece(events[end]["unit"])
-		is_any_shown = is_any_shown or (piece != null and not _is_unseen_move(events[end], piece))
+	while end < events.size() and (events[end]["type"] == &"vision_changed" or (events[end]["type"] == &"unit_moved" and events[end]["kind"] == &"squad")):
+		if events[end]["type"] == &"unit_moved":
+			var piece := _piece(events[end]["unit"])
+			is_any_shown = is_any_shown or (piece != null and not _is_unseen_move(events[end], piece))
 		end += 1
 	if not is_any_shown:
-		return _add_squad_moves(null, events, index, 0.0)
+		end = _add_squad_moves(null, events, index, 0.0, visions, squad_sec)
+		_blend_sight(events, visions, TacticsMapView.FOG_BLEND_SEC)
+		return await _show_sight(events, visions, end)
 	var tween := _new_step()
 	tween.set_parallel()
-	end = _add_squad_moves(tween, events, index, 0.0)
+	end = _add_squad_moves(tween, events, index, 0.0, visions, squad_sec)
 	Sound.play(&"card_flip")
+	_blend_sight(events, visions, squad_sec[0])
 	await _finish(tween)
-	return end
+	return await _show_sight(events, visions, end)
 
 
 # Adds the run of squad steps from `index` to a parallel tween, starting
-# after `delay`; returns the index after the run.
-func _add_squad_moves(tween: Tween, events: Array, index: int, delay: float) -> int:
+# after `delay`; returns the index after the run. Sight changes between
+# the steps are skipped and listed in `visions`; `seconds[0]` is set to
+# how long the run takes.
+func _add_squad_moves(tween: Tween, events: Array, index: int, delay: float, visions: Array[int], seconds: Array[float]) -> int:
 	var end := index
 	var longest := 1
-	while end < events.size() and events[end]["type"] == &"unit_moved" and events[end]["kind"] == &"squad":
-		longest = maxi(longest, (events[end]["path"] as Array).size() - 1)
+	var steps: Array[int] = []
+	while end < events.size():
+		var type: StringName = events[end]["type"]
+		if type == &"vision_changed":
+			visions.append(end)
+		elif type == &"unit_moved" and events[end]["kind"] == &"squad":
+			steps.append(end)
+			longest = maxi(longest, (events[end]["path"] as Array).size() - 1)
+		else:
+			break
 		end += 1
 	var per_cell := minf(MOVE_SEC_PER_CELL * 0.9, SQUAD_MOVE_MAX_SEC / longest)
-	for step_index: int in range(index, end):
+	for step_index: int in steps:
 		var event: Dictionary = events[step_index]
 		var piece := _piece(event["unit"])
 		if piece == null:
@@ -270,8 +297,9 @@ func _add_squad_moves(tween: Tween, events: Array, index: int, delay: float) -> 
 		var path: Array = event["path"]
 		for step: int in range(1, path.size()):
 			tween.tween_property(piece, ^"position", map.cell_to_local(path[step]), per_cell).set_delay(delay + per_cell * (step - 1))
+	seconds[0] = delay + per_cell * longest
 	if tween != null:
-		tween.tween_interval(delay + per_cell * longest)
+		tween.tween_interval(seconds[0])
 	return end
 
 
@@ -848,49 +876,80 @@ func _fade_with_sight(tween: Tween, piece: TacticsPieceView, event: Dictionary, 
 # What our side sees changed: cells clear (or dim) with a short blend and
 # a soft sound, enemies come into sight or leave it ("?" where last seen).
 func _play_vision(events: Array, index: int) -> int:
-	var event: Dictionary = events[index]
+	var visions: Array[int] = [index]
+	_blend_sight(events, visions, TacticsMapView.FOG_BLEND_SEC)
+	return await _show_sight(events, visions, index + 1)
+
+
+# Starts one blend of the fog to what the listed sight changes of our side
+# show, over `seconds` (the walk that caused them), with the soft sound.
+func _blend_sight(events: Array, visions: Array[int], seconds: float) -> void:
 	var states := map.get_fog().duplicate()
-	if int(event["side"]) != player_side or states.is_empty():
-		return index + 1
-	for cell: Vector2i in event["cells"]:
-		states[cell.y * map.map_width + cell.x] = 2
-	for cell: Vector2i in event["lost_cells"]:
-		states[cell.y * map.map_width + cell.x] = 1
-	var ghosts: Array = map.get_last_seen().duplicate(true)
-	var spotted: Array = event["units"]
-	for unit: int in spotted:
-		var piece := _piece(unit)
-		if piece != null and not piece.is_dead:
-			piece.visible = true
-			if piece.modulate.a < 1.0:
-				piece.create_tween().tween_property(piece, ^"modulate:a", 1.0, FADE_SEC)
-	var lost: Array = event["lost_units"]
-	for at: int in lost.size():
-		var unit: int = lost[at]
-		# Remembered where the battle says now (nowhere for one that fell,
-		# fled or whose cell was seen empty).
-		ghosts = ghosts.filter(func(ghost: Dictionary) -> bool: return ghost["unit"] != unit)
-		var cell: Vector2i = event["lost_at"][at]
-		if cell.x >= 0:
-			ghosts.append({"unit": unit, "cell": cell, "is_leader": _is_leader(unit)})
-		var piece := _piece(unit)
-		if piece == null or piece.is_dead:
+	if states.is_empty():
+		return
+	var is_any_new := false
+	for at: int in visions:
+		var event: Dictionary = events[at]
+		if int(event["side"]) != player_side:
 			continue
-		piece.visible = false
-		piece.modulate.a = 1.0
+		for cell: Vector2i in event["cells"]:
+			states[cell.y * map.map_width + cell.x] = 2
+		for cell: Vector2i in event["lost_cells"]:
+			states[cell.y * map.map_width + cell.x] = 1
+		is_any_new = is_any_new or not (event["cells"] as Array).is_empty()
+	map.update_fog_states(states, not is_instant, maxf(seconds, FOG_MIN_BLEND_SEC))
+	if is_any_new:
+		Sound.play(&"fog_reveal")
+
+
+# After the listed sight changes: enemies that came into sight show (the
+# camera finds the first one), those that left it go, and the "?" marks
+# follow; returns `end` once a spotted enemy had its beat.
+func _show_sight(events: Array, visions: Array[int], end: int) -> int:
+	var states := map.get_fog()
+	if states.is_empty():
+		return end
+	var ghosts: Array = map.get_last_seen().duplicate(true)
+	var spotted: Array = []
+	for at: int in visions:
+		var event: Dictionary = events[at]
+		if int(event["side"]) != player_side:
+			continue
+		for unit: int in event["units"]:
+			var piece := _piece(unit)
+			if piece != null and not piece.is_dead:
+				spotted.append(unit)
+				piece.visible = true
+				if piece.modulate.a < 1.0:
+					piece.create_tween().tween_property(piece, ^"modulate:a", 1.0, FADE_SEC)
+		var lost: Array = event["lost_units"]
+		for lost_index: int in lost.size():
+			var unit: int = lost[lost_index]
+			# Remembered where the battle says now (nowhere for one that
+			# fell, fled or whose cell was seen empty).
+			ghosts = ghosts.filter(func(ghost: Dictionary) -> bool: return ghost["unit"] != unit)
+			var cell: Vector2i = event["lost_at"][lost_index]
+			if cell.x >= 0:
+				ghosts.append({"unit": unit, "cell": cell, "is_leader": _is_leader(unit)})
+			spotted.erase(unit)
+			var piece := _piece(unit)
+			if piece == null or piece.is_dead:
+				continue
+			piece.visible = false
+			piece.modulate.a = 1.0
 	# A ghost goes when its enemy is seen again, or its cell is seen empty.
 	ghosts = ghosts.filter(func(ghost: Dictionary) -> bool:
 		var piece := _piece(ghost["unit"])
 		var is_seen := piece != null and piece.visible
 		return not is_seen and states[(ghost["cell"] as Vector2i).y * map.map_width + (ghost["cell"] as Vector2i).x] != 2)
 	map.set_last_seen(ghosts)
-	map.update_fog_states(states, not is_instant)
-	if not (event["cells"] as Array).is_empty():
-		Sound.play(&"fog_reveal")
 	if spotted.is_empty():
-		return index + 1
+		return end
 	map.follow(_piece(spotted[0]).position)
-	return await _pause(index, SPOTTED_SEC)
+	var tween := _new_step()
+	tween.tween_interval(SPOTTED_SEC)
+	await _finish(tween)
+	return end
 
 
 # A walk stopped by an enemy hidden in the way: the ambusher bursts into

@@ -186,8 +186,8 @@ func _check_idle_frames() -> bool:
 
 
 # The fog texture is written only when what we see changes: a tap or an
-# idle map writes nothing; a walk that reveals blends in a few writes, then
-# the map is still again.
+# idle map writes nothing; a walk that reveals blends once, in the walk's
+# own frames, then the map is still again.
 func _check_fog_redraws() -> bool:
 	await _open(false)
 	var map := _map()
@@ -212,23 +212,27 @@ func _check_fog_redraws() -> bool:
 	for cell: Vector2i in _battle().get_reachable_cells(leader):
 		if _unit_at(cell) < 0 and cell.y < far.y:
 			far = cell
-	var sights := [0]
-	_screen.get_playback().step_started.connect(func(type: StringName) -> void: sights[0] += 1 if type == &"vision_changed" else 0)
 	_screen.move_to(far)
+	# The reveal blends within the walk's own frames: when the walk (and its
+	# squad) has played, the fog is still.
+	var is_blending_after := false
 	for frame: int in MAX_FRAMES:
-		if not _screen.is_busy() and not map.is_fog_blending():
+		if not _screen.is_busy():
+			is_blending_after = map.is_fog_blending()
+			break
+		await process_frame
+	for frame: int in MAX_FRAMES:
+		if not map.is_fog_blending():
 			break
 		await process_frame
 	if _battle().get_fog_cells(0) == before:
 		push_error("The walk to %s should have revealed cells" % far)
 		return false
-	# A blend writes once a frame for FOG_BLEND_SEC; a squad's walk blends
-	# once for each piece whose sight changed (the reveal follows them), and
-	# never more.
+	# One blend for the whole walk, however many pieces' sight changed.
 	var blend_writes := map.fog_write_count - writes
 	var blends := map.fog_change_count - changes
-	if blends < 1 or blends > sights[0] or blend_writes < 2:
-		push_error("A reveal should blend once a sight change, got %d blends for %d changes (%d writes)" % [blends, sights[0], blend_writes])
+	if blends != 1 or blend_writes < 2 or is_blending_after:
+		push_error("A walk's reveal should blend once within the walk, got %d blends (%d writes), still blending after it: %s" % [blends, blend_writes, is_blending_after])
 		return false
 	if map.get_fog() != _battle().get_fog_cells(0):
 		push_error("After the walk the fog shown should be the battle's")
@@ -239,7 +243,7 @@ func _check_fog_redraws() -> bool:
 	if map.fog_write_count != writes or counts[0] > 0:
 		push_error("After the reveal the map should be still: %d fog writes, %d frames changed" % [map.fog_write_count - writes, counts[0]])
 		return false
-	print("Fog: %d blends for %d sight changes (%d writes, headless frames), none idle" % [blends, sights[0], blend_writes])
+	print("Fog: %d blend in the walk (%d writes, headless frames), none idle" % [blends, blend_writes])
 	return true
 
 
