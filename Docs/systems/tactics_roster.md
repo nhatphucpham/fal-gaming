@@ -169,3 +169,7 @@ All are in CI.
   unique.
 - Leaving the muster with "Về" drops that muster's new recruits (they are
   saved only after a battle).
+- The roster is written only when the summary opens (an end or a retreat).
+  A game closed during a battle keeps the roster as it was before it: the
+  dead of that battle are back and its marks are lost, as a run closed
+  mid-battle fights it again ([Run](run.md)).
