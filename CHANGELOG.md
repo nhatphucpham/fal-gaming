@@ -14,6 +14,9 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 - Chiến Dịch: dragging the map with a finger that starts on one of your
   leaders pans the map instead of moving that leader; only the selected
   leader can be dragged to a cell.
+- Chiến Dịch: words that rise over a soldier at the edge of the screen
+  (an incident's name, a hit) are no longer cut off, and small ones such
+  as "Đã yên" are now big enough to read on a phone.
 - Sổ quân: two soldiers named for their marks never share a name any more
   ("Bảy Cầu", then "Bảy Cung Cầu" or "Bảy Giáo Cầu số 17"), and the 17th
   spearman's story no longer calls him the seventh.

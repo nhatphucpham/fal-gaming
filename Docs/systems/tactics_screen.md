@@ -239,7 +239,8 @@ panel): `setup(battle, objective_cell)`, `cell_to_local` and
 `attackable`, `skill_cells`, `area`, `selected`, `target`, `path`,
 `slots`, `ghosts`; an equal value is ignored), `set_intents(intents)`,
 `set_zones(zones)` (likewise), `float_text(...)` (stacks above text still
-rising from the same spot); camera: `center_on(point)`, `follow(point)`,
+rising from the same spot, stays inside the part of the board on screen
+with its rise, never under `GameTheme.SMALL_FONT_SIZE`); camera: `center_on(point)`, `follow(point)`,
 `reveal(point)` (only when it is out of view),
 `zoom_to(zoom, point, smooth)`, `toggle_whole_map()`, `get_zoom()`,
 `get_default_zoom()`, `get_whole_zoom()`, `get_max_zoom()`,
@@ -337,7 +338,9 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   is cut or too small at 720 layout px wide: every hint fits the top bar,
   every unit's card shows its first two lines whole (each incident's
   wavering line too), no label is clipped by its panel, no text is under
-  the small font size and every button is at least 88 px tall.
+  the small font size and every button is at least 88 px tall; a float
+  at the corner of a zoomed view is drawn inside it, and one asked for
+  at 18 px is drawn at the small font size.
 - `Tests/tactics_screen_sync_test.gd`: random taps (cells, leaders and
   marches toward the enemy, drags,
   enabled buttons with undo, the order row) on six seeds in instant mode,

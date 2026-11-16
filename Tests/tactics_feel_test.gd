@@ -12,7 +12,9 @@ extends SceneTree
 # leader, tap the enemy, tap it again (or the leader and a cell when no
 # enemy is near), and no "Kết lượt". On a 720-px-wide layout no hint,
 # card line, order name or button is cut and no text is under the game's
-# small font size; every button is at least 88 px tall.
+# small font size; every button is at least 88 px tall. A float over a
+# piece at the edge of the view stays in the view and is never smaller
+# than the small font.
 
 const SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/river_crossing.tres"
 const MAX_FRAMES: int = 3000
@@ -56,7 +58,7 @@ func _run() -> bool:
 	if not ClassDB.class_exists("TacticsBattle"):
 		push_error("TacticsBattle is missing: build the GDExtension (scons) before importing")
 		return false
-	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_auto_end, _check_tap_count, _check_text_fits]
+	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_auto_end, _check_tap_count, _check_text_fits, _check_floats]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Tactics feel test failed in %s" % check.get_method())
@@ -508,6 +510,43 @@ func _check_labels() -> bool:
 		var name := tr("ORDER_" + String(order).get_slice(".", 1).to_upper())
 		if button.is_visible_in_tree() and button.get_theme_default_font().get_string_size(name, HORIZONTAL_ALIGNMENT_LEFT, -1, GameTheme.SMALL_FONT_SIZE).x > button.size.x - 8.0:
 			return _fail("the order %s fits its button" % name)
+	return true
+
+
+# Zoomed in with the board's left and top edges out of view, a float over
+# a piece on the left column and the top row is drawn inside the view;
+# more text there stacks down instead of covering it; a float asked for
+# at 18 px is drawn at the small font size.
+func _check_floats() -> bool:
+	await _open(true)
+	var map := _map()
+	map.zoom_to(map.get_whole_zoom() * 1.4, map.cell_to_local(Vector2i(map.map_width / 2, map.map_height / 2)), false)
+	await process_frame
+	var view_left := map.view_to_board(Vector2.ZERO)
+	if view_left.x <= 0.0 or view_left.y <= 0.0:
+		return _fail("the zoomed view should hide the board's left and top edges, got %s" % view_left)
+	var label := map.float_text(Vector2(map.view_to_board(Vector2.ZERO).x, view_left.y + 4.0), "Tẩu thoát", Color.WHITE, 30, 44.0, 1.4)
+	var small := map.float_text(map.cell_to_local(Vector2i(map.map_width / 2, map.map_height / 2)), "Đã yên", Color.WHITE, 18)
+	var view_rect := Rect2(view_left, map.size / map.get_zoom())
+	var is_inside := view_rect.encloses(Rect2(label.position, label.size))
+	var font_px := small.get_theme_font_size(&"font_size")
+	# More text at the same corner stacks down, never over the first.
+	var stacked: Array[Label] = [label]
+	for text: String in ["Dấu: Tẩu thoát", "-220"]:
+		stacked.append(map.float_text(Vector2(view_left.x + 30.0, view_left.y + 4.0), text, Color.WHITE, 22))
+	var is_apart := true
+	for index: int in stacked.size():
+		for other: int in range(index + 1, stacked.size()):
+			is_apart = is_apart and not Rect2(stacked[index].position, stacked[index].size).grow(-5.0).intersects(Rect2(stacked[other].position, stacked[other].size).grow(-5.0))
+	for each: Label in stacked:
+		each.free()
+	small.free()
+	if not is_apart:
+		return _fail("floats at the top of the view should stack, not cover each other")
+	if not is_inside:
+		return _fail("a float at the view's corner should be drawn inside the view %s" % view_rect)
+	if font_px < GameTheme.SMALL_FONT_SIZE:
+		return _fail("a float is %d px, under %d" % [font_px, GameTheme.SMALL_FONT_SIZE])
 	return true
 
 

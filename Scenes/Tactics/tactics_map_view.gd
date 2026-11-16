@@ -437,11 +437,12 @@ func get_zones() -> Array:
 	return _zones
 
 
-## Text rising from a board point and fading, such as a damage number.
+## Text rising from a board point and fading, such as a damage number;
+## never under the small font size.
 func float_text(at: Vector2, text: String, color: Color, font_px: int = 26, rise_px: float = 36.0, seconds: float = 0.9) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_size_override(&"font_size", font_px)
+	label.add_theme_font_size_override(&"font_size", maxi(font_px, GameTheme.SMALL_FONT_SIZE))
 	label.add_theme_color_override(&"font_color", color)
 	label.add_theme_color_override(&"font_outline_color", Palette.INK)
 	label.add_theme_constant_override(&"outline_size", 7)
@@ -449,20 +450,41 @@ func float_text(at: Vector2, text: String, color: Color, font_px: int = 26, rise
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_fx_layer.add_child(label)
 	label.reset_size()
-	# Kept inside the board so a number at the edge is not cut off, and
-	# above any text still rising from the same spot.
-	var x := clampf(at.x - label.size.x / 2.0, 0.0, maxf(get_board_size().x - label.size.x, 0.0))
-	var y := at.y - label.size.y
-	for other: Node in _fx_layer.get_children():
-		var rising := other as Label
-		if rising != null and rising != label and absf(rising.position.x + rising.size.x / 2.0 - at.x) < CELL_PX and absf(rising.position.y - y) < label.size.y:
-			y = minf(y, rising.position.y - label.size.y + 4.0)
+	# Kept inside the part of the board on screen, its rise included, so a
+	# text at the edge of the view is not cut off, and above any text still
+	# rising from the same spot.
+	var shown := Rect2(Vector2.ZERO, get_board_size()).intersection(Rect2(view_to_board(Vector2.ZERO), size / _zoom))
+	if not shown.has_area():
+		shown = Rect2(Vector2.ZERO, get_board_size())
+	var x := clampf(at.x - label.size.x / 2.0, shown.position.x, maxf(shown.end.x - label.size.x, shown.position.x))
+	var top := shown.position.y + rise_px
+	var start := clampf(at.y - label.size.y, top, maxf(shown.end.y - label.size.y, top))
+	var y := _free_float_y(label, x, start, -1.0)
+	if y < top:
+		y = _free_float_y(label, x, start, 1.0)
 	label.position = Vector2(x, y)
 	var tween := label.create_tween()
 	tween.tween_property(label, ^"position:y", label.position.y - rise_px, seconds).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.parallel().tween_property(label, ^"modulate:a", 0.0, seconds * 0.4).set_delay(seconds * 0.6)
 	tween.tween_callback(label.queue_free)
 	return label
+
+
+# The first y from `start`, going up (-1) or down (1), where the label
+# covers no text still rising at that spot.
+func _free_float_y(label: Label, x: float, start: float, direction: float) -> float:
+	var y := start
+	for attempt: int in _fx_layer.get_child_count():
+		var is_free := true
+		for other: Node in _fx_layer.get_children():
+			var rising := other as Label
+			if rising == null or rising == label or absf(rising.position.x + rising.size.x / 2.0 - x - label.size.x / 2.0) >= CELL_PX or absf(rising.position.y - y) >= label.size.y - 4.0:
+				continue
+			y = rising.position.y + (rising.size.y - 4.0 if direction > 0.0 else 4.0 - label.size.y)
+			is_free = false
+		if is_free:
+			break
+	return y
 
 
 func _gui_input(event: InputEvent) -> void:
