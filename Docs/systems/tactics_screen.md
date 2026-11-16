@@ -148,7 +148,7 @@ Taps (the flow a phone player uses):
   a blue cell first, then the enemy.
 - Tap an order in the row: the squad takes it at once (its slots on the
   map follow); the line under the row says what it does. After Chờ the row
-  is greyed out.
+  is greyed out (only the current order stays bright).
 - Chờ closes the leader: its squad strikes (if it has not yet) and the
   leader can do nothing more this phase. A leader is also done when
   nothing is left for it (`TacticsBattle.is_closed`: no cell to reach, no

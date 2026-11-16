@@ -22,6 +22,7 @@ signal order_chosen(order: StringName)
 const CONTENT_HEIGHT_PX: float = 150.0
 const BUTTON_HEIGHT_PX: float = 92.0
 const ORDER_BUTTON_HEIGHT_PX: float = 88.0
+const DISABLED_ORDER_ALPHA: float = 0.45
 ## Lines a card shows under its title.
 const CARD_LINES: int = 4
 
@@ -100,6 +101,11 @@ func show_order_row(current: StringName, text: TacticsText, enabled: bool = true
 		var button := _order_buttons[order]
 		var face := button.get_child(0) as _OrderFace
 		button.disabled = not enabled
+		# A row that cannot change (the leader waited) reads as greyed out;
+		# its current order stays clear.
+		var alpha := 1.0 if enabled or order == current else DISABLED_ORDER_ALPHA
+		if face.modulate.a != alpha:
+			face.modulate.a = alpha
 		var caption := text.order_name(order)
 		if face.caption != caption or face.is_current != (order == current):
 			face.caption = caption
