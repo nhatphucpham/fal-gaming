@@ -253,7 +253,8 @@ Fog, weather and night (see [Tactics vision](tactics_vision.md)):
   for it) the hint says "Binh khuất mắt dao động: cho tướng thấy nó." and
   the first time it offers the tip `waver_unseen` instead of `waver`
   (which names no incident: "binh sắp gây chuyện").
-- The weather and time chip (top right of the map, 132 x 88): their icons;
+- The weather and time chip (top left of the map, 132 x 88, clear of
+  the whole-map button at the top right): their icons;
   a tap shows both descriptions, the coming weather change and the fog
   line on the panel. A round before the weather turns, a banner says so;
   each change of weather or time plays a banner with its one-line

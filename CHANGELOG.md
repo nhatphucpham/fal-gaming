@@ -45,6 +45,8 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Fixed
 
+- Chiến Dịch: the weather and time chip moves to the map's top-left
+  corner; it covered the "whole map" button.
 - Chiến Dịch: a leader that has walked all its points with no enemy in
   reach is no longer told to tap an enemy; the hint says Undo or Wait.
 - Chiến Dịch: the objective shows through the fog and the night, and a

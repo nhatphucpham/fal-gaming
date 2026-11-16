@@ -61,7 +61,7 @@ func _run() -> bool:
 	if not ClassDB.class_exists("TacticsBattle"):
 		push_error("TacticsBattle is missing: build the GDExtension (scons) before importing")
 		return false
-	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_fog_redraws, _check_night_objective, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_auto_end, _check_tap_count, _check_text_fits, _check_floats, _check_hidden_steps]
+	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_fog_redraws, _check_night_objective, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_corner_buttons, _check_auto_end, _check_tap_count, _check_text_fits, _check_floats, _check_hidden_steps]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Tactics feel test failed in %s" % check.get_method())
@@ -299,7 +299,7 @@ func _check_pan() -> bool:
 	for row: int in map.map_height:
 		for col: int in map.map_width:
 			var cell := Vector2i(col, row)
-			if empty.x < 0 and _unit_at(cell) < 0 and map.is_in_view(map.cell_to_local(cell)) and map.is_in_view(map.cell_to_local(cell) + Vector2(0, 150) / map.get_zoom()):
+			if empty.x < 0 and _unit_at(cell) < 0 and map.is_in_view(map.cell_to_local(cell)) and map.is_in_view(map.cell_to_local(cell) + Vector2(0, 150) / map.get_zoom()) and not _is_under_button(cell):
 				empty = cell
 	var from := _cell_point(empty)
 	# Towards the far side of the board, whichever way it can go.
@@ -318,6 +318,16 @@ func _check_pan() -> bool:
 		push_error("Panning should not redraw the map's layers")
 		return false
 	return true
+
+
+# Is the cell's centre under a button laid over the map?
+func _is_under_button(cell: Vector2i) -> bool:
+	var map := _map()
+	var at := map.get_global_rect().position + map.board_to_view(map.cell_to_local(cell))
+	for button: Control in [_screen.get_environment_chip(), map.get_whole_map_button()]:
+		if button.is_visible_in_tree() and button.get_global_rect().grow(8.0).has_point(at):
+			return true
+	return false
 
 
 func _unit_at(cell: Vector2i) -> int:
@@ -413,6 +423,27 @@ func _check_pinch_and_whole_map() -> bool:
 	if map.is_whole_map() or absf(map.get_zoom() - map.get_default_zoom()) > 0.001:
 		push_error("The button again should go back to the default zoom")
 		return false
+	return true
+
+
+# With weather and a time of day the chip that tells them and the
+# whole-map button both sit over the map: neither covers the other, and a
+# finger on the whole-map button shows the whole map.
+func _check_corner_buttons() -> bool:
+	await _open(true, NIGHT_SCENARIO_PATH)
+	var map := _map()
+	var chip := _screen.get_environment_chip()
+	var whole := map.get_whole_map_button()
+	if not chip.is_visible_in_tree() or not whole.is_visible_in_tree():
+		return _fail("The night raid should show the weather chip and the whole-map button")
+	if chip.get_global_rect().intersects(whole.get_global_rect()):
+		return _fail("The weather chip %s covers the whole-map button %s" % [chip.get_global_rect(), whole.get_global_rect()])
+	var at := root.get_final_transform() * whole.get_global_rect().get_center()
+	_press(at, true)
+	_press(at, false)
+	await process_frame
+	if not map.is_whole_map():
+		return _fail("A tap on the whole-map button should show the whole map")
 	return true
 
 

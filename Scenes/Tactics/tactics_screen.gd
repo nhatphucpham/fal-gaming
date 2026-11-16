@@ -461,16 +461,15 @@ func _build_top_bar() -> void:
 	row.add_child(_retreat_button)
 
 
-# The weather and the time of day over the map's top-right corner, one tap
+# The weather and the time of day over the map's top-left corner (the
+# whole-map button holds the top-right), one tap
 # target (the top bar keeps its room for the hint); a tap says what both do.
 func _build_environment_chip() -> void:
 	_environment_chip = PressButton.new()
 	_environment_chip.focus_mode = Control.FOCUS_NONE
 	_environment_chip.custom_minimum_size = Vector2(132, 88)
-	_environment_chip.anchor_left = 1.0
-	_environment_chip.anchor_right = 1.0
-	_environment_chip.offset_left = -8 - _environment_chip.custom_minimum_size.x
-	_environment_chip.offset_right = -8
+	_environment_chip.offset_left = 8
+	_environment_chip.offset_right = 8 + _environment_chip.custom_minimum_size.x
 	_environment_chip.offset_top = TOP_BAR_PX + 8
 	_environment_chip.offset_bottom = TOP_BAR_PX + 8 + _environment_chip.custom_minimum_size.y
 	_environment_chip.pressed.connect(func() -> void:
