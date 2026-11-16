@@ -5,17 +5,27 @@ extends RefCounted
 ## person has a stable id, a troop, a face seed (`look`), a status and the
 ## marks (Dấu) incidents left on it. Death is permanent. A missing file
 ## gives an empty roster; a broken file or an unknown version is warned
-## about once and replaced by an empty one. See Docs/systems/tactics_roster.md.
+## about once, kept aside as `<path>.unreadable` and replaced by an empty
+## one. A save is written whole to `<path>.tmp` first and then renamed over
+## the file, so a crash mid-save never leaves half a roster.
+## See Docs/systems/tactics_roster.md.
 ## [codeblock]
 ## var roster := TacticsRoster.load_roster()
 ## roster.save()
 ## [/codeblock]
 
 const PATH: String = "user://tactics_roster.json"
+## A save is written here first, then renamed over the roster.
+const TEMP_SUFFIX: String = ".tmp"
+## An unreadable roster is moved here instead of being overwritten.
+const UNREADABLE_SUFFIX: String = ".unreadable"
 const VERSION: int = 1
 ## active: fights for us; dead: fell (never comes back); deserted: fled the
 ## map; traitor: went over to the enemy.
 const STATUSES: Array[String] = ["active", "dead", "deserted", "traitor"]
+## The fallen who left no mark are forgotten past this many (the most
+## recent stay), so a long campaign's save and roster list stay small.
+const UNMARKED_FALLEN_KEPT: int = 30
 
 ## Where save(), load_roster() and delete() go without a path argument.
 ## Only tests change it, so they never touch the player's roster.
@@ -47,7 +57,10 @@ static func load_roster(file_path: String = "") -> TacticsRoster:
 	var json := JSON.new()
 	var data: Variant = json.data if json.parse(FileAccess.get_file_as_string(source)) == OK else null
 	if not data is Dictionary or not roster._read(data):
-		_warn("ignored the unreadable roster %s" % source)
+		# Kept aside: a save from a newer build or a damaged file is not
+		# overwritten by the next battle.
+		DirAccess.rename_absolute(source, source + UNREADABLE_SUFFIX)
+		_warn("set aside the unreadable roster %s as %s" % [source, source + UNREADABLE_SUFFIX])
 		return create()
 	return roster
 
@@ -59,21 +72,30 @@ static func create(roster_seed: int = 0) -> TacticsRoster:
 	return roster
 
 
+## Removes the roster and what a save or a load left beside it.
 static func delete(file_path: String = "") -> void:
 	var target := file_path if file_path != "" else path
-	if FileAccess.file_exists(target):
-		DirAccess.remove_absolute(target)
+	for file: String in [target, target + TEMP_SUFFIX, target + UNREADABLE_SUFFIX]:
+		if FileAccess.file_exists(file):
+			DirAccess.remove_absolute(file)
 
 
-## Writes the roster; false (with one warning) when it cannot.
+## Writes the roster whole beside the file, then renames it over the file;
+## false (with one warning, the old file untouched) when it cannot.
 func save(file_path: String = "") -> bool:
 	var target := file_path if file_path != "" else path
-	var file := FileAccess.open(target, FileAccess.WRITE)
+	var temp := target + TEMP_SUFFIX
+	var file := FileAccess.open(temp, FileAccess.WRITE)
 	if file == null:
-		_warn("could not write %s (error %d)" % [target, FileAccess.get_open_error()])
+		_warn("could not write %s (error %d)" % [temp, FileAccess.get_open_error()])
 		return false
-	file.store_string(JSON.stringify(to_save_data(), "\t"))
+	var is_written := file.store_string(JSON.stringify(to_save_data(), "\t"))
 	file.close()
+	var error := DirAccess.rename_absolute(temp, target) if is_written else ERR_FILE_CANT_WRITE
+	if error != OK:
+		DirAccess.remove_absolute(temp)
+		_warn("could not save %s (%s)" % [target, error_string(error)])
+		return false
 	return true
 
 
@@ -109,6 +131,19 @@ func recruit(troop_id: StringName, leader_id: StringName) -> Dictionary:
 	return person
 
 
+## Forgets the fallen without a mark beyond the UNMARKED_FALLEN_KEPT most
+## recent (highest ids); a soldier with a mark is a story and stays.
+func forget_old_fallen() -> void:
+	var unmarked := 0
+	for index: int in range(people.size() - 1, -1, -1):
+		var person := people[index]
+		if person["status"] != "dead" or not (person["marks"] as Array).is_empty():
+			continue
+		unmarked += 1
+		if unmarked > UNMARKED_FALLEN_KEPT:
+			people.remove_at(index)
+
+
 func get_person(id: int) -> Dictionary:
 	for person: Dictionary in people:
 		if person["id"] == id:
@@ -116,12 +151,12 @@ func get_person(id: int) -> Dictionary:
 	return {}
 
 
-## Active, unnamed people of that troop not in `taken`, most marks first,
-## then the lower id.
+## Active people of that troop not in `taken` (the named ones who lead
+## are), most marks first, then the lower id.
 func find_soldiers(troop_id: StringName, taken: Dictionary) -> Array[Dictionary]:
 	var found: Array[Dictionary] = []
 	for person: Dictionary in people:
-		if person["troop"] == troop_id and person["status"] == "active" and not person["is_named"] and not taken.has(person["id"]):
+		if person["troop"] == troop_id and person["status"] == "active" and not taken.has(person["id"]):
 			found.append(person)
 	found.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
 		var left_marks: int = (left["marks"] as Array).size()

@@ -52,6 +52,7 @@ func _init(tactics_roster: TacticsRoster, tactics_catalog: TacticsCatalog, base_
 	rules = catalog.incident_rules
 	text = TacticsText.new(catalog)
 	bio = TacticsBiography.new(text, rules.marks_to_name)
+	bio.roster = roster
 	_build(base_scenario)
 
 
@@ -115,6 +116,9 @@ func finish_battle(battle: TacticsBattle, squad_people: Array, is_saved: bool = 
 ## finish_battle() without the battle: a get_battle_report() Dictionary and
 ## unit index -> person id; changes the roster, does not save it.
 func apply_report(report: Dictionary, by_unit: Dictionary) -> Dictionary:
+	# Earlier battles' unmarked fallen go first; this battle's stay for its
+	# summary.
+	roster.forget_old_fallen()
 	var battle_number := roster.battles + 1
 	var rows: Array[Dictionary] = []
 	var named: Array[int] = []
@@ -187,6 +191,13 @@ func _build(base: TacticsScenarioData) -> void:
 	var leaders_b: Array[TacticsLeaderData] = []
 	leaders_b.assign(base.leaders_b)
 	var taken := {}
+	# Named soldiers lead while spare spawn cells last (lowest ids first);
+	# the others fight in a squad of their troop rather than sit out.
+	var leading: Array[Dictionary] = []
+	for person: Dictionary in roster.get_named():
+		if leading.size() < _room(scenario.map.spawn_cells_a.size(), leaders_a.size()):
+			leading.append(person)
+			taken[person["id"]] = true
 	for leader: TacticsLeaderData in base.leaders_a:
 		var squad: Array[TacticsTroopData] = []
 		var ids: Array[int] = []
@@ -201,11 +212,7 @@ func _build(base: TacticsScenarioData) -> void:
 		leader_people.append(-1)
 	for leader: TacticsLeaderData in base.leaders_b:
 		enemy_people.append(-1)
-	var room_a := scenario.map.spawn_cells_a.size() - leaders_a.size()
-	for person: Dictionary in roster.get_named():
-		if room_a <= 0:
-			break
-		room_a -= 1
+	for person: Dictionary in leading:
 		var leader := make_leader(person)
 		leaders_a.append(leader)
 		runtime_leaders.append(leader)
@@ -214,7 +221,7 @@ func _build(base: TacticsScenarioData) -> void:
 		squads.append(empty_squad)
 		people.append(empty_ids)
 		leader_people.append(int(person["id"]))
-	var room_b := scenario.map.spawn_cells_b.size() - leaders_b.size()
+	var room_b := _room(scenario.map.spawn_cells_b.size(), leaders_b.size())
 	for person: Dictionary in roster.get_returning(rules.traitor_marks_to_return):
 		if room_b <= 0:
 			break
@@ -233,6 +240,11 @@ func _build(base: TacticsScenarioData) -> void:
 	for leader: TacticsLeaderData in runtime_leaders:
 		text.register_unit(leader)
 		bio.leader_names[leader.id] = leader.name_key
+
+
+# Leaders a side can still add: a spawn cell each, within the rules' cap.
+func _room(spawn_cells: int, leaders: int) -> int:
+	return mini(spawn_cells, scenario.rules.max_leaders_per_side) - leaders
 
 
 # [unit index, person id] for every roster unit of a loaded battle: our

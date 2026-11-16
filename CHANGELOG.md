@@ -14,6 +14,15 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 - Chiến Dịch: dragging the map with a finger that starts on one of your
   leaders pans the map instead of moving that leader; only the selected
   leader can be dragged to a cell.
+- Sổ quân: two soldiers named for their marks never share a name any more
+  ("Bảy Cầu", then "Bảy Cung Cầu" or "Bảy Giáo Cầu số 17"), and the 17th
+  spearman's story no longer calls him the seventh.
+- Sổ quân: named soldiers beyond the two who lead fight in their troop's
+  squads instead of sitting out the battle.
+- Sổ quân: the roster is saved whole or not at all, so closing the game
+  mid-save cannot lose it; a roster this build cannot read is kept aside
+  instead of being overwritten, and fallen soldiers who left no mark are
+  forgotten after a while, so a long campaign's save stays small.
 
 ### Changed
 

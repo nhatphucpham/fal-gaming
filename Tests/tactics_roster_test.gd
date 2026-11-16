@@ -1,13 +1,16 @@
 extends SceneTree
 
 # Headless tests for the roster (Sổ quân) and the campaign around it: the
-# save round trip, a wrong version or a broken file ignored; the muster
+# save round trip, written whole or not at all, a wrong version or a broken
+# file set aside rather than overwritten; the muster
 # fills troop slots with roster soldiers (most marks first) and recruits
 # the rest; a report writes marks, deaths, desertions and defections back;
 # a soldier is named at three marks with a name and biography that do not
 # change after; a named soldier leads a small squad; a traitor with two
 # marks comes back as an enemy leader when river_crossing is played again;
-# karma carries over at half; a real battle with incidents leaves marks.
+# karma carries over at half; a real battle with incidents leaves marks;
+# names stay unique; a named leader can die; more named soldiers than
+# spawn cells fight in squads; a hundred battles keep the save small.
 
 const CATALOG_PATH: String = "res://Data/Tactics/tactics_catalog.tres"
 const SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/river_crossing.tres"
@@ -39,6 +42,8 @@ func _run() -> bool:
 	var checks: Array[Callable] = [
 		_check_save_round_trip, _check_bad_saves, _check_muster_fill, _check_report, _check_naming, _check_biography_battles,
 		_check_named_leader, _check_traitor_returns, _check_karma_carry, _check_real_battle,
+		_check_atomic_save, _check_unreadable_kept, _check_unique_names, _check_named_leader_dies, _check_all_named,
+		_check_leader_cap, _check_long_campaign,
 	]
 	for check: Callable in checks:
 		if not check.call():
@@ -283,3 +288,167 @@ func _check_real_battle() -> bool:
 	for person: Dictionary in loaded.people:
 		saved_marks += (person["marks"] as Array).size()
 	return _expect("battles", loaded.battles, 12) and _expect("marks were earned", marks > 0, true) and _expect("saved marks", saved_marks, marks)
+
+
+# A save that cannot be written whole leaves the last good file as it was
+# and nothing beside it.
+func _check_atomic_save() -> bool:
+	var roster := TacticsRoster.create(29)
+	roster.battles = 4
+	if not roster.save():
+		return false
+	var is_temp_left := FileAccess.file_exists(SAVE_PATH + TacticsRoster.TEMP_SUFFIX)
+	var before := FileAccess.get_file_as_string(SAVE_PATH)
+	# A folder where the temporary file goes makes the write fail.
+	DirAccess.make_dir_absolute(SAVE_PATH + TacticsRoster.TEMP_SUFFIX)
+	roster.battles = 5
+	print("Tactics roster test: the next warning (could not write) may be expected")
+	var is_saved := roster.save()
+	DirAccess.remove_absolute(SAVE_PATH + TacticsRoster.TEMP_SUFFIX)
+	return _expect("no temporary file left", is_temp_left, false) and _expect("a failed save says so", is_saved, false) \
+		and _expect("the old file untouched", FileAccess.get_file_as_string(SAVE_PATH), before) \
+		and _expect("still readable", TacticsRoster.load_roster().battles, 4)
+
+
+# A roster from a newer build is set aside, and the next save does not
+# destroy it.
+func _check_unreadable_kept() -> bool:
+	var data := TacticsRoster.create(31).to_save_data()
+	data["version"] = TacticsRoster.VERSION + 1
+	var newer := JSON.stringify(data)
+	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	file.store_string(newer)
+	file.close()
+	var roster := TacticsRoster.load_roster()
+	roster.save()
+	var kept := FileAccess.get_file_as_string(SAVE_PATH + TacticsRoster.UNREADABLE_SUFFIX)
+	TacticsRoster.delete()
+	return _expect("empty roster", roster.people.size(), 0) and _expect("the newer save kept aside", kept, newer) \
+		and _expect("delete removes it too", FileAccess.file_exists(SAVE_PATH + TacticsRoster.UNREADABLE_SUFFIX), false)
+
+
+func _name_by_marks(person: Dictionary, terrain: StringName, battle_number: int) -> void:
+	for round_number: int in [2, 3, 4]:
+		var mark := _mark(&"incident.stand", terrain, round_number)
+		mark["battle"] = battle_number
+		person["marks"].append(mark)
+	person["is_named"] = true
+
+
+# Spearman 7, archer 7 and spearman 17, all named at the bridge, one battle
+# after another: the first keeps the short name, the archer adds its troop,
+# the second spearman its number; the 17th is not called the seventh.
+func _check_unique_names() -> bool:
+	var roster := TacticsRoster.create(37)
+	var spearmen: Array[Dictionary] = []
+	for index: int in 17:
+		spearmen.append(roster.recruit(SPEARMAN, &"leader.lieu_mi"))
+	var archer: Dictionary = {}
+	for index: int in 7:
+		archer = roster.recruit(&"troop.archer", &"leader.lieu_mi")
+	_name_by_marks(spearmen[16], &"terrain.bridge", 3)
+	_name_by_marks(archer, &"terrain.bridge", 2)
+	_name_by_marks(spearmen[6], &"terrain.bridge", 1)
+	var campaign := TacticsCampaign.new(roster, _catalog, _scenario)
+	var names := [campaign.bio.person_name(spearmen[6]), campaign.bio.person_name(archer), campaign.bio.person_name(spearmen[16])]
+	return _expect("names", names, ["Bảy Cầu", "Bảy Cung Cầu", "Bảy Giáo Cầu số 17"]) \
+		and _expect("the 17th", campaign.bio.biography(spearmen[16])[0], "Binh giáo thứ 17 của toán Liễu Mi.")
+
+
+# A named soldier who falls as a leader is dead in the roster and leads no
+# more.
+func _check_named_leader_dies() -> bool:
+	var roster := TacticsRoster.create(41)
+	var person := roster.recruit(SPEARMAN, &"leader.lac_hong")
+	_name_by_marks(person, &"terrain.hill", 1)
+	var campaign := TacticsCampaign.new(roster, _catalog, _scenario)
+	var battle := _battle_for(campaign)
+	if not campaign.prepare_battle(battle, campaign.people):
+		return false
+	var unit: int = battle.get_units().filter(func(state: Dictionary) -> bool: return state["id"] == campaign.runtime_leaders[0].id)[0]["index"]
+	var entry := _report_unit(unit, &"dead")
+	entry["role"] = &"leader"
+	var summary := campaign.apply_report(_report([entry]), {unit: person["id"]})
+	var again := TacticsCampaign.new(roster, _catalog, _scenario)
+	return _expect("dead", person["status"], "dead") and _expect("in the summary", summary["rows"][0]["after"], "dead") \
+		and _expect("leads no more", again.scenario.leaders_a.size(), _scenario.leaders_a.size()) \
+		and _expect("not mustered", again.people.any(func(ids: Array) -> bool: return ids.has(person["id"])), false)
+
+
+# Four named spearmen and two returning traitors on river_crossing (two
+# spare spawn cells a side, one for side B): the first two named lead, the
+# other two fill spearman slots, one traitor returns, and the battle loads
+# with every leader on its own cell.
+func _check_all_named() -> bool:
+	var roster := TacticsRoster.create(43)
+	var named: Array[Dictionary] = []
+	for index: int in 4:
+		var person := roster.recruit(SPEARMAN, &"leader.lac_hong")
+		_name_by_marks(person, &"terrain.plain", 1)
+		named.append(person)
+	for index: int in 2:
+		var traitor := roster.recruit(SPEARMAN, &"leader.lac_hong")
+		traitor["status"] = "traitor"
+		traitor["marks"].append(_mark(&"incident.discontent", &"terrain.river"))
+		traitor["marks"].append(_mark(&"incident.betray", &"terrain.ford"))
+	var campaign := TacticsCampaign.new(roster, _catalog, _scenario)
+	var battle := _battle_for(campaign)
+	if not campaign.prepare_battle(battle, campaign.people):
+		return false
+	var cells := {}
+	var leaders := 0
+	for state: Dictionary in battle.get_units():
+		if state["role"] == &"leader":
+			leaders += 1
+			cells[state["cell"]] = true
+	var in_squads := named.filter(func(person: Dictionary) -> bool: return campaign.people.any(func(ids: Array) -> bool: return ids.has(person["id"])))
+	return _expect("two named lead", campaign.leader_people.slice(_scenario.leaders_a.size()), [named[0]["id"], named[1]["id"]]) \
+		and _expect("the others fight in squads", in_squads, [named[2], named[3]]) \
+		and _expect("one traitor returns", campaign.scenario.leaders_b.size(), _scenario.leaders_b.size() + 1) \
+		and _expect("every leader on the map", leaders, campaign.scenario.leaders_a.size() + campaign.scenario.leaders_b.size()) \
+		and _expect("each on its own cell", cells.size(), leaders)
+
+
+# Rules allowing fewer leaders than the map has spawn cells: the muster
+# stays within them and the battle still loads.
+func _check_leader_cap() -> bool:
+	var scenario := _scenario.duplicate() as TacticsScenarioData
+	scenario.rules = _scenario.rules.duplicate() as TacticsRulesData
+	scenario.rules.max_leaders_per_side = _scenario.leaders_a.size() + 1
+	var roster := TacticsRoster.create(47)
+	for index: int in 2:
+		_name_by_marks(roster.recruit(SPEARMAN, &"leader.lac_hong"), &"terrain.plain", 1)
+	var campaign := TacticsCampaign.new(roster, _catalog, scenario)
+	var battle := TacticsBattle.new()
+	_battles.append(battle)
+	return _expect("within the cap", campaign.scenario.leaders_a.size(), scenario.rules.max_leaders_per_side) \
+		and _expect("loads", battle.load_scenario_with_squads(campaign.scenario, 0, campaign.squads), true)
+
+
+# A hundred battles played by the AI on both sides: the unmarked fallen are
+# forgotten past the kept few, so the roster and its file stay small.
+func _check_long_campaign() -> bool:
+	var roster := TacticsRoster.create(12345)
+	var slots := 0
+	for leader: TacticsLeaderData in _scenario.leaders_a:
+		slots += leader.squad.size()
+	for battle_number: int in 100:
+		var campaign := TacticsCampaign.new(roster, _catalog, _scenario)
+		var battle := TacticsBattle.new()
+		if not battle.load_scenario_with_squads(campaign.scenario, 0, campaign.squads):
+			battle.free()
+			return _expect("battle %d loads" % (battle_number + 1), false, true)
+		battle.set_side_ai(0, true)
+		battle.set_side_ai(1, true)
+		var is_prepared := campaign.prepare_battle(battle, campaign.people)
+		battle.start()
+		campaign.finish_battle(battle, campaign.people)
+		battle.free()
+		if not is_prepared:
+			return false
+		roster = TacticsRoster.load_roster()
+	var unmarked_fallen := roster.people.filter(func(person: Dictionary) -> bool: return person["status"] == "dead" and (person["marks"] as Array).is_empty())
+	var bytes := FileAccess.get_file_as_bytes(SAVE_PATH).size()
+	print("Tactics roster test: after 100 battles %d people, %d bytes" % [roster.people.size(), bytes])
+	return _expect("battles", roster.battles, 100) and _expect("unmarked fallen kept", unmarked_fallen.size() <= TacticsRoster.UNMARKED_FALLEN_KEPT + slots, true) \
+		and _expect("people bounded", roster.people.size() < 120, true) and _expect("file under 32 KB", bytes < 32768, true)

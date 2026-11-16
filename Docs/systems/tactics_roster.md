@@ -32,8 +32,12 @@ does, and the roster reads its end-of-battle report.
 ## Data
 
 Save file `user://tactics_roster.json` (`TacticsRoster.path`; tests set
-their own), `version` 1. A wrong version or a broken file is warned about
-once and replaced by an empty roster.
+their own), `version` 1. A save writes the whole file to `<path>.tmp` and
+renames it over the roster, so a crash or a full disk mid-save leaves the
+last good roster; `save()` returns false and warns when it cannot. A wrong
+version or a broken file is warned about once, moved aside to
+`<path>.unreadable` (so a save from a newer build is never overwritten by
+the next battle) and replaced by an empty roster.
 
 | Field | Meaning |
 | --- | --- |
@@ -63,20 +67,22 @@ The roster numbers come from `TacticsIncidentRulesData`
 
 ## Rules
 
-- Muster: each troop slot of the scenario's squads takes the active,
-  unnamed roster person of that troop with the most marks (then the lower
+- Muster: each troop slot of the scenario's squads takes the active roster
+  person of that troop (named ones too, when they do not lead) with the most marks (then the lower
   id) that is not taken yet. With none left, a recruit is made. The muster
   screen can move people between leaders, as it moves soldiers.
 - Named soldiers (active, `is_named`) muster as extra leaders of ours on the
-  spare spawn cells (`spawn_cells_a` beyond the scenario's leaders; 2 on
-  `river_crossing`). Such a leader has id `leader.named_<id>`, the troop's
+  spare spawn cells (`spawn_cells_a` beyond the scenario's leaders, and
+  within the rules' `max_leaders_per_side`; 2 on `river_crossing`), the
+  lowest ids first. Named soldiers beyond that fight in a squad slot of
+  their troop instead of sitting out. Such a leader has id `leader.named_<id>`, the troop's
   figure, ranges, move and keywords, `named_lead_capacity`, hp and attack
   as above, the `mark_passive` of the incident most of its marks name (the
   earliest wins a tie), and `named_skill`. It starts with no soldiers; move
   some to it in the muster.
 - Returning enemies: deserters and traitors with at least
-  `traitor_marks_to_return` marks take the spare enemy spawn cells (1 on
-  `river_crossing`). Each is built the same way, with a squad of
+  `traitor_marks_to_return` marks take the spare enemy spawn cells (within
+  `max_leaders_per_side`; 1 on `river_crossing`). Each is built the same way, with a squad of
   `named_lead_capacity` soldiers of its troop, and gets its name.
 - Before the battle starts: `set_incident_rules(rules, battle seed)`,
   `set_karma(A, carried bait, carried rescue)`, then for every roster unit
@@ -91,14 +97,23 @@ The roster numbers come from `TacticsIncidentRulesData`
   - An active, unnamed person who now has `marks_to_name` marks is named.
   - Karma for the next battle = (carried + this battle's) ×
     `karma_keep_pct` / 100, for bait and rescue.
+  - Before the rows are written, the fallen without a mark are forgotten
+    beyond the `UNMARKED_FALLEN_KEPT` (30) most recent; a soldier with a
+    mark is a story and stays. A hundred AI-played battles leave about 60
+    people and a 15 KB file (357 people and 69 KB before).
   - The roster is saved.
 - Name: the number word (`NAME_NUMBER_n`: Cả, Hai, Ba, Tư, Năm, Sáu, Bảy,
   Tám, Chín, Mười, cycling) plus the place word of the terrain where most
   of the first `marks_to_name` marks were left (`NAME_PLACE_<TERRAIN>`;
   the earliest wins a tie). Example: "Bảy Cầu", the seventh spearman, two
-  marks at the bridge.
+  marks at the bridge. Names are unique: a soldier whose name a soldier
+  named before it (an earlier naming battle, then the lower id) already
+  has adds its troop's short word (`NAME_TROOP_FORMAT`: "Bảy Cung Cầu"),
+  and its number when that soldier is of its troop
+  (`NAME_TROOP_NUMBER_FORMAT`: "Bảy Giáo Cầu số 17"). The first keeps the
+  short name, so no name ever changes.
 - Biography: `BIO_OPENING_FORMAT` ("Binh giáo thứ bảy của toán Liễu
-  Mi."), one `BIO_MARK_<INCIDENT>_FORMAT` line per first mark (when,
+  Mi."; past ten the ordinal is the number: "thứ 17"), one `BIO_MARK_<INCIDENT>_FORMAT` line per first mark (when,
   terrain, leader), then `BIO_CLOSING_FORMAT` ("Người trong toán gọi là
   Bảy Cầu."). "When" is `BIO_WHEN_ROUND_FORMAT` ("Vòng 2") when those
   marks are from one battle, else `BIO_WHEN_BATTLE_FORMAT` ("Trận 1, vòng
@@ -133,8 +148,11 @@ None. A save that cannot be read or written is reported once with
 - Another name or biography line: add Locale rows (`NAME_PLACE_<TERRAIN>`
   for a new terrain, `BIO_MARK_<INCIDENT>_FORMAT` for a new incident, with
   when, place and leader in that order).
-- A new save field: bump `VERSION`, write it in `to_save_data()` and read
-  it in `_read()`. Older saves are then replaced by an empty roster.
+- A new save field: write it in `to_save_data()` and read it in `_read()`
+  with a default when it is missing (`data.get(...)`), so version 1 saves
+  still load. Bump `VERSION` only when an old save cannot be read any more;
+  `_read()` must then accept the old version and convert it, because an
+  unknown version is set aside and the player starts an empty roster.
 - A second scenario: build a `TacticsCampaign` with it; spare spawn cells
   decide how many named and returning leaders fit.
 
@@ -143,6 +161,8 @@ None. A save that cannot be read or written is reported once with
 `Tests/tactics_roster_test.gd` covers:
 
 - The save round trip; a newer version, a broken file and a missing file.
+- A save that fails leaves the old file and no temporary file; a newer
+  save is kept aside as `.unreadable` through the next save.
 - The muster fill: recruits, the marked soldier first, the dead left out.
 - A report writing deaths, desertions, defections and a defector recruit.
 - Naming at three marks: "Bảy Cầu" with its biography, unchanged by a
@@ -153,6 +173,13 @@ None. A save that cannot be read or written is reported once with
   report.
 - Karma carried at half.
 - Twelve AI-vs-AI battles leaving marks that the saved roster keeps.
+- Unique names (spearman 7, archer 7 and spearman 17 at the bridge) and
+  "thứ 17" in a biography.
+- A named leader who dies is dead and musters no more.
+- Four named soldiers and two returning traitors: two lead, two fill
+  squad slots, one traitor returns, every leader on its own cell; rules
+  with fewer leaders than spawn cells cap the muster.
+- A hundred AI-vs-AI battles stay under 120 people and 32 KB.
 
 `Tests/muster_test.gd` retreats through the summary into the roster.
 `Tests/tactics_screen_sync_test.gd` plays campaign battles with incidents.
@@ -162,11 +189,13 @@ All are in CI.
 
 - One scenario. Named and returning leaders only fit on spare spawn cells,
   so on `river_crossing` at most two named leaders of ours and one
-  returning enemy appear (the lowest ids first).
+  returning enemy appear (the lowest ids first); other named soldiers fight
+  in squads, other returning enemies wait for a later battle.
 - A named leader's look is its face in menus; on the map it is a leader
   token with its troop glyph.
-- Names can repeat (two "Bảy Cầu" from two troops); nothing makes them
-  unique.
+- In a hundred AI-played battles no soldier of ours lived to three marks,
+  so naming depends on the player keeping soldiers alive.
+- A second unreadable roster replaces the first `.unreadable` copy.
 - Leaving the muster with "Về" drops that muster's new recruits (they are
   saved only after a battle).
 - The roster is written only when the summary opens (an end or a retreat).

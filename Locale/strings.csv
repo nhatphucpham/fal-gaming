@@ -547,6 +547,8 @@ NAME_ORDINAL_7,bảy,seventh
 NAME_ORDINAL_8,tám,eighth
 NAME_ORDINAL_9,chín,ninth
 NAME_ORDINAL_10,mười,tenth
+NAME_TROOP_FORMAT,%s %s %s,%s %s %s
+NAME_TROOP_NUMBER_FORMAT,%s %s %s số %d,%s %s %s no. %d
 NAME_PLACE_PLAIN,Đồng,Field
 NAME_PLACE_FOREST,Rừng,Wood
 NAME_PLACE_HILL,Đồi,Hill
