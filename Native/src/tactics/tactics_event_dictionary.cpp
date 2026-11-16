@@ -27,6 +27,13 @@ const char *const EVENT_TYPE_NAMES[] = {
 	"zone_expired",
 	"passive_triggered",
 	"intent_declared",
+	"soldier_wavered",
+	"incident_calmed",
+	"incident_fired",
+	"mark_earned",
+	"unit_fled",
+	"unit_defected",
+	"karma_changed",
 	"battle_ended",
 };
 
@@ -79,6 +86,7 @@ void add_combat_payload(const tactics::Event &p_event, Dictionary &r_dict) {
 			r_dict["hp_after"] = p_event.hp_after;
 			r_dict["is_counter"] = p_event.is_counter;
 			r_dict["source_id"] = to_id(p_event.content_id);
+			r_dict["guarded"] = p_event.guarded;
 			break;
 		default:
 			r_dict["unit"] = p_event.unit;
@@ -141,6 +149,49 @@ void add_effect_payload(const tactics::Event &p_event, Dictionary &r_dict) {
 	}
 }
 
+void add_incident_payload(const tactics::Event &p_event, Dictionary &r_dict) {
+	r_dict["unit"] = p_event.unit;
+	switch (p_event.type) {
+		case tactics::EventType::SOLDIER_WAVERED:
+			r_dict["incident"] = to_id(p_event.content_id);
+			r_dict["is_good"] = p_event.is_first_strike;
+			break;
+		case tactics::EventType::INCIDENT_CALMED:
+			r_dict["incident"] = to_id(p_event.content_id);
+			r_dict["reason"] = to_id(p_event.kind);
+			break;
+		case tactics::EventType::INCIDENT_FIRED:
+			r_dict["incident"] = to_id(p_event.content_id);
+			r_dict["is_good"] = p_event.is_first_strike;
+			r_dict["leader"] = p_event.target;
+			r_dict["side"] = p_event.side;
+			r_dict["cell"] = to_vector2i(p_event.to);
+			break;
+		case tactics::EventType::MARK_EARNED:
+			r_dict["incident"] = to_id(p_event.content_id);
+			r_dict["leader_id"] = to_id(p_event.kind);
+			r_dict["terrain"] = to_id(p_event.detail_id);
+			r_dict["cell"] = to_vector2i(p_event.to);
+			r_dict["count"] = p_event.value;
+			break;
+		case tactics::EventType::UNIT_FLED:
+			r_dict["from"] = to_vector2i(p_event.from);
+			r_dict["to"] = to_vector2i(p_event.to);
+			break;
+		case tactics::EventType::UNIT_DEFECTED:
+			r_dict["side"] = p_event.side;
+			r_dict["from_side"] = p_event.value;
+			r_dict["leader"] = p_event.target;
+			break;
+		default:
+			r_dict.erase("unit");
+			r_dict["side"] = p_event.side;
+			r_dict["kind"] = to_id(p_event.kind);
+			r_dict["value"] = p_event.value;
+			break;
+	}
+}
+
 void add_payload(const tactics::Event &p_event, Dictionary &r_dict) {
 	switch (p_event.type) {
 		case tactics::EventType::BATTLE_STARTED:
@@ -182,6 +233,15 @@ void add_payload(const tactics::Event &p_event, Dictionary &r_dict) {
 			r_dict["action"] = to_id(p_event.kind);
 			r_dict["target"] = p_event.target;
 			r_dict["target_cell"] = to_vector2i(p_event.from);
+			break;
+		case tactics::EventType::SOLDIER_WAVERED:
+		case tactics::EventType::INCIDENT_CALMED:
+		case tactics::EventType::INCIDENT_FIRED:
+		case tactics::EventType::MARK_EARNED:
+		case tactics::EventType::UNIT_FLED:
+		case tactics::EventType::UNIT_DEFECTED:
+		case tactics::EventType::KARMA_CHANGED:
+			add_incident_payload(p_event, r_dict);
 			break;
 		case tactics::EventType::BATTLE_ENDED:
 			r_dict["winner"] = p_event.winner;

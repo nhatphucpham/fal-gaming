@@ -81,6 +81,7 @@ int TacticsSim::add_leader(int p_side, const UnitDef &p_leader, const Cell &p_ce
 	leader.cell = p_cell;
 	leader.order = p_leader.default_order;
 	leader.heading = map.facing[p_side];
+	leader.start_side = p_side;
 	units.push_back(leader);
 	const int capacity = get_squad_capacity(leader.index);
 	const bool is_cell_free = can_stop_at(*this, leader.index, p_cell);
@@ -98,6 +99,7 @@ int TacticsSim::add_leader(int p_side, const UnitDef &p_leader, const Cell &p_ce
 		soldier.def = soldier_def;
 		soldier.hp = soldier_def.max_hp;
 		soldier.leader = leader.index;
+		soldier.start_side = p_side;
 		soldier.cell = NO_CELL;
 		units[leader.index].soldiers.push_back(soldier.index);
 		units.push_back(soldier);
@@ -151,6 +153,9 @@ bool TacticsSim::start(std::string *r_error) {
 	event.type = EventType::BATTLE_STARTED;
 	event.value = static_cast<int>(units.size());
 	emit(event);
+	if (incident_rules.enabled) {
+		plant_incident_seeds(*this);
+	}
 	begin_phase(SIDE_A);
 	run_ai_phases();
 	return true;
@@ -161,6 +166,7 @@ bool TacticsSim::end_phase(std::string *r_error) {
 		*r_error = "end_phase() needs a running battle";
 		return false;
 	}
+	clear_undo();
 	close_phase();
 	begin_next_phase();
 	run_ai_phases();
@@ -202,12 +208,24 @@ void TacticsSim::begin_phase(int p_side) {
 	for (UnitState &unit : units) {
 		if (unit.side == p_side) {
 			unit.has_moved = false;
-			unit.has_acted = false;
-			unit.has_squad_acted = false;
+			unit.has_attacked = false;
+			unit.has_cast = false;
+			unit.has_waited = false;
+			unit.has_squad_struck = false;
+			unit.has_rescued = false;
+			unit.is_held_by_zoc = false;
 			unit.straight_cells = 0;
+			unit.last_step = { 0, 0 };
+			unit.phase_start_cell = unit.cell;
+			unit.phase_start_heading = unit.heading;
+			unit.phase_start_streak = unit.heading_streak;
+			unit.move_points_left = unit.is_alive ? get_stats(unit.index).move_points : 0;
 		}
 	}
 	apply_phase_start_effects(cause);
+	if (!finished && incident_rules.enabled) {
+		begin_incident_phase(*this, p_side, cause);
+	}
 	if (!finished && !side_is_ai[p_side] && side_is_ai[1 - p_side]) {
 		declare_intents(cause);
 	}
@@ -217,12 +235,18 @@ void TacticsSim::close_phase() {
 	if (finished) {
 		return;
 	}
-	// Squads that have not stepped yet (their leader never moved or acted,
-	// or died) step now, in leader order.
+	// Leaders still open close now, in leader order: a squad that has not
+	// struck yet (its leader never attacked or waited, or died) steps and
+	// strikes.
 	for (size_t index = 0; index < units.size() && !finished; index++) {
-		if (units[index].side == active_side && is_leader(static_cast<int>(index)) && !units[index].has_squad_acted) {
-			run_squad_step(static_cast<int>(index), 0);
+		if (units[index].side == active_side && is_leader(static_cast<int>(index)) && !units[index].has_squad_struck) {
+			run_squad_strike(static_cast<int>(index), 0);
 		}
+	}
+	// Wavering soldiers fire or calm down once the player has had the
+	// whole phase to react (Docs/systems/tactics.md, Incidents).
+	if (!finished && incident_rules.enabled) {
+		resolve_incident_phase(*this, active_side);
 	}
 	if (finished) {
 		return;

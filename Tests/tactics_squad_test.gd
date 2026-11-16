@@ -82,8 +82,9 @@ func _check_order_slots() -> bool:
 	var expected := {
 		&"order.follow": [Vector2i(5, 7), Vector2i(4, 6), Vector2i(6, 6)],
 		&"order.vanguard": [Vector2i(5, 5), Vector2i(4, 5), Vector2i(6, 5)],
-		# The third flank slot (3,6) is 5 steps away; (3,7) is the nearest reachable cell.
-		&"order.flank": [Vector2i(4, 6), Vector2i(6, 6), Vector2i(3, 7)],
+		# Slots are matched by distance: the soldier on the left takes the
+		# left slot (3,6) and the right one (6,6), so no paths cross.
+		&"order.flank": [Vector2i(4, 6), Vector2i(3, 6), Vector2i(6, 6)],
 		&"order.hold": [Vector2i(5, 9), Vector2i(4, 8), Vector2i(6, 8)],
 	}
 	for order: StringName in expected:
@@ -320,6 +321,8 @@ func _check_charge_soldiers_lost() -> bool:
 	var archer_a := _kit.add(battle, B, _kit.leader(LIEU_MI), Vector2i(5, 11))
 	var archer_b := _kit.add(battle, B, _kit.leader(LIEU_MI), Vector2i(2, 8))
 	battle.start()
+	# Held in place: otherwise the spearmen step up to the archers and strike.
+	battle.set_order(leader, &"order.hold")
 	battle.end_phase()
 	var died: Array = []
 	died.append_array(Kit.of_type(battle.attack(archer_a, leader + 1), &"unit_died"))

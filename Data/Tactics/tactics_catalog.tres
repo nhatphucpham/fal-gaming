@@ -24,11 +24,19 @@
 [ext_resource type="TacticsPassiveData" path="res://Data/Tactics/Passives/wind_trail.tres" id="passives_wind_trail"]
 [ext_resource type="TacticsPassiveData" path="res://Data/Tactics/Passives/hook_spear.tres" id="passives_hook_spear"]
 [ext_resource type="TacticsPassiveData" path="res://Data/Tactics/Passives/warlord_growth.tres" id="passives_warlord_growth"]
+[ext_resource type="TacticsPassiveData" path="res://Data/Tactics/Passives/mark_rescue.tres" id="passives_mark_rescue"]
+[ext_resource type="TacticsPassiveData" path="res://Data/Tactics/Passives/mark_stand.tres" id="passives_mark_stand"]
+[ext_resource type="TacticsPassiveData" path="res://Data/Tactics/Passives/mark_surge.tres" id="passives_mark_surge"]
+[ext_resource type="TacticsPassiveData" path="res://Data/Tactics/Passives/mark_discontent.tres" id="passives_mark_discontent"]
+[ext_resource type="TacticsPassiveData" path="res://Data/Tactics/Passives/mark_riot.tres" id="passives_mark_riot"]
+[ext_resource type="TacticsPassiveData" path="res://Data/Tactics/Passives/mark_flee.tres" id="passives_mark_flee"]
+[ext_resource type="TacticsPassiveData" path="res://Data/Tactics/Passives/mark_betray.tres" id="passives_mark_betray"]
 [ext_resource type="TacticsSkillData" path="res://Data/Tactics/Skills/rally_banner.tres" id="skills_rally_banner"]
 [ext_resource type="TacticsSkillData" path="res://Data/Tactics/Skills/piercing_thrust.tres" id="skills_piercing_thrust"]
 [ext_resource type="TacticsSkillData" path="res://Data/Tactics/Skills/chain_arrows.tres" id="skills_chain_arrows"]
 [ext_resource type="TacticsSkillData" path="res://Data/Tactics/Skills/fire_rain.tres" id="skills_fire_rain"]
 [ext_resource type="TacticsSkillData" path="res://Data/Tactics/Skills/blood_oath.tres" id="skills_blood_oath"]
+[ext_resource type="TacticsSkillData" path="res://Data/Tactics/Skills/named_rally.tres" id="skills_named_rally"]
 [ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/spearman.tres" id="troops_spearman"]
 [ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/shieldman.tres" id="troops_shieldman"]
 [ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/archer.tres" id="troops_archer"]
@@ -42,15 +50,20 @@
 [ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/thiet_nha.tres" id="leaders_thiet_nha"]
 [ext_resource type="TacticsMapData" path="res://Data/Tactics/Maps/river_crossing.tres" id="maps_river_crossing"]
 [ext_resource type="TacticsScenarioData" path="res://Data/Tactics/Scenarios/river_crossing.tres" id="scenarios_river_crossing"]
+[ext_resource type="TacticsTraitData" path="res://Data/Tactics/Traits/strict.tres" id="traits_strict"]
+[ext_resource type="TacticsTraitData" path="res://Data/Tactics/Traits/kind.tres" id="traits_kind"]
+[ext_resource type="TacticsIncidentRulesData" path="res://Data/Tactics/Incidents/incident_rules.tres" id="incident_rules"]
 
 [resource]
 rules = ExtResource("rules")
 terrains = Array[TacticsTerrainData]([ExtResource("terrains_plain"), ExtResource("terrains_forest"), ExtResource("terrains_hill"), ExtResource("terrains_river"), ExtResource("terrains_ford"), ExtResource("terrains_bridge"), ExtResource("terrains_fort"), ExtResource("terrains_village")])
 keywords = Array[TacticsKeywordData]([ExtResource("keywords_long_weapon"), ExtResource("keywords_charge"), ExtResource("keywords_armor_pierce"), ExtResource("keywords_cover"), ExtResource("keywords_flying"), ExtResource("keywords_heavy")])
 zones = Array[TacticsZoneData]([ExtResource("zones_wind"), ExtResource("zones_fire")])
-passives = Array[TacticsPassiveData]([ExtResource("passives_iron_will"), ExtResource("passives_pack_fury"), ExtResource("passives_forest_ambush"), ExtResource("passives_drilled_ranks"), ExtResource("passives_wind_trail"), ExtResource("passives_hook_spear"), ExtResource("passives_warlord_growth")])
-skills = Array[TacticsSkillData]([ExtResource("skills_rally_banner"), ExtResource("skills_piercing_thrust"), ExtResource("skills_chain_arrows"), ExtResource("skills_fire_rain"), ExtResource("skills_blood_oath")])
+passives = Array[TacticsPassiveData]([ExtResource("passives_iron_will"), ExtResource("passives_pack_fury"), ExtResource("passives_forest_ambush"), ExtResource("passives_drilled_ranks"), ExtResource("passives_wind_trail"), ExtResource("passives_hook_spear"), ExtResource("passives_warlord_growth"), ExtResource("passives_mark_rescue"), ExtResource("passives_mark_stand"), ExtResource("passives_mark_surge"), ExtResource("passives_mark_discontent"), ExtResource("passives_mark_riot"), ExtResource("passives_mark_flee"), ExtResource("passives_mark_betray")])
+skills = Array[TacticsSkillData]([ExtResource("skills_rally_banner"), ExtResource("skills_piercing_thrust"), ExtResource("skills_chain_arrows"), ExtResource("skills_fire_rain"), ExtResource("skills_blood_oath"), ExtResource("skills_named_rally")])
 troops = Array[TacticsTroopData]([ExtResource("troops_spearman"), ExtResource("troops_shieldman"), ExtResource("troops_archer"), ExtResource("troops_rider"), ExtResource("troops_swordsman"), ExtResource("troops_kite_scout")])
 leaders = Array[TacticsLeaderData]([ExtResource("leaders_lac_hong"), ExtResource("leaders_moon_spear"), ExtResource("leaders_lieu_mi"), ExtResource("leaders_ba_khac"), ExtResource("leaders_thiet_nha")])
 maps = Array[TacticsMapData]([ExtResource("maps_river_crossing")])
 scenarios = Array[TacticsScenarioData]([ExtResource("scenarios_river_crossing")])
+traits = Array[TacticsTraitData]([ExtResource("traits_strict"), ExtResource("traits_kind")])
+incident_rules = ExtResource("incident_rules")

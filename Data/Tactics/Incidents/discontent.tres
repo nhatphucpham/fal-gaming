@@ -1,0 +1,18 @@
+[gd_resource type="TacticsIncidentData" format=3]
+
+[ext_resource type="TacticsPassiveData" path="res://Data/Tactics/Passives/mark_discontent.tres" id="mark_passive"]
+
+[resource]
+id = &"incident.discontent"
+name_key = "INCIDENT_DISCONTENT"
+description_key = "INCIDENT_DISCONTENT_DESC"
+base_weight = 25
+seeds_ai_side = false
+threshold_pct = 0
+threshold_count = 2
+radius_cells = 0
+calm_radius_cells = 2
+amount = 0
+secondary_amount = 0
+duration_rounds = 1
+mark_passive = ExtResource("mark_passive")

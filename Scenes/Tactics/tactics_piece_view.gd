@@ -1,7 +1,9 @@
 class_name TacticsPieceView
 extends Node2D
 ## One unit on the tactics map: a flat token with its troop glyph, an hp
-## bar and, for a leader with a skill, the charge pips under it. Its origin
+## bar, for a leader with a skill the charge pips under it, the marks (Dấu)
+## a roster soldier carries and the wavering mark (dao động) of an incident
+## about to fire. Its origin
 ## is the centre of its cell. It has no per-frame work: it redraws only
 ## when a shown value changes, and moves through tweens made by
 ## TacticsPlayback. It never reads the battle; callers set what it shows.
@@ -16,6 +18,9 @@ const BAR_Y: float = 19.0
 const PIPS_Y: float = 26.0
 const LEADER_BAR_PX: float = 44.0
 const SOLDIER_BAR_PX: float = 34.0
+const SHOWN_MARKS: int = 3
+
+enum Wavering {NONE, GOOD, BAD}
 
 var unit_index: int = -1
 var side: int = 0
@@ -46,6 +51,24 @@ var flash: float = 0.0:
 		flash = value
 		queue_redraw()
 var is_dead: bool = false
+## The wavering mark: NONE, GOOD (gold star) or BAD (red "!").
+var wavering: Wavering = Wavering.NONE:
+	set(value):
+		if wavering != value:
+			wavering = value
+			queue_redraw()
+## 0..1.4 size of the wavering mark, for its pop-in.
+var wavering_scale: float = 1.0:
+	set(value):
+		if wavering_scale != value:
+			wavering_scale = value
+			queue_redraw()
+## Marks this soldier carries (from the roster and this battle), up to 3 shown.
+var mark_count: int = 0:
+	set(value):
+		if mark_count != value:
+			mark_count = value
+			queue_redraw()
 
 
 ## Takes what to show from a get_unit_state() dictionary.
@@ -57,6 +80,13 @@ func setup(state: Dictionary, glyph_id: StringName) -> void:
 	max_hp = maxi(int(state["max_hp"]), 1)
 	hp = state["hp"]
 	queue_redraw()
+
+
+## The side it fights for now (a soldier that defected changes colour).
+func set_side(value: int) -> void:
+	if side != value:
+		side = value
+		queue_redraw()
 
 
 func set_charge(value: int, threshold: int) -> void:
@@ -78,3 +108,10 @@ func _draw() -> void:
 	TacticsPainter.draw_hp_bar(self, Vector2(0, BAR_Y), LEADER_BAR_PX if is_leader else SOLDIER_BAR_PX, float(hp) / max_hp, side)
 	if is_leader and charge_threshold > 0:
 		TacticsPainter.draw_pips(self, Vector2(0, PIPS_Y), charge_value, charge_threshold)
+	var r := 21.0 if is_leader else 15.0
+	for index: int in mini(mark_count, SHOWN_MARKS):
+		var p := TOKEN_OFFSET + Vector2(-r - 1.0, -r + 3.0 + index * 7.0)
+		draw_colored_polygon(PackedVector2Array([p + Vector2(0, -3.5), p + Vector2(3.5, 0), p + Vector2(0, 3.5), p + Vector2(-3.5, 0)]), Palette.GOLD)
+		draw_polyline(PackedVector2Array([p + Vector2(0, -3.5), p + Vector2(3.5, 0), p + Vector2(0, 3.5), p + Vector2(-3.5, 0), p + Vector2(0, -3.5)]), Palette.INK, 1.0)
+	if wavering != Wavering.NONE and wavering_scale > 0.01:
+		TacticsPainter.draw_wavering(self, TOKEN_OFFSET + Vector2(r * 0.85, -r * 1.05), 9.0 * wavering_scale, wavering == Wavering.GOOD)

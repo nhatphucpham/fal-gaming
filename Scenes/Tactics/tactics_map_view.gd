@@ -1,22 +1,42 @@
 class_name TacticsMapView
 extends Control
-## The tactics map: terrain (drawn once into a texture, so the whole board
-## costs one draw call), zones, selection marks, enemy intents, unit tokens
-## and floating text, each its own layer that redraws only when its content
-## changes, so an idle map draws nothing new. A tap
-## (press and release on the same cell) emits cell_tapped. It shows what
-## it is told; it never reads or changes the battle.
+## The tactics map: a window onto the board that zooms and pans. The board
+## holds the terrain (drawn once into a texture, so the whole board costs
+## one draw call), zones, selection marks, enemy intents, unit tokens and
+## floating text, each its own layer that redraws only when its content
+## changes; moving the camera only moves the board, so an idle map draws
+## nothing new. One finger drags to pan, two pinch to zoom; a tap (press
+## and release on one cell) emits cell_tapped; a press on a cell listed in
+## `hold_cells` follows the finger instead (cell_held while it moves,
+## hold_released where it lifts). It shows what it is told; it never reads
+## or changes the battle. Board coordinates are those of cell_to_local().
 ## [codeblock]
-## map.setup(battle, catalog)
+## map.setup(battle, objective_cell)
 ## map.cell_tapped.connect(_on_cell_tapped)
 ## map.set_marks({"reachable": cells, "selected": Vector2i(3, 13)})
+## map.follow(map.cell_to_local(Vector2i(3, 13)))
 ## [/codeblock]
 
 signal cell_tapped(cell: Vector2i)
+## A press on one of `hold_cells`, then each new cell under the finger.
+signal cell_held(cell: Vector2i)
+## The finger of a hold lifted over this cell ((-1, -1) off the map).
+signal hold_released(cell: Vector2i)
+## A pinch or drag stopped a hold before it was released.
+signal hold_cancelled()
 
 const CELL_PX: float = 58.0
 ## How far a press may slide and still count as a tap, in pixels.
 const TAP_SLOP_PX: float = 24.0
+## Columns the default zoom fits across the view: 8 on a 720-wide layout
+## gives 90-px cells, 45 px on a 360-px phone.
+const DEFAULT_COLUMNS: float = 8.0
+const MAX_ZOOM_OVER_DEFAULT: float = 1.4
+const CAMERA_SEC: float = 0.28
+## The camera follows a point only once it is this close to the edge.
+const FOLLOW_MARGIN_PX: float = 90.0
+## The terrain texture is baked for at most this many pixels per board pixel.
+const MAX_BAKE_SCALE: float = 2.5
 
 const ZONE_COLORS: Dictionary[StringName, Color] = {
 	&"zone.fire": Color("ff7a2a"), &"zone.wind": Color("bfe8ff"),
@@ -30,12 +50,17 @@ const INTENT_COLOR := Color("ffb347")
 
 var map_width: int = 0
 var map_height: int = 0
+## Cells where a press starts a hold (the screen sets them).
+var hold_cells: Array = []
+## Tests: camera moves end at once.
+var is_instant: bool = false
 var _terrain_ids: Array[StringName] = []
 var _objective := Vector2i(-1, -1)
 var _marks: Dictionary = {}
 var _intents: Array = []
 var _zones: Array = []
 var _pieces: Dictionary[int, TacticsPieceView] = {}
+var _board: Control
 var _terrain_viewport: SubViewport
 var _terrain_layer: _Layer
 var _terrain_image: TextureRect
@@ -44,13 +69,35 @@ var _mark_layer: _Layer
 var _intent_layer: _Layer
 var _piece_layer: Node2D
 var _fx_layer: Control
+var _whole_button: PressButton
+var _zoom: float = 1.0
+var _is_whole_map: bool = false
+var _camera_tween: Tween
+var _baked_scale: float = 0.0
+## Until the view first has a size, the default zoom waits, with the board
+## point it should centre.
+var _is_laid_out: bool = false
+var _first_focus := Vector2(-1, -1)
+## Input: the press (view coordinates), what it became, and the touches
+## down for a pinch.
+enum _Gesture {NONE, TAP, HOLD, PAN, PINCH}
+var _gesture: _Gesture = _Gesture.NONE
 var _press_cell := Vector2i(-1, -1)
 var _press_position := Vector2.ZERO
+var _held_cell := Vector2i(-1, -1)
+var _touches: Dictionary[int, Vector2] = {}
+var _pinch_distance: float = 0.0
+var _pinch_zoom: float = 1.0
+var _pinch_middle := Vector2.ZERO
 
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_STOP
-	# The terrain is painted once in its own viewport; the map shows the
+	clip_contents = true
+	_board = Control.new()
+	_board.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(_board)
+	# The terrain is painted once in its own viewport; the board shows the
 	# result as a texture.
 	_terrain_viewport = SubViewport.new()
 	_terrain_viewport.disable_3d = true
@@ -66,19 +113,34 @@ func _init() -> void:
 	_terrain_image.stretch_mode = TextureRect.STRETCH_SCALE
 	_terrain_image.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_terrain_image.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(_terrain_image)
+	_board.add_child(_terrain_image)
 	_zone_layer = _add_layer(_draw_zones)
 	_mark_layer = _add_layer(_draw_marks)
 	_piece_layer = Node2D.new()
 	_piece_layer.y_sort_enabled = true
-	add_child(_piece_layer)
+	_board.add_child(_piece_layer)
 	_intent_layer = _add_layer(_draw_intents)
 	_fx_layer = Control.new()
 	_fx_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(_fx_layer)
+	_board.add_child(_fx_layer)
+	_whole_button = PressButton.new()
+	_whole_button.text = "TACTICS_WHOLE_MAP"
+	_whole_button.focus_mode = Control.FOCUS_NONE
+	_whole_button.custom_minimum_size = Vector2(150, 88)
+	_whole_button.add_theme_font_size_override(&"font_size", 22)
+	_whole_button.anchor_left = 1.0
+	_whole_button.anchor_right = 1.0
+	_whole_button.offset_left = -158.0
+	_whole_button.offset_right = -8.0
+	_whole_button.offset_top = 8.0
+	_whole_button.offset_bottom = 96.0
+	_whole_button.pressed.connect(func() -> void:
+		Sound.play(&"ui_tap")
+		toggle_whole_map())
+	add_child(_whole_button)
 
 
-## Reads the map's terrain once and sizes the view to it.
+## Reads the map's terrain once and shows it at the default zoom.
 func setup(battle: TacticsBattle, objective: Vector2i) -> void:
 	map_width = battle.get_map_width()
 	map_height = battle.get_map_height()
@@ -87,39 +149,211 @@ func setup(battle: TacticsBattle, objective: Vector2i) -> void:
 	for row: int in map_height:
 		for col: int in map_width:
 			_terrain_ids.append(battle.get_terrain_id(Vector2i(col, row)))
-	custom_minimum_size = Vector2(map_width, map_height) * CELL_PX
-	size = custom_minimum_size
+	_board.size = get_board_size()
+	_is_laid_out = false
+	_lay_out()
 	_paint_terrain()
 
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_ENTER_TREE and map_width > 0:
 		_paint_terrain()
+	elif what == NOTIFICATION_RESIZED and map_width > 0:
+		if not _lay_out():
+			_zoom = get_whole_zoom() if _is_whole_map else clampf(_zoom, get_whole_zoom(), get_max_zoom())
+			_apply_camera(_board.position, _zoom)
+		_paint_terrain()
 
 
-# Renders the terrain once, at the screen's pixel scale so it stays sharp
-# on a phone where the 720-wide layout is stretched.
-func _paint_terrain() -> void:
-	if not is_inside_tree():
+# The first time the view has a size: the default zoom, centred on the
+# point asked for (the board's centre if none). True if it laid out now.
+func _lay_out() -> bool:
+	if _is_laid_out or size.x <= 0.0 or size.y <= 0.0:
+		return false
+	_is_laid_out = true
+	var point := _first_focus if _first_focus.x >= 0.0 else get_board_size() / 2.0
+	_zoom = get_default_zoom()
+	_apply_camera(size / 2.0 - point * _zoom, _zoom)
+	return true
+
+
+## Centres a board point at once (before the first layout too).
+func center_on(board_point: Vector2) -> void:
+	if not _is_laid_out:
+		_first_focus = board_point
 		return
-	var pixel_scale := clampf(get_viewport().get_final_transform().get_scale().x, 1.0, 3.0)
-	var board := Vector2(map_width, map_height) * CELL_PX
-	_terrain_viewport.size = Vector2i((board * pixel_scale).ceil())
-	_terrain_viewport.canvas_transform = Transform2D.IDENTITY.scaled(Vector2(pixel_scale, pixel_scale))
+	_move_camera(size / 2.0 - board_point * _zoom, _zoom, false)
+
+
+func get_board_size() -> Vector2:
+	return Vector2(map_width, map_height) * CELL_PX
+
+
+## The zoom that fits DEFAULT_COLUMNS across the view (never below the
+## whole map).
+func get_default_zoom() -> float:
+	if size.x <= 0.0:
+		return 1.0
+	return maxf(size.x / (minf(DEFAULT_COLUMNS, map_width) * CELL_PX), get_whole_zoom())
+
+
+## The zoom that shows the whole board.
+func get_whole_zoom() -> float:
+	var board := get_board_size()
+	if board.x <= 0.0 or size.x <= 0.0 or size.y <= 0.0:
+		return 1.0
+	return minf(size.x / board.x, size.y / board.y)
+
+
+func get_max_zoom() -> float:
+	return get_default_zoom() * MAX_ZOOM_OVER_DEFAULT
+
+
+func get_zoom() -> float:
+	return _zoom
+
+
+## A cell's size on screen now, in layout pixels.
+func get_cell_px() -> float:
+	return CELL_PX * _zoom
+
+
+func is_whole_map() -> bool:
+	return _is_whole_map
+
+
+## The board's offset in the view (its top-left corner).
+func get_camera_offset() -> Vector2:
+	return _board.position
+
+
+## Switches between the whole map and the default zoom around the centre.
+func toggle_whole_map() -> void:
+	_is_whole_map = not _is_whole_map
+	_whole_button.text = "TACTICS_ZOOM_IN" if _is_whole_map else "TACTICS_WHOLE_MAP"
+	var center := view_to_board(size / 2.0)
+	zoom_to(get_whole_zoom() if _is_whole_map else get_default_zoom(), center, true)
+
+
+## Zooms so that `board_point` sits at the view's centre.
+func zoom_to(zoom: float, board_point: Vector2, smooth: bool) -> void:
+	var target_zoom := clampf(zoom, get_whole_zoom(), get_max_zoom())
+	_move_camera(size / 2.0 - board_point * target_zoom, target_zoom, smooth)
+
+
+## Brings a board point into view, smoothly, unless it is already well
+## inside it; at the whole-map zoom nothing moves.
+func follow(board_point: Vector2) -> void:
+	var at := board_to_view(board_point)
+	var inner := Rect2(Vector2.ZERO, size).grow(-FOLLOW_MARGIN_PX)
+	if inner.has_point(at) or _is_whole_map:
+		return
+	_move_camera(size / 2.0 - board_point * _zoom, _zoom, true)
+
+
+## Brings a board point into view only when it is outside the view now.
+## What a finger just tapped is in view, so the board stays still under a
+## second tap (a double tap on an enemy lands on that enemy).
+func reveal(board_point: Vector2) -> void:
+	if not is_in_view(board_point):
+		follow(board_point)
+
+
+## Is the board point inside the view now?
+func is_in_view(board_point: Vector2) -> bool:
+	return Rect2(Vector2.ZERO, size).has_point(board_to_view(board_point))
+
+
+func board_to_view(board_point: Vector2) -> Vector2:
+	return _board.position + board_point * _zoom
+
+
+func view_to_board(view_point: Vector2) -> Vector2:
+	return (view_point - _board.position) / _zoom
+
+
+func is_camera_moving() -> bool:
+	return _camera_tween != null and _camera_tween.is_valid() and _camera_tween.is_running()
+
+
+# Moves the board to `offset` and `zoom` (clamped to the map's edges),
+# through a short tween when smooth.
+func _move_camera(offset: Vector2, zoom: float, smooth: bool) -> void:
+	var target := _clamp_offset(offset, zoom)
+	if _camera_tween != null and _camera_tween.is_valid():
+		_camera_tween.kill()
+	if not smooth or is_instant or not is_inside_tree():
+		_apply_camera(target, zoom)
+		return
+	var from_offset := _board.position
+	var from_zoom := _zoom
+	_camera_tween = create_tween()
+	_camera_tween.tween_method(func(weight: float) -> void:
+		_apply_camera(from_offset.lerp(target, weight), lerpf(from_zoom, zoom, weight), false), 0.0, 1.0, CAMERA_SEC).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+
+# Writes the board's transform only when it changes (an unchanged write
+# would still make the renderer draw a frame).
+func _apply_camera(offset: Vector2, zoom: float, clamps: bool = true) -> void:
+	_zoom = zoom
+	var target := _clamp_offset(offset, zoom) if clamps else offset
+	if _board.scale != Vector2(zoom, zoom):
+		_board.scale = Vector2(zoom, zoom)
+	if _board.position != target:
+		_board.position = target
+	if _baked_scale > 0.0 and _bake_scale() > _baked_scale + 0.01:
+		_paint_terrain()
+
+
+# A board smaller than the view is centred; a larger one cannot leave a gap
+# at its edges.
+func _clamp_offset(offset: Vector2, zoom: float) -> Vector2:
+	var board := get_board_size() * zoom
+	var result := offset
+	for axis: int in 2:
+		if board[axis] <= size[axis]:
+			result[axis] = (size[axis] - board[axis]) / 2.0
+		else:
+			result[axis] = clampf(offset[axis], size[axis] - board[axis], 0.0)
+	return result
+
+
+func _bake_scale() -> float:
+	var pixel_scale := 1.0
+	if is_inside_tree():
+		pixel_scale = maxf(get_viewport().get_final_transform().get_scale().x, 0.5)
+	return clampf(pixel_scale * maxf(_zoom, get_default_zoom()), 1.0, MAX_BAKE_SCALE)
+
+
+# Renders the terrain once, at the pixel scale it shows at (the screen's
+# scale times the zoom), so it stays sharp on a phone.
+func _paint_terrain() -> void:
+	if not is_inside_tree() or map_width == 0:
+		return
+	var bake := _bake_scale()
+	var board := get_board_size()
+	_baked_scale = bake
+	_terrain_viewport.size = Vector2i((board * bake).ceil())
+	_terrain_viewport.canvas_transform = Transform2D.IDENTITY.scaled(Vector2(bake, bake))
 	_terrain_layer.size = board
 	_terrain_layer.queue_redraw()
 	_terrain_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
 
 
-## The centre of a cell in this view's coordinates.
+## The centre of a cell in board coordinates.
 func cell_to_local(cell: Vector2i) -> Vector2:
 	return (Vector2(cell) + Vector2(0.5, 0.5)) * CELL_PX
 
 
-## The cell under a local point, or (-1, -1) off the map.
+## The cell under a board point, or (-1, -1) off the map.
 func local_to_cell(point: Vector2) -> Vector2i:
 	var cell := Vector2i(floori(point.x / CELL_PX), floori(point.y / CELL_PX))
 	return cell if is_on_map(cell) else Vector2i(-1, -1)
+
+
+## The cell under a point of this view, or (-1, -1).
+func view_to_cell(view_point: Vector2) -> Vector2i:
+	return local_to_cell(view_to_board(view_point))
 
 
 func is_on_map(cell: Vector2i) -> bool:
@@ -137,6 +371,15 @@ func get_piece_layer() -> Node2D:
 
 func get_fx_layer() -> Control:
 	return _fx_layer
+
+
+func get_whole_map_button() -> PressButton:
+	return _whole_button
+
+
+## Redraws of the mark, zone and intent layers so far, for tests.
+func get_layer_draw_count() -> int:
+	return _zone_layer.draw_count + _mark_layer.draw_count + _intent_layer.draw_count
 
 
 func add_piece(piece: TacticsPieceView, cell: Vector2i) -> void:
@@ -157,9 +400,11 @@ func get_pieces() -> Array[TacticsPieceView]:
 
 ## Selection marks; every key is optional: `reachable`, `attackable`,
 ## `threat` (where an enemy can go), `skill_cells`, `area` (cells),
-## `selected` (a cell), `target` (a cell), `path` (cells),
-## `ghosts` ([{cell, from, side, is_leader}]).
+## `selected` (a cell), `target` (a cell), `path` (cells), `slots`
+## (formation slot cells), `ghosts` ([{cell, from, side, is_leader}]).
 func set_marks(marks: Dictionary) -> void:
+	if marks == _marks:
+		return
 	_marks = marks
 	_mark_layer.queue_redraw()
 
@@ -170,6 +415,8 @@ func get_marks() -> Dictionary:
 
 ## Enemy intents: [{from, to, action, target_cell}]; empty hides them.
 func set_intents(intents: Array) -> void:
+	if intents == _intents:
+		return
 	_intents = intents
 	_intent_layer.queue_redraw()
 
@@ -180,6 +427,8 @@ func get_intents() -> Array:
 
 ## Active zones: [{zone, cells}] as get_zones() gives them.
 func set_zones(zones: Array) -> void:
+	if zones == _zones:
+		return
 	_zones = zones
 	_zone_layer.queue_redraw()
 
@@ -188,11 +437,12 @@ func get_zones() -> Array:
 	return _zones
 
 
-## Text rising from a cell and fading, such as a damage number.
+## Text rising from a board point and fading, such as a damage number;
+## never under the small font size.
 func float_text(at: Vector2, text: String, color: Color, font_px: int = 26, rise_px: float = 36.0, seconds: float = 0.9) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_size_override(&"font_size", font_px)
+	label.add_theme_font_size_override(&"font_size", maxi(font_px, GameTheme.SMALL_FONT_SIZE))
 	label.add_theme_color_override(&"font_color", color)
 	label.add_theme_color_override(&"font_outline_color", Palette.INK)
 	label.add_theme_constant_override(&"outline_size", 7)
@@ -200,14 +450,18 @@ func float_text(at: Vector2, text: String, color: Color, font_px: int = 26, rise
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_fx_layer.add_child(label)
 	label.reset_size()
-	# Kept inside the map so a number at the edge is not cut off, and above
-	# any text still rising from the same spot.
-	var x := clampf(at.x - label.size.x / 2.0, 0.0, maxf(size.x - label.size.x, 0.0))
-	var y := at.y - label.size.y
-	for other: Node in _fx_layer.get_children():
-		var rising := other as Label
-		if rising != null and rising != label and absf(rising.position.x + rising.size.x / 2.0 - at.x) < CELL_PX and absf(rising.position.y - y) < label.size.y:
-			y = minf(y, rising.position.y - label.size.y + 4.0)
+	# Kept inside the part of the board on screen, its rise included, so a
+	# text at the edge of the view is not cut off, and above any text still
+	# rising from the same spot.
+	var shown := Rect2(Vector2.ZERO, get_board_size()).intersection(Rect2(view_to_board(Vector2.ZERO), size / _zoom))
+	if not shown.has_area():
+		shown = Rect2(Vector2.ZERO, get_board_size())
+	var x := clampf(at.x - label.size.x / 2.0, shown.position.x, maxf(shown.end.x - label.size.x, shown.position.x))
+	var top := shown.position.y + rise_px
+	var start := clampf(at.y - label.size.y, top, maxf(shown.end.y - label.size.y, top))
+	var y := _free_float_y(label, x, start, -1.0)
+	if y < top:
+		y = _free_float_y(label, x, start, 1.0)
 	label.position = Vector2(x, y)
 	var tween := label.create_tween()
 	tween.tween_property(label, ^"position:y", label.position.y - rise_px, seconds).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
@@ -216,19 +470,140 @@ func float_text(at: Vector2, text: String, color: Color, font_px: int = 26, rise
 	return label
 
 
+# The first y from `start`, going up (-1) or down (1), where the label
+# covers no text still rising at that spot.
+func _free_float_y(label: Label, x: float, start: float, direction: float) -> float:
+	var y := start
+	for attempt: int in _fx_layer.get_child_count():
+		var is_free := true
+		for other: Node in _fx_layer.get_children():
+			var rising := other as Label
+			if rising == null or rising == label or absf(rising.position.x + rising.size.x / 2.0 - x - label.size.x / 2.0) >= CELL_PX or absf(rising.position.y - y) >= label.size.y - 4.0:
+				continue
+			y = rising.position.y + (rising.size.y - 4.0 if direction > 0.0 else 4.0 - label.size.y)
+			is_free = false
+		if is_free:
+			break
+	return y
+
+
 func _gui_input(event: InputEvent) -> void:
-	var button := event as InputEventMouseButton
-	if button == null or button.button_index != MOUSE_BUTTON_LEFT:
-		return
-	if button.pressed:
-		_press_cell = local_to_cell(button.position)
-		_press_position = button.position
-		return
-	var cell := local_to_cell(button.position)
-	if cell == _press_cell and button.position.distance_to(_press_position) <= TAP_SLOP_PX and is_on_map(cell):
+	if event is InputEventScreenTouch:
+		_on_touch(event as InputEventScreenTouch)
+	elif event is InputEventScreenDrag:
+		_on_touch_drag(event as InputEventScreenDrag)
+	elif event is InputEventMagnifyGesture:
+		var magnify := event as InputEventMagnifyGesture
+		_zoom_about(_zoom * magnify.factor, magnify.position)
 		accept_event()
-		cell_tapped.emit(cell)
-	_press_cell = Vector2i(-1, -1)
+	elif event is InputEventMouseButton:
+		_on_button(event as InputEventMouseButton)
+	elif event is InputEventMouseMotion:
+		_on_motion(event as InputEventMouseMotion)
+
+
+func _on_button(button: InputEventMouseButton) -> void:
+	if button.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN] and button.pressed:
+		_zoom_about(_zoom * (1.1 if button.button_index == MOUSE_BUTTON_WHEEL_UP else 1.0 / 1.1), button.position)
+		accept_event()
+		return
+	if button.button_index != MOUSE_BUTTON_LEFT or _gesture == _Gesture.PINCH:
+		return
+	accept_event()
+	if button.pressed:
+		_press_position = button.position
+		_press_cell = view_to_cell(button.position)
+		if hold_cells.has(_press_cell):
+			_gesture = _Gesture.HOLD
+			_held_cell = _press_cell
+			cell_held.emit(_press_cell)
+		else:
+			_gesture = _Gesture.TAP
+		return
+	var cell := view_to_cell(button.position)
+	match _gesture:
+		_Gesture.HOLD:
+			_gesture = _Gesture.NONE
+			hold_released.emit(cell)
+		_Gesture.TAP:
+			_gesture = _Gesture.NONE
+			if cell == _press_cell and button.position.distance_to(_press_position) <= TAP_SLOP_PX and is_on_map(cell):
+				cell_tapped.emit(cell)
+		_:
+			_gesture = _Gesture.NONE
+
+
+func _on_motion(motion: InputEventMouseMotion) -> void:
+	if (motion.button_mask & MOUSE_BUTTON_MASK_LEFT) == 0:
+		return
+	match _gesture:
+		_Gesture.HOLD:
+			var cell := view_to_cell(motion.position)
+			if cell != _held_cell:
+				_held_cell = cell
+				cell_held.emit(cell)
+			accept_event()
+		_Gesture.TAP:
+			if motion.position.distance_to(_press_position) > TAP_SLOP_PX:
+				_gesture = _Gesture.PAN
+				_pan_by(motion.position - _press_position)
+			accept_event()
+		_Gesture.PAN:
+			_pan_by(motion.relative)
+			accept_event()
+
+
+func _on_touch(touch: InputEventScreenTouch) -> void:
+	if touch.pressed:
+		_touches[touch.index] = touch.position
+	else:
+		_touches.erase(touch.index)
+	if _touches.size() >= 2 and _gesture != _Gesture.PINCH:
+		if _gesture == _Gesture.HOLD:
+			hold_cancelled.emit()
+		_gesture = _Gesture.PINCH
+		_start_pinch()
+	elif _touches.is_empty() and _gesture == _Gesture.PINCH:
+		_gesture = _Gesture.NONE
+	accept_event()
+
+
+func _on_touch_drag(drag: InputEventScreenDrag) -> void:
+	_touches[drag.index] = drag.position
+	if _gesture != _Gesture.PINCH or _touches.size() < 2:
+		return
+	var points := _touches.values()
+	var distance: float = (points[0] as Vector2).distance_to(points[1])
+	var middle: Vector2 = ((points[0] as Vector2) + (points[1] as Vector2)) / 2.0
+	if _pinch_distance > 1.0:
+		var anchor := (_pinch_middle - _board.position) / _zoom
+		var zoom := clampf(_pinch_zoom * distance / _pinch_distance, get_whole_zoom(), get_max_zoom())
+		_is_whole_map = false
+		_apply_camera(middle - anchor * zoom, zoom)
+		_pinch_middle = middle
+		_pinch_zoom = zoom
+		_pinch_distance = distance
+	accept_event()
+
+
+func _start_pinch() -> void:
+	var points := _touches.values()
+	_pinch_distance = (points[0] as Vector2).distance_to(points[1])
+	_pinch_middle = ((points[0] as Vector2) + (points[1] as Vector2)) / 2.0
+	_pinch_zoom = _zoom
+
+
+func _pan_by(delta: Vector2) -> void:
+	if _camera_tween != null and _camera_tween.is_valid():
+		_camera_tween.kill()
+	_apply_camera(_board.position + delta, _zoom)
+
+
+func _zoom_about(zoom: float, view_point: Vector2) -> void:
+	var anchor := view_to_board(view_point)
+	var target := clampf(zoom, get_whole_zoom(), get_max_zoom())
+	_is_whole_map = false
+	_apply_camera(view_point - anchor * target, target)
 
 
 func _add_layer(drawer: Callable) -> _Layer:
@@ -236,7 +611,7 @@ func _add_layer(drawer: Callable) -> _Layer:
 	layer.drawer = drawer
 	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.set_anchors_preset(Control.PRESET_FULL_RECT)
-	add_child(layer)
+	_board.add_child(layer)
 	return layer
 
 
@@ -293,6 +668,9 @@ func _draw_marks(canvas: Control) -> void:
 	for cell: Vector2i in _marks.get("area", []):
 		if is_on_map(cell):
 			canvas.draw_rect(_cell_rect(cell).grow(-1.0), AREA_COLOR)
+	for cell: Vector2i in _marks.get("slots", []):
+		if is_on_map(cell):
+			canvas.draw_arc(cell_to_local(cell), CELL_PX * 0.3, 0.0, TAU, 20, Color(Palette.CREAM, 0.55), 2.5)
 	for cell: Vector2i in _marks.get("attackable", []):
 		var rect := _cell_rect(cell).grow(-3.0)
 		canvas.draw_rect(rect, ATTACK_COLOR, false, 4.0)
@@ -349,6 +727,8 @@ func _draw_dashes(canvas: Control, from: Vector2, to: Vector2, color: Color, wid
 ## A drawing layer: calls its drawer when it redraws.
 class _Layer extends Control:
 	var drawer: Callable
+	var draw_count: int = 0
 
 	func _draw() -> void:
+		draw_count += 1
 		drawer.call(self)

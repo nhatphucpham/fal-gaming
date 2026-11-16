@@ -1,0 +1,18 @@
+[gd_resource type="TacticsIncidentData" format=3]
+
+[ext_resource type="TacticsPassiveData" path="res://Data/Tactics/Passives/mark_surge.tres" id="mark_passive"]
+
+[resource]
+id = &"incident.surge"
+name_key = "INCIDENT_SURGE"
+description_key = "INCIDENT_SURGE_DESC"
+base_weight = 30
+seeds_ai_side = false
+threshold_pct = 0
+threshold_count = 0
+radius_cells = 0
+calm_radius_cells = 0
+amount = 60
+secondary_amount = 15
+duration_rounds = 100
+mark_passive = ExtResource("mark_passive")

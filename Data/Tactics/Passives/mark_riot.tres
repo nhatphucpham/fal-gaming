@@ -1,0 +1,10 @@
+[gd_resource type="TacticsPassiveData" format=3]
+
+[resource]
+id = &"tactics_passive.mark_riot"
+name_key = "TACTICS_PASSIVE_MARK_RIOT"
+description_key = "TACTICS_PASSIVE_MARK_RIOT_DESC"
+handler = &"passive.stat_bonus"
+stat = &"stat.attack_pct"
+amount = 15
+condition_adjacent_allies = 2

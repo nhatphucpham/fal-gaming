@@ -1,5 +1,6 @@
 #pragma once
 
+#include "tactics_incident_data.h"
 #include "tactics_keyword_data.h"
 #include "tactics_passive_data.h"
 #include "tactics_skill_data.h"
@@ -79,8 +80,9 @@ public:
 bool tactics_squad_to_unit_defs(const std::string &p_leader_id, const Array &p_squad, std::vector<tactics::UnitDef> *r_defs, std::string *r_error);
 
 // A leader (tướng): one file per leader in Data/Tactics/Leaders/, id
-// `leader.<name>`, with its passives, skill, starting order and the squad
-// it brings when a scenario does not name one.
+// `leader.<name>`, with its passives, skill, starting order, traits (which
+// shift the odds of its soldiers' incidents) and the squad it brings when a
+// scenario does not name one.
 class TacticsLeaderData : public TacticsUnitData {
 	GDCLASS(TacticsLeaderData, TacticsUnitData)
 
@@ -89,6 +91,7 @@ class TacticsLeaderData : public TacticsUnitData {
 	Ref<TacticsSkillData> skill;
 	StringName default_order = "order.follow";
 	TypedArray<TacticsTroopData> squad;
+	TypedArray<TacticsTraitData> traits;
 
 protected:
 	static void _bind_methods();
@@ -106,6 +109,8 @@ public:
 	StringName get_default_order() const { return default_order; }
 	void set_squad(const TypedArray<TacticsTroopData> &p_value) { squad = p_value; }
 	TypedArray<TacticsTroopData> get_squad() const { return squad; }
+	void set_traits(const TypedArray<TacticsTraitData> &p_value) { traits = p_value; }
+	TypedArray<TacticsTraitData> get_traits() const { return traits; }
 };
 
 } // namespace godot

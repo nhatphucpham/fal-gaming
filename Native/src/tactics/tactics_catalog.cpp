@@ -85,6 +85,12 @@ void TacticsCatalog::validate_units(PackedStringArray &r_problems) const {
 		if (leader->get_skill().is_valid() && !contains(skills, leader->get_skill())) {
 			r_problems.push_back(vformat("TacticsCatalog: %s uses a skill not listed in skills", where(leader)));
 		}
+		const TypedArray<TacticsTraitData> leader_traits = leader->get_traits();
+		for (int64_t trait = 0; trait < leader_traits.size(); trait++) {
+			if (!contains(traits, leader_traits[trait])) {
+				r_problems.push_back(vformat("TacticsCatalog: %s uses a trait not listed in traits", where(leader)));
+			}
+		}
 		const TypedArray<TacticsTroopData> squad = leader->get_squad();
 		for (int64_t soldier = 0; soldier < squad.size(); soldier++) {
 			if (!contains(troops, squad[soldier])) {
@@ -261,6 +267,32 @@ bool TacticsCatalog::try_load_scenario(const Ref<TacticsScenarioData> &p_scenari
 	return true;
 }
 
+// The incident rules load into the simulation, list each incident once
+// once, and name passives and a skill the catalog lists.
+void TacticsCatalog::validate_incidents(PackedStringArray &r_problems) const {
+	if (incident_rules.is_null()) {
+		r_problems.push_back("TacticsCatalog: incident_rules is not set");
+		return;
+	}
+	tactics::IncidentRules rules;
+	std::string error;
+	if (!incident_rules->to_incident_rules(&rules, &error) || !tactics::validate_incident_rules(rules, &error)) {
+		r_problems.push_back("TacticsCatalog: " + to_godot_string(error));
+		return;
+	}
+	const TypedArray<TacticsIncidentData> incidents = incident_rules->get_incidents();
+	validate_ids(incidents, "incident.", true, r_problems);
+	for (int64_t index = 0; index < incidents.size(); index++) {
+		const Ref<TacticsIncidentData> incident = incidents[index];
+		if (incident->get_mark_passive().is_null() || !contains(passives, incident->get_mark_passive())) {
+			r_problems.push_back(vformat("TacticsCatalog: %s needs a mark_passive listed in passives", where(incident)));
+		}
+	}
+	if (incident_rules->get_named_skill().is_null() || !contains(skills, incident_rules->get_named_skill())) {
+		r_problems.push_back("TacticsCatalog: incident_rules needs a named_skill listed in skills");
+	}
+}
+
 PackedStringArray TacticsCatalog::validate() const {
 	PackedStringArray problems;
 	if (rules.is_null()) {
@@ -280,10 +312,12 @@ PackedStringArray TacticsCatalog::validate() const {
 	validate_ids(leaders, "leader.", false, problems);
 	validate_ids(maps, "map.", false, problems);
 	validate_ids(scenarios, "scenario.", false, problems);
+	validate_ids(traits, "trait.", true, problems);
 	validate_units(problems);
 	validate_references(problems);
 	validate_maps(problems);
 	validate_scenarios(problems);
+	validate_incidents(problems);
 	return problems;
 }
 
@@ -296,6 +330,11 @@ Ref<TacticsTroopData> TacticsCatalog::get_troop(const StringName &p_id) const { 
 Ref<TacticsLeaderData> TacticsCatalog::get_leader(const StringName &p_id) const { return find_by_id(leaders, p_id); }
 Ref<TacticsMapData> TacticsCatalog::get_map(const StringName &p_id) const { return find_by_id(maps, p_id); }
 Ref<TacticsScenarioData> TacticsCatalog::get_scenario(const StringName &p_id) const { return find_by_id(scenarios, p_id); }
+Ref<TacticsTraitData> TacticsCatalog::get_trait(const StringName &p_id) const { return find_by_id(traits, p_id); }
+
+Ref<TacticsIncidentData> TacticsCatalog::get_incident(const StringName &p_id) const {
+	return incident_rules.is_valid() ? incident_rules->get_incident(p_id) : Ref<TacticsIncidentData>();
+}
 
 void TacticsCatalog::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("validate"), &TacticsCatalog::validate);
@@ -308,6 +347,8 @@ void TacticsCatalog::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_leader", "id"), &TacticsCatalog::get_leader);
 	ClassDB::bind_method(D_METHOD("get_map", "id"), &TacticsCatalog::get_map);
 	ClassDB::bind_method(D_METHOD("get_scenario", "id"), &TacticsCatalog::get_scenario);
+	ClassDB::bind_method(D_METHOD("get_trait", "id"), &TacticsCatalog::get_trait);
+	ClassDB::bind_method(D_METHOD("get_incident", "id"), &TacticsCatalog::get_incident);
 	BATTLE_BIND_ACCESSORS(TacticsCatalog, rules);
 	BATTLE_BIND_ACCESSORS(TacticsCatalog, terrains);
 	BATTLE_BIND_ACCESSORS(TacticsCatalog, keywords);
@@ -318,6 +359,8 @@ void TacticsCatalog::_bind_methods() {
 	BATTLE_BIND_ACCESSORS(TacticsCatalog, leaders);
 	BATTLE_BIND_ACCESSORS(TacticsCatalog, maps);
 	BATTLE_BIND_ACCESSORS(TacticsCatalog, scenarios);
+	BATTLE_BIND_ACCESSORS(TacticsCatalog, traits);
+	BATTLE_BIND_ACCESSORS(TacticsCatalog, incident_rules);
 
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "rules", PROPERTY_HINT_RESOURCE_TYPE, "TacticsRulesData"), "set_rules", "get_rules");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "terrains", PROPERTY_HINT_ARRAY_TYPE, "TacticsTerrainData"), "set_terrains", "get_terrains");
@@ -329,4 +372,6 @@ void TacticsCatalog::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "leaders", PROPERTY_HINT_ARRAY_TYPE, "TacticsLeaderData"), "set_leaders", "get_leaders");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "maps", PROPERTY_HINT_ARRAY_TYPE, "TacticsMapData"), "set_maps", "get_maps");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "scenarios", PROPERTY_HINT_ARRAY_TYPE, "TacticsScenarioData"), "set_scenarios", "get_scenarios");
+	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "traits", PROPERTY_HINT_ARRAY_TYPE, "TacticsTraitData"), "set_traits", "get_traits");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "incident_rules", PROPERTY_HINT_RESOURCE_TYPE, "TacticsIncidentRulesData"), "set_incident_rules", "get_incident_rules");
 }

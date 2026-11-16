@@ -1,0 +1,8 @@
+[gd_resource type="TacticsTraitData" format=3]
+
+[resource]
+id = &"trait.kind"
+name_key = "TRAIT_KIND"
+description_key = "TRAIT_KIND_DESC"
+incident_ids = Array[StringName]([&"incident.rescue", &"incident.betray"])
+weight_pcts = PackedInt32Array(80, -30)

@@ -9,6 +9,7 @@ const LOCALE: String = "vi"
 const CATALOG_PATH: String = "res://Data/catalog.tres"
 const SANDBOX_SCENE: PackedScene = preload("res://Scenes/Sandbox/sandbox_screen.tscn")
 const TACTICS_SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/river_crossing.tres"
+const TACTICS_CATALOG_PATH: String = "res://Data/Tactics/tactics_catalog.tres"
 const SLIDE_SEC: float = 0.32
 
 ## The screen shown now (TitleScreen, RunScreen, EndScreen, SandboxScreen,
@@ -76,21 +77,30 @@ func open_sandbox() -> SandboxScreen:
 	return sandbox
 
 
-## "Chiến Dịch": the muster screen of the tactics scenario, then its battle.
+## "Chiến Dịch": the muster screen of the tactics scenario with the roster
+## (Sổ quân), then its battle; the after-battle summary comes back here.
 func open_campaign() -> MusterScreen:
+	var catalog := load(TACTICS_CATALOG_PATH) as TacticsCatalog
+	var campaign := TacticsCampaign.new(TacticsRoster.load_roster(), catalog, load(TACTICS_SCENARIO_PATH) as TacticsScenarioData)
 	var muster := MusterScreen.new()
-	muster.scenario = load(TACTICS_SCENARIO_PATH) as TacticsScenarioData
+	muster.catalog = catalog
+	muster.campaign = campaign
+	muster.scenario = campaign.scenario
 	muster.back_requested.connect(show_title)
-	muster.battle_requested.connect(func(squads: Array) -> void: open_tactics(muster.scenario, squads))
+	muster.battle_requested.connect(func(squads: Array) -> void: open_tactics(campaign.scenario, squads, campaign, muster.get_people()))
 	_switch_to(muster, 1.0)
 	return muster
 
 
-func open_tactics(scenario: TacticsScenarioData, squads: Array) -> TacticsScreen:
+## The tactics battle; with a campaign it has incidents and roster records.
+func open_tactics(scenario: TacticsScenarioData, squads: Array, campaign: TacticsCampaign = null, people: Array = []) -> TacticsScreen:
 	var screen := TacticsScreen.new()
 	screen.scenario = scenario
 	screen.squads = squads
+	screen.campaign = campaign
+	screen.squad_people = people
 	screen.home_requested.connect(show_title)
+	screen.campaign_continue_requested.connect(open_campaign)
 	_switch_to(screen, 1.0)
 	return screen
 

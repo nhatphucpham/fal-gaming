@@ -1,16 +1,25 @@
 extends SceneTree
 
 # Plays random taps through the tactics screen (instant playback) on several
-# seeds: map cells, our leaders, the enabled panel buttons and the order
-# picker, legal or not. After every playback, before the screen syncs, the
+# seeds: map cells, our leaders (often marched to the blue cell nearest
+# the enemy, and often again with the points left), drags of a leader's
+# ghosts, the enabled panel buttons (undo among them) and the order row,
+# legal or not; the phase also ends by itself once every leader is closed
+# (it waited, or nothing is left). After every playback, before the screen syncs, the
 # map must already show what the battle has (tokens, hp, deaths, charge
 # pips, zones), so nothing jumps silently; after every tap the synced screen
 # must agree with the battle's queries (marks, buttons, intents, the done
-# look) and no error may be logged.
+# look) and no error may be logged. Odd seeds play with the roster and
+# incidents (most soldiers seeded): the pieces must also show each unit's
+# side, wavering mark and marks as the battle has them.
 
 const SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/river_crossing.tres"
 const SEED_COUNT: int = 6
 const MAX_TAPS: int = 500
+const CATALOG_PATH: String = "res://Data/Tactics/tactics_catalog.tres"
+const INCIDENTS: Array[StringName] = [
+	&"incident.rescue", &"incident.stand", &"incident.surge", &"incident.discontent", &"incident.riot", &"incident.flee", &"incident.betray",
+]
 
 
 class ErrorLog extends Logger:
@@ -27,13 +36,22 @@ var _rng := RandomNumberGenerator.new()
 var _problems: Array[String] = []
 var _played: int = 0
 var _phase_began: bool = false
+## Unit index -> marks its roster person carried in (campaign seeds).
+var _carried: Dictionary = {}
+var _incident_events: int = 0
 
 
 func _initialize() -> void:
 	TranslationServer.set_locale("vi")
+	# First-time tips are remembered here, never in the player's settings.
+	RunSettings.path = "user://settings_tactics_screen_sync_test.json"
+	DirAccess.remove_absolute(RunSettings.path)
+	TacticsRoster.path = "user://tactics_roster_sync_test.json"
+	TacticsRoster.delete()
 	OS.add_logger(_errors)
 	var ok := await _run()
 	OS.remove_logger(_errors)
+	TacticsRoster.delete()
 	if ok:
 		print("Tactics screen sync test passed")
 		quit(0)
@@ -58,7 +76,10 @@ func _run() -> bool:
 			finished += 1
 		_screen.queue_free()
 		await process_frame
-	print("%d playbacks checked, %d of %d battles finished" % [_played, finished, SEED_COUNT])
+	print("%d playbacks checked, %d of %d battles finished, %d incident steps" % [_played, finished, SEED_COUNT, _incident_events])
+	if _incident_events == 0:
+		push_error("Tactics screen sync test: no incident was played")
+		return false
 	return true
 
 
@@ -66,11 +87,27 @@ func _play_seed(seed_value: int) -> bool:
 	_rng.seed = seed_value
 	_screen = TacticsScreen.new()
 	_screen.scenario = load(SCENARIO_PATH) as TacticsScenarioData
+	_carried.clear()
+	if seed_value % 2 == 1:
+		var campaign := TacticsCampaign.new(TacticsRoster.load_roster(), load(CATALOG_PATH) as TacticsCatalog, _screen.scenario)
+		for ids: Array in campaign.people:
+			for id: int in ids:
+				if _rng.randf() < 0.8:
+					campaign.forced_seeds[id] = INCIDENTS[_rng.randi_range(0, INCIDENTS.size() - 1)]
+		_screen.scenario = campaign.scenario
+		_screen.squads = campaign.squads
+		_screen.campaign = campaign
 	_screen.is_instant = true
 	_screen.size = Vector2(720, 1280)
 	root.add_child(_screen)
 	await process_frame
 	_screen.get_playback().played.connect(_check_played)
+	_screen.get_playback().step_started.connect(func(type: StringName) -> void:
+		_incident_events += 1 if String(type) in ["soldier_wavered", "incident_fired", "incident_calmed"] else 0)
+	if _screen.campaign != null:
+		for state: Dictionary in _battle().get_units():
+			var person := _screen.campaign.get_person(state["record_id"])
+			_carried[state["index"]] = (person["marks"] as Array).size() if not person.is_empty() else 0
 	_screen.get_playback().phase_shown.connect(func(_side: int, _round_number: int) -> void: _phase_began = true)
 	_check_synced("start")
 	for tap: int in MAX_TAPS:
@@ -78,6 +115,10 @@ func _play_seed(seed_value: int) -> bool:
 			break
 		var what := _random_tap()
 		await process_frame
+		# An auto end (a short timer, then a playback) is waited out.
+		var deadline := Time.get_ticks_msec() + 3000
+		while (_screen.is_busy() or _screen.is_auto_end_pending()) and Time.get_ticks_msec() < deadline:
+			await process_frame
 		_check_synced(what)
 		if not _problems.is_empty() or not _errors.lines.is_empty():
 			printerr("Seed %d, tap %d: %s" % [seed_value, tap, what])
@@ -103,6 +144,14 @@ func _random_tap() -> String:
 		if not leaders.is_empty():
 			var leader: int = leaders[_rng.randi_range(0, leaders.size() - 1)]
 			_screen.tap_cell(_battle().get_unit_state(leader)["cell"])
+			# Often a march: the blue cell nearest the enemy at once, so
+			# the fights (and the incidents they stir) come even against
+			# an enemy that holds its ground.
+			var reachable: Array = _screen.get_map().get_marks().get("reachable", [])
+			if not reachable.is_empty() and _rng.randf() < 0.5:
+				var cell := _nearest_to_enemy(reachable)
+				_screen.tap_cell(cell)
+				return "march leader %d to %s" % [leader, cell]
 			return "tap leader %d" % leader
 	if roll < 55:
 		var marked := _marked_cells()
@@ -110,7 +159,26 @@ func _random_tap() -> String:
 			var cell: Vector2i = marked[_rng.randi_range(0, marked.size() - 1)]
 			_screen.tap_cell(cell)
 			return "tap marked %s" % cell
-	if _screen.get_mode() == TacticsScreen.Mode.ORDER_PICK and _rng.randf() < 0.7:
+	if roll < 62:
+		var leaders := _living_leaders(0)
+		if not leaders.is_empty():
+			var leader: int = leaders[_rng.randi_range(0, leaders.size() - 1)]
+			var from: Vector2i = _battle().get_unit_state(leader)["cell"]
+			var map := _screen.get_map()
+			if not map.hold_cells.has(from):
+				return "no drag from %s" % from
+			var to := Vector2i(_rng.randi_range(0, _battle().get_map_width() - 1), _rng.randi_range(0, _battle().get_map_height() - 1))
+			var marked := _marked_cells()
+			if not marked.is_empty() and _rng.randf() < 0.6:
+				to = marked[_rng.randi_range(0, marked.size() - 1)]
+			map.cell_held.emit(from)
+			map.cell_held.emit(to)
+			if _rng.randf() < 0.15:
+				map.hold_cancelled.emit()
+				return "drag %d to %s, cancelled" % [leader, to]
+			map.hold_released.emit(to)
+			return "drag %d to %s" % [leader, to]
+	if _screen.get_panel().is_order_row_shown() and _rng.randf() < 0.25:
 		var orders := _screen.get_panel().get_order_buttons().keys()
 		var order: StringName = orders[_rng.randi_range(0, orders.size() - 1)]
 		_screen.get_panel().get_order_buttons()[order].pressed.emit()
@@ -133,6 +201,20 @@ func _living_leaders(side: int) -> Array[int]:
 		if unit["role"] == &"leader" and unit["side"] == side and unit["alive"]:
 			leaders.append(unit["index"])
 	return leaders
+
+
+# The cell of `cells` nearest to any living enemy.
+func _nearest_to_enemy(cells: Array) -> Vector2i:
+	var best: Vector2i = cells[0]
+	var best_distance := 1 << 30
+	for cell: Vector2i in cells:
+		for unit: Dictionary in _battle().get_units():
+			var at: Vector2i = unit["cell"]
+			var distance := absi(at.x - cell.x) + absi(at.y - cell.y)
+			if unit["alive"] and unit["side"] != 0 and distance < best_distance:
+				best = cell
+				best_distance = distance
+	return best
 
 
 # Cells the marks invite a tap on (reachable, attackable, skill cells).
@@ -189,12 +271,24 @@ func _check_pieces(what: String, is_synced: bool) -> void:
 			_problems.append("%s: unit %d has hp %d but its piece shows %d" % [what, unit, state["hp"], piece.hp])
 		if piece.scale != Vector2.ONE or piece.modulate.a < 1.0:
 			_problems.append("%s: living unit %d is drawn fallen" % [what, unit])
+		if piece.side != int(state["side"]):
+			_problems.append("%s: unit %d fights for side %d but its piece shows %d" % [what, unit, state["side"], piece.side])
+		var wavering := TacticsPieceView.Wavering.NONE
+		if state["wavering"] != &"":
+			wavering = TacticsPieceView.Wavering.GOOD if state["is_wavering_good"] else TacticsPieceView.Wavering.BAD
+		if piece.wavering != wavering:
+			_problems.append("%s: unit %d wavering %s but its piece shows %d" % [what, unit, state["wavering"], piece.wavering])
+		if piece.mark_count != int(_carried.get(unit, 0)) + int(state["marks"]):
+			_problems.append("%s: unit %d has %d marks but its piece shows %d" % [what, unit, int(_carried.get(unit, 0)) + int(state["marks"]), piece.mark_count])
 		if state["role"] == &"leader":
 			var charge := _battle().get_skill_charge(unit)
 			if piece.charge_value != int(charge.get("value", 0)) or piece.charge_threshold != int(charge.get("threshold", 0)):
 				_problems.append("%s: leader %d charge %s/%s, pips %d/%d" % [what, unit, charge.get("value"), charge.get("threshold"), piece.charge_value, piece.charge_threshold])
 			if is_synced:
-				var is_done: bool = state["side"] == 0 and _battle().get_active_side() == 0 and not _battle().can_act(unit) and not _battle().can_move(unit)
+				# Closed: it waited, or no point reaches a cell, no strike is left
+				# (moving first with the points left) and no skill cell.
+				var has_nothing: bool = not _battle().can_move(unit) and _battle().get_strike_targets(unit).is_empty() and _battle().get_skill_cells(unit).is_empty()
+				var is_done: bool = state["side"] == 0 and _battle().get_active_side() == 0 and (not _battle().can_act(unit) or has_nothing)
 				if piece.is_done != is_done:
 					_problems.append("%s: leader %d done=%s, piece done=%s" % [what, unit, is_done, piece.is_done])
 
@@ -244,10 +338,22 @@ func _check_marks(what: String) -> void:
 	if Array(marks.get("reachable", [])) != reachable:
 		_problems.append("%s: leader %d reachable marks differ from the battle" % [what, leader])
 	var attackable: Array = []
-	for target: int in _battle().get_attack_targets(leader):
+	for target: int in _battle().get_strike_targets(leader):
 		attackable.append(_battle().get_unit_state(target)["cell"])
 	if Array(marks.get("attackable", [])) != attackable:
 		_problems.append("%s: leader %d attack marks %s, battle %s" % [what, leader, marks.get("attackable"), attackable])
+	if Array(marks.get("slots", [])) != _battle().get_formation_slots(leader):
+		_problems.append("%s: leader %d slot marks %s, battle %s" % [what, leader, marks.get("slots"), _battle().get_formation_slots(leader)])
+	if not _screen.get_panel().is_order_row_shown() or _screen.get_panel().get_current_order() != state["order"]:
+		_problems.append("%s: leader %d order row missing or not on %s" % [what, leader, state["order"]])
+	for button: PressButton in _screen.get_panel().get_order_buttons().values():
+		if button.disabled == _battle().can_act(leader):
+			_problems.append("%s: leader %d order buttons disabled=%s, can_act=%s" % [what, leader, button.disabled, _battle().can_act(leader)])
+			break
+	# The card says what the leader can still do: points left, the attack.
+	var turn_line: String = tr("TACTICS_TURN_WAITED") if state["has_waited"] else tr("TACTICS_TURN_FORMAT") % [_battle().get_move_points_left(leader), state["move_points"], tr("TACTICS_TURN_ATTACK_USED") if _battle().has_attacked(leader) else tr("TACTICS_TURN_ATTACK_READY")]
+	if not _screen.get_panel().get_shown_card_lines().has(turn_line):
+		_problems.append("%s: leader %d card lacks \"%s\": %s" % [what, leader, turn_line, _screen.get_panel().get_shown_card_lines()])
 
 
 # Buttons that would send a command are enabled only when the battle takes it.
@@ -256,7 +362,9 @@ func _check_buttons(what: String) -> void:
 	for entry: Dictionary in _screen.get_panel().get_buttons():
 		var action: StringName = entry["action"]
 		var enabled: bool = entry["enabled"]
-		if action in [&"wait", &"skill"] and leader < 0:
+		if action == &"undo" and (leader < 0 or not _battle().can_undo_move(leader)):
+			_problems.append("%s: undo offered with no move to take back" % what)
+		if action in [&"wait", &"skill", &"undo"] and leader < 0:
 			_problems.append("%s: %s offered with nothing selected" % [what, action])
 			continue
 		if action == &"end_turn" and enabled and (_battle().get_active_side() != 0 or _battle().is_finished()):

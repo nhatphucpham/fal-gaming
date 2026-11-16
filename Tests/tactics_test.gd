@@ -740,20 +740,26 @@ func _check_command_limits() -> bool:
 	var leader := _kit.add(battle, A, _kit.leader(MOON_SPEAR, [], {"keywords": _kit.keywords([])}), Vector2i(5, 8), [_kit.troop(&"troop.spearman")])
 	var enemy := _kit.add(battle, B, _kit.leader(THIET_NHA), Vector2i(5, 4))
 	battle.start()
-	print("Tactics test: the next 7 errors (commands refused) are expected")
+	print("Tactics test: the next 9 errors (commands refused) are expected")
 	var other_side := [battle.wait(enemy), battle.move_leader(enemy, Vector2i(5, 3)), battle.wait(leader + 1)]
-	var moved := battle.move_leader(leader, Vector2i(5, 6))
-	var hash := battle.get_state_hash()
-	var second_move := battle.move_leader(leader, Vector2i(5, 7))
+	# Four move points: 2, then 1 and 1 more; 3 more after the first 2 is too many.
+	var moves := [battle.move_leader(leader, Vector2i(5, 6)), battle.move_leader(leader, Vector2i(5, 9)), battle.move_leader(leader, Vector2i(4, 6)), battle.move_leader(leader, Vector2i(4, 5))]
+	var accepted := moves.map(func(events: Array) -> bool: return not events.is_empty())
+	var spent := [battle.get_move_points_left(leader), battle.can_move(leader), battle.can_act(leader)]
 	var attacked := battle.attack(leader, enemy)
+	var hash := battle.get_state_hash()
+	var second_attack := battle.attack(leader, enemy)
+	var waited := battle.wait(leader)
 	hash = battle.get_state_hash()
-	var after_act := [battle.attack(leader, enemy), battle.wait(leader), battle.move_leader(leader, Vector2i(4, 6))]
-	if not (Kit.expect("other side and soldier refused", other_side, [[], [], []]) and Kit.expect_true("moved", not moved.is_empty()) \
-			and Kit.expect("second move refused", second_move, []) and Kit.expect_true("attacked", not attacked.is_empty()) \
-			and Kit.expect("after acting refused", after_act, [[], [], []]) and Kit.expect("refusals change nothing", battle.get_state_hash(), hash)):
+	var after_wait := [battle.attack(leader, enemy), battle.wait(leader), battle.move_leader(leader, Vector2i(4, 6)), battle.set_order(leader, &"order.hold")]
+	if not (Kit.expect("other side and soldier refused", other_side, [[], [], []]) and Kit.expect("moves within the points", accepted, [true, false, true, true]) \
+			and Kit.expect("points spent, turn still open", spent, [0, false, true]) and Kit.expect_true("attacked", not attacked.is_empty()) \
+			and Kit.expect("one attack a phase", second_attack, []) and Kit.expect_true("waited", not waited.is_empty()) \
+			and Kit.expect("after waiting refused", after_wait, [[], [], [], []]) and Kit.expect("refusals change nothing", battle.get_state_hash(), hash) \
+			and Kit.expect("closed after waiting", [battle.is_closed(leader), battle.can_act(leader), battle.can_attack(leader)], [true, false, false])):
 		return false
 	battle.end_phase()
 	var enemy_waited := battle.wait(enemy)
 	battle.end_phase()
 	return Kit.expect_true("enemy acts in its phase", not enemy_waited.is_empty()) \
-		and Kit.expect_true("next phase allows a move", not battle.move_leader(leader, Vector2i(5, 7)).is_empty())
+		and Kit.expect_true("next phase allows a move", not battle.move_leader(leader, Vector2i(4, 7)).is_empty())

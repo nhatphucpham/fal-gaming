@@ -1,5 +1,6 @@
 #include "tactics_combat.h"
 
+#include "tactics_incidents.h"
 #include "tactics_keywords.h"
 #include "tactics_sim.h"
 #include "tactics_skills.h"
@@ -164,6 +165,7 @@ void close_engagement(TacticsSim &p_sim, const EngagementResult &p_result) {
 		UnitState &soldier = p_sim.edit_unit(p_result.defender);
 		soldier.was_attacked_since_move = true;
 		soldier.last_attacker = p_result.attacker;
+		note_soldier_hit(p_sim, p_result.defender, p_result.event_id);
 	}
 	for (int unit : { p_result.attacker, p_result.defender }) {
 		if (p_sim.is_leader(unit) && p_sim.get_units()[unit].is_alive) {
@@ -181,6 +183,34 @@ void close_engagement(TacticsSim &p_sim, const EngagementResult &p_result) {
 }
 
 } // namespace
+
+EngagementResult predict_engagement(const TacticsSim &p_sim, int p_attacker, int p_defender) {
+	EngagementResult result = plan_engagement(p_sim, p_attacker, p_defender);
+	const int hits = p_sim.get_rules().hits_per_engagement;
+	const int struck = find_hit_guard(p_sim, p_defender);
+	int attacker_hp = p_sim.get_units()[p_attacker].hp;
+	int defender_hp = p_sim.get_units()[struck].hp;
+	const auto land = [&](int &r_target_hp, const int &p_source_hp, int p_damage, int &r_landed) {
+		for (int hit = 0; hit < hits && r_target_hp > 0 && p_source_hp > 0; hit++) {
+			r_target_hp -= p_damage < r_target_hp ? p_damage : r_target_hp;
+			r_landed++;
+		}
+	};
+	if (result.is_first_strike) {
+		land(attacker_hp, defender_hp, result.defender_damage_per_hit, result.defender_hits);
+		land(defender_hp, attacker_hp, result.attacker_damage_per_hit, result.attacker_hits);
+	} else {
+		land(defender_hp, attacker_hp, result.attacker_damage_per_hit, result.attacker_hits);
+		if (result.can_counter) {
+			land(attacker_hp, defender_hp, result.defender_damage_per_hit, result.defender_hits);
+		}
+	}
+	result.attacker_hp_after = attacker_hp;
+	result.defender_hp_after = struck == p_defender ? defender_hp : p_sim.get_units()[p_defender].hp;
+	result.is_attacker_dead = attacker_hp <= 0;
+	result.is_defender_dead = struck == p_defender && defender_hp <= 0;
+	return result;
+}
 
 EngagementResult resolve_engagement(TacticsSim &p_sim, int p_attacker, int p_defender, int p_cause) {
 	EngagementResult result = plan_engagement(p_sim, p_attacker, p_defender);

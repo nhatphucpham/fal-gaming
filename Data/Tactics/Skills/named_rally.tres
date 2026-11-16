@@ -1,0 +1,17 @@
+[gd_resource type="TacticsSkillData" format=3]
+
+[sub_resource type="TacticsSkillEffectData" id="effect_1"]
+handler = &"skill_effect.squad_attack_buff"
+amount_pct = 20
+duration_rounds = 2
+
+[resource]
+id = &"tactics_skill.named_rally"
+name_key = "TACTICS_SKILL_NAMED_RALLY"
+description_key = "TACTICS_SKILL_NAMED_RALLY_DESC"
+charge = &"charge.engagements"
+charge_threshold = 3
+target = &"skill_target.area"
+cast_range_cells = 0
+area_radius_cells = 0
+effects = Array[TacticsSkillEffectData]([SubResource("effect_1")])

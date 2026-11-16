@@ -35,6 +35,8 @@ var is_unlocked: bool = true
 ## True with no sound device (headless runs and CI): nothing is started, so
 ## quitting mid-sound leaves no playback behind. Ids are still checked.
 var is_silent: bool = false
+## The milliseconds the cooldown is measured in; tests hold it still.
+var clock_msec: Callable = Time.get_ticks_msec
 
 var _bank: SoundBank
 var _players: Array[AudioStreamPlayer] = []
@@ -103,7 +105,7 @@ func play(id: StringName) -> void:
 	var sound := _find(id)
 	if sound == null or not is_unlocked or _is_muted or is_silent or _is_suspended:
 		return
-	var now := Time.get_ticks_msec()
+	var now: int = clock_msec.call()
 	if now - _last_played_msec.get(id, -COOLDOWN_MSEC) < COOLDOWN_MSEC or count_voices(id) >= MAX_VOICES_PER_ID:
 		return
 	_last_played_msec[id] = now

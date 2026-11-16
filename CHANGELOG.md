@@ -7,7 +7,64 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ## Unreleased
 
+### Fixed
+
+- Chiến Dịch: a quick double tap on an enemy near the edge of the map now
+  strikes it; the map no longer slides away under the second tap.
+- Chiến Dịch: dragging the map with a finger that starts on one of your
+  leaders pans the map instead of moving that leader; only the selected
+  leader can be dragged to a cell.
+- Chiến Dịch: words that rise over a soldier at the edge of the screen
+  (an incident's name, a hit) are no longer cut off, and small ones such
+  as "Đã yên" are now big enough to read on a phone.
+- Sổ quân: two soldiers named for their marks never share a name any more
+  ("Bảy Cầu", then "Bảy Cung Cầu" or "Bảy Giáo Cầu số 17"), and the 17th
+  spearman's story no longer calls him the seventh.
+- Sổ quân: named soldiers beyond the two who lead fight in their troop's
+  squads instead of sitting out the battle.
+- Sổ quân: the roster is saved whole or not at all, so closing the game
+  mid-save cannot lose it; a roster this build cannot read is kept aside
+  instead of being overwritten, and fallen soldiers who left no mark are
+  forgotten after a while, so a long campaign's save stays small.
+
 ### Changed
+
+- Chiến Dịch: a leader's turn stays open until you press "Chờ". It can
+  move several times within its move points for the turn (the blue cells
+  show what it can still reach, its card shows the points left), attack
+  once before or after moving, also use its skill when charged, and
+  change orders as often as you like. Its soldiers keep their own move
+  points, so short hops gain them nothing, and they still strike once a
+  turn: when the leader attacks or when it is done. "Hoàn tác" now steps
+  back one move at a time, until you attack, cast, wait or change orders.
+  Tapping an enemy walks up with the points left. The turn ends by itself
+  only once every leader has waited or has nothing left to do. The enemy
+  still moves and acts once per leader, so its stated intent holds.
+- Chiến Dịch: the enemy defends the fort. Outnumbered, its leaders hold
+  the fort and the cells before it on good ground and wait; they strike
+  only where they are locally stronger, go for a leader that comes alone
+  or hurt, and use their skills. A player who never gives a command now
+  loses on time instead of winning half the time; a simple march-and-strike
+  player wins about two battles in three. What an enemy leader says it
+  will do now comes true about 85% of the time (57% before).
+
+- Chiến Dịch is quicker to play: tap an empty cell to move a selected
+  leader at once (Hoàn tác takes it back), drag a leader to see where its
+  squad would stand, and tap an enemy to see the forecast, then tap it
+  again to walk up and strike. The order row is always shown under a
+  selected leader and changes the order in one tap. The turn ends by itself
+  a moment after every leader is done ("Kết lượt" ends it early). A full
+  turn of three leaders that move and attack took 16 taps and now takes 9.
+- The Chiến Dịch map opens zoomed in on your leaders; drag to pan, pinch or
+  use the whole-map button to see everything. Attacks between leaders and
+  squads play on the map, faster, and the camera follows them; the close-up
+  is kept for a fallen leader. Cards explain keywords and passives in
+  words, and an enemy leader's card shows what it intends to do.
+- Soldiers fight with sense: they pick fights they can win, back off when
+  hurt, guard a wounded leader and stay near it. Soldiers that died to a
+  counter-attack fell from about 1 in 9 attacks to about 1 in 100.
+- The web version: a reload after an update loads the new build instead of
+  an old cached one.
 
 - Lighter on phones and weak PCs: the title and the preparation draw about
   30 frames a second instead of 60 while nothing moves (power saving, off
@@ -34,6 +91,29 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Added
 
+- Chiến Dịch: four one-line tips for a first battle, the first time you
+  select a leader, move one, change an order and see a soldier waver.
+  Each slides in with a sound, fades after a few seconds and is never
+  shown again.
+- Chiến Dịch, Biến cố và Sổ quân: soldiers now have their own minds. A
+  few carry a hidden incident; when its moment comes the soldier wavers (a
+  gold star or a red "!" over it, and the hint says to bring its leader
+  close), and at the end of the phase it fires unless things calmed down:
+  Cứu trợ (dashes to shield a falling leader), Đương đầu (holds alone,
+  tougher), Bộc phát (rages after a comrade falls), Bất bình (ignores
+  orders after being used as bait), Làm loạn (shoves and hurts its own
+  squad), Tẩu thoát (runs off the map) and Phản (goes over to a strong
+  enemy leader). Enemy soldiers can flee or come over to us too. Leaving
+  soldiers as bait makes bad incidents likelier next battle; rescuing hurt
+  soldiers makes good ones likelier. Each incident leaves a mark (Dấu).
+- Sổ quân: every soldier of ours is a person with a face who stays between
+  battles; the dead stay dead. "Điểm binh" fills the squads from the
+  roster, most marked first. After each battle (or a retreat) a summary
+  shows what became of each soldier and the marks it earned. A soldier
+  with three marks gets a name ("Bảy Cầu") and a short biography, and from
+  then on musters as a small leader of its own. A deserter or traitor with
+  two marks comes back as an enemy leader the next time the river is
+  crossed. "Sổ quân" opens the roster and each soldier's character sheet.
 - Chiến Dịch: a turn-based tactics battle from the title. "Điểm binh" shows
   the objective, the terrains and both sides' leaders, and lets soldiers move
   between our leaders while there is room (a drag on a leader or a soldier
@@ -232,6 +312,28 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Fixed
 
+- Chiến Dịch: your phase starts with one of your leaders on screen; the
+  camera no longer stays where the enemy's last move (or your drag) left
+  it, with none of your troops in sight.
+- Chiến Dịch: retreating while the enemy moves no longer lets its moves,
+  hits and sounds go on behind the after-battle summary.
+- Chiến Dịch menus on a phone: the muster, the roster, the character sheet
+  and the summary no longer use text smaller than the rest of the game; a
+  terrain's effects wrap instead of being cut, soldier chips show a short
+  troop name ("Giáo", "Cung") that fits, under the face rather than over it, and roster rows are tall enough
+  to tap.
+- Chiến Dịch on a phone: the bottom panel's text is bigger (no smaller
+  than the rest of the game) and is never cut with "…": a long card line
+  wraps, the wavering line always shows whole, and the hint fits the top
+  bar. While only a good incident stirs, the hint says to leave the
+  soldier be instead of calling its leader over.
+- A named soldier's biography no longer repeats a sentence when two of its
+  marks came alike from two battles: each line says which battle.
+- Chiến Dịch: archers and kite scouts no longer walk up next to an enemy
+  (where they cannot shoot and get cut down) to take a shot or to keep
+  their place beside an engaged leader.
+- Chiến Dịch: a wavering soldier now really hesitates, as its card says:
+  it no longer strikes in the phase it wavers.
 - The end screen's portraits cut the unit off at the panel's edge, so its
   legs no longer run behind the star pips.
 - Bosses and the sage no longer redraw 10 times a second while idle, and a

@@ -1,0 +1,18 @@
+[gd_resource type="TacticsIncidentData" format=3]
+
+[ext_resource type="TacticsPassiveData" path="res://Data/Tactics/Passives/mark_riot.tres" id="mark_passive"]
+
+[resource]
+id = &"incident.riot"
+name_key = "INCIDENT_RIOT"
+description_key = "INCIDENT_RIOT_DESC"
+base_weight = 20
+seeds_ai_side = false
+threshold_pct = 50
+threshold_count = 0
+radius_cells = 1
+calm_radius_cells = 2
+amount = 40
+secondary_amount = 0
+duration_rounds = 0
+mark_passive = ExtResource("mark_passive")

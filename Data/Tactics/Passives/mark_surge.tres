@@ -1,0 +1,9 @@
+[gd_resource type="TacticsPassiveData" format=3]
+
+[resource]
+id = &"tactics_passive.mark_surge"
+name_key = "TACTICS_PASSIVE_MARK_SURGE"
+description_key = "TACTICS_PASSIVE_MARK_SURGE_DESC"
+handler = &"passive.stat_bonus"
+stat = &"stat.attack_pct"
+amount = 20

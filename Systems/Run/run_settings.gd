@@ -1,8 +1,8 @@
 class_name RunSettings
 extends RefCounted
 ## Player settings kept between sessions in user://settings.json: the
-## preparation time (60 s, 90 s or unlimited, chosen on the title screen)
-## and whether sound is muted. A missing or broken file gives the defaults;
+## preparation time (60 s, 90 s or unlimited, chosen on the title screen),
+## whether sound is muted and which first-time tips were shown. A missing or broken file gives the defaults;
 ## each save rewrites the file with the other setting kept; a failed write
 ## is warned about once.
 
@@ -37,6 +37,25 @@ static func load_muted(file_path: String = "") -> bool:
 
 static func save_muted(muted: bool, file_path: String = "") -> void:
 	_write("muted", muted, file_path)
+
+
+## The ids of the first-time tips already shown (none without a setting).
+static func load_seen_tips(file_path: String = "") -> Array[String]:
+	var seen: Array[String] = []
+	var saved: Variant = _read(file_path).get("seen_tips", [])
+	if saved is Array:
+		for id: Variant in saved:
+			if id is String:
+				seen.append(id)
+	return seen
+
+
+## Adds a tip id to the shown ones.
+static func save_seen_tip(id: String, file_path: String = "") -> void:
+	var seen := load_seen_tips(file_path)
+	if not seen.has(id):
+		seen.append(id)
+		_write("seen_tips", seen, file_path)
 
 
 ## The choice after `seconds` in PREP_CHOICES, wrapping around.

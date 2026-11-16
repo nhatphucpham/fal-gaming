@@ -1,0 +1,9 @@
+[gd_resource type="TacticsPassiveData" format=3]
+
+[resource]
+id = &"tactics_passive.mark_discontent"
+name_key = "TACTICS_PASSIVE_MARK_DISCONTENT"
+description_key = "TACTICS_PASSIVE_MARK_DISCONTENT_DESC"
+handler = &"passive.stat_bonus"
+stat = &"stat.move_points"
+amount = 1

@@ -30,8 +30,10 @@
   (the unit figures' rig, mesh cache, animator, casts and stone, sharing
   `pose_test_kit.gd`). `voice_test.gd` tests the Voice autoload against a
   fake server on localhost. `tactics_test.gd`, `tactics_squad_test.gd`,
-  `tactics_fuzz_test.gd` and `tactics_query_test.gd` test the tactics
-  simulation and its queries (sharing `tactics_test_kit.gd`);
+  `tactics_fuzz_test.gd`, `tactics_query_test.gd` and
+  `tactics_incident_test.gd` test the tactics simulation, its queries and
+  its incidents (sharing `tactics_test_kit.gd`); `tactics_roster_test.gd`
+  tests the roster and the campaign;
   `tactics_screen_test.gd` (a battle won through the tactics screen) and
   `muster_test.gd` (the muster screen from the title) test its screens.
 - `Tools/` holds developer scripts that are not tests and not exported:
@@ -56,7 +58,8 @@
   exported and web builds).
 - `Data/Tactics/` holds the turn-based tactics mode's content (rules,
   terrains, keywords, zones, passives, skills, troops, leaders, maps and
-  scenarios), listed in its own `Data/Tactics/tactics_catalog.tres` (see
+  scenarios, incidents in `Incidents/` and leader traits in `Traits/`),
+  listed in its own `Data/Tactics/tactics_catalog.tres` (see
   [Tactics](systems/tactics.md)), and `Data/Tactics/Looks/`, how each leader
   skill looks in the close-up (see [Tactics screen](systems/tactics_screen.md)).
 - `Systems/` holds GDScript bridge services and data scripts, one folder per
@@ -81,7 +84,9 @@
   service (see [Voice](systems/voice.md));
   `Scenes/Dev/voice_demo.tscn` tries it by hand. `Systems/App/` has the
   `AppLifecycle` autoload (`AppLifecycleService`, see
-  [App lifecycle](systems/app_lifecycle.md)). `Scenes/Dev/` holds
+  [App lifecycle](systems/app_lifecycle.md)). `Systems/Tactics/` has the
+  tactics roster: `TacticsRoster`, `TacticsCampaign` and `TacticsBiography`
+  (see [Tactics roster](systems/tactics_roster.md)). `Scenes/Dev/` holds
   developer pages only and is not exported.
 - `Scenes/Board/` holds the reusable battlefield: `BoardView`, `UnitView`,
   `UnitPainter` (the bone-rig figures: `UnitPose`, `RigSolver`, the
@@ -128,9 +133,10 @@ slides the shop and buttons away for the side health bars and the battle
 plays on the board; the result banner shows what was won or lost, "Tiếp tục"
 opens the reward cards, and a reward starts the next preparation. When the
 run is won or lost the end screen shows the result and returns to the title.
-"Chiến Dịch" opens the tactics muster screen ("Điểm binh", with "Về" back to
-the title); "Xuất quân" opens the tactics battle, whose result banner or a
-double "Rút" returns to the title.
+"Chiến Dịch" loads the roster (Sổ quân) and opens the tactics muster screen
+("Điểm binh", with "Về" back to the title); "Xuất quân" opens the tactics
+battle. Its end, or a double "Rút", opens the after-battle summary, which
+writes the roster; "Tiếp tục" goes back to the muster.
 Every switch between screens is a slide.
 
 When a Kỳ Ngộ fires after a battle, its cutscene plays before the reward
@@ -220,15 +226,21 @@ preview; `Battle.set_synergy()` applies the same evaluation to both sides at
 auto-battle: leaders with squads of soldiers on a terrain grid, alternating
 side phases, Dijkstra movement with zones of control, four-hit engagements
 with a counter, keywords, orders, passives, charged leader skills, zones and
-an AI that declares its intent. The simulation (`TacticsSim`, namespace
+an AI that declares its intent, and incidents (Biến cố: hidden seeds that
+waver and fire, karma and marks). The simulation (`TacticsSim`, namespace
 `tactics`) is plain C++17 with integer math and registries of keywords,
 zones, passives, charge mechanisms, skill targets and effects keyed by ids
 in `Data/Tactics/`; it reuses the battle system's damage formula. Its
 resources (`TacticsCatalog`, `TacticsMapData`, `TacticsLeaderData`, ...) and
 the `TacticsBattle` node are the bridge. `Scenes/Tactics/` is its
 presentation: the muster and battle screens, a map of flat tokens that
-redraws only on change, the event playback and the close-up. See
-[Tactics](systems/tactics.md) and [Tactics screen](systems/tactics_screen.md).
+redraws only on change, the event playback and the close-up, the summary
+and the roster views. `Systems/Tactics/` keeps our soldiers as people
+between battles (`TacticsRoster`, a versioned JSON save), builds each
+muster and battle from them (`TacticsCampaign`) and writes their names and
+biographies (`TacticsBiography`). See [Tactics](systems/tactics.md),
+[Tactics screen](systems/tactics_screen.md) and
+[Tactics roster](systems/tactics_roster.md).
 
 ## Layers and documentation
 

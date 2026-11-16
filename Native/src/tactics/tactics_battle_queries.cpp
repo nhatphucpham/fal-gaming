@@ -103,8 +103,23 @@ Dictionary TacticsBattle::get_unit_state(int64_t p_unit) const {
 	state["cell"] = to_vector2i(unit.cell);
 	state["keywords"] = keyword_ids(sim, index);
 	state["has_moved"] = unit.has_moved;
-	state["has_acted"] = unit.has_acted;
-	state["has_squad_acted"] = unit.has_squad_acted;
+	state["has_attacked"] = unit.has_attacked;
+	state["has_cast"] = unit.has_cast;
+	state["has_waited"] = unit.has_waited;
+	state["has_squad_struck"] = unit.has_squad_struck;
+	state["move_points_left"] = sim.get_move_budget(index);
+	// Incidents: only what the player may see (a wavering soldier shows its
+	// incident; a dormant seed stays hidden).
+	const bool is_wavering = unit.stage == tactics::IncidentStage::WAVERING;
+	state["start_side"] = unit.start_side;
+	state["record_id"] = unit.record_id;
+	state["has_fled"] = unit.has_fled;
+	state["wavering"] = is_wavering ? StringName(to_godot_string(sim.get_incident_rules().incidents[unit.seed].id)) : StringName();
+	state["is_wavering_good"] = is_wavering && sim.get_incident_rules().incidents[unit.seed].handler->is_good;
+	state["marks"] = static_cast<int>(unit.marks.size());
+	state["is_guarding"] = unit.guard_leader != tactics::NO_UNIT && sim.get_turn() < unit.guard_end_turn;
+	state["holds_ground"] = sim.is_holding_ground(index);
+	state["acts_free"] = sim.is_acting_free(index);
 	if (is_leader) {
 		state["order"] = StringName(tactics::get_order_handler(unit.order).id);
 		state["heading"] = to_vector2i(unit.heading);
@@ -153,7 +168,7 @@ Array TacticsBattle::get_path_to(int64_t p_unit, const Vector2i &p_cell) const {
 	if (!tactics::can_stop_at(sim, unit, to_cell(p_cell))) {
 		return Array();
 	}
-	const tactics::PathField field = tactics::find_paths(sim, unit, sim.get_stats(unit).move_points, tactics::ZocMode::APPLY);
+	const tactics::PathField field = tactics::find_move_paths(sim, unit);
 	return tactics_cells_to_array(tactics::get_path(sim, field, to_cell(p_cell)));
 }
 
@@ -165,15 +180,15 @@ Array TacticsBattle::get_formation_slots(int64_t p_leader) const {
 	return tactics_cells_to_array(tactics::get_formation_slots(sim, static_cast<int>(p_leader)));
 }
 
-Dictionary TacticsBattle::forecast_engagement(int64_t p_attacker, int64_t p_defender) const {
+namespace {
+
+// The forecast dictionary of p_attacker engaging p_defender on p_sim.
+Dictionary make_forecast(const tactics::TacticsSim &p_sim, int p_attacker, int p_defender) {
 	Dictionary forecast;
-	if (!check_unit(p_attacker, "forecast_engagement") || !check_unit(p_defender, "forecast_engagement")) {
-		return forecast;
-	}
-	const tactics::EngagementResult result = sim.forecast_engagement(static_cast<int>(p_attacker), static_cast<int>(p_defender));
+	const tactics::EngagementResult result = p_sim.forecast_engagement(p_attacker, p_defender);
 	forecast["is_valid"] = result.is_valid;
-	forecast["attacker"] = static_cast<int>(p_attacker);
-	forecast["defender"] = static_cast<int>(p_defender);
+	forecast["attacker"] = p_attacker;
+	forecast["defender"] = p_defender;
 	if (!result.is_valid) {
 		return forecast;
 	}
@@ -188,8 +203,69 @@ Dictionary TacticsBattle::forecast_engagement(int64_t p_attacker, int64_t p_defe
 	forecast["defender_hp_after"] = result.defender_hp_after;
 	forecast["is_attacker_dead"] = result.is_attacker_dead;
 	forecast["is_defender_dead"] = result.is_defender_dead;
-	forecast["attacker_modifiers"] = ids_to_array(tactics::collect_hit_sources(sim, static_cast<int>(p_attacker), static_cast<int>(p_defender), false));
-	forecast["defender_modifiers"] = result.can_counter ? ids_to_array(tactics::collect_hit_sources(sim, static_cast<int>(p_defender), static_cast<int>(p_attacker), true)) : Array();
+	forecast["attacker_modifiers"] = ids_to_array(tactics::collect_hit_sources(p_sim, p_attacker, p_defender, false));
+	forecast["defender_modifiers"] = result.can_counter ? ids_to_array(tactics::collect_hit_sources(p_sim, p_defender, p_attacker, true)) : Array();
+	return forecast;
+}
+
+} // namespace
+
+Dictionary TacticsBattle::forecast_engagement(int64_t p_attacker, int64_t p_defender) const {
+	if (!check_unit(p_attacker, "forecast_engagement") || !check_unit(p_defender, "forecast_engagement")) {
+		return Dictionary();
+	}
+	return make_forecast(sim, static_cast<int>(p_attacker), static_cast<int>(p_defender));
+}
+
+bool TacticsBattle::can_undo_move(int64_t p_unit) const {
+	return check_unit(p_unit, "can_undo_move") && sim.can_undo_move(static_cast<int>(p_unit));
+}
+
+Vector2i TacticsBattle::get_strike_cell(int64_t p_unit, int64_t p_target) const {
+	if (!check_unit(p_unit, "get_strike_cell") || !check_unit(p_target, "get_strike_cell")) {
+		return Vector2i(-1, -1);
+	}
+	return to_vector2i(sim.get_strike_cell(static_cast<int>(p_unit), static_cast<int>(p_target)));
+}
+
+Array TacticsBattle::get_strike_targets(int64_t p_unit) const {
+	if (!check_unit(p_unit, "get_strike_targets")) {
+		return Array();
+	}
+	return units_to_array(sim.get_strike_targets(static_cast<int>(p_unit)));
+}
+
+// Like forecast_engagement(), a move that cannot happen is not an error:
+// the screen asks as the player touches cells.
+Dictionary TacticsBattle::forecast_move_attack(int64_t p_unit, const Vector2i &p_cell, int64_t p_target) const {
+	if (!check_unit(p_unit, "forecast_move_attack") || !check_unit(p_target, "forecast_move_attack")) {
+		return Dictionary();
+	}
+	const int unit = static_cast<int>(p_unit);
+	const int target = static_cast<int>(p_target);
+	tactics::TacticsSim copy;
+	std::string error;
+	if (!sim.can_leader_attack(unit) || !sim.simulate_move(unit, to_cell(p_cell), &copy, &error)) {
+		Dictionary refused;
+		refused["is_valid"] = false;
+		refused["attacker"] = unit;
+		refused["defender"] = target;
+		refused["target_gone"] = false;
+		return refused;
+	}
+	Dictionary forecast = make_forecast(copy, unit, target);
+	forecast["target_gone"] = !copy.get_units()[target].is_alive;
+	Array squad;
+	for (int soldier : copy.get_units()[unit].soldiers) {
+		if (copy.get_units()[soldier].is_alive) {
+			Dictionary placement;
+			placement["unit"] = soldier;
+			placement["cell"] = to_vector2i(copy.get_units()[soldier].cell);
+			squad.push_back(placement);
+		}
+	}
+	forecast["squad"] = squad;
+	forecast["cell"] = p_cell;
 	return forecast;
 }
 
@@ -246,6 +322,26 @@ bool TacticsBattle::can_move(int64_t p_unit) const {
 
 bool TacticsBattle::can_act(int64_t p_unit) const {
 	return check_unit(p_unit, "can_act") && sim.can_leader_act(static_cast<int>(p_unit));
+}
+
+bool TacticsBattle::can_attack(int64_t p_unit) const {
+	return check_unit(p_unit, "can_attack") && sim.can_leader_attack(static_cast<int>(p_unit));
+}
+
+bool TacticsBattle::can_cast(int64_t p_unit) const {
+	return check_unit(p_unit, "can_cast") && sim.can_leader_cast(static_cast<int>(p_unit));
+}
+
+bool TacticsBattle::is_closed(int64_t p_unit) const {
+	return !check_unit(p_unit, "is_closed") || sim.is_leader_closed(static_cast<int>(p_unit));
+}
+
+int TacticsBattle::get_move_points_left(int64_t p_unit) const {
+	return check_unit(p_unit, "get_move_points_left") ? sim.get_move_budget(static_cast<int>(p_unit)) : 0;
+}
+
+bool TacticsBattle::has_attacked(int64_t p_unit) const {
+	return check_unit(p_unit, "has_attacked") && sim.get_units()[p_unit].has_attacked;
 }
 
 Array TacticsBattle::get_attack_targets(int64_t p_unit) const {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "tactics_incident_data.h"
 #include "tactics_map_data.h"
 #include "tactics_rules_data.h"
 #include "tactics_scenario_data.h"
@@ -64,6 +65,13 @@ public:
 	int add_leader(int64_t p_side, const Ref<TacticsLeaderData> &p_leader, const Vector2i &p_cell);
 	// Same with an explicit squad (an Array of TacticsTroopData, may be empty).
 	int add_leader_with_squad(int64_t p_side, const Ref<TacticsLeaderData> &p_leader, const Vector2i &p_cell, const Array &p_squad);
+	// Incidents (tactics_battle_incidents.cpp): after load_scenario() or
+	// setup() and the leaders, before start(). Without them a battle has no
+	// incidents.
+	bool set_incident_rules(const Ref<TacticsIncidentRulesData> &p_rules, int64_t p_seed);
+	void set_karma(int64_t p_side, int64_t p_bait, int64_t p_rescue);
+	bool set_unit_record(int64_t p_unit, int64_t p_record_id, int64_t p_good_marks, int64_t p_bad_marks);
+	bool set_incident_seed(int64_t p_unit, const StringName &p_incident);
 	Array start();
 
 	// Commands of the active side: each returns its events (empty with an
@@ -74,6 +82,10 @@ public:
 	Array wait(int64_t p_unit);
 	Array set_order(int64_t p_unit, const StringName &p_order);
 	Array end_phase();
+	// Takes back the leader's last move (TacticsSim::undo_move): true when
+	// the battle is back to the state before it. Sends no event; the screen
+	// reads the units again.
+	bool undo_move(int64_t p_unit);
 
 	// Queries (tactics_battle_queries.cpp); none changes the battle.
 	bool is_started() const { return sim.is_started(); }
@@ -98,11 +110,36 @@ public:
 	Array preview_squad(int64_t p_leader, const Vector2i &p_cell) const;
 	Dictionary get_skill_charge(int64_t p_leader) const;
 	Array get_enemy_intents() const;
+	// A leader's turn (Docs/systems/tactics.md, A leader's turn): open
+	// (can_act: wait and orders), may move with the points left, may still
+	// attack, may still cast; closed when nothing is left to do.
 	bool can_move(int64_t p_unit) const;
 	bool can_act(int64_t p_unit) const;
+	bool can_attack(int64_t p_unit) const;
+	bool can_cast(int64_t p_unit) const;
+	bool is_closed(int64_t p_unit) const;
+	// Move points the unit may spend now (its full points out of its phase).
+	int get_move_points_left(int64_t p_unit) const;
+	bool has_attacked(int64_t p_unit) const;
 	Array get_attack_targets(int64_t p_unit) const;
 	Array get_skill_cells(int64_t p_unit) const;
 	Dictionary preview_skill(int64_t p_unit, const Vector2i &p_cell) const;
+	bool can_undo_move(int64_t p_unit) const;
+	// The cell the leader would strike p_target from this phase, (-1, -1)
+	// when it cannot reach it; enemies it could strike this phase.
+	Vector2i get_strike_cell(int64_t p_unit, int64_t p_target) const;
+	Array get_strike_targets(int64_t p_unit) const;
+	// forecast_engagement() after the leader moved to p_cell and its squad
+	// stepped: `target_gone` when p_target died on the way (is_valid false
+	// then), `squad` the soldiers' new cells; is_valid false too when the
+	// leader may not attack or move there.
+	Dictionary forecast_move_attack(int64_t p_unit, const Vector2i &p_cell, int64_t p_target) const;
+	// Tests and tools only: the hidden seeds; the screen never shows them.
+	Array get_incident_seeds() const;
+	Dictionary get_karma(int64_t p_side) const;
+	// Survivors, deaths, flights, defections and marks so far, for the
+	// roster after the battle.
+	Dictionary get_battle_report() const;
 
 	void set_log_enabled(bool p_enabled) { log_enabled = p_enabled; }
 	bool is_log_enabled() const { return log_enabled; }

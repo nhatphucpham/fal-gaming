@@ -41,6 +41,10 @@ inline Cell operator+(const Cell &p_a, const Cell &p_b) {
 	return { p_a.col + p_b.col, p_a.row + p_b.row };
 }
 
+inline Cell operator-(const Cell &p_a, const Cell &p_b) {
+	return { p_a.col - p_b.col, p_a.row - p_b.row };
+}
+
 inline int abs_int(int p_value) {
 	return p_value < 0 ? -p_value : p_value;
 }
@@ -77,9 +81,36 @@ struct Rules {
 	int help_radius_cells = 4;
 	int max_leaders_per_side = 5;
 	int max_rounds = 30;
+	// Soldier brains (Docs/systems/tactics.md, Soldiers): how far from its
+	// leader a soldier may step out to strike, per formation order.
+	int leash_follow_cells = 2;
+	int leash_vanguard_cells = 4;
+	int leash_flank_cells = 4;
+	// A soldier at or under this % of its hp falls back.
+	int retreat_hp_pct = 35;
+	// A leader at or under this % of its hp with an enemy in reach gets a
+	// shield.
+	int shield_leader_hp_pct = 50;
+	// A `free` soldier does not end its step where this many enemies can
+	// reach it (more than allies next to it) unless it fights there.
+	int free_threat_limit = 2;
+	// Weight of a soldier's role (ranged rear, sturdy front) against the
+	// walking distance (10 per cell) when slots are shared out.
+	int role_slot_weight = 12;
+	// The AI of the side that defends an objective (Docs/systems/tactics.md,
+	// AI): it strikes where its hp within this radius of the strike is at
+	// least ai_attack_ratio_pct % of the enemy's hp around the target,
+	// leaves its posts once its whole side's hp is at least
+	// ai_advance_ratio_pct % of the enemy's, and holds within
+	// ai_hold_radius_cells of its post until then.
+	int ai_strength_radius_cells = 4;
+	int ai_attack_ratio_pct = 100;
+	int ai_advance_ratio_pct = 120;
+	int ai_hold_radius_cells = 1;
 };
 
 struct KeywordHandler;
+struct IncidentHandler;
 struct ZoneHandler;
 struct PassiveHandler;
 struct ChargeHandler;
@@ -162,6 +193,48 @@ struct SkillDef {
 	std::vector<SkillEffectDef> effects;
 };
 
+// A leader trait (`trait.strict`): percent changes to the odds of the
+// incidents seeded in its soldiers, one per incident id.
+struct TraitDef {
+	std::string id;
+	std::vector<std::string> incident_ids;
+	std::vector<int> weight_pcts;
+};
+
+// One incident (Biến cố) a seed can grow into; the handler gives the rules
+// and polarity, these numbers tune it (Docs/systems/tactics.md, Incidents).
+struct IncidentDef {
+	std::string id;
+	const IncidentHandler *handler = nullptr;
+	int base_weight = 0;
+	// The AI side's soldiers may carry it.
+	bool seeds_ai_side = false;
+	int threshold_pct = 0;
+	int threshold_count = 0;
+	int radius_cells = 0;
+	// A living leader this close at the end of the phase calms it; 0 never.
+	int calm_radius_cells = 0;
+	int amount = 0;
+	int secondary_amount = 0;
+	int duration_rounds = 0;
+};
+
+// Seeds, odds and karma; `enabled` is false for a battle without incidents.
+struct IncidentRules {
+	bool enabled = false;
+	int min_seeds = 1;
+	int max_seeds = 3;
+	int ai_min_seeds = 0;
+	int ai_max_seeds = 2;
+	int marked_soldier_weight = 3;
+	int mark_polarity_weight = 10;
+	int karma_weight_per_point = 5;
+	int karma_weight_cap = 60;
+	int bait_distance_cells = 4;
+	int rescue_hp_pct = 50;
+	std::vector<IncidentDef> incidents;
+};
+
 // One leader or soldier type, stats already derived from its base class.
 struct UnitDef {
 	std::string id;
@@ -183,6 +256,7 @@ struct UnitDef {
 	std::vector<PassiveDef> passives;
 	bool has_skill = false;
 	SkillDef skill;
+	std::vector<TraitDef> traits;
 };
 
 struct MapDef {
@@ -198,6 +272,8 @@ struct MapDef {
 	int objective_side = SIDE_A;
 	// Starting headings, one of DIRECTIONS.
 	Cell facing[SIDE_COUNT] = { { 0, -1 }, { 0, 1 } };
+	// Posts the side that defends the objective holds while it is weaker.
+	std::vector<Cell> guard_cells;
 };
 
 } // namespace tactics

@@ -89,7 +89,8 @@ void trail_zone_moved(TacticsSim &p_sim, int p_leader, const PassiveDef &p_passi
 // axis between them (rows on a tie), stopping before anything in the way.
 void pull_strike_after_attack(TacticsSim &p_sim, int p_leader, int p_target, const PassiveDef &p_passive, int p_cause) {
 	const UnitState &target = p_sim.get_units()[p_target];
-	if (!target.is_alive) {
+	// A soldier standing its ground (incident.stand) cannot be pulled.
+	if (!target.is_alive || p_sim.is_holding_ground(p_target)) {
 		return;
 	}
 	const Cell leader_cell = p_sim.get_units()[p_leader].cell;

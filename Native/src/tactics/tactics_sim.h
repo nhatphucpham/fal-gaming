@@ -1,8 +1,10 @@
 #pragma once
 
+#include "tactics_incidents.h"
 #include "tactics_state.h"
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -53,6 +55,16 @@ public:
 	int add_leader(int p_side, const UnitDef &p_leader, const Cell &p_cell, const std::vector<UnitDef> &p_squad, std::string *r_error);
 	void set_side_ai(int p_side, bool p_is_ai) { side_is_ai[p_side] = p_is_ai; }
 	bool is_side_ai(int p_side) const { return side_is_ai[p_side]; }
+	// Incidents (tactics_sim_incidents.cpp): all of these are setup and
+	// refused once started. Rules with `enabled` false turn incidents off.
+	bool set_incident_rules(const IncidentRules &p_rules, uint64_t p_seed, std::string *r_error);
+	// Karma carried in from earlier battles; it shifts the seeds' odds.
+	void set_carried_karma(int p_side, int p_bait, int p_rescue);
+	// The roster person behind a soldier and its marks from earlier battles.
+	bool set_unit_record(int p_unit, int p_record_id, int p_good_marks, int p_bad_marks, std::string *r_error);
+	// Forces a seed (tests, scripted battles): when any is set, no seed is
+	// drawn at random.
+	bool set_forced_seed(int p_unit, int p_incident, std::string *r_error);
 	// Begins round 1 with side A's phase (AI phases run on their own).
 	bool start(std::string *r_error);
 
@@ -64,6 +76,14 @@ public:
 	bool set_order(int p_unit, int p_order, std::string *r_error);
 	// Ends the phase; AI phases that follow run before it returns.
 	bool end_phase(std::string *r_error);
+	// Takes back p_unit's last move in a human phase, one step at a time,
+	// while its moves since its last other command only moved the leader
+	// and its squad (and changed its charge): the battle returns to the
+	// state before that move, same hash. Any other command, or a move that
+	// caused anything else (a zone, karma, the objective), ends the steps
+	// that can be taken back (Docs/systems/tactics.md, Undo).
+	bool can_undo_move(int p_unit) const;
+	bool undo_move(int p_unit, std::string *r_error);
 
 	// Events appended since the last take_events().
 	std::vector<Event> take_events();
@@ -82,6 +102,16 @@ public:
 	const std::vector<ZoneState> &get_zones() const { return zones; }
 	const std::vector<BuffState> &get_buffs() const { return buffs; }
 	const std::vector<Intent> &get_intents() const { return intents; }
+	const IncidentRules &get_incident_rules() const { return incident_rules; }
+	// The incident index for an id, or NO_INDEX.
+	int find_incident(const std::string &p_id) const;
+	const std::vector<std::pair<int, int>> &get_forced_seeds() const { return forced_seeds; }
+	int get_carried_karma(int p_side, KarmaKind p_kind) const { return carried_karma[p_side][static_cast<int>(p_kind)]; }
+	// Karma this battle has added so far.
+	int get_battle_karma(int p_side, KarmaKind p_kind) const { return battle_karma[p_side][static_cast<int>(p_kind)]; }
+	// Incident effects that change how a soldier moves.
+	bool is_holding_ground(int p_unit) const { return turn < units[p_unit].hold_end_turn; }
+	bool is_acting_free(int p_unit) const { return turn < units[p_unit].free_end_turn; }
 	bool is_on_map(const Cell &p_cell) const;
 	int get_cell_index(const Cell &p_cell) const { return p_cell.row * map.width + p_cell.col; }
 	Cell get_cell_at(int p_index) const { return { p_index % map.width, p_index / map.width }; }
@@ -99,10 +129,34 @@ public:
 	// pairs of (soldier, cell). Empty with r_error when the move is refused.
 	std::vector<std::pair<int, Cell>> preview_squad(int p_leader, const Cell &p_cell, std::string *r_error) const;
 	uint64_t get_state_hash() const;
-	// The leader of the active side may still move (it has neither moved
-	// nor acted) or act this phase; false for soldiers and dead units.
-	bool can_leader_move(int p_unit) const;
+	// The cell p_unit would strike p_target from this phase: where it stands
+	// when it can no longer move, else the safest cell its points left reach
+	// in range (tactics_brain.h, pick_safest_strike_cell), never a move that
+	// takes the objective (that move alone wins); NO_CELL when none.
+	Cell get_strike_cell(int p_unit, int p_target) const;
+	// Enemies p_unit could attack this phase, moving first with the points
+	// left if it still may (the same cells as get_strike_cell).
+	std::vector<int> get_strike_targets(int p_unit) const;
+	// A copy of the battle after p_unit moved to p_cell (its squad steps and
+	// strikes as move_leader() makes it), or its own cell unchanged. False
+	// with r_error when the move would be refused.
+	bool simulate_move(int p_unit, const Cell &p_cell, TacticsSim *r_copy, std::string *r_error) const;
+	// A leader's turn (Docs/systems/tactics.md, A leader's turn). Its turn
+	// is open while it is alive, on the active side and has not waited:
+	// it may then wait or change its order. It may move while open with
+	// move points that reach a cell, attack once and cast once.
 	bool can_leader_act(int p_unit) const;
+	bool can_leader_move(int p_unit) const;
+	bool can_leader_attack(int p_unit) const;
+	bool can_leader_cast(int p_unit) const;
+	// Nothing left to do this phase: not open, or no cell to move to, no
+	// strike (moving first if it may) and no skill cell. True for units
+	// that are not a leader of the active side.
+	bool is_leader_closed(int p_unit) const;
+	// Move points p_unit may still spend now: what is left this phase for
+	// a unit of the active side (0 while held by a zone of control), its
+	// full move points otherwise (its next phase, for reach and intents).
+	int get_move_budget(int p_unit) const;
 	// Units attack() would accept for p_unit now, by index.
 	std::vector<int> get_attack_targets(int p_unit) const;
 	// Cells use_skill() would accept for p_unit now, row-major.
@@ -118,7 +172,8 @@ public:
 	UnitState &edit_unit(int p_unit) { return units[p_unit]; }
 	int emit(Event &r_event);
 	// Lowers hp, emits damage_dealt and, at 0, unit_died; returns the damage
-	// event id. Nothing happens to a unit that is already dead.
+	// event id. Nothing happens to a unit that is already dead. A soldier
+	// guarding the target (incident.rescue) takes the hit instead.
 	int deal_damage(int p_source, int p_target, int p_amount, const std::string &p_content_id, bool p_is_counter, int p_cause);
 	// Moves a unit and emits unit_moved; p_path includes both ends. Returns
 	// the event id, 0 when nothing moved. Never takes the objective: only a
@@ -130,8 +185,24 @@ public:
 	void add_buff(BuffState p_buff, int p_duration_rounds, int p_cause);
 	void change_skill_charge(int p_leader, int p_delta, bool p_resets, int p_cause);
 	void emit_passive_triggered(int p_unit, const std::string &p_passive_id, int p_cause);
-	// Runs the soldiers' moves only (orders.h); the preview uses it alone.
+	// Puts a unit on a free cell with no event and no other effect, for the
+	// what-if checks of tactics_brain.cpp; only ever on a copy.
+	void place_for_query(int p_unit, const Cell &p_cell, int p_straight_cells);
+	// Runs the soldiers' moves only (orders.h): after each leader move, and
+	// in the preview.
 	void run_squad_moves(int p_leader, int p_cause);
+	// Moves p_unit along p_path (a leader's move or a soldier's squad walk)
+	// and spends its move points, p_cost: its straight run goes on across
+	// walks, and it is held when it stops in an enemy's zone of control.
+	int walk_unit(int p_unit, const std::vector<Cell> &p_path, int p_cost, const std::string &p_kind, int p_cause);
+	// Incident helpers (tactics_incidents.cpp).
+	IncidentRandom &edit_random() { return random; }
+	void add_karma(int p_side, KarmaKind p_kind, int p_cause);
+	// The soldier leaves the battle by p_edge: unit_fled, off the map.
+	void remove_fled_unit(int p_unit, const Cell &p_edge, int p_cause);
+	// The soldier joins p_new_leader's squad on the other side; false (and
+	// no change) when that squad has no room.
+	bool defect_unit(int p_unit, int p_new_leader, int p_cause);
 
 private:
 	Rules rules;
@@ -153,18 +224,32 @@ private:
 	int turn = 0;
 	int active_side = SIDE_A;
 	int next_event_id = 1;
+	IncidentRules incident_rules;
+	uint64_t incident_seed = 0;
+	IncidentRandom random;
+	std::vector<std::pair<int, int>> forced_seeds;
+	int carried_karma[SIDE_COUNT][2] = { { 0, 0 }, { 0, 0 } };
+	// The battle before each move that can still be taken back, the last
+	// on top, and whose moves they were. Each copy holds the stack below it.
+	std::vector<std::shared_ptr<const TacticsSim>> undo_states;
+	int undo_leader = NO_UNIT;
+	int battle_karma[SIDE_COUNT][2] = { { 0, 0 }, { 0, 0 } };
 
 	bool check_new_leader(int p_side, const UnitDef &p_leader, const std::vector<UnitDef> &p_squad, std::string *r_error) const;
 	bool check_command(int p_unit, std::string *r_error) const;
 	bool check_leader_can_act(int p_unit, std::string *r_error) const;
+	bool check_leader_can_attack(int p_unit, std::string *r_error) const;
+	bool check_leader_can_cast(int p_unit, std::string *r_error) const;
 	bool check_leader_move(int p_unit, const Cell &p_cell, std::string *r_error) const;
+	bool takes_objective(int p_unit, const Cell &p_cell) const;
 	void place_soldiers(int p_leader);
 	// Returns the leader's unit_moved event id.
 	int apply_leader_move(int p_unit, const Cell &p_cell, int p_cause);
-	void update_heading(int p_unit, const Cell &p_from, const Cell &p_to);
-	void finish_leader_action(int p_unit, int p_cause);
-	void run_squad_step(int p_leader, int p_cause);
+	void update_heading(int p_unit);
+	// The squad steps and, if it has not yet this phase, strikes.
+	void run_squad_strike(int p_leader, int p_cause);
 	void begin_phase(int p_side);
+	void clear_undo();
 	void close_phase();
 	void run_ai_phase();
 	// Runs AI phases until a player phase begins or the battle ends.
@@ -181,6 +266,7 @@ private:
 	void declare_intents(int p_cause);
 	void hash_setup(uint64_t *r_hash) const;
 	void hash_unit(uint64_t *r_hash, const UnitState &p_unit) const;
+	void hash_incidents(uint64_t *r_hash) const;
 };
 
 } // namespace tactics

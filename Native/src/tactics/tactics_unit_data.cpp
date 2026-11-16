@@ -70,6 +70,15 @@ bool TacticsLeaderData::to_unit_def(tactics::UnitDef *r_def, std::string *r_erro
 		}
 		r_def->passives.push_back(def);
 	}
+	r_def->traits.clear();
+	for (int64_t index = 0; index < traits.size(); index++) {
+		const Ref<TacticsTraitData> trait = traits[index];
+		if (trait.is_null()) {
+			*r_error = r_def->id + ": empty trait entry";
+			return false;
+		}
+		r_def->traits.push_back(trait->to_trait_def());
+	}
 	r_def->has_skill = skill.is_valid();
 	if (r_def->has_skill && !skill->to_skill_def(&r_def->skill, r_error)) {
 		*r_error = r_def->id + ": " + *r_error;
@@ -125,10 +134,12 @@ void TacticsLeaderData::_bind_methods() {
 	BATTLE_BIND_ACCESSORS(TacticsLeaderData, skill);
 	BATTLE_BIND_ACCESSORS(TacticsLeaderData, default_order);
 	BATTLE_BIND_ACCESSORS(TacticsLeaderData, squad);
+	BATTLE_BIND_ACCESSORS(TacticsLeaderData, traits);
 
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "lead_capacity", PROPERTY_HINT_RANGE, "0,8,1"), "set_lead_capacity", "get_lead_capacity");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "passives", PROPERTY_HINT_ARRAY_TYPE, "TacticsPassiveData"), "set_passives", "get_passives");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "skill", PROPERTY_HINT_RESOURCE_TYPE, "TacticsSkillData"), "set_skill", "get_skill");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "default_order"), "set_default_order", "get_default_order");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "squad", PROPERTY_HINT_ARRAY_TYPE, "TacticsTroopData"), "set_squad", "get_squad");
+	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "traits", PROPERTY_HINT_ARRAY_TYPE, "TacticsTraitData"), "set_traits", "get_traits");
 }

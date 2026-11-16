@@ -1,0 +1,18 @@
+[gd_resource type="TacticsIncidentData" format=3]
+
+[ext_resource type="TacticsPassiveData" path="res://Data/Tactics/Passives/mark_betray.tres" id="mark_passive"]
+
+[resource]
+id = &"incident.betray"
+name_key = "INCIDENT_BETRAY"
+description_key = "INCIDENT_BETRAY_DESC"
+base_weight = 15
+seeds_ai_side = true
+threshold_pct = 35
+threshold_count = 0
+radius_cells = 3
+calm_radius_cells = 2
+amount = 0
+secondary_amount = 60
+duration_rounds = 0
+mark_passive = ExtResource("mark_passive")

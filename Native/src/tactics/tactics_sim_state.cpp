@@ -178,27 +178,30 @@ std::vector<Event> TacticsSim::take_events() {
 }
 
 int TacticsSim::deal_damage(int p_source, int p_target, int p_amount, const std::string &p_content_id, bool p_is_counter, int p_cause) {
-	UnitState &target = units[p_target];
-	if (finished || !target.is_alive) {
+	if (finished || !units[p_target].is_alive) {
 		return 0;
 	}
+	// A rescuing soldier next to the leader takes the hit as it was aimed.
+	const int hit = find_hit_guard(*this, p_target);
+	UnitState &target = units[hit];
 	const int lost = p_amount < target.hp ? p_amount : target.hp;
 	target.hp -= lost;
 	Event event;
 	event.type = EventType::DAMAGE_DEALT;
 	event.unit = p_source;
-	event.target = p_target;
+	event.target = hit;
 	event.amount = p_amount;
 	event.hp_after = target.hp;
 	event.is_counter = p_is_counter;
 	event.content_id = p_content_id;
+	event.guarded = hit != p_target ? p_target : NO_UNIT;
 	event.cause = p_cause;
 	const int damage_id = emit(event);
-	if (is_leader(p_target) && lost > 0) {
-		trigger_skill_charge(*this, p_target, ChargeTrigger::DAMAGE_TAKEN, lost, damage_id);
+	if (is_leader(hit) && lost > 0) {
+		trigger_skill_charge(*this, hit, ChargeTrigger::DAMAGE_TAKEN, lost, damage_id);
 	}
 	if (target.hp == 0) {
-		handle_death(p_target, p_source, damage_id);
+		handle_death(hit, p_source, damage_id);
 	}
 	return damage_id;
 }
@@ -216,9 +219,10 @@ void TacticsSim::handle_death(int p_unit, int p_killer, int p_cause) {
 	const int death_id = emit(event);
 	buffs.erase(std::remove_if(buffs.begin(), buffs.end(), [&](const BuffState &p_buff) { return p_buff.unit == p_unit; }), buffs.end());
 	intents.erase(std::remove_if(intents.begin(), intents.end(), [&](const Intent &p_intent) { return p_intent.leader == p_unit; }), intents.end());
-	if (!is_leader(p_unit) && units[unit.leader].is_alive) {
+	if (!is_leader(p_unit) && unit.leader != NO_UNIT && units[unit.leader].is_alive) {
 		trigger_skill_charge(*this, unit.leader, ChargeTrigger::SOLDIER_LOST, 1, death_id);
 	}
+	note_unit_died(*this, p_unit, death_id);
 	if (p_killer != NO_UNIT && is_leader(p_killer) && units[p_killer].is_alive && units[p_killer].side != unit.side) {
 		const std::vector<PassiveDef> passives = units[p_killer].def.passives;
 		for (const PassiveDef &passive : passives) {
@@ -228,6 +232,16 @@ void TacticsSim::handle_death(int p_unit, int p_killer, int p_cause) {
 		}
 	}
 	check_rout(death_id);
+}
+
+void TacticsSim::place_for_query(int p_unit, const Cell &p_cell, int p_straight_cells) {
+	UnitState &unit = units[p_unit];
+	if (is_on_map(unit.cell) && occupants[get_cell_index(unit.cell)] == p_unit) {
+		occupants[get_cell_index(unit.cell)] = NO_UNIT;
+	}
+	unit.cell = p_cell;
+	unit.straight_cells = p_straight_cells;
+	occupants[get_cell_index(p_cell)] = p_unit;
 }
 
 int TacticsSim::relocate_unit(int p_unit, const std::vector<Cell> &p_path, const std::string &p_kind, int p_cause) {

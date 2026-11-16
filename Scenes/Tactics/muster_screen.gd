@@ -4,7 +4,10 @@ extends Control
 ## map's terrains, our leaders with their squads and the enemy's leaders.
 ## Tapping a soldier and then another leader moves it there when that
 ## leader has room (capacities come from a TacticsBattle loaded with the
-## scenario, so the rules stay in C++). "Xuất quân" hands the squads on.
+## scenario, so the rules stay in C++). With a TacticsCampaign every
+## soldier is a roster person (face, marks), soldiers named for their marks
+## lead squads of their own, a returning traitor stands with the enemy,
+## and "Sổ quân" opens the roster. "Xuất quân" hands the squads on.
 ## [codeblock]
 ## var muster := MusterScreen.new()
 ## muster.scenario = scenario
@@ -23,9 +26,13 @@ const TAP_SLOP_PX: float = 24.0
 
 var scenario: TacticsScenarioData
 var catalog: TacticsCatalog
+## The roster around this muster; it sets the scenario and squads.
+var campaign: TacticsCampaign
 
 var _text: TacticsText
 var _squads: Array[Array] = []
+## Person ids, in the same places as `_squads` (-1 without a campaign).
+var _people: Array[Array] = []
 var _capacities: Array[int] = []
 var _picked := Vector2i(-1, -1)
 var _press_position := Vector2.ZERO
@@ -38,11 +45,22 @@ func _ready() -> void:
 	if catalog == null:
 		catalog = load(CATALOG_PATH) as TacticsCatalog
 	_text = TacticsText.new(catalog)
+	if campaign != null:
+		scenario = campaign.scenario
+		campaign.fill_text(_text)
 	_read_capacities()
-	for leader: TacticsLeaderData in scenario.leaders_a:
+	for slot: int in scenario.leaders_a.size():
 		var squad: Array = []
-		squad.assign(leader.squad)
+		var ids: Array = []
+		if campaign != null:
+			squad.assign(campaign.squads[slot])
+			ids.assign(campaign.people[slot])
+		else:
+			squad.assign(scenario.leaders_a[slot].squad)
+			ids.resize(squad.size())
+			ids.fill(-1)
 		_squads.append(squad)
+		_people.append(ids)
 	_build()
 	_refresh()
 
@@ -50,6 +68,16 @@ func _ready() -> void:
 ## The soldiers the leader at `leader_slot` (in the scenario's order) has now.
 func get_squad(leader_slot: int) -> Array:
 	return _squads[leader_slot]
+
+
+## Person ids per leader, in the order of the squads (for the campaign).
+func get_people() -> Array:
+	var people: Array = []
+	for ids: Array in _people:
+		var typed: Array[int] = []
+		typed.assign(ids)
+		people.append(typed)
+	return people
 
 
 func get_capacity(leader_slot: int) -> int:
@@ -83,8 +111,11 @@ func move_selected_to(leader_slot: int) -> bool:
 		_hint.text = tr("MUSTER_FULL_FORMAT") % tr(scenario.leaders_a[leader_slot].name_key)
 		return false
 	var troop: TacticsTroopData = _squads[_picked.x][_picked.y]
+	var person: int = _people[_picked.x][_picked.y]
 	_squads[_picked.x].remove_at(_picked.y)
+	_people[_picked.x].remove_at(_picked.y)
 	_squads[leader_slot].append(troop)
+	_people[leader_slot].append(person)
 	_picked = Vector2i(-1, -1)
 	Sound.play(&"merge")
 	_hint.text = tr("MUSTER_HINT")
@@ -150,7 +181,17 @@ func _build() -> void:
 	buttons.add_theme_constant_override(&"separation", 16)
 	page.add_child(buttons)
 	buttons.add_child(_button("BUTTON_BACK", back_requested.emit, false))
+	if campaign != null:
+		buttons.add_child(_button("BUTTON_ROSTER", open_roster, false))
 	buttons.add_child(_button("BUTTON_START_BATTLE", start_battle, true))
+
+
+## Opens the roster (Sổ quân) over the muster.
+func open_roster() -> TacticsRosterView:
+	var view := TacticsRosterView.new()
+	view.campaign = campaign
+	add_child(view)
+	return view
 
 
 func _objective_panel() -> Control:
@@ -197,22 +238,56 @@ func _terrain_panel() -> Control:
 		texts.add_theme_constant_override(&"separation", -4)
 		row.add_child(texts)
 		texts.add_child(_label(tr(terrain.name_key), 21, Palette.CREAM))
-		var effects := _label(_text.terrain_effects(terrain.id), 19, Palette.TEXT_DIM)
-		effects.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		effects.clip_text = true
+		var effects := _label(_text.terrain_effects(terrain.id), GameTheme.SMALL_FONT_SIZE, Palette.TEXT_DIM)
+		effects.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		texts.add_child(effects)
 	return box
 
 
 func _enemy_panel() -> Control:
 	var box := _panel()
+	var rows := VBoxContainer.new()
+	rows.add_theme_constant_override(&"separation", 6)
+	box.add_child(rows)
 	var names: PackedStringArray = []
-	for leader: TacticsLeaderData in scenario.leaders_b:
-		names.append(tr("MUSTER_ENEMY_LEADER_FORMAT") % [tr(leader.name_key), leader.squad.size()])
+	for slot: int in scenario.leaders_b.size():
+		if campaign == null or campaign.enemy_people[slot] < 0:
+			var leader: TacticsLeaderData = scenario.leaders_b[slot]
+			names.append(tr("MUSTER_ENEMY_LEADER_FORMAT") % [tr(leader.name_key), leader.squad.size()])
 	var label := _label(tr("MUSTER_ENEMY_FORMAT") % ", ".join(names), 22, TacticsPainter.ENEMY_FILL.lightened(0.4))
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(label)
+	rows.add_child(label)
+	if campaign == null:
+		return box
+	for slot: int in scenario.leaders_b.size():
+		if campaign.enemy_people[slot] >= 0:
+			rows.add_child(_returning_row(campaign.get_person(campaign.enemy_people[slot]), scenario.leaders_b[slot]))
 	return box
+
+
+# A deserter or traitor of ours back as an enemy leader.
+func _returning_row(person: Dictionary, leader: TacticsLeaderData) -> Control:
+	var row := HBoxContainer.new()
+	row.name = "Returning%d" % person["id"]
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override(&"separation", 10)
+	var face := TacticsFace.FaceView.new()
+	face.look = person["look"]
+	face.ring = Palette.VERMILION
+	face.custom_minimum_size = Vector2(56, 56)
+	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(face)
+	var texts := VBoxContainer.new()
+	texts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	texts.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	texts.add_theme_constant_override(&"separation", -2)
+	row.add_child(texts)
+	var key := "MUSTER_RETURNING_TRAITOR_FORMAT" if person["status"] == "traitor" else "MUSTER_RETURNING_DESERTER_FORMAT"
+	texts.add_child(_label(tr(key) % tr(leader.name_key), 23, Palette.VERMILION.lightened(0.3)))
+	var detail := _label(tr("MUSTER_RETURNING_DETAIL_FORMAT") % [leader.squad.size(), _text.unit_name(person["troop"]), (person["marks"] as Array).size()], 19, Palette.TEXT_DIM)
+	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	texts.add_child(detail)
+	return row
 
 
 # Rebuilds the leader cards (a menu screen; nothing here runs per frame).
@@ -241,9 +316,11 @@ func _leader_card(slot: int) -> Control:
 	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	head.add_theme_constant_override(&"separation", 10)
 	rows.add_child(head)
+	var person := _leader_person(slot)
 	var token := _Token.new()
 	token.is_leader = true
 	token.glyph = TacticsPainter.glyph_for(leader.base_class.id, _keyword_ids(leader))
+	token.look = person.get("look", -1)
 	token.custom_minimum_size = Vector2(52, 52)
 	head.add_child(token)
 	var texts := VBoxContainer.new()
@@ -251,7 +328,9 @@ func _leader_card(slot: int) -> Control:
 	texts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	texts.add_theme_constant_override(&"separation", -2)
 	head.add_child(texts)
-	texts.add_child(_label(tr(leader.name_key), 27, Palette.CREAM))
+	texts.add_child(_label(tr(leader.name_key), 27, Palette.GOLD if not person.is_empty() else Palette.CREAM))
+	if not person.is_empty():
+		texts.add_child(_label(tr("MUSTER_NAMED_LEADER_FORMAT") % _text.unit_name(person["troop"]), 19, Palette.JADE_LIGHT))
 	var skill := leader.skill
 	if skill != null:
 		texts.add_child(_label(tr("MUSTER_SKILL_FORMAT") % [tr(skill.name_key), _text.charge_name(skill.charge), skill.charge_threshold], 20, Palette.TEXT_DIM))
@@ -278,6 +357,7 @@ func _on_card_input(event: InputEvent, slot: int) -> void:
 
 func _chip(leader_slot: int, soldier_slot: int) -> PressButton:
 	var troop: TacticsTroopData = _squads[leader_slot][soldier_slot]
+	var person := campaign.get_person(_people[leader_slot][soldier_slot]) if campaign != null else {}
 	var chip := PressButton.new()
 	chip.focus_mode = Control.FOCUS_NONE
 	chip.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -286,7 +366,10 @@ func _chip(leader_slot: int, soldier_slot: int) -> PressButton:
 		chip.theme_type_variation = &"PrimaryButton"
 	var face := _Token.new()
 	face.glyph = TacticsPainter.glyph_for(troop.base_class.id, _keyword_ids(troop))
-	face.caption = tr(troop.name_key)
+	# The chip is narrow: the troop's short name ("Giáo", "Cung").
+	face.caption = tr(troop.name_key + "_SHORT")
+	face.look = person.get("look", -1)
+	face.marks = (person["marks"] as Array).size() if not person.is_empty() else 0
 	face.set_anchors_preset(Control.PRESET_FULL_RECT)
 	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	chip.add_child(face)
@@ -294,6 +377,12 @@ func _chip(leader_slot: int, soldier_slot: int) -> PressButton:
 		Sound.play(&"ui_tap")
 		select_soldier(leader_slot, soldier_slot))
 	return chip
+
+
+func _leader_person(slot: int) -> Dictionary:
+	if campaign == null or slot >= campaign.leader_people.size() or campaign.leader_people[slot] < 0:
+		return {}
+	return campaign.get_person(campaign.leader_people[slot])
 
 
 func _keyword_ids(unit: TacticsUnitData) -> Array:
@@ -315,10 +404,11 @@ func _panel() -> PanelContainer:
 	return box
 
 
+# No text is drawn under GameTheme.SMALL_FONT_SIZE.
 func _label(text: String, font_px: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_size_override(&"font_size", font_px)
+	label.add_theme_font_size_override(&"font_size", maxi(font_px, GameTheme.SMALL_FONT_SIZE))
 	label.add_theme_color_override(&"font_color", color)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
@@ -347,18 +437,50 @@ class _Swatch extends Control:
 		draw_rect(Rect2(Vector2.ZERO, size), Palette.INK, false, 2.0)
 
 
-## A token as the map draws it, with an optional caption under it.
+## A token as the map draws it (or a roster person's face), with an
+## optional caption under it and the person's marks over it.
 class _Token extends Control:
+	const CAPTION_PAD_PX: float = 3.0
+
 	var glyph: StringName = &"class.sword"
 	var is_leader: bool = false
 	var caption: String = ""
+	## A face seed; -1 draws the token.
+	var look: int = -1
+	var marks: int = 0
 
 	func _draw() -> void:
-		var c := Vector2(size.x / 2.0, size.y * (0.4 if not caption.is_empty() else 0.5))
-		TacticsPainter.draw_token(self, c, 0, is_leader, glyph, false)
+		var shape := get_shape()
+		var c: Vector2 = shape["center"]
+		var r: float = shape["radius"]
+		if look >= 0:
+			TacticsFace.draw_face(self, c, r, look, Palette.GOLD if is_leader else TacticsPainter.PLAYER_FILL)
+			if not is_leader:
+				TacticsPainter.draw_glyph_badge(self, c + Vector2(r * 0.8, r * 0.7), 9.0, glyph)
+		else:
+			TacticsPainter.draw_token(self, c, 0, is_leader, glyph, false)
+		for index: int in mini(marks, 3):
+			var p := Vector2(8.0, 9.0 + index * 11.0)
+			var diamond := PackedVector2Array([p + Vector2(0, -5), p + Vector2(5, 0), p + Vector2(0, 5), p + Vector2(-5, 0)])
+			draw_colored_polygon(diamond, Palette.GOLD)
+			diamond.append(diamond[0])
+			draw_polyline(diamond, Palette.INK, 1.5)
 		if caption.is_empty():
 			return
 		var font := get_theme_default_font()
-		var font_px := 17
+		var font_px := GameTheme.SMALL_FONT_SIZE
 		var width := font.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, font_px).x
-		draw_string(font, Vector2((size.x - width) / 2.0, size.y - 8.0), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, font_px, Palette.CREAM)
+		draw_string(font, Vector2((size.x - width) / 2.0, shape["baseline"]), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, font_px, Palette.CREAM)
+
+	## Where the face (center, radius) and the caption (baseline, top: its
+	## letters' highest point) are drawn, in layout px.
+	func get_shape() -> Dictionary:
+		var font := get_theme_default_font()
+		var font_px := GameTheme.SMALL_FONT_SIZE
+		if caption.is_empty():
+			return {"center": size / 2.0, "radius": minf(size.y, size.x) / 2.0, "baseline": size.y, "top": size.y}
+		# The face fills what the caption's line leaves above it.
+		var baseline := size.y - CAPTION_PAD_PX - font.get_descent(font_px)
+		var top := baseline - font.get_ascent(font_px)
+		var r := minf((top - 2.0 * CAPTION_PAD_PX) / 2.0, size.x / 2.0)
+		return {"center": Vector2(size.x / 2.0, CAPTION_PAD_PX + r), "radius": r, "baseline": baseline, "top": top}
