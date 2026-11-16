@@ -4,8 +4,10 @@ extends SceneTree
 # map and random leaders (sample ones and altered copies), then sends a mix
 # of legal and illegal commands and checks after each one: queries and
 # refused commands leave the hash unchanged, a command is accepted exactly
-# when its query said so, the move follows get_path_to() and
-# preview_squad(), the attack lands what forecast_engagement() said, the
+# when its query said so (can_move, can_act, get_attack_targets,
+# get_skill_cells), the move follows get_path_to() and preview_squad(),
+# the attack lands what forecast_engagement() said, a skill what
+# preview_skill() said, the
 # events account for every cell, hp and charge change, one unit per cell,
 # battle_ended is last, and a replay of the commands gives the same hashes.
 
@@ -198,6 +200,9 @@ func _pick_command(battle: TacticsBattle) -> Array:
 				targets.append(unit)
 		return [&"attack", leader, targets[_rng.randi_range(0, targets.size() - 1)] if not targets.is_empty() and _rng.randf() < 0.85 else any_unit]
 	if roll < 0.67:
+		var skill_cells: Array = battle.get_skill_cells(leader)
+		if not skill_cells.is_empty() and _rng.randf() < 0.5:
+			return [&"skill", leader, skill_cells[_rng.randi_range(0, skill_cells.size() - 1)]]
 		var own: Vector2i = battle.get_unit_state(leader)["cell"]
 		var cells: Array[Vector2i] = [own]
 		for unit: Dictionary in battle.get_units():
@@ -244,6 +249,9 @@ func _run_checked(battle: TacticsBattle, command: Array) -> Array:
 	var preview: Array = []
 	var forecast: Dictionary = {}
 	var is_ready := false
+	var skill_preview: Dictionary = {}
+	if battle.can_act(unit) != can_act or battle.can_move(unit) != (can_act and not state["has_moved"]):
+		_fail("can_act/can_move of %d disagree with its state %s" % [unit, state])
 	match command[0]:
 		&"move":
 			expected = can_act and not state["has_moved"] and battle.get_reachable_cells(unit).has(command[2])
@@ -252,8 +260,14 @@ func _run_checked(battle: TacticsBattle, command: Array) -> Array:
 		&"attack":
 			forecast = battle.forecast_engagement(unit, command[2])
 			expected = can_act and forecast["is_valid"]
+			if battle.get_attack_targets(unit).has(command[2]) != expected:
+				_fail("get_attack_targets(%d) disagrees about %d" % [unit, command[2]])
 		&"skill":
 			is_ready = state["role"] == &"leader" and battle.get_skill_charge(unit)["is_ready"]
+			expected = battle.get_skill_cells(unit).has(command[2])
+			skill_preview = battle.preview_skill(unit, command[2])
+			if skill_preview["is_valid"] != expected:
+				_fail("preview_skill(%d, %s) is %s, get_skill_cells() says %s" % [unit, command[2], skill_preview["is_valid"], expected])
 		&"wait":
 			expected = can_act
 		_:
@@ -262,6 +276,10 @@ func _run_checked(battle: TacticsBattle, command: Array) -> Array:
 	if command[0] == &"skill":
 		if not events.is_empty() and not (can_act and is_ready):
 			_fail("%s accepted without a ready skill or with the leader done" % [command])
+		if events.is_empty() == expected:
+			_fail("%s accepted %s, get_skill_cells() said %s" % [command, not events.is_empty(), expected])
+		if not events.is_empty():
+			_check_skill(events, skill_preview)
 		return events
 	if events.is_empty() == expected:
 		_fail("%s accepted %s, expected %s" % [command, not events.is_empty(), expected])
@@ -307,6 +325,26 @@ func _check_engagement(events: Array, forecast: Dictionary) -> void:
 		_fail("engagement landed %s to hp %s, forecast %s" % [hits, hp_after, forecast])
 
 
+## The cast hit and buffed what preview_skill() said.
+func _check_skill(events: Array, skill_preview: Dictionary) -> void:
+	var used: Dictionary = events[0]
+	if used["type"] != &"skill_used" or Array(used["cells"]) != Array(skill_preview["cells"]) or Array(used["targets"]) != Array(skill_preview["targets"]):
+		_fail("skill %s differs from its preview %s" % [used, skill_preview])
+		return
+	var damage: Dictionary = {}
+	var buffed: Array = []
+	for event: Dictionary in events:
+		if event["type"] == &"damage_dealt" and event["source_id"] == used["skill"]:
+			damage[event["target"]] = int(damage.get(event["target"], 0)) + int(event["amount"])
+		elif event["type"] == &"buff_applied":
+			buffed.append(event["unit"])
+	var expected: Dictionary = {}
+	for result: Dictionary in skill_preview["results"]:
+		expected[result["unit"]] = result["amount"]
+	if damage != expected or buffed != Array(skill_preview["buffed"]):
+		_fail("skill dealt %s and buffed %s, preview said %s" % [damage, buffed, skill_preview])
+
+
 ## Read-only queries: reachable cells and paths agree, previews list living
 ## soldiers, forecasts and charges answer.
 func _check_queries(battle: TacticsBattle) -> void:
@@ -339,6 +377,9 @@ func _check_queries(battle: TacticsBattle) -> void:
 	for unit: int in battle.get_unit_count():
 		battle.forecast_engagement(leader, unit)
 		battle.forecast_engagement(unit, leader)
+	for cell: Vector2i in battle.get_skill_cells(leader):
+		battle.preview_skill(leader, cell)
+	battle.get_attack_targets(leader)
 
 
 func _check_events(battle: TacticsBattle, events: Array) -> void:

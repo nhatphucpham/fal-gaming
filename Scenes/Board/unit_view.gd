@@ -150,6 +150,16 @@ func _draw() -> void:
 	UnitPainter.draw_ring(self, FEET, RING_RADIUS * _size_scale, ring_color, _dust)
 
 
+## Shows the figure from the front, turned right or left, whatever its
+## side (the tactics close-up stands both sides on one ground line). The
+## ring keeps the side's colour.
+func face_front(is_facing_right: bool) -> void:
+	_figure.facing = UnitPainter.FACING_DOWN
+	_animator.set_view(UnitPainter.view_of(UnitPainter.FACING_DOWN))
+	_figure.flip = 1.0 if is_facing_right else -1.0
+	_figure.aim_direction = Vector2.RIGHT if is_facing_right else Vector2.LEFT
+
+
 ## Shows hp as a share of max, 0..1; the bar slides down with a pale trail.
 func set_hp_ratio(ratio: float) -> void:
 	_bar.set_hp_ratio(ratio)

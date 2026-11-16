@@ -29,9 +29,11 @@
   `pose_animator_test.gd`, `pose_cast_test.gd` and `pose_stone_test.gd`
   (the unit figures' rig, mesh cache, animator, casts and stone, sharing
   `pose_test_kit.gd`). `voice_test.gd` tests the Voice autoload against a
-  fake server on localhost. `tactics_test.gd`, `tactics_squad_test.gd` and
-  `tactics_fuzz_test.gd` test the tactics simulation (sharing
-  `tactics_test_kit.gd`).
+  fake server on localhost. `tactics_test.gd`, `tactics_squad_test.gd`,
+  `tactics_fuzz_test.gd` and `tactics_query_test.gd` test the tactics
+  simulation and its queries (sharing `tactics_test_kit.gd`);
+  `tactics_screen_test.gd` (a battle won through the tactics screen) and
+  `muster_test.gd` (the muster screen from the title) test its screens.
 - `Tools/` holds developer scripts that are not tests and not exported:
   `run_bot.gd`, the balance bot that plays whole runs (see
   [Run](systems/run.md)), `make_sfx.gd`, which writes the sound files
@@ -55,7 +57,8 @@
 - `Data/Tactics/` holds the turn-based tactics mode's content (rules,
   terrains, keywords, zones, passives, skills, troops, leaders, maps and
   scenarios), listed in its own `Data/Tactics/tactics_catalog.tres` (see
-  [Tactics](systems/tactics.md)).
+  [Tactics](systems/tactics.md)), and `Data/Tactics/Looks/`, how each leader
+  skill looks in the close-up (see [Tactics screen](systems/tactics_screen.md)).
 - `Systems/` holds GDScript bridge services and data scripts, one folder per
   system. `Systems/Content/` has `Catalog` (lookup and validation),
   `SandboxData`, `UnitStats` (player-facing stats, derived through
@@ -125,6 +128,9 @@ slides the shop and buttons away for the side health bars and the battle
 plays on the board; the result banner shows what was won or lost, "Tiếp tục"
 opens the reward cards, and a reward starts the next preparation. When the
 run is won or lost the end screen shows the result and returns to the title.
+"Chiến Dịch" opens the tactics muster screen ("Điểm binh", with "Về" back to
+the title); "Xuất quân" opens the tactics battle, whose result banner or a
+double "Rút" returns to the title.
 Every switch between screens is a slide.
 
 When a Kỳ Ngộ fires after a battle, its cutscene plays before the reward
@@ -219,8 +225,10 @@ an AI that declares its intent. The simulation (`TacticsSim`, namespace
 zones, passives, charge mechanisms, skill targets and effects keyed by ids
 in `Data/Tactics/`; it reuses the battle system's damage formula. Its
 resources (`TacticsCatalog`, `TacticsMapData`, `TacticsLeaderData`, ...) and
-the `TacticsBattle` node are the bridge. No scene uses it yet. See
-[Tactics](systems/tactics.md).
+the `TacticsBattle` node are the bridge. `Scenes/Tactics/` is its
+presentation: the muster and battle screens, a map of flat tokens that
+redraws only on change, the event playback and the close-up. See
+[Tactics](systems/tactics.md) and [Tactics screen](systems/tactics_screen.md).
 
 ## Layers and documentation
 

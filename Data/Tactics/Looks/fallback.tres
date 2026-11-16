@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="TacticsSkillLook" format=3]
+
+[ext_resource type="Script" path="res://Scenes/Tactics/tactics_skill_look.gd" id="script"]
+
+[resource]
+script = ExtResource("script")
+skill_id = &"tactics_skill.fallback"
+color_main = Color(0.95, 0.757, 0.306, 1)
+color_accent = Color(0.953, 0.902, 0.784, 1)
+motif = &"motif.chevron"
+aura = &"aura.rise"
+path = &"path.arc"
+path_order = &"together"
+impact = &"impact.burst"

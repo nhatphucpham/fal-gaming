@@ -90,8 +90,12 @@ After building, run the editor import, `Tests/smoke_test.gd`,
 `Tests/audio_test.gd`, `Tests/unit_pose_test.gd`,
 `Tests/pose_animator_test.gd`, `Tests/pose_cast_test.gd`,
 `Tests/pose_stone_test.gd`, `Tests/voice_test.gd`,
-`Tests/perf_budget_test.gd`, `Tests/idle_frames_test.gd` and
-`Tests/app_lifecycle_test.gd` as shown in the
+`Tests/perf_budget_test.gd`, `Tests/idle_frames_test.gd`,
+`Tests/app_lifecycle_test.gd`, the tactics tests
+(`Tests/tactics_test.gd`, `Tests/tactics_squad_test.gd`,
+`Tests/tactics_fuzz_test.gd`, `Tests/tactics_query_test.gd`,
+`Tests/tactics_screen_test.gd`, `Tests/tactics_screen_sync_test.gd`,
+`Tests/tactics_screen_input_test.gd`) and `Tests/muster_test.gd` as shown in the
 README. Tests that touch the
 settings file point `RunSettings.path` at `user://settings_test.json`, so
 the player's mute and preparation time are left alone.

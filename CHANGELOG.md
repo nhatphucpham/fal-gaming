@@ -34,6 +34,27 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Added
 
+- Chiến Dịch: a turn-based tactics battle from the title. "Điểm binh" shows
+  the objective, the terrains and both sides' leaders, and lets soldiers move
+  between our leaders while there is room (a drag on a leader or a soldier
+  scrolls the page); "Xuất quân" starts the river crossing. Tap a leader to see where it can go and whom it can hit, tap a
+  cell to see where its soldiers will stand, tap an enemy for the exact
+  forecast (hits, damage both ways, hp after, what changes them), and tap
+  again or the button to confirm. Pick one of five orders for the squad,
+  cast the leader's skill when its pips are full, wait or end the turn; a tap
+  elsewhere undoes the selection. The enemy's intents show on the map during
+  our turn. A leader's attack and every skill play a short side-view
+  close-up (a tap skips it), each of the five skills with its own colours and
+  shapes; its line says whom the skill hit, how many soldiers it
+  strengthened (ours or the enemy's), or that it reached nobody. A tap
+  under the top bar skips the step that plays; "Rút" stays above it and
+  answers at any time, also while the enemy plays or a close-up runs; the
+  top bar and the panel say "Lượt địch" as soon as the enemy's phase
+  begins. An enemy's card reads "Ý đồ: hành quân" when its intent arrow
+  marches and "đứng chờ" only when it stays. The hint says how to confirm
+  a forecast or a skill, and a leader that has moved is no longer told to
+  pick a blue cell. The
+  battle ends with a victory or defeat banner and its reason.
 - Voice: an optional `Voice` module can speak dialogue lines with the
   Falevon TTS service and keeps every line in a cache, so it is generated
   once. Nothing in the game speaks yet; `Scenes/Dev/voice_demo.tscn` tries

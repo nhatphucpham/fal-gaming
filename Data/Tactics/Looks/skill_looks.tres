@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="TacticsSkillLookSet" format=3]
+
+[ext_resource type="Script" path="res://Scenes/Tactics/tactics_skill_look_set.gd" id="script"]
+[ext_resource type="Script" path="res://Scenes/Tactics/tactics_skill_look.gd" id="look_script"]
+[ext_resource type="Resource" path="res://Data/Tactics/Looks/rally_banner.tres" id="rally_banner"]
+[ext_resource type="Resource" path="res://Data/Tactics/Looks/piercing_thrust.tres" id="piercing_thrust"]
+[ext_resource type="Resource" path="res://Data/Tactics/Looks/chain_arrows.tres" id="chain_arrows"]
+[ext_resource type="Resource" path="res://Data/Tactics/Looks/fire_rain.tres" id="fire_rain"]
+[ext_resource type="Resource" path="res://Data/Tactics/Looks/blood_oath.tres" id="blood_oath"]
+[ext_resource type="Resource" path="res://Data/Tactics/Looks/fallback.tres" id="fallback"]
+
+[resource]
+script = ExtResource("script")
+looks = Array[ExtResource("look_script")]([ExtResource("rally_banner"), ExtResource("piercing_thrust"), ExtResource("chain_arrows"), ExtResource("fire_rain"), ExtResource("blood_oath")])
+fallback = ExtResource("fallback")

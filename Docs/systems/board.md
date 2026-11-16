@@ -133,6 +133,8 @@ above the finger; the drop cell is the cell the ghost appears to stand in.
 `lunge(direction)`, `recoil(direction)`, `wind_up(seconds)`,
 `hit_flash()`, `cancel_wind_up()` (the cast was cancelled: no strike),
 `die()` (hides itself), `cheer()`, `fade_to(alpha)`,
+`face_front(is_facing_right)` (the front view turned right or left whatever
+the side, for the tactics close-up),
 `set_dim(amount)`; `playback_speed` scales every animation, the pose ones
 included, and changing it also changes the speed of animations already
 running (a battle slowed mid-cast keeps the wind-up in step with the cast).

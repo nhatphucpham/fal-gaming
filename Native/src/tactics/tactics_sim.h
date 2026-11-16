@@ -18,6 +18,24 @@ struct Stats {
 	int max_range_cells = 1;
 };
 
+// Which side of a hit a stat source is listed for (collect_stat_sources).
+enum class StatUse {
+	ATTACK = 0,
+	DEFENCE = 1,
+};
+
+// What a skill cast at a cell would do, from preview_skill().
+struct SkillPreview {
+	std::vector<Cell> cells;
+	std::vector<int> targets;
+	// Damage taken per target, summed over the skill's hits.
+	std::vector<SkillTargetResult> results;
+	// Units that would get a buff.
+	std::vector<int> buffed;
+	// Cells of the zones the cast would make.
+	std::vector<Cell> zone_cells;
+};
+
 // One turn-based tactics battle on a square grid (Docs/systems/tactics.md).
 // Commands change the state and append events; queries never do. Once
 // battle_ended is emitted nothing changes and no event follows. The whole
@@ -81,6 +99,20 @@ public:
 	// pairs of (soldier, cell). Empty with r_error when the move is refused.
 	std::vector<std::pair<int, Cell>> preview_squad(int p_leader, const Cell &p_cell, std::string *r_error) const;
 	uint64_t get_state_hash() const;
+	// The leader of the active side may still move (it has neither moved
+	// nor acted) or act this phase; false for soldiers and dead units.
+	bool can_leader_move(int p_unit) const;
+	bool can_leader_act(int p_unit) const;
+	// Units attack() would accept for p_unit now, by index.
+	std::vector<int> get_attack_targets(int p_unit) const;
+	// Cells use_skill() would accept for p_unit now, row-major.
+	std::vector<Cell> get_skill_cells(int p_unit) const;
+	// The outcome of use_skill(p_unit, p_cell) run on a copy. False with
+	// r_error when use_skill() would refuse it.
+	bool preview_skill(int p_unit, const Cell &p_cell, SkillPreview *r_preview, std::string *r_error) const;
+	// Appends the ids of passives, buffs and (for DEFENCE) terrain that
+	// change the unit's attack, or its armor and magic resist, each once.
+	void collect_stat_sources(int p_unit, StatUse p_use, std::vector<std::string> &r_sources) const;
 
 	// Used by the handlers and rules modules.
 	UnitState &edit_unit(int p_unit) { return units[p_unit]; }

@@ -52,10 +52,12 @@ bool does_zone_affect(const TacticsSim &p_sim, const ZoneState &p_zone, int p_un
 	return is_wanted_side && is_cell_in_zone(p_zone, unit.cell);
 }
 
-void apply_zones_to_hit(const TacticsSim &p_sim, const HitContext &p_context, HitModifiers &r_mods) {
+void apply_zones_to_hit(const TacticsSim &p_sim, const HitContext &p_context, HitModifiers &r_mods, std::vector<std::string> *r_sources) {
 	for (const ZoneState &zone : p_sim.get_zones()) {
 		if (zone.def.handler->modify_incoming != nullptr && does_zone_affect(p_sim, zone, p_context.defender)) {
+			const HitModifiers before = r_mods;
 			zone.def.handler->modify_incoming(zone.def, p_context, r_mods);
+			note_hit_source(r_sources, before, r_mods, zone.def.id);
 		}
 	}
 }

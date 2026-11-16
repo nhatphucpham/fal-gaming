@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="TacticsSkillLook" format=3]
+
+[ext_resource type="Script" path="res://Scenes/Tactics/tactics_skill_look.gd" id="script"]
+
+[resource]
+script = ExtResource("script")
+skill_id = &"tactics_skill.piercing_thrust"
+color_main = Color(0.62, 0.827, 1, 1)
+color_accent = Color(0.933, 0.965, 1, 1)
+motif = &"motif.crescent"
+aura = &"aura.swirl"
+path = &"path.beam"
+path_order = &"together"
+impact = &"impact.slash"
+cast_sec = 0.9
+path_sec = 0.3
+impact_sec = 1.0
+motif_count = 5
+shake_px = 5.0
+path_sound = &"charge"
+impact_sound = &"hit_heavy"
