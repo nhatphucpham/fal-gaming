@@ -211,6 +211,92 @@ placed on the spawn cells in order. Sample: `scenario.river_crossing`.
   `skill_resolved`, later effect or charge change follows), and nothing
   changes afterwards.
 
+## Incidents
+
+Biến cố: a few soldiers carry a hidden seed of one incident. The seed
+never shows until its situation comes; then the soldier wavers (a mark
+over it) for one phase, and at the end of that phase the incident fires
+unless the situation faded or, for some incidents, its leader came close.
+The [roster](tactics_roster.md) supplies karma and marks and reads the
+report; the simulation alone decides what fires.
+
+Files: `tactics_incidents.h/.cpp` (handler registry, seeds, karma, the
+phase checks), `tactics_sim_incidents.cpp` (state helpers on `TacticsSim`),
+`tactics_incident_data.h/.cpp` (`TacticsIncidentData`,
+`TacticsIncidentRulesData`, `TacticsTraitData`),
+`tactics_battle_incidents.cpp` (the bridge). Data in
+`Data/Tactics/Incidents/` (one file per incident plus
+`incident_rules.tres`) and `Data/Tactics/Traits/`; leaders list `traits`,
+incidents their `mark_passive` (`Data/Tactics/Passives/mark_*.tres`).
+
+`TacticsIncidentRulesData` (simulation fields; the roster fields are in
+the roster doc):
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `min_seeds`, `max_seeds` | 1, 3 | Seeds planted on side A (the player) |
+| `ai_min_seeds`, `ai_max_seeds` | 0, 2 | Seeds on side B, only incidents with `seeds_ai_side` |
+| `marked_soldier_weight` | 3 | Soldier pick weight = 1 + marks x this |
+| `mark_polarity_weight` | 10 | Incident weight + this per mark of the same polarity (good or bad) |
+| `karma_weight_per_point`, `karma_weight_cap` | 5, 60 | Incident weight + min(karma x per point, cap): bait raises bad incidents, rescue good ones |
+| `bait_distance_cells` | 4 | A soldier hit while its living leader is this far or farther counts as bait |
+| `rescue_hp_pct` | 50 | A rescue: the leader's move ends next to its soldier at or under this % hp with an enemy next to it |
+| `incidents` | the seven | `TacticsIncidentData` entries |
+
+`TacticsIncidentData`: `id` (the handler), `name_key`, `description_key`,
+`base_weight`, `seeds_ai_side`, `threshold_pct`, `threshold_count`,
+`radius_cells`, `calm_radius_cells` (0: the leader cannot calm it),
+`amount`, `secondary_amount`, `duration_rounds`, `mark_passive`. Fields a
+handler does not read stay 0. `TacticsTraitData`: `id`, `name_key`,
+`description_key`, `incident_ids` with the matching `weight_pcts`
+(-100..1000); the weight of each listed incident in that leader's soldiers
+is multiplied by (100 + pct) / 100. `trait.kind` (Lạc Hồng, Bá Khắc):
+rescue +80%, betray -30%. `trait.strict` (Nguyệt Thương, Thiết Nha): flee
+-60%, discontent -30%.
+
+| Incident | Good | Base | Wavers when | Calm | Effect |
+| --- | --- | --- | --- | --- | --- |
+| `incident.rescue` | yes | 30 | its leader is at or under 40% hp and within 6 cells | - | dashes next to the leader and takes every hit aimed at it through the coming enemy phase |
+| `incident.stand` | yes | 30 | 2+ enemies next to it and no ally next to it | - | armor +30 and cannot be moved for 1 round |
+| `incident.surge` | yes | 30 | an ally died next to it since the start of its previous own phase | - | attack +60%, armor +15 for the rest of the battle |
+| `incident.discontent` | no | 25 | it was bait in 2 phases | leader within 2 | ignores its order and acts `free` for its next own phase |
+| `incident.riot` | no | 20 | its leader is dead or its squad lost 50% of its soldiers | leader within 2 | allied soldiers within 1 cell are shoved one cell away and take 40 damage |
+| `incident.flee` | no (AI side too) | 25 | its leader is dead or 5+ cells away, and an enemy is within 2 | - | runs to the escape edge and leaves the battle |
+| `incident.betray` | no (AI side too) | 15 | its leader is dead or at or under 35% hp, and an enemy leader with 60%+ hp is within 3 | leader within 2 | joins that leader's squad; with no room there it flees instead |
+
+Rules:
+
+- `set_incident_rules(rules, seed)` before `start()` turns incidents on;
+  without it nothing is seeded and no incident event is ever sent. The
+  seed drives a xorshift64* generator; the same seed, karma, records and
+  commands give the same seeds, events and hash.
+- Planting (at `start()`): forced seeds (`set_incident_seed`) when any were
+  set, else per side a count in its range; each seed picks a soldier
+  without a seed by soldier weight, then an incident by incident weight =
+  (base + karma part + polarity part) x trait factor. Side B uses its
+  carried karma too, and only `seeds_ai_side` incidents.
+- Start of a side's phase: each dormant seed of that side whose trigger
+  holds starts wavering (`soldier_wavered`). A wavering soldier hesitates:
+  it skips its squad step and attack in that phase.
+- End of that phase (after the squad steps): a wavering soldier whose
+  trigger no longer holds calms (`incident_calmed`, `reason` `faded`); one
+  whose living leader stands within `calm_radius_cells` calms (`leader`);
+  otherwise the incident fires (`incident_fired`, then its effect, then
+  `mark_earned`). A calmed seed goes back to dormant and can waver again;
+  a fired seed is spent.
+- Escape edge (flee, betray without room): the nearest edge cell the
+  soldier reaches before any enemy (its distance is smaller than the
+  nearest enemy's to that cell); the nearest edge cell when there is none.
+  The soldier leaves the battle (`unit_fled`); it no longer counts as
+  alive and its squad has room again.
+- Karma: bait (a soldier hit or killed while its living leader is at
+  least `bait_distance_cells` away; once per soldier and phase) and rescue
+  (above) each add 1 to the side's battle karma (`karma_changed`). It
+  weighs only the next battle's seeds, through the roster.
+- Every mark records the incident, the leader's id, the terrain and cell
+  under the soldier and the round. Marks given by `set_unit_record`
+  (good, bad) only weigh the seeds.
+
 ## Public API
 
 `TacticsBattle` (Node). Commands return the events they caused as an Array
@@ -228,7 +314,7 @@ error.
 | `start() -> Array` | method | Starts round 1, side A |
 | `move_leader(unit, cell)`, `attack(unit, target)`, `use_skill(unit, cell)`, `wait(unit)`, `set_order(unit, order)`, `end_phase()` | method | Commands for the active side; return events |
 | `is_started`, `is_finished`, `get_winner`, `get_end_reason`, `get_round`, `get_turn`, `get_active_side` | method | Battle state |
-| `get_unit_count`, `get_unit_state(unit)`, `get_units()`, `get_zones()` | method | Unit and zone dictionaries |
+| `get_unit_count`, `get_unit_state(unit)`, `get_units()`, `get_zones()` | method | Unit and zone dictionaries; a unit also has `start_side`, `record_id`, `has_fled`, `wavering` (the incident id while it wavers, else empty: a dormant seed stays hidden), `is_wavering_good`, `marks` (this battle), `is_guarding`, `holds_ground`, `acts_free` |
 | `get_map_width`, `get_map_height`, `get_terrain_id(cell)` | method | Map |
 | `get_reachable_cells(unit)`, `get_path_to(unit, cell)` | method | Cells the unit can end a move on from where it stands (without its own), and the path to one, both ends included (`[cell]` for its own cell); empty for a dead unit or a cell it cannot stop on. They do not check whose phase it is or whether the leader already moved or acted, which `move_leader()` also needs |
 | `get_formation_slots(leader)` | method | The slot cells of the leader's order (empty for `hold`, `free` or a dead leader) |
@@ -241,6 +327,13 @@ error.
 | `preview_skill(unit, cell) -> Dictionary` | method | `use_skill` run on a copy: `is_valid` (false, without an error, when it would be refused), `cells`, `targets`, `results` (`[{unit, amount, hp_after, is_dead}]`, the skill's hits summed per target), `buffed` (units), `zone_cells` |
 | `get_enemy_intents()` | method | `[{unit, to, action, target, target_cell}]` (`action` `wait`, `attack` or `skill`); `target` is the enemy aimed at (-1 and `target_cell` (-1, -1) when none), or the leader itself for a skill cast on its own cell; a leader that died loses its intent |
 | `get_state_hash() -> String` | method | FNV-1a 64 of the whole state (rules, map terrain, round, turn, units, zones, buffs, intents, the next event id), 16 hex digits; units, terrains and zones are identified by ids |
+| `set_incident_rules(rules, seed) -> bool` | method | Turns incidents on (before `start()`); false for an invalid rules resource |
+| `set_karma(side, bait, rescue)` | method | Karma carried from earlier battles (before `start()`) |
+| `set_unit_record(unit, record_id, good_marks, bad_marks) -> bool` | method | Ties a unit to a roster person and gives its earlier marks (before `start()`) |
+| `set_incident_seed(unit, incident) -> bool` | method | Forces a seed (tests, stills); when any is forced, nothing else is planted |
+| `get_incident_seeds()` | method | Tests and tools only: `[{unit, incident, stage}]` (`dormant`, `wavering`, `fired`); the screen never reads it |
+| `get_karma(side)` | method | `{bait, rescue, carried_bait, carried_rescue}` |
+| `get_battle_report()` | method | `{is_finished, winner, reason, round, map, karma, units}`; each unit `{unit, record_id, id, role, start_side, side, status (alive, dead, fled), has_defected, leader_id, marks: [{incident, leader_id, terrain, cell, round}]}` |
 | `set_log_enabled(enabled)` | method | Prints the log events below |
 | `event_emitted(event)` | signal | Each event, in order |
 | `battle_ended(winner, reason)` | signal | Once; `reason` is `rout`, `objective` or `time_limit` |
@@ -258,7 +351,10 @@ neither moved nor acted) and the charge gained then have cause 0. Types: `battle
 `damage_dealt`, `engagement_ended`, `unit_died`, `skill_used`,
 `skill_resolved`, `skill_charge_changed`, `skill_grew`, `buff_applied`,
 `buff_ended`, `zone_created`, `zone_expired`, `passive_triggered`,
-`battle_ended`.
+`soldier_wavered`, `incident_calmed`, `incident_fired`, `mark_earned`,
+`unit_fled`, `unit_defected`, `karma_changed`, `battle_ended`. An
+incident's effect events and its `mark_earned` point to its
+`incident_fired`.
 
 | Type | Payload |
 | --- | --- |
@@ -281,6 +377,13 @@ neither moved nor acted) and the charge gained then have cause 0. Types: `battle
 | `zone_created` | `unit` (source), `side`, `zone`, `cells`, `end_round` |
 | `zone_expired` | `unit` (source), `zone`, `cells` |
 | `passive_triggered` | `unit`, `passive` |
+| `soldier_wavered` | `unit`, `incident`, `is_good` |
+| `incident_calmed` | `unit`, `incident`, `reason` (`faded`, `leader`) |
+| `incident_fired` | `unit`, `incident`, `is_good`, `leader` (its leader at that moment), `side`, `cell` |
+| `mark_earned` | `unit`, `incident`, `leader_id`, `terrain`, `cell`, `count` (its marks in this battle) |
+| `unit_fled` | `unit`, `from`, `to` (the escape edge cell) |
+| `unit_defected` | `unit`, `side` (new), `from_side`, `leader` (its new leader) |
+| `karma_changed` | `side`, `kind` (`bait`, `rescue`), `value` (the side's battle total) |
 | `battle_ended` | `winner`, `reason` |
 
 ## Log events
@@ -311,6 +414,12 @@ Format `[info][Tactics][t=<turn>] <event> key=value`, when logging is on.
   own cell). A target handler's `select` gets the cell the caster casts
   from, so the AI can test a cast before it moves. Then add data that
   uses it.
+- New incident: add a handler (`is_triggered`, `fire`, `is_good`) to the
+  registry in `tactics_incidents.cpp`, a `.tres` in
+  `Data/Tactics/Incidents/` listed in `incident_rules.tres`, its mark
+  passive, and the Locale rows `INCIDENT_<X>`, `_DESC`, `_HINT`,
+  `TACTICS_PASSIVE_MARK_<X>` and `BIO_MARK_<X>_FORMAT`.
+- New trait: a `.tres` in `Data/Tactics/Traits/`, listed by leaders.
 
 ## Tests
 
@@ -335,9 +444,15 @@ change, one unit per cell, `battle_ended` last, and a replay gives the
 same hashes) and `Tests/tactics_query_test.gd` (a scenario loaded with
 other squads and refused ones, `can_move` / `can_act`, attack targets, skill
 cells, `preview_skill()` against the real cast for damage and support, the
-forecast's modifier lists), sharing `Tests/tactics_test_kit.gd`. Run:
+forecast's modifier lists) and `Tests/tactics_incident_test.gd` (each
+incident's trigger, its calm and its effect, hesitation, the escape edge,
+bait and rescue karma, the karma odds over many seeds, traits, the report
+and the same events and hash for the same seed), sharing
+`Tests/tactics_test_kit.gd`. On even seeds the fuzz test also turns
+incidents on, forces seeds in most soldiers and checks sides, flight and
+defection against the events. Run:
 `godot --headless --path . --script res://Tests/tactics_test.gd` (and the
-squad, fuzz and query tests). All four are in CI.
+squad, fuzz, query and incident tests). All five are in CI.
 
 ## Known limits
 
@@ -345,3 +460,6 @@ squad, fuzz and query tests). All four are in CI.
   orders, does not go for the objective, and casts a skill for its own
   side as soon as it is ready, even with no soldier left to help.
 - Damage has no randomness; ties are broken by unit index and cell order.
+  Incidents are the only random part, from the battle's seed.
+- Incidents only touch soldiers; leaders never waver. The AI does not
+  read wavering soldiers or try to calm them.

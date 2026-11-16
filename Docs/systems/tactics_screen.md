@@ -6,7 +6,10 @@ Shows a tactics battle on a phone and takes its taps: the muster screen
 ("Điểm binh") before it, the map with flat tokens, the bottom panel with a
 unit card, an engagement or skill forecast and the buttons, the playback of
 every event with sound, the side-view close-up of a leader's attack or skill,
-and the result. It holds no rules: every list of cells, every target, the
+and the result. With the [roster](tactics_roster.md) it also shows the
+soldiers as people (faces, names, marks), the wavering mark and the
+incidents as they fire, the after-battle summary and the roster with each
+soldier's character sheet. It holds no rules: every list of cells, every target, the
 forecast and the skill preview come from `TacticsBattle` (see
 [Tactics](tactics.md)), and the map is brought back in line with the battle
 after each command.
@@ -34,12 +37,22 @@ after each command.
   - `tactics_skill_look.gd` (`TacticsSkillLook`),
     `tactics_skill_look_set.gd` (`TacticsSkillLookSet`): skill look data.
   - `tactics_banner.gd` (`TacticsBanner`): "Lượt ta" / "Lượt địch".
-  - `tactics_text.gd` (`TacticsText`): player-facing names from the catalog.
+  - `tactics_text.gd` (`TacticsText`): player-facing names from the catalog,
+    plus runtime leaders (`register_unit`) and roster names (`person_names`).
+  - `tactics_face.gd` (`TacticsFace`): a soldier's face drawn from its
+    `look` seed (skin, head cover, eyes, brows, beard, scar); `FaceView`.
+  - `tactics_views.gd` (`TacticsViews`): labels, panels, buttons, mark
+    icons and the slide and stagger the menus share.
+  - `tactics_summary_view.gd` (`TacticsSummaryView`): after the battle.
+  - `tactics_roster_view.gd` (`TacticsRosterView`): the roster and the
+    character sheet.
 - Depends on: `TacticsBattle` and the tactics catalog
   (`Data/Tactics/tactics_catalog.tres`), `UnitView` and `CutsceneBackdrop`
   for the close-up figures and backdrop, `ResultBanner`, `PressButton`,
-  `GameTheme`, `Palette`, `Sound`. `Main.open_campaign()` opens the muster
-  screen from the title's "Chiến Dịch" button; `Main.open_tactics()` opens
+  `GameTheme`, `Palette`, `Sound`, `TacticsCampaign` and `TacticsRoster`
+  (`Systems/Tactics/`). `Main.open_campaign()` loads the roster, builds a
+  `TacticsCampaign` and opens the muster screen from the title's "Chiến
+  Dịch" button; `Main.open_tactics()` opens
   the battle.
 
 ## Data
@@ -72,7 +85,31 @@ Every player string is a `Locale/strings.csv` key: names of leaders, troops,
 terrains, keywords, passives, skills, zones, orders and charges come from
 the catalog's `name_key` (orders and charges by id: `order.flank` is
 `ORDER_FLANK`); the screen's own texts are the `MUSTER_*`, `TACTICS_*`,
-`FORECAST_*`, `SKILL_PREVIEW_*`, `INTENT_*`, `CLOSEUP_*` and `BUTTON_*` rows.
+`FORECAST_*`, `SKILL_PREVIEW_*`, `INTENT_*`, `CLOSEUP_*`, `INCIDENT_*`,
+`ROSTER_*`, `SUMMARY_*`, `NAME_*`, `BIO_*` and `BUTTON_*` rows.
+
+Incidents on the map:
+
+- A wavering soldier gets a bubble over its token: a gold star when the
+  incident is good, a red "!" when it is bad, with a float of the
+  incident's name and "?" and a tick. While one of ours wavers the hint
+  line says "Binh dao động: kéo tướng lại gần nó." and its card adds
+  "Dao động: <incident> — <what it means and what calms it>". Dormant
+  seeds are never shown.
+- `incident_calmed`: the bubble goes, a float ("Đã yên", or "Tướng trấn
+  an" when its leader did it), a soft sound.
+- `incident_fired`: a ring burst and a flash on the soldier and its name
+  in large type (0.8 s), the epiphany sound for a good one and the
+  formation-break sound for a bad one; then its effect's own events.
+- `mark_earned`: a medal rises and the token gains a gold diamond (up to
+  three), with a coin sound.
+- `unit_fled`: the token slides to its escape edge and fades.
+- `unit_defected`: the token squashes and comes back in the other side's
+  colours.
+
+Campaign flow: muster (roster soldiers fill the squads; named soldiers are
+extra leaders of ours, returning traitors extra enemy leaders) → battle →
+summary (also after a retreat) → "Tiếp tục" back to the muster.
 
 ## Public API
 
@@ -87,7 +124,10 @@ test drives the screen through them.
 | `tap_cell(cell)` | method | A tap on the map: select, preview a move or forecast, confirm (a second tap on the same cell or target), or step back (a tap elsewhere) |
 | `select_unit(unit)`, `confirm()`, `cancel()` | method | Select a unit; confirm the move, attack or skill previewed; step back one level |
 | `press_button(action)`, `choose_order(order)` | method | A panel button (`end_turn`, `wait`, `skill`, `order`, `confirm_move`, `attack`, `cast`, `cancel`); an order of the picker |
-| `retreat()` | method | "Rút": the first tap asks, a second within 3 s emits `home_requested`. The top bar sits above the skip catcher and the close-up, so it works during any playback |
+| `campaign`, `squad_people` | property | Optional `TacticsCampaign` and the person ids per squad slot (from the muster): the battle gets the rules, karma and records before it starts, and its end opens the summary |
+| `get_summary()` | method | The `TacticsSummaryView` shown, or null |
+| `campaign_continue_requested` | signal | The summary's "Tiếp tục" |
+| `retreat()` | method | "Rút": the first tap asks, a second within 3 s emits `home_requested` (with a campaign: shows the summary, the battle counted as a retreat). The top bar sits above the skip catcher and the close-up, so it works during any playback |
 | `get_round_text()` | method | The top bar's round and phase line |
 | `is_busy()`, `get_mode()`, `get_selected()` | method | Playback running; `Mode` (`IDLE`, `SELECTED`, `MOVE_PREVIEW`, `FORECAST`, `ORDER_PICK`, `SKILL_TARGET`, `SKILL_PREVIEW`, `BUSY`, `ENDED`); the selected unit |
 | `get_battle()`, `get_map()`, `get_panel()`, `get_playback()`, `get_close_up()`, `get_result_banner()`, `get_retreat_button()`, `get_hint()` | method | Parts and the hint line, for tests and screenshots |
@@ -100,7 +140,24 @@ takes a tap only when press and release are within 24 px; `get_squad(slot)`, `ge
 (from a scratch `TacticsBattle`), `select_soldier(leader_slot, soldier_slot)`
 (again to put it back), `get_picked()`, `move_selected_to(leader_slot) ->
 bool` (false when full), `start_battle()`; signals `battle_requested(squads)`
-and `back_requested`.
+and `back_requested`. With `campaign` set it takes the campaign's
+scenario and squads and moves the person ids with the soldiers
+(`get_people()`); chips show the soldier's face, troop glyph and marks; a
+named leader's card shows its face and name; the enemy panel lists
+returning traitors; "Sổ quân" opens the roster (`open_roster()`).
+
+`TacticsSummaryView` (Control): `campaign`, `summary` (from
+`TacticsCampaign.finish_battle()`), `player_side`, `is_instant`; a card per
+soldier named in this battle (face, name, biography), every roster soldier
+who fought with its fate and new marks (named first, the fallen last), the
+karma line; buttons "Sổ quân" (`open_roster()`) and "Tiếp tục"
+(`continue_requested`). The epiphany sound plays when someone was named.
+
+`TacticsRosterView` (Control): `campaign`; `show_list()` (named first,
+then the living, traitors, deserters, the fallen), `show_sheet(id)`
+(face, name, troop and first leader, status, what a named one leads with,
+biography, each mark with its round, place and leader), `get_sheet_id()`,
+`close()`; signal `closed`. Built on open; it never redraws on its own.
 
 `TacticsMapView` (Control): `setup(battle, objective_cell)`, `cell_to_local`,
 `local_to_cell`, `get_terrain_at`, `add_piece`, `get_piece(unit)`,
@@ -156,6 +213,8 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   `TERRAIN_FILLS`); the close-up backdrop for a terrain is in
   `TacticsPlayback.BACKDROPS`.
 - A new event type: add a handler to `TacticsPlayback._handlers`.
+- A new incident: its playback needs nothing; add its `INCIDENT_<X>` and
+  `_HINT` rows and a `BIO_MARK_<X>_FORMAT` row.
 - Another scenario: point `Main.TACTICS_SCENARIO_PATH` at it (one scenario
   for now).
 
@@ -173,7 +232,9 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   playback, before the sync, tokens, hp, deaths, pips, zones and the top
   bar's round and phase must match the battle, and after every tap the
   marks, buttons, intents and the "done" look must match its queries, with
-  no error logged.
+  no error logged. Odd seeds play through a campaign with forced incident
+  seeds: each token's side, wavering bubble and mark count must match the
+  battle, and some incident steps must have played.
 - `Tests/tactics_screen_input_test.gd`: real playback with taps pushed
   through the viewport: taps during a playback send nothing, a tap skips
   the close-up, the enemy card's intent words ("hành quân" when its arrow
@@ -184,7 +245,9 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   mid-playback.
 - `Tests/muster_test.gd`: Main's title "Chiến Dịch" to the muster screen,
   squads and capacities, a soldier moved and one refused, "Xuất quân" to the
-  tactics screen with those squads, and a double "Rút" back to the title;
+  tactics screen with those squads, a double "Rút" to the summary (the
+  roster then counts one battle), "Tiếp tục" back to the muster and "Về"
+  to the title;
   then, with touch emulated, taps on a chip and a leader card move a
   soldier, and drags that start on a card or a chip scroll the page
   without picking or moving anyone.
@@ -199,8 +262,10 @@ Run one with
   across a portrait phone do not leave more.
 - No reduced-motion setting exists in the project, so the close-up and skill
   effects always play (a tap skips them).
-- One scenario (the river crossing), reached from the title; no campaign
-  progress is saved.
+- One scenario (the river crossing), reached from the title; only the
+  roster is saved between battles.
+- In fast playback (taps skipping steps) floats from several incidents and
+  hits can pile up over the same tokens.
 - The muster screen moves soldiers only; it does not change leaders or
   their start cells.
 - About 240 draw calls a frame on the map (tokens and their hp bars); the

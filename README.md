@@ -164,7 +164,8 @@ Git.
   [Kỳ Ngộ](Docs/systems/epiphany.md), [Cutscene](Docs/systems/cutscene.md),
   [Boss](Docs/systems/boss.md), [Audio](Docs/systems/audio.md),
   [Voice](Docs/systems/voice.md), [Tactics](Docs/systems/tactics.md),
-  [Tactics screen](Docs/systems/tactics_screen.md)
+  [Tactics screen](Docs/systems/tactics_screen.md),
+  [Tactics roster](Docs/systems/tactics_roster.md)
 - [Changelog](CHANGELOG.md)
 - [Agent instructions](AGENTS.md)
 

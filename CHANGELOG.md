@@ -34,6 +34,25 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Added
 
+- Chiến Dịch, Biến cố và Sổ quân: soldiers now have their own minds. A
+  few carry a hidden incident; when its moment comes the soldier wavers (a
+  gold star or a red "!" over it, and the hint says to bring its leader
+  close), and at the end of the phase it fires unless things calmed down:
+  Cứu trợ (dashes to shield a falling leader), Đương đầu (holds alone,
+  tougher), Bộc phát (rages after a comrade falls), Bất bình (ignores
+  orders after being used as bait), Làm loạn (shoves and hurts its own
+  squad), Tẩu thoát (runs off the map) and Phản (goes over to a strong
+  enemy leader). Enemy soldiers can flee or come over to us too. Leaving
+  soldiers as bait makes bad incidents likelier next battle; rescuing hurt
+  soldiers makes good ones likelier. Each incident leaves a mark (Dấu).
+- Sổ quân: every soldier of ours is a person with a face who stays between
+  battles; the dead stay dead. "Điểm binh" fills the squads from the
+  roster, most marked first. After each battle (or a retreat) a summary
+  shows what became of each soldier and the marks it earned. A soldier
+  with three marks gets a name ("Bảy Cầu") and a short biography, and from
+  then on musters as a small leader of its own. A deserter or traitor with
+  two marks comes back as an enemy leader the next time the river is
+  crossed. "Sổ quân" opens the roster and each soldier's character sheet.
 - Chiến Dịch: a turn-based tactics battle from the title. "Điểm binh" shows
   the objective, the terrains and both sides' leaders, and lets soldiers move
   between our leaders while there is room (a drag on a leader or a soldier

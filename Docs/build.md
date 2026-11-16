@@ -94,6 +94,7 @@ After building, run the editor import, `Tests/smoke_test.gd`,
 `Tests/app_lifecycle_test.gd`, the tactics tests
 (`Tests/tactics_test.gd`, `Tests/tactics_squad_test.gd`,
 `Tests/tactics_fuzz_test.gd`, `Tests/tactics_query_test.gd`,
+`Tests/tactics_incident_test.gd`, `Tests/tactics_roster_test.gd`,
 `Tests/tactics_screen_test.gd`, `Tests/tactics_screen_sync_test.gd`,
 `Tests/tactics_screen_input_test.gd`) and `Tests/muster_test.gd` as shown in the
 README. Tests that touch the
