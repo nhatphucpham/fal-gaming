@@ -164,8 +164,8 @@ nothing and that a hidden enemy's own steps play nothing).
 [--policy=idle] [--no-fog]`: its scripted player goes for the enemy
 leaders it sees, else where one was last seen, else the objective, walking
 by terrain cost. At this milestone (200 seeds): river crossing 123 wins
-(rout 107, objective 16; 77 lost by rout), night raid 115 (rout 104,
-objective 11; 85 lost by rout); the idle player loses all 200 on both by the
+(rout 107, objective 16; 77 lost by rout), night raid 118 (rout 109,
+objective 9; 82 lost by rout); the idle player loses all 200 on both by the
 time limit.
 
 ## Known limits
