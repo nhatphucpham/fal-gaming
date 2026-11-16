@@ -1050,12 +1050,18 @@ func _show_unit_card(unit: int) -> void:
 	else:
 		var leader: int = state["leader"]
 		lines.append(tr("TACTICS_SOLDIER_OF_FORMAT") % _text.unit_name(_units[leader]) if leader >= 0 and _units[leader]["alive"] else tr("TACTICS_NO_LEADER"))
-		if state.get("is_out_of_leader_sight", false):
+		var is_ours: bool = state["side"] == player_side
+		if is_ours and state.get("is_out_of_leader_sight", false):
 			lines.append(tr("TACTICS_OUT_OF_SIGHT"))
 		var wavering: StringName = state["wavering"]
 		if wavering != &"":
+			# Wavering only out of its leader's sight: that is the reason and
+			# the cure, not its incident's own situation.
 			var incident := catalog.get_incident(wavering)
-			lines.append(tr("TACTICS_WAVERING_LINE_FORMAT") % [_text.incident_name(wavering), tr(incident.name_key + "_HINT") if incident != null else ""])
+			var why := tr(incident.name_key + "_HINT") if incident != null else ""
+			if state.get("is_wavering_unseen", false):
+				why = tr("TACTICS_WAVERING_UNSEEN_HINT")
+			lines.append(tr("TACTICS_WAVERING_LINE_FORMAT") % [_text.incident_name(wavering), why])
 		var marks := int(_carried_marks.get(unit, 0)) + int(state["marks"])
 		if marks > 0:
 			side_note += " · " + tr("TACTICS_MARKS_FORMAT") % marks
@@ -1158,9 +1164,15 @@ func _wavering_hint() -> String:
 	for state: Dictionary in _units:
 		if state["alive"] and state["side"] == player_side and state["wavering"] != &"":
 			if not state["is_wavering_good"]:
-				return "TACTICS_HINT_WAVERING"
+				return "TACTICS_HINT_WAVERING_UNSEEN" if _is_beyond_calm(state) else "TACTICS_HINT_WAVERING"
 			hint = "TACTICS_HINT_WAVERING_GOOD"
 	return hint
+
+
+# A bad wavering soldier its leader cannot calm until it sees it: it
+# wavers out of sight, or is out of its leader's sight now.
+func _is_beyond_calm(state: Dictionary) -> bool:
+	return state.get("is_wavering_unseen", false) or state.get("is_out_of_leader_sight", false)
 
 
 # First-time tips after our command played: the first move that can be
@@ -1174,8 +1186,11 @@ func _offer_tips(unit: int, was_order: bool) -> void:
 			_tips.offer(&"undo")
 	if was_order:
 		_tips.offer(&"order")
-	if _wavering_hint() == "TACTICS_HINT_WAVERING":
+	var wavering_hint := _wavering_hint()
+	if wavering_hint == "TACTICS_HINT_WAVERING":
 		_tips.offer(&"waver")
+	elif wavering_hint == "TACTICS_HINT_WAVERING_UNSEEN":
+		_tips.offer(&"waver_unseen")
 
 
 # A leader of ours whose turn is closed: it waited, or it has no point to

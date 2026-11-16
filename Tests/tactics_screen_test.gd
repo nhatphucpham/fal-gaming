@@ -470,7 +470,7 @@ func _check_end_turn_look() -> bool:
 	if is_primary != is_settled:
 		push_error("Kết lượt should be primary exactly when only walks are left (%s, %s) mode %d buttons %s" % [is_primary, is_settled, _screen.get_mode(), _screen.get_panel().get_buttons()])
 		return false
-	if is_settled and not _screen.get_hint() in [tr("TACTICS_HINT_ONLY_WALKS"), tr("TACTICS_HINT_ALL_DONE"), tr("TACTICS_HINT_WAVERING"), tr("TACTICS_HINT_WAVERING_GOOD")]:
+	if is_settled and not _screen.get_hint() in [tr("TACTICS_HINT_ONLY_WALKS"), tr("TACTICS_HINT_ALL_DONE"), tr("TACTICS_HINT_WAVERING"), tr("TACTICS_HINT_WAVERING_UNSEEN"), tr("TACTICS_HINT_WAVERING_GOOD")]:
 		push_error("With only walks left the hint should say Kết lượt, got %s" % _screen.get_hint())
 		return false
 	_settled_phases += 1 if is_settled else 0

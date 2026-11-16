@@ -529,12 +529,14 @@ func _check_text_fits() -> bool:
 			return false
 	var lines: Array[String] = [tr("TACTICS_SOLDIER_OF_FORMAT") % "Nguyệt Thương", "", tr("KEYWORD_LONG_WEAPON") + ": " + tr("KEYWORD_LONG_WEAPON_DESC"), tr("TACTICS_TERRAIN_FORMAT") % "Đồng bằng (Đi 1)"]
 	for incident: TacticsIncidentData in _screen.catalog.incident_rules.incidents:
-		lines[1] = tr("TACTICS_WAVERING_LINE_FORMAT") % [tr(incident.name_key), tr(String(incident.name_key) + "_HINT")]
-		panel.show_card("Binh khiên", Color.WHITE, "Máu 284/440 · Dấu: 2", lines)
-		await process_frame
-		var shown := panel.get_shown_card_lines()
-		if shown.size() < 2 or shown[1] != lines[1]:
-			return _fail("the wavering line shows whole: %s" % lines[1])
+		# Its own reason, and the one for a soldier its leader does not see.
+		for why: String in [tr(String(incident.name_key) + "_HINT"), tr("TACTICS_WAVERING_UNSEEN_HINT")]:
+			lines[1] = tr("TACTICS_WAVERING_LINE_FORMAT") % [tr(incident.name_key), why]
+			panel.show_card("Binh khiên", Color.WHITE, "Máu 284/440 · Dấu: 2", lines)
+			await process_frame
+			var shown := panel.get_shown_card_lines()
+			if shown.size() < 2 or shown[1] != lines[1]:
+				return _fail("the wavering line shows whole: %s" % lines[1])
 	return await _check_labels()
 
 

@@ -30,7 +30,8 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 - Chiến Dịch: soldiers out of their leader's sight are likelier to flee
   or betray, more so at night and in fog, and cannot be calmed until the
   leader sees them again; a mark on the edge of the map points at a
-  wavering soldier you cannot see.
+  wavering soldier you cannot see, and its card, the hint and a tip say
+  to let its leader see it.
 - Chiến Dịch: a second battle, "Đột kích đêm" (night raid): through the
   woods and over a ford to a lit enemy camp, in fog that turns to rain,
   with its own soldiers. The campaign alternates it with the river

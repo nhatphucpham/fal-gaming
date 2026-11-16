@@ -605,6 +605,7 @@ TACTICS_FLOAT_AMBUSH,Phục kích!,Ambush!
 TACTICS_FLOAT_DEFECTED,Phản!,Defected!
 TACTICS_FLOAT_JOINED_US,Về phe ta!,Joins us!
 TACTICS_HINT_WAVERING,Binh dao động: kéo tướng lại gần nó.,A soldier wavers: bring its leader close.
+TACTICS_HINT_WAVERING_UNSEEN,Binh khuất mắt dao động: cho tướng thấy nó.,A soldier out of sight wavers: let its leader see it.
 TACTICS_HINT_WAVERING_GOOD,Binh sắp lập công: cứ để nó.,A soldier is about to shine: let it be.
 TACTICS_WAVERING_LINE_FORMAT,Dao động (%s): %s,Wavering (%s): %s
 TACTICS_MARKS_FORMAT,Dấu: %d,Marks: %d
@@ -646,6 +647,7 @@ INCIDENT_DISCONTENT_HINT,bị làm mồi mãi; kéo tướng về,used as bait; 
 INCIDENT_RIOT_HINT,toán tan tác; kéo tướng về,squad broken; bring the leader back
 INCIDENT_FLEE_HINT,"tướng xa, địch sát; kéo tướng về","leader far, enemy close; bring the leader back"
 INCIDENT_BETRAY_HINT,"tướng yếu, địch mạnh gần; kéo tướng về","leader weak, strong enemy near; bring the leader back"
+TACTICS_WAVERING_UNSEEN_HINT,khuất mắt tướng; cho tướng thấy nó,out of its leader's sight; let the leader see it
 BUTTON_UNDO,Hoàn tác,Undo
 TACTICS_WHOLE_MAP,Toàn cảnh,Whole map
 TACTICS_ZOOM_IN,Phóng to,Zoom in
@@ -670,7 +672,8 @@ TACTICS_TURN_FORMAT,Còn %d/%d điểm đi · %s,%d/%d move points left · %s
 TACTICS_TURN_ATTACK_READY,còn đòn đánh,can strike
 TACTICS_TURN_ATTACK_USED,đã đánh,struck
 TACTICS_TURN_WAITED,Đã Chờ: xong lượt.,Waited: turn over.
-TACTICS_TIP_WAVER,"Dấu ! đỏ: binh sắp làm loạn, đưa tướng lại sát nó.","A red !: a soldier will act up, bring its leader close."
+TACTICS_TIP_WAVER,Dấu ! đỏ: binh sắp gây chuyện. Đưa tướng lại gần nó.,A red !: a soldier is about to act up. Bring its leader close.
+TACTICS_TIP_WAVER_UNSEEN,"Binh khuất mắt tướng chỉ yên khi tướng thấy nó: đưa tướng tới.","A soldier out of its leader's sight calms only once the leader sees it: go to it."
 TACTICS_TIP_FOG,"Ô tối: chưa thấy. Địch có thể nấp trong rừng, đi dò từng bước.","Dark cells are unseen. Enemies may hide in forest: scout ahead."
 TACTICS_NAMED_DESC_FORMAT,%s: %s,%s: %s
 FORECAST_WALK_FORMAT,Đi %d ô rồi đánh,Walks %d cells then attacks

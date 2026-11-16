@@ -178,8 +178,9 @@ gold-edged box just above the panel with the text-blip sound, stays 4.5 s
 and fades ("Tướng đi đâu, toán binh dàn quanh đó.", "Còn điểm thì đi
 tiếp. Xong thì bấm Chờ.", "Đi nhầm? Hoàn tác lùi từng bước
 tới khi đánh hay đổi lệnh.", "Đổi lệnh không mất lượt: tướng vẫn đi,
-đánh được.", "Dấu ! đỏ: binh sắp làm loạn, đưa tướng lại sát nó."; the
-`TACTICS_TIP_*` rows). A tip that comes while another shows waits for it.
+đánh được.", "Dấu ! đỏ: binh sắp gây chuyện. Đưa tướng lại gần nó.", or
+for a soldier out of its leader's sight "Binh khuất mắt tướng chỉ yên
+khi tướng thấy nó: đưa tướng tới."; the `TACTICS_TIP_*` rows). A tip that comes while another shows waits for it.
 Each is saved as shown (`RunSettings.save_seen_tip("tactics.<id>")`) and
 never offered again. Tips never catch taps.
 
@@ -224,7 +225,14 @@ Fog, weather and night (see [Tactics vision](tactics_vision.md)):
   kích!", the walker shakes, sound `ambush`; the camera follows.
 - A wavering soldier of ours out of view gets a mark on the edge of the
   map view pointing at it; its card says when it is out of its leader's
-  sight ("Ngoài tầm mắt tướng: để dao động, chưa trấn an được").
+  sight ("Ngoài tầm mắt tướng: dễ dao động, chưa trấn an được"; never on
+  an enemy's card). One that wavers only because it is out of sight
+  (`is_wavering_unseen`) gives that reason and cure on its wavering line
+  ("khuất mắt tướng; cho tướng thấy nó") instead of its incident's own;
+  while a bad wavering soldier is out of its leader's sight (or wavers
+  for it) the hint says "Binh khuất mắt dao động: cho tướng thấy nó." and
+  the first time it offers the tip `waver_unseen` instead of `waver`
+  (which names no incident: "binh sắp gây chuyện").
 - The weather and time chip (top right of the map, 132 x 88): their icons;
   a tap shows both descriptions, the coming weather change and the fog
   line on the panel. A round before the weather turns, a banner says so;

@@ -523,9 +523,12 @@ func _check_unseen_waver() -> bool:
 	var soldier: int = parts[2]
 	var out_of_sight: bool = battle.get_unit_state(soldier)["is_out_of_leader_sight"]
 	var wavered := _wavers(battle)
+	# The screen tells this reason and cure, not the incident's own.
+	var is_unseen: bool = battle.get_unit_state(soldier).get("is_wavering_unseen", false)
 	var fired := Kit.of_type(battle.end_phase(), &"incident_fired")
 	return Kit.expect("out of sight", out_of_sight, true) \
 		and Kit.expect("wavers", wavered.map(func(event: Dictionary) -> int: return event["unit"]), [soldier]) \
+		and Kit.expect("wavers because unseen", is_unseen, true) \
 		and Kit.expect("flees", fired.map(func(event: Dictionary) -> StringName: return event["incident"]), [&"incident.flee"])
 
 

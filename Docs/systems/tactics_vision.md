@@ -127,7 +127,9 @@ rules `leader_light_cells` 1, `intent_read_cells` 3, `reveal_cells` 1,
 | `weather_changed`, `daytime_changed` | event | `now`, `before` |
 | `unit_moved` | event | adds `seen_from`, `seen_to`: the other side saw it there |
 
-Unit state adds `vision`, `is_scout` and `is_out_of_leader_sight`.
+Unit state adds `vision`, `is_scout`, `is_out_of_leader_sight` and
+`is_wavering_unseen` (it wavers only because its leader does not see it;
+its incident's own trigger does not hold).
 
 ## How to extend
 

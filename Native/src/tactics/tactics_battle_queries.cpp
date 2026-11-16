@@ -120,6 +120,8 @@ Dictionary TacticsBattle::get_unit_state(int64_t p_unit) const {
 	state["has_fled"] = unit.has_fled;
 	state["wavering"] = is_wavering ? StringName(to_godot_string(sim.get_incident_rules().incidents[unit.seed].id)) : StringName();
 	state["is_wavering_good"] = is_wavering && sim.get_incident_rules().incidents[unit.seed].handler->is_good;
+	// It wavers only because its leader does not see it (fog of war).
+	state["is_wavering_unseen"] = is_wavering && unit.is_unseen_waver;
 	state["marks"] = static_cast<int>(unit.marks.size());
 	state["is_guarding"] = unit.guard_leader != tactics::NO_UNIT && sim.get_turn() < unit.guard_end_turn;
 	state["holds_ground"] = sim.is_holding_ground(index);
