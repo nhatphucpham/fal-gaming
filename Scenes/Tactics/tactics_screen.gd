@@ -6,7 +6,9 @@ extends Control
 ## commands to its TacticsBattle and plays the events back through
 ## TacticsPlayback, then brings the map in line with the battle. It holds
 ## no rules: every list of cells, target and forecast comes from the
-## battle. See Docs/systems/tactics_screen.md.
+## battle. With a TacticsCampaign the battle has incidents and roster
+## records, and the end shows the after-battle summary.
+## See Docs/systems/tactics_screen.md.
 ## [codeblock]
 ## var screen := TacticsScreen.new()
 ## screen.scenario = load("res://Data/Tactics/Scenarios/river_crossing.tres")
@@ -14,6 +16,8 @@ extends Control
 ## [/codeblock]
 
 signal home_requested()
+## The after-battle summary's "Tiếp tục" (only with a campaign).
+signal campaign_continue_requested()
 ## Every time the screen is ready for the next tap (after a playback).
 signal became_idle()
 
@@ -31,6 +35,11 @@ var scenario: TacticsScenarioData
 ## muster screen; empty keeps the scenario's squads.
 var squads: Array = []
 var catalog: TacticsCatalog
+## The roster around this battle; null plays it without incidents.
+var campaign: TacticsCampaign
+## Person ids per leader of ours, in the order of `squads`; empty takes
+## the campaign's.
+var squad_people: Array = []
 ## Tests: playback steps end at once and close-ups are skipped.
 var is_instant: bool = false
 var player_side: int = 0
@@ -57,6 +66,9 @@ var _intents: Array = []
 var _is_retreat_armed: bool = false
 var _hint_key: String = "TACTICS_HINT_IDLE"
 var _retreat_arm_count: int = 0
+var _summary: TacticsSummaryView
+## Unit index -> marks its roster person carried in.
+var _carried_marks: Dictionary = {}
 
 
 func _ready() -> void:
@@ -74,6 +86,10 @@ func _ready() -> void:
 	# The other side plays itself, whichever side we are.
 	_battle.set_side_ai(player_side, false)
 	_battle.set_side_ai(1 - player_side, true)
+	if campaign != null:
+		campaign.fill_text(_text)
+		if not campaign.prepare_battle(_battle, _people()):
+			push_error("TacticsScreen: the campaign could not set up %s" % scenario.id)
 	_build()
 	_map.setup(_battle, scenario.map.objective_cell if scenario.map.objective_side == player_side else NO_CELL)
 	_banner.max_rounds = scenario.rules.max_rounds
@@ -82,6 +98,8 @@ func _ready() -> void:
 		var piece := TacticsPieceView.new()
 		var data := _text.unit_data(state["id"])
 		piece.setup(state, TacticsPainter.glyph_for(data.base_class.id if data != null else &"", state["keywords"]))
+		var person := campaign.get_person(state["record_id"]) if campaign != null else {}
+		_carried_marks[state["index"]] = (person["marks"] as Array).size() if not person.is_empty() else 0
 		_map.add_piece(piece, state["cell"])
 	_sync()
 	Sound.play_music(&"music_battle")
@@ -188,11 +206,16 @@ func choose_order(order: StringName) -> void:
 
 
 ## The retreat button: the first tap asks, a second within a few seconds
-## leaves the battle.
+## leaves the battle (with a campaign, through the after-battle summary:
+## what happened so far still counts).
 func retreat() -> void:
 	if _mode == Mode.ENDED:
 		return
 	if _is_retreat_armed:
+		if campaign != null:
+			_disarm_retreat()
+			_show_summary()
+			return
 		home_requested.emit()
 		return
 	_is_retreat_armed = true
@@ -243,6 +266,11 @@ func get_result_banner() -> ResultBanner:
 
 func get_retreat_button() -> PressButton:
 	return _retreat_button
+
+
+## The after-battle summary once a campaign battle ended, else null.
+func get_summary() -> TacticsSummaryView:
+	return _summary
 
 
 ## The top bar's hint line as shown now.
@@ -369,6 +397,8 @@ func _run(events: Array) -> void:
 
 func _after_playback() -> void:
 	_sync()
+	if _summary != null:
+		return
 	if _battle.is_finished():
 		_show_end()
 		return
@@ -394,6 +424,11 @@ func _sync() -> void:
 		piece.visible = is_alive
 		piece.hp = state["hp"]
 		piece.position = _map.cell_to_local(state["cell"])
+		piece.set_side(state["side"])
+		piece.mark_count = int(_carried_marks.get(state["index"], 0)) + int(state["marks"])
+		var is_wavering: bool = is_alive and state["wavering"] != &""
+		piece.wavering = (TacticsPieceView.Wavering.GOOD if state["is_wavering_good"] else TacticsPieceView.Wavering.BAD) if is_wavering else TacticsPieceView.Wavering.NONE
+		piece.wavering_scale = 1.0
 		piece.is_done = state["role"] == &"leader" and state["side"] == player_side and _battle.get_active_side() == player_side and not _battle.can_act(state["index"]) and not _battle.can_move(state["index"])
 		if state["role"] == &"leader":
 			var charge := _battle.get_skill_charge(state["index"])
@@ -436,7 +471,7 @@ func _go_idle() -> void:
 	for state: Dictionary in _units:
 		if _is_commandable(state["index"]) and _battle.can_act(state["index"]):
 			is_all_done = false
-	_set_hint("TACTICS_HINT_ALL_DONE" if is_all_done else "TACTICS_HINT_IDLE")
+	_set_hint("TACTICS_HINT_WAVERING" if _has_wavering() else "TACTICS_HINT_ALL_DONE" if is_all_done else "TACTICS_HINT_IDLE")
 	_show_our_phase_card(_battle.get_round())
 	_panel.set_buttons(_end_turn_button(is_all_done))
 
@@ -649,8 +684,16 @@ func _show_unit_card(unit: int) -> void:
 		var leader: int = state["leader"]
 		lines.append(tr("TACTICS_SOLDIER_OF_FORMAT") % _text.unit_name(_units[leader]) if leader >= 0 and _units[leader]["alive"] else tr("TACTICS_NO_LEADER"))
 		var keywords := _text.keyword_names(state["keywords"])
-		lines.append(tr("TACTICS_KEYWORDS_FORMAT") % keywords if not keywords.is_empty() else "")
+		var wavering: StringName = state["wavering"]
+		if wavering != &"":
+			var incident := catalog.get_incident(wavering)
+			lines.append(tr("TACTICS_WAVERING_LINE_FORMAT") % [_text.incident_name(wavering), tr(incident.name_key + "_HINT") if incident != null else ""])
+		else:
+			lines.append(tr("TACTICS_KEYWORDS_FORMAT") % keywords if not keywords.is_empty() else "")
 		lines.append(_terrain_line(state["cell"]))
+		var marks := int(_carried_marks.get(unit, 0)) + int(state["marks"])
+		if marks > 0:
+			side_note += " · " + tr("TACTICS_MARKS_FORMAT") % marks
 	_panel.show_card(_text.unit_name(state), title_color, side_note, lines)
 
 
@@ -702,7 +745,38 @@ func _show_end() -> void:
 	_set_hint(key)
 	var lines: Array[String] = [tr(key), tr(scenario.name_key), ""]
 	_panel.show_card(tr("RESULT_WIN") if is_win else tr("RESULT_LOSS"), Palette.GOLD if is_win else Palette.VERMILION, tr("TACTICS_ROUND_FORMAT") % [_battle.get_round(), scenario.rules.max_rounds], lines)
-	_result.present(is_win, tr(key), [], "BUTTON_HOME")
+	if campaign == null:
+		_result.present(is_win, tr(key), [], "BUTTON_HOME")
+		return
+	_show_summary()
+
+
+# Writes the battle into the roster and shows what became of everyone.
+func _show_summary() -> void:
+	if _summary != null:
+		return
+	_mode = Mode.ENDED
+	_summary = TacticsSummaryView.new()
+	_summary.campaign = campaign
+	_summary.summary = campaign.finish_battle(_battle, _people())
+	_summary.player_side = player_side
+	_summary.is_instant = is_instant
+	_summary.continue_requested.connect(campaign_continue_requested.emit)
+	add_child(_summary)
+
+
+func _people() -> Array:
+	return squad_people if not squad_people.is_empty() else campaign.people
+
+
+# One of our soldiers wavers in our phase: the hint says what to do.
+func _has_wavering() -> bool:
+	if _battle.get_active_side() != player_side:
+		return false
+	for state: Dictionary in _units:
+		if state["alive"] and state["side"] == player_side and state["wavering"] != &"":
+			return true
+	return false
 
 
 func _is_commandable(unit: int) -> bool:

@@ -122,6 +122,28 @@ static func draw_intent_icon(canvas: CanvasItem, action: StringName, c: Vector2,
 		canvas.draw_line(c + Vector2(-r * 0.5, 0), c + Vector2(r * 0.5, 0), OUTLINE, 3.0)
 
 
+## A small round badge with a troop glyph, for a face that needs its troop.
+static func draw_glyph_badge(canvas: CanvasItem, c: Vector2, r: float, glyph: StringName) -> void:
+	_ensure_registries()
+	canvas.draw_circle(c, r + 2.0, OUTLINE)
+	canvas.draw_circle(c, r, PLAYER_FILL)
+	var drawer: Callable = _glyphs.get(glyph, _glyphs[&"class.sword"])
+	drawer.call(canvas, c, r * 0.75, Palette.CREAM)
+
+
+## The wavering mark (dao động) of radius `r`: a gold bubble with a star
+## for a good incident, a red one with "!" for a bad one.
+static func draw_wavering(canvas: CanvasItem, c: Vector2, r: float, is_good: bool) -> void:
+	canvas.draw_colored_polygon(PackedVector2Array([c + Vector2(-r * 0.5, r * 0.6), c + Vector2(-r * 0.9, r * 1.35), c + Vector2(0, r * 0.85)]), OUTLINE)
+	canvas.draw_circle(c, r + 2.0, OUTLINE)
+	canvas.draw_circle(c, r, Palette.GOLD if is_good else Palette.VERMILION)
+	if is_good:
+		canvas.draw_colored_polygon(star_points(c, r * 0.72, r * 0.3, 5), OUTLINE)
+	else:
+		canvas.draw_rect(Rect2(c + Vector2(-r * 0.16, -r * 0.62), Vector2(r * 0.32, r * 0.78)), Palette.CREAM)
+		canvas.draw_circle(c + Vector2(0, r * 0.45), r * 0.17, Palette.CREAM)
+
+
 ## A star polygon with `points` tips.
 static func star_points(c: Vector2, outer: float, inner: float, points: int) -> PackedVector2Array:
 	var result := PackedVector2Array()

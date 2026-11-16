@@ -563,3 +563,52 @@ BIO_MARK_FLEE_FORMAT,"Vòng %d, ở %s, bỏ %s mà chạy.","Round %d, at the %
 BIO_MARK_BETRAY_FORMAT,"Vòng %d, ở %s, bỏ %s theo giặc.","Round %d, at the %s, left %s for the enemy."
 BIO_CLOSING_FORMAT,Người trong toán gọi là %s.,The squad calls them %s.
 ROSTER_MARK_LINE_FORMAT,%s · %s · vòng %d · dưới cờ %s,%s · %s · round %d · under %s
+TACTICS_FLOAT_ARMOR_FORMAT,+%d Giáp,+%d Armor
+TACTICS_FLOAT_WAVERING_FORMAT,%s?,%s?
+TACTICS_FLOAT_CALMED,Đã yên,Settled
+TACTICS_FLOAT_CALMED_LEADER,Tướng trấn an,Leader calms them
+TACTICS_FLOAT_MARK_FORMAT,Dấu: %s,Mark: %s
+TACTICS_FLOAT_FLED,Bỏ chạy!,Fled!
+TACTICS_FLOAT_DEFECTED,Phản!,Defected!
+TACTICS_FLOAT_JOINED_US,Về phe ta!,Joins us!
+TACTICS_HINT_WAVERING,Binh dao động: kéo tướng lại gần nó.,A soldier wavers: bring its leader close.
+TACTICS_WAVERING_LINE_FORMAT,Dao động: %s — %s,Wavering: %s — %s
+TACTICS_MARKS_FORMAT,Dấu: %d,Marks: %d
+BUTTON_ROSTER,Sổ quân,Roster
+BUTTON_CLOSE,Đóng,Close
+ROSTER_TITLE,Sổ quân,Roster
+ROSTER_EMPTY,Chưa có ai trong sổ. Ra trận một lần để ghi tên binh.,Nobody yet. Fight once to enter your soldiers.
+ROSTER_SHEET_TITLE,Lý lịch,Record
+ROSTER_TROOP_FORMAT,%s · vào quân dưới cờ %s,%s · joined under %s
+ROSTER_LEADS_FORMAT,Danh binh: dẫn %d binh · %s · chiêu %s,Named: leads %d · %s · skill %s
+ROSTER_BIO,Tiểu sử,Story
+ROSTER_MARKS_FORMAT,Dấu: %d (đủ %d thì được đặt tên),Marks: %d (%d to be named)
+ROSTER_NO_MARKS,Chưa có dấu nào.,No marks yet.
+ROSTER_STATUS_ACTIVE,Còn trong quân,Serving
+ROSTER_STATUS_NAMED,Danh binh,Named
+ROSTER_STATUS_DEAD,Tử trận,Fallen
+ROSTER_STATUS_DESERTED,Bỏ trốn,Deserted
+ROSTER_STATUS_TRAITOR,Theo giặc,Traitor
+SUMMARY_RETREAT,Rút quân,Retreat
+SUMMARY_NAMED,Được đặt tên!,Named!
+SUMMARY_NAMED_LEADS_FORMAT,"Từ nay là danh binh, dẫn được %d binh.",Now a named soldier who leads %d.
+SUMMARY_PEOPLE,Người trong toán,Our people
+SUMMARY_FELL,Tử trận,Fell
+SUMMARY_FLED,Bỏ chạy,Fled
+SUMMARY_JOINED,Về phe ta,Joined us
+SUMMARY_DEFECTED,Theo giặc,Went over
+SUMMARY_ENEMY_SURVIVED,Vẫn theo giặc,Still with the enemy
+SUMMARY_RETURNED,Trở về,Came back
+SUMMARY_MARKS_FORMAT,dấu mới: %s,new marks: %s
+SUMMARY_KARMA_FORMAT,Nghiệp trận này: làm mồi %d · cứu %d. Mang sang trận sau: mồi %d · cứu %d.,This battle: bait %d · rescues %d. Carried on: bait %d · rescues %d.
+MUSTER_RETURNING_TRAITOR_FORMAT,Kẻ phản trở lại: %s,A traitor returns: %s
+MUSTER_RETURNING_DESERTER_FORMAT,Kẻ đào ngũ trở lại: %s,A deserter returns: %s
+MUSTER_RETURNING_DETAIL_FORMAT,Dẫn %d %s · %d dấu,Leads %d %s · %d marks
+MUSTER_NAMED_LEADER_FORMAT,Danh binh · gốc %s,Named soldier · was %s
+INCIDENT_RESCUE_HINT,"tướng sắp gục, nó muốn lao ra đỡ",its leader is falling; it wants to shield them
+INCIDENT_STAND_HINT,"bị vây một mình, nó sắp đứng chặn","surrounded alone, it is about to hold"
+INCIDENT_SURGE_HINT,"đồng đội vừa gục, nó sắp bộc phát",a comrade fell; it is about to surge
+INCIDENT_DISCONTENT_HINT,bị làm mồi mãi; kéo tướng về,used as bait; bring the leader back
+INCIDENT_RIOT_HINT,toán tan tác; kéo tướng về,squad broken; bring the leader back
+INCIDENT_FLEE_HINT,"tướng xa, địch sát; kéo tướng về","leader far, enemy close; bring the leader back"
+INCIDENT_BETRAY_HINT,"tướng yếu, địch mạnh gần; kéo tướng về","leader weak, strong enemy near; bring the leader back"

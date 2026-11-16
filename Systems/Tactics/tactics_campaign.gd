@@ -37,6 +37,9 @@ var leader_people: Array[int] = []
 var enemy_people: Array[int] = []
 ## The leaders made from the roster, ours then the enemy's.
 var runtime_leaders: Array[TacticsLeaderData] = []
+## Tests and stills: person id -> incident id seeded on that soldier,
+## instead of drawing seeds from the battle seed.
+var forced_seeds: Dictionary = {}
 
 # Unit index -> person id, fixed when the battle is prepared (defections
 # change the squads later).
@@ -91,6 +94,8 @@ func prepare_battle(battle: TacticsBattle, squad_people: Array) -> bool:
 			var incident := rules.get_incident(mark["incident"])
 			good += 1 if incident != null and incident.is_good() else 0
 		battle.set_unit_record(pair[0], pair[1], good, (person["marks"] as Array).size() - good)
+		if forced_seeds.has(pair[1]) and not battle.set_incident_seed(pair[0], forced_seeds[pair[1]]):
+			return false
 	return true
 
 

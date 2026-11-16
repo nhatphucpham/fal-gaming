@@ -4,7 +4,9 @@ extends Node
 ## with a sound for every change: phase banners, leader moves along their
 ## path, squads stepping together, soldier fights batched (about 0.3 s
 ## each, staggered so a squad stays under about 2 s), deaths, charge pips,
-## zones, buffs, passives and intents. A leader's attack or skill opens the
+## zones, buffs, passives, intents and incidents (a soldier wavering, the
+## incident firing with its name over the soldier, calming, fleeing,
+## defecting, a mark earned). A leader's attack or skill opens the
 ## close-up. A tap skips the step that plays now. It never changes the
 ## battle; the screen syncs the map from the battle once it is done.
 ## See Docs/systems/tactics_screen.md.
@@ -32,6 +34,8 @@ const HIT_COLOR := Color("ffd27a")
 const COUNTER_COLOR := Color("f3e6c8")
 const BURN_COLOR := Color("ff8a3a")
 const MARK_COLOR := Color("7fd1b0")
+const INCIDENT_SEC: float = 0.8
+const WAVER_SEC: float = 0.55
 ## The close-up backdrop for the terrain the fight is on.
 const BACKDROPS: Dictionary[StringName, StringName] = {
 	&"terrain.forest": &"backdrop.mountain", &"terrain.hill": &"backdrop.mountain",
@@ -66,7 +70,8 @@ func _init() -> void:
 		&"skill_charge_changed": _play_charge, &"skill_grew": _play_growth, &"buff_applied": _play_buffs,
 		&"buff_ended": _play_buffs_ended, &"zone_created": _play_zone, &"zone_expired": _play_zone_expired,
 		&"passive_triggered": _play_passive, &"order_changed": _play_order, &"leader_waited": _play_wait,
-		&"intent_declared": _play_intents,
+		&"intent_declared": _play_intents, &"soldier_wavered": _play_wavered, &"incident_calmed": _play_calmed,
+		&"incident_fired": _play_incident, &"mark_earned": _play_mark, &"unit_fled": _play_fled, &"unit_defected": _play_defected,
 	}
 
 
@@ -454,7 +459,9 @@ func _play_growth(events: Array, index: int) -> int:
 func _play_buffs(events: Array, index: int) -> int:
 	var end := index
 	while end < events.size() and events[end]["type"] == &"buff_applied":
-		map.float_text(_above(events[end]["unit"]), tr("TACTICS_FLOAT_ATTACK_FORMAT") % events[end]["amount"], MARK_COLOR, 20)
+		var is_armor: bool = events[end].get("stat", &"") == &"stat.armor"
+		var format := "TACTICS_FLOAT_ARMOR_FORMAT" if is_armor else "TACTICS_FLOAT_ATTACK_FORMAT"
+		map.float_text(_above(events[end]["unit"]), tr(format) % events[end]["amount"], MARK_COLOR, 20)
 		end += 1
 	Sound.play(&"level_up")
 	await _pause(index, 0.4)
@@ -534,11 +541,158 @@ func _play_intents(events: Array, index: int) -> int:
 	return end
 
 
+# Soldiers that start to waver in this phase: the mark pops over each.
+func _play_wavered(events: Array, index: int) -> int:
+	var end := index
+	var tween := _new_step()
+	tween.set_parallel()
+	while end < events.size() and events[end]["type"] == &"soldier_wavered":
+		var event: Dictionary = events[end]
+		var piece := _piece(event["unit"])
+		if piece != null:
+			var is_good: bool = event["is_good"]
+			piece.wavering = TacticsPieceView.Wavering.GOOD if is_good else TacticsPieceView.Wavering.BAD
+			piece.wavering_scale = 0.0
+			tween.tween_property(piece, ^"wavering_scale", 1.4, 0.18).set_delay(0.08 * (end - index))
+			tween.chain().tween_property(piece, ^"wavering_scale", 1.0, 0.12)
+			tween.set_parallel()
+			var line: String = tr("TACTICS_FLOAT_WAVERING_FORMAT") % text.incident_name(event["incident"])
+			map.float_text(_above(event["unit"]) + Vector2(0, -14 - 22 * ((end - index) % 2)), line, Palette.GOLD if is_good else Palette.VERMILION.lightened(0.25), 20, 30.0, 1.3)
+		end += 1
+	tween.chain().tween_interval(WAVER_SEC)
+	Sound.play(&"timer_tick")
+	await _finish(tween)
+	return end
+
+
+func _play_calmed(events: Array, index: int) -> int:
+	var event: Dictionary = events[index]
+	var piece := _piece(event["unit"])
+	var tween := _new_step()
+	if piece != null:
+		tween.tween_property(piece, ^"wavering_scale", 0.0, 0.2)
+		tween.tween_callback(func() -> void: piece.wavering = TacticsPieceView.Wavering.NONE)
+	var key := "TACTICS_FLOAT_CALMED_LEADER" if event["reason"] == &"leader" else "TACTICS_FLOAT_CALMED"
+	map.float_text(_above(event["unit"]), tr(key), Palette.CREAM, 20)
+	Sound.play(&"formation_on")
+	tween.tween_interval(0.3)
+	await _finish(tween)
+	return index + 1
+
+
+# The incident's name bursts over the soldier with a ring; its effects
+# (dash, buffs, shoves, flight, defection) follow as their own steps.
+func _play_incident(events: Array, index: int) -> int:
+	var event: Dictionary = events[index]
+	var piece := _piece(event["unit"])
+	var is_good: bool = event["is_good"]
+	var color := Palette.GOLD if is_good else Palette.VERMILION
+	var tween := _new_step()
+	if piece != null:
+		piece.wavering = TacticsPieceView.Wavering.NONE
+		var ring := _Ring.new()
+		ring.color = color
+		ring.position = piece.position + piece.get_token_center()
+		map.get_fx_layer().add_child(ring)
+		var grow := ring.create_tween()
+		grow.tween_property(ring, ^"radius", 46.0, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		grow.parallel().tween_property(ring, ^"modulate:a", 0.0, 0.45)
+		grow.tween_callback(ring.queue_free)
+		if is_instant:
+			grow.custom_step(1000.0)
+		piece.flash = 1.0
+		tween.tween_property(piece, ^"flash", 0.0, 0.3)
+	map.float_text(_above(event["unit"]) + Vector2(0, -20), text.incident_name(event["incident"]), color, 30, 44.0, 1.4)
+	Sound.play(&"epiphany" if is_good else &"formation_break")
+	tween.tween_interval(INCIDENT_SEC)
+	await _finish(tween)
+	return index + 1
+
+
+# A mark (Dấu): a gold diamond rises from the soldier and its count grows.
+func _play_mark(events: Array, index: int) -> int:
+	var event: Dictionary = events[index]
+	var piece := _piece(event["unit"])
+	if piece != null:
+		piece.mark_count += 1
+		var medal := _Medal.new()
+		medal.position = piece.position + Vector2(0, -30)
+		map.get_fx_layer().add_child(medal)
+		var rise := medal.create_tween()
+		rise.tween_property(medal, ^"position:y", medal.position.y - 30.0, 0.6).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		rise.parallel().tween_property(medal, ^"modulate:a", 0.0, 0.6).set_delay(0.3)
+		rise.tween_callback(medal.queue_free)
+		if is_instant:
+			rise.custom_step(1000.0)
+	map.float_text(_above(event["unit"]) + Vector2(0, 8), tr("TACTICS_FLOAT_MARK_FORMAT") % text.incident_name(event["incident"]), Palette.GOLD, 18)
+	Sound.play(&"coin")
+	return await _pause(index, 0.45)
+
+
+# The soldier runs to the map's edge and is gone.
+func _play_fled(events: Array, index: int) -> int:
+	var event: Dictionary = events[index]
+	var piece := _piece(event["unit"])
+	var tween := _new_step()
+	map.float_text(_above(event["unit"]), tr("TACTICS_FLOAT_FLED"), Palette.VERMILION.lightened(0.25), 22)
+	Sound.play(&"charge")
+	if piece != null:
+		piece.is_dead = true
+		tween.tween_property(piece, ^"position", map.cell_to_local(event["to"]), 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tween.tween_property(piece, ^"modulate:a", 0.0, 0.2)
+		tween.tween_callback(piece.hide)
+	await _finish(tween)
+	return index + 1
+
+
+# The soldier turns: it squashes flat, comes back in the other side's
+# colours, and the map's side for it changes.
+func _play_defected(events: Array, index: int) -> int:
+	var event: Dictionary = events[index]
+	var unit: int = event["unit"]
+	var piece := _piece(unit)
+	var new_side: int = event["side"]
+	_units[unit]["side"] = new_side
+	var is_to_us := new_side == player_side
+	var tween := _new_step()
+	if piece != null:
+		tween.tween_property(piece, ^"scale", Vector2(0.15, 1.1), 0.18)
+		tween.tween_callback(piece.set_side.bind(new_side))
+		tween.tween_property(piece, ^"scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	map.float_text(_above(unit) + Vector2(0, -12), tr("TACTICS_FLOAT_JOINED_US" if is_to_us else "TACTICS_FLOAT_DEFECTED"), Palette.JADE_LIGHT if is_to_us else Palette.VERMILION.lightened(0.25), 24)
+	Sound.play(&"formation_on" if is_to_us else &"petrify")
+	tween.tween_interval(0.35)
+	await _finish(tween)
+	return index + 1
+
+
 func _pause(index: int, seconds: float) -> int:
 	var tween := _new_step()
 	tween.tween_interval(seconds)
 	await _finish(tween)
 	return index + 1
+
+
+## The ring an incident bursts with.
+class _Ring extends Node2D:
+	var color := Palette.GOLD
+	var radius: float = 12.0:
+		set(value):
+			radius = value
+			queue_redraw()
+
+	func _draw() -> void:
+		draw_arc(Vector2.ZERO, radius, 0.0, TAU, 32, Palette.INK, 6.0, true)
+		draw_arc(Vector2.ZERO, radius, 0.0, TAU, 32, color, 3.5, true)
+
+
+## The gold diamond a mark rises as.
+class _Medal extends Node2D:
+	func _draw() -> void:
+		var points := PackedVector2Array([Vector2(0, -9), Vector2(7, 0), Vector2(0, 9), Vector2(-7, 0)])
+		draw_colored_polygon(points, Palette.GOLD)
+		points.append(points[0])
+		draw_polyline(points, Palette.INK, 2.0)
 
 
 ## A small dot flying from shooter to target.
