@@ -88,6 +88,7 @@ test drives the screen through them.
 | `select_unit(unit)`, `confirm()`, `cancel()` | method | Select a unit; confirm the move, attack or skill previewed; step back one level |
 | `press_button(action)`, `choose_order(order)` | method | A panel button (`end_turn`, `wait`, `skill`, `order`, `confirm_move`, `attack`, `cast`, `cancel`); an order of the picker |
 | `retreat()` | method | "Rút": the first tap asks, a second within 3 s emits `home_requested`. The top bar sits above the skip catcher and the close-up, so it works during any playback |
+| `get_round_text()` | method | The top bar's round and phase line |
 | `is_busy()`, `get_mode()`, `get_selected()` | method | Playback running; `Mode` (`IDLE`, `SELECTED`, `MOVE_PREVIEW`, `FORECAST`, `ORDER_PICK`, `SKILL_TARGET`, `SKILL_PREVIEW`, `BUSY`, `ENDED`); the selected unit |
 | `get_battle()`, `get_map()`, `get_panel()`, `get_playback()`, `get_close_up()`, `get_result_banner()`, `get_retreat_button()`, `get_hint()` | method | Parts and the hint line, for tests and screenshots |
 | `home_requested` | signal | The result's "Về màn hình chính" or a confirmed retreat |
@@ -108,7 +109,7 @@ text still rising from the same spot); signal `cell_tapped(cell)` (press and
 release on the same cell within 24 px).
 
 `TacticsPanel` (PanelContainer): `show_card(title, color, side_note,
-lines)`, `show_forecast(left, right, note)`, `show_orders(current, text)`,
+lines)`, `get_card_texts()`, `show_forecast(left, right, note)`, `show_orders(current, text)`,
 `set_buttons([{action, text, enabled, primary}])`, `get_buttons()`,
 `get_order_buttons()`; signals `action_pressed(action)`,
 `order_chosen(order)`.
@@ -116,7 +117,9 @@ lines)`, `show_forecast(left, right, note)`, `show_orders(current, text)`,
 `TacticsPlayback` (Node): `reset(units, zones)`, `await play(events)`,
 `skip_step()`, `close_up_count`; signal `played` when the last step is
 done, before the screen syncs the map (the map must already agree with the
-battle then). Handlers are a registry by event type.
+battle then), and `phase_shown(side, round_number)` when a phase banner
+starts, so the top bar and the panel say whose phase it is while the enemy
+plays. Handlers are a registry by event type.
 Squads step together (at most 0.55 s), soldier fights are batched (0.3 s
 each, starts staggered at most 0.28 s apart and all within 1.1 s), a
 leader's attack and every skill open the close-up.
@@ -164,12 +167,15 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   it counts close-ups and presses the result's button.
 - `Tests/tactics_screen_sync_test.gd`: random taps (cells, leaders,
   enabled buttons, orders) on six seeds in instant mode; after every
-  playback, before the sync, tokens, hp, deaths, pips and zones must match
-  the battle, and after every tap the marks, buttons, intents and the
-  "done" look must match its queries, with no error logged.
+  playback, before the sync, tokens, hp, deaths, pips, zones and the top
+  bar's round and phase must match the battle, and after every tap the
+  marks, buttons, intents and the "done" look must match its queries, with
+  no error logged.
 - `Tests/tactics_screen_input_test.gd`: real playback with taps pushed
   through the viewport: taps during a playback send nothing, a tap skips
-  the close-up, the rally's close-up line for our side and the enemy's,
+  the close-up, the enemy card's intent words ("hành quân" when its arrow
+  moves, "đứng chờ" when it stays), the top bar and panel during the
+  enemy's phase, the rally's close-up line for our side and the enemy's,
   every skill outcome line, "Rút" during the enemy's phase (and its hint
   coming back after 3 s), and no error after the screen is freed
   mid-playback.

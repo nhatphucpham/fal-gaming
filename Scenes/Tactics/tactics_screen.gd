@@ -250,6 +250,11 @@ func get_hint() -> String:
 	return _hint_label.text
 
 
+## The top bar's round and phase line as shown now.
+func get_round_text() -> String:
+	return _round_label.text
+
+
 func _build() -> void:
 	var background := ColorRect.new()
 	background.color = Palette.BACKDROP
@@ -298,6 +303,7 @@ func _build() -> void:
 	_playback.looks = load(LOOKS_PATH) as TacticsSkillLookSet
 	_playback.player_side = player_side
 	_playback.is_instant = is_instant
+	_playback.phase_shown.connect(_on_phase_shown)
 	add_child(_playback)
 
 
@@ -400,7 +406,22 @@ func _sync() -> void:
 			entry["from"] = _units[intent["unit"]]["cell"]
 			_intents.append(entry)
 	_map.set_intents(_intents)
-	_round_label.text = "%s · %s" % [tr("TACTICS_ROUND_FORMAT") % [_battle.get_round(), scenario.rules.max_rounds], tr("TACTICS_PHASE_PLAYER") if _battle.get_active_side() == player_side else tr("TACTICS_PHASE_ENEMY")]
+	_show_round(_battle.get_round(), _battle.get_active_side())
+
+
+func _show_round(round_number: int, side: int) -> void:
+	_round_label.text = "%s · %s" % [tr("TACTICS_ROUND_FORMAT") % [round_number, scenario.rules.max_rounds], tr("TACTICS_PHASE_PLAYER") if side == player_side else tr("TACTICS_PHASE_ENEMY")]
+
+
+# A phase begins inside a playback: the top bar and the panel say whose
+# phase it is at once, not only when the playback is over.
+func _on_phase_shown(side: int, round_number: int) -> void:
+	_show_round(round_number, side)
+	if side == player_side:
+		return
+	_set_hint("TACTICS_HINT_ENEMY_PHASE")
+	var lines: Array[String] = [tr("TACTICS_HINT_ENEMY_PHASE"), "", ""]
+	_panel.show_card(tr("TACTICS_PHASE_ENEMY"), TacticsPainter.ENEMY_FILL.lightened(0.35), tr("TACTICS_ROUND_FORMAT") % [round_number, scenario.rules.max_rounds], lines)
 
 
 func _go_idle() -> void:
@@ -570,7 +591,7 @@ func _preview_skill(cell: Vector2i) -> void:
 	if lines.is_empty():
 		lines.append(tr(catalog.get_skill(skill_id).description_key))
 	_panel.show_card(_text.skill_name(skill_id), Palette.GOLD, side_note, lines)
-	_set_hint("TACTICS_HINT_SKILL")
+	_set_hint("TACTICS_HINT_SKILL_CONFIRM")
 	_panel.set_buttons([
 		{"action": &"cancel", "text": "BUTTON_CANCEL"},
 		{"action": &"cast", "text": "BUTTON_CAST", "primary": true},
@@ -642,6 +663,8 @@ func _intent_text(unit: int) -> String:
 				return tr("INTENT_ATTACK_FORMAT") % _text.unit_name(_units[intent["target"]]) if intent["target"] >= 0 else tr("INTENT_WAIT")
 			&"skill":
 				return tr("INTENT_SKILL_FORMAT") % _text.skill_name(_battle.get_skill_charge(unit)["skill"])
+		# A wait after a march shows an arrow on the map; the words agree.
+		return tr("INTENT_MARCH") if intent["from"] != intent["to"] else tr("INTENT_WAIT")
 	return tr("INTENT_WAIT")
 
 

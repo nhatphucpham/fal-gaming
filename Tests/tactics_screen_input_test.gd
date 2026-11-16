@@ -51,7 +51,7 @@ func _run() -> bool:
 	if not ClassDB.class_exists("TacticsBattle"):
 		push_error("TacticsBattle is missing: build the GDExtension (scons) before importing")
 		return false
-	var checks: Array[Callable] = [_check_outcome_lines, _check_busy_taps, _check_our_rally, _check_enemy_rally, _check_retreat_while_busy]
+	var checks: Array[Callable] = [_check_outcome_lines, _check_enemy_phase_texts, _check_busy_taps, _check_our_rally, _check_enemy_rally, _check_retreat_while_busy]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Tactics screen input test failed in %s" % check.get_method())
@@ -132,6 +132,40 @@ func _check_outcome_lines() -> bool:
 	return true
 
 
+# The enemy's card says it marches when its intent arrow moves; while the
+# enemy plays, the top bar and the panel say it is the enemy's phase.
+func _check_enemy_phase_texts() -> bool:
+	await _open(0)
+	if not await _wait_idle():
+		return false
+	var marches := 0
+	for intent: Dictionary in _battle().get_enemy_intents():
+		if intent["action"] != &"wait":
+			continue
+		_screen.select_unit(intent["unit"])
+		var is_march: bool = intent["to"] != _battle().get_unit_state(intent["unit"])["cell"]
+		var line: String = _screen.get_panel().get_card_texts()[3]
+		if line.begins_with(tr("INTENT_MARCH")) != is_march or line.begins_with(tr("INTENT_WAIT")) == is_march:
+			push_error("Enemy %d's intent (to %s) reads \"%s\"" % [intent["unit"], intent["to"], line])
+			return false
+		marches += 1 if is_march else 0
+	if marches == 0:
+		push_error("The river crossing should open with an enemy marching")
+		return false
+	_screen.cancel()
+	_screen.press_button(&"end_turn")
+	for frame: int in 30:
+		await process_frame
+	if not _screen.is_busy():
+		push_error("The enemy's phase should still be playing")
+		return false
+	var enemy := tr("TACTICS_PHASE_ENEMY")
+	if not _screen.get_round_text().ends_with(enemy) or _screen.get_panel().get_card_texts()[0] != enemy:
+		push_error("During the enemy's phase the top bar reads \"%s\" and the panel \"%s\"" % [_screen.get_round_text(), _screen.get_panel().get_card_texts()[0]])
+		return false
+	return await _wait_idle()
+
+
 # While a playback runs, taps on the map, leaders and buttons change nothing.
 func _check_busy_taps() -> bool:
 	await _open(0)
@@ -183,6 +217,20 @@ func _check_our_rally() -> bool:
 		return false
 	_close_ups.clear()
 	_screen.press_button(&"cast")
+	var close_up := _screen.get_close_up()
+	for frame: int in 60:
+		if close_up.is_playing:
+			break
+		await process_frame
+	var seen := PackedStringArray([close_up.get_title(), close_up.get_subtitle()])
+	_close_ups.append(seen)
+	# One tap ends the close-up; a second, as it closes, does no harm.
+	_tap(close_up)
+	_tap(close_up)
+	await process_frame
+	if close_up.is_playing or close_up.visible:
+		push_error("A tap should end the close-up")
+		return false
 	if not await _wait_idle():
 		return false
 	return _expect_subtitle("%d binh ta được tăng công" % soldiers)

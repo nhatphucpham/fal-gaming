@@ -36,7 +36,10 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
   shapes; its line says whom the skill hit, how many soldiers it
   strengthened (ours or the enemy's), or that it reached nobody. A tap
   under the top bar skips the step that plays; "Rút" stays above it and
-  answers at any time, also while the enemy plays or a close-up runs. The
+  answers at any time, also while the enemy plays or a close-up runs; the
+  top bar and the panel say "Lượt địch" as soon as the enemy's phase
+  begins. An enemy's card reads "Ý đồ: hành quân" when its intent arrow
+  marches and "đứng chờ" only when it stays. The
   battle ends with a victory or defeat banner and its reason.
 - Voice: an optional `Voice` module can speak dialogue lines with the
   Falevon TTS service and keeps every line in a cache, so it is generated

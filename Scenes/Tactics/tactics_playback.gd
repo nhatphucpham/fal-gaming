@@ -17,6 +17,8 @@ signal step_started(type: StringName)
 ## The last step of a play() is done; the map shows what the events did,
 ## before the screen syncs it with the battle (tests compare the two here).
 signal played()
+## A phase_started step began: whose phase, and the round.
+signal phase_shown(side: int, round_number: int)
 
 const MOVE_SEC_PER_CELL: float = 0.1
 const SQUAD_MOVE_MAX_SEC: float = 0.55
@@ -134,6 +136,7 @@ func _play_phase(events: Array, index: int) -> int:
 	for piece: TacticsPieceView in map.get_pieces():
 		piece.is_done = false
 	Sound.play(&"battle_drum")
+	phase_shown.emit(int(event["side"]), int(event["round"]))
 	var tween := _new_step()
 	banner.present(tr("TACTICS_PHASE_PLAYER") if is_ours else tr("TACTICS_PHASE_ENEMY"), tr("TACTICS_ROUND_FORMAT") % [event["round"], banner.max_rounds], is_ours)
 	tween.tween_interval(BANNER_SEC)

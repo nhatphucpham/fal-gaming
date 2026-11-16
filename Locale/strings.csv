@@ -436,6 +436,8 @@ TACTICS_HINT_IDLE,Chạm một tướng của ta để ra lệnh.,Tap one of our
 TACTICS_HINT_SELECTED,Ô xanh: đi tới. Viền đỏ: đánh được.,Blue: move. Red outline: attack.
 TACTICS_HINT_PREVIEW,Bóng mờ là chỗ binh sẽ đứng.,Ghosts show where the soldiers will stand.
 TACTICS_HINT_SKILL,Chạm ô sáng để chọn đích.,Tap a lit cell to aim.
+TACTICS_HINT_SKILL_CONFIRM,Chạm lại ô đích hoặc Tung chiêu.,Tap the target again or Cast.
+TACTICS_HINT_ENEMY_PHASE,Địch đang hành quân. Chạm bản đồ để tua nhanh.,The enemy is moving. Tap the map to speed up.
 TACTICS_HINT_DONE,Tướng này đã xong lượt.,This leader is done.
 TACTICS_HINT_ORDER,Chọn Lệnh cho toán binh.,Pick the squad's order.
 TACTICS_HINT_ALL_DONE,Các tướng đã xong. Chạm Hết lượt.,Every leader is done. Tap End turn.
@@ -451,6 +453,7 @@ TACTICS_NO_LEADER,Mất tướng,Leaderless
 INTENT_ATTACK_FORMAT,Ý đồ: đánh %s,Intent: attack %s
 INTENT_SKILL_FORMAT,Ý đồ: dùng %s,Intent: use %s
 INTENT_WAIT,Ý đồ: đứng chờ,Intent: wait
+INTENT_MARCH,Ý đồ: hành quân,Intent: march
 FORECAST_HITS_FORMAT,%d đòn × %d,%d hits × %d
 FORECAST_HP_FORMAT,Máu %d → %d,HP %d → %d
 FORECAST_NO_COUNTER,Không với tới để phản đòn,Cannot reach to counter

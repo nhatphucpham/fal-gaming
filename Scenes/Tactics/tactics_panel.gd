@@ -117,6 +117,14 @@ func get_buttons() -> Array[Dictionary]:
 	return entries
 
 
+## The card as shown now: title, side note, then its lines, for tests.
+func get_card_texts() -> PackedStringArray:
+	var texts := PackedStringArray([_card_title.text, _card_side.text])
+	for line: Label in _card_lines:
+		texts.append(line.text)
+	return texts
+
+
 ## The order buttons by order id, for tests and screenshots.
 func get_order_buttons() -> Dictionary[StringName, PressButton]:
 	return _order_buttons

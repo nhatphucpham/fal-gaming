@@ -147,6 +147,10 @@ func _check_played() -> void:
 	_played += 1
 	_check_pieces("before the sync", false)
 	_check_zones("before the sync")
+	var phase := tr("TACTICS_PHASE_PLAYER") if _battle().get_active_side() == 0 else tr("TACTICS_PHASE_ENEMY")
+	var round_text := "%s · %s" % [tr("TACTICS_ROUND_FORMAT") % [_battle().get_round(), _screen.scenario.rules.max_rounds], phase]
+	if not _battle().is_finished() and _screen.get_round_text() != round_text:
+		_problems.append("before the sync: the top bar reads \"%s\", the battle is in \"%s\"" % [_screen.get_round_text(), round_text])
 
 
 func _check_synced(what: String) -> void:
