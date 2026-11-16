@@ -81,8 +81,6 @@ var _zones: Array[Dictionary] = []
 var _tween: Tween
 var _handlers: Dictionary[StringName, Callable] = {}
 var _is_stopped: bool = false
-## Enemies that walked out of sight this play: where they were last seen.
-var _vanished: Dictionary[int, Vector2i] = {}
 
 
 func _init() -> void:
@@ -103,7 +101,6 @@ func _init() -> void:
 func reset(units: Array, zones: Array) -> void:
 	_units.assign(units)
 	_zones.assign(zones)
-	_vanished.clear()
 
 
 ## Plays `events` in order; returns when the last step is done.
@@ -794,8 +791,6 @@ func _fade_with_sight(tween: Tween, piece: TacticsPieceView, event: Dictionary, 
 		piece.visible = true
 		tween.parallel().tween_property(piece, ^"modulate:a", 1.0, FADE_SEC)
 	elif piece.visible and not is_shown:
-		if event.get("seen_from", true):
-			_vanished[int(event["unit"])] = event["from"]
 		tween.parallel().tween_property(piece, ^"modulate:a", 0.0, FADE_SEC).set_delay(maxf(end_sec - FADE_SEC, 0.0))
 
 
@@ -818,11 +813,18 @@ func _play_vision(events: Array, index: int) -> int:
 			piece.visible = true
 			if piece.modulate.a < 1.0:
 				piece.create_tween().tween_property(piece, ^"modulate:a", 1.0, FADE_SEC)
-	for unit: int in event["lost_units"]:
+	var lost: Array = event["lost_units"]
+	for at: int in lost.size():
+		var unit: int = lost[at]
+		# Remembered where the battle says now (nowhere for one that fell,
+		# fled or whose cell was seen empty).
+		ghosts = ghosts.filter(func(ghost: Dictionary) -> bool: return ghost["unit"] != unit)
+		var cell: Vector2i = event["lost_at"][at]
+		if cell.x >= 0:
+			ghosts.append({"unit": unit, "cell": cell, "is_leader": _is_leader(unit)})
 		var piece := _piece(unit)
 		if piece == null or piece.is_dead:
 			continue
-		ghosts.append({"unit": unit, "cell": _vanished.get(unit, map.local_to_cell(piece.position)), "is_leader": _is_leader(unit)})
 		piece.visible = false
 		piece.modulate.a = 1.0
 	# A ghost goes when its enemy is seen again, or its cell is seen empty.

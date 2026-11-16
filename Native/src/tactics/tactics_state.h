@@ -114,6 +114,9 @@ struct SideVision {
 	// Cells a walk passed in sight of, merged into seen (and told) by the
 	// next refresh_vision; empty between commands.
 	std::vector<uint8_t> walk_seen;
+	// Enemies a walk passed in sight of, where (NO_CELL: none); merged into
+	// last_seen and told by the next refresh_vision.
+	std::vector<Cell> walk_last;
 };
 
 struct ZoneState {
@@ -224,8 +227,10 @@ struct Event {
 	// vision_changed: the cells no longer seen; units: enemies now seen.
 	std::vector<Cell> other_cells;
 	std::vector<int> units;
-	// vision_changed: enemies no longer seen.
+	// vision_changed: enemies no longer seen, and where the side remembers
+	// each of them (NO_CELL: nowhere, it fell or fled).
 	std::vector<int> other_units;
+	std::vector<Cell> other_units_cells;
 	// A content or handler id: skill, passive, zone, order or buff stat.
 	std::string content_id;
 	// A small name: move kind, attack kind, intent action, end reason,

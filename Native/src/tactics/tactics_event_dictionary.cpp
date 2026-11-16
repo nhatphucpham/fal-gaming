@@ -222,6 +222,7 @@ void add_payload(const tactics::Event &p_event, Dictionary &r_dict) {
 			r_dict["lost_cells"] = tactics_cells_to_array(p_event.other_cells);
 			r_dict["units"] = units_to_array(p_event.units);
 			r_dict["lost_units"] = units_to_array(p_event.other_units);
+			r_dict["lost_at"] = tactics_cells_to_array(p_event.other_units_cells);
 			break;
 		case tactics::EventType::AMBUSHED:
 			r_dict["unit"] = p_event.unit;

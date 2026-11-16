@@ -148,7 +148,8 @@ void TacticsSim::note_walk_sight(int p_unit, const std::vector<Cell> &p_path) {
 			is_near = get_manhattan(p_path[step], enemy.cell) <= rules.reveal_cells;
 		}
 		if (is_near) {
-			memory.last_seen[enemy.index] = enemy.cell;
+			memory.walk_last.resize(units.size(), NO_CELL);
+			memory.walk_last[enemy.index] = enemy.cell;
 		}
 	}
 }
@@ -182,10 +183,15 @@ void TacticsSim::refresh_vision(int p_cause) {
 			}
 		}
 		memory.walk_seen.clear();
+		memory.walk_last.resize(units.size(), NO_CELL);
 		for (const UnitState &unit : units) {
 			const bool was = unit.index < static_cast<int>(was_unit_visible.size()) && was_unit_visible[unit.index] != 0;
 			const bool is = memory.unit_visible[unit.index] != 0;
 			Cell &last = memory.last_seen[unit.index];
+			const Cell told = last;
+			if (memory.walk_last[unit.index] != NO_CELL) {
+				last = memory.walk_last[unit.index];
+			}
 			if (unit.side == side || !is_fighting(unit)) {
 				last = NO_CELL;
 			} else if (is) {
@@ -196,10 +202,13 @@ void TacticsSim::refresh_vision(int p_cause) {
 			}
 			if (unit.side != side && is_fighting(unit) && is && !was) {
 				event.units.push_back(unit.index);
-			} else if (unit.side != side && was && !is) {
+			} else if (unit.side != side && !is && (was || last != told)) {
+				// Lost from sight, or remembered elsewhere (a walk passed it).
 				event.other_units.push_back(unit.index);
+				event.other_units_cells.push_back(last);
 			}
 		}
+		memory.walk_last.clear();
 		const bool has_change = !event.cells.empty() || !event.other_cells.empty() || !event.units.empty() || !event.other_units.empty();
 		if (has_change && !side_is_ai[side]) {
 			event.type = EventType::VISION_CHANGED;
