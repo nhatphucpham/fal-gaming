@@ -57,7 +57,10 @@ func biography(person: Dictionary) -> Array[String]:
 		var mark: Dictionary = marks[index]
 		var key := "BIO_MARK_%s_FORMAT" % _key_tail(mark["incident"])
 		var when: String = tr("BIO_WHEN_ROUND_FORMAT") % int(mark["round"]) if is_one_battle else tr("BIO_WHEN_BATTLE_FORMAT") % [int(mark.get("battle", 0)), int(mark["round"])]
-		lines.append(tr(key) % [when, text.terrain_name(mark["terrain"]).to_lower(), leader_name(mark["leader_id"])])
+		var line: String = tr(key) % [when, text.terrain_name(mark["terrain"]).to_lower(), leader_name(mark["leader_id"])]
+		# Two records of one deed (an old or hand-edited save) tell it once.
+		if not lines.has(line):
+			lines.append(line)
 	lines.append(tr("BIO_CLOSING_FORMAT") % person_name(person))
 	return lines
 

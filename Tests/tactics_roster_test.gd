@@ -184,8 +184,9 @@ func _check_naming() -> bool:
 
 
 # Marks alike but from two battles (same incident, round, ground and
-# leader) read as two different lines that say which battle: the
-# biography never repeats a sentence.
+# leader) read as two different lines that say which battle, and one deed
+# recorded twice in one battle is told once: the biography never repeats
+# a sentence.
 func _check_biography_battles() -> bool:
 	var roster := TacticsRoster.create(17)
 	var campaign := TacticsCampaign.new(roster, _catalog, _scenario)
@@ -200,8 +201,14 @@ func _check_biography_battles() -> bool:
 		if seen.has(line):
 			return _expect("a repeated biography line", line, "")
 		seen[line] = true
+	var twice := roster.recruit(SPEARMAN, &"leader.lac_hong")
+	twice["marks"].append(_mark(&"incident.stand", &"terrain.plain", 2))
+	twice["marks"].append(_mark(&"incident.stand", &"terrain.plain", 2))
+	twice["marks"].append(_mark(&"incident.surge", &"terrain.plain", 5))
+	var twice_lines := campaign.bio.biography(twice)
 	return _expect("battle and round", lines[1], "Trận 1, vòng 2, ở đồng bằng, một mình đứng chặn khi toán của Liễu Mi đã lùi.") \
-		and _expect("the later battle", lines[3], "Trận 3, vòng 2, ở đồng bằng, một mình đứng chặn khi toán của Liễu Mi đã lùi.")
+		and _expect("the later battle", lines[3], "Trận 3, vòng 2, ở đồng bằng, một mình đứng chặn khi toán của Liễu Mi đã lùi.") \
+		and _expect("one deed recorded twice is told once", twice_lines.size(), 4)
 
 
 # A named soldier musters as a leader of its own: two places, its troop's

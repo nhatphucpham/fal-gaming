@@ -103,7 +103,8 @@ The roster numbers come from `TacticsIncidentRulesData`
   Bảy Cầu."). "When" is `BIO_WHEN_ROUND_FORMAT` ("Vòng 2") when those
   marks are from one battle, else `BIO_WHEN_BATTLE_FORMAT` ("Trận 1, vòng
   2"), so two alike marks from two battles never read as one sentence
-  twice. Later marks change neither the name nor the biography.
+  twice; a line equal to an earlier one (one deed recorded twice) is told
+  once. Later marks change neither the name nor the biography.
 
 ## Public API
 
