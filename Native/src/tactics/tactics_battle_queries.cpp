@@ -1,5 +1,6 @@
 #include "tactics_battle.h"
 
+#include "tactics_combat.h"
 #include "tactics_event_dictionary.h"
 #include "tactics_orders.h"
 #include "tactics_paths.h"
@@ -36,6 +37,22 @@ Array keyword_ids(const tactics::TacticsSim &p_sim, int p_unit) {
 		ids.push_back(StringName(to_godot_string(keyword->id)));
 	}
 	return ids;
+}
+
+Array ids_to_array(const std::vector<std::string> &p_ids) {
+	Array ids;
+	for (const std::string &id : p_ids) {
+		ids.push_back(StringName(to_godot_string(id)));
+	}
+	return ids;
+}
+
+Array units_to_array(const std::vector<int> &p_units) {
+	Array units;
+	for (int unit : p_units) {
+		units.push_back(unit);
+	}
+	return units;
 }
 
 } // namespace
@@ -171,6 +188,8 @@ Dictionary TacticsBattle::forecast_engagement(int64_t p_attacker, int64_t p_defe
 	forecast["defender_hp_after"] = result.defender_hp_after;
 	forecast["is_attacker_dead"] = result.is_attacker_dead;
 	forecast["is_defender_dead"] = result.is_defender_dead;
+	forecast["attacker_modifiers"] = ids_to_array(tactics::collect_hit_sources(sim, static_cast<int>(p_attacker), static_cast<int>(p_defender), false));
+	forecast["defender_modifiers"] = result.can_counter ? ids_to_array(tactics::collect_hit_sources(sim, static_cast<int>(p_defender), static_cast<int>(p_attacker), true)) : Array();
 	return forecast;
 }
 
@@ -219,4 +238,58 @@ Array TacticsBattle::get_enemy_intents() const {
 		intents.push_back(entry);
 	}
 	return intents;
+}
+
+bool TacticsBattle::can_move(int64_t p_unit) const {
+	return check_unit(p_unit, "can_move") && sim.can_leader_move(static_cast<int>(p_unit));
+}
+
+bool TacticsBattle::can_act(int64_t p_unit) const {
+	return check_unit(p_unit, "can_act") && sim.can_leader_act(static_cast<int>(p_unit));
+}
+
+Array TacticsBattle::get_attack_targets(int64_t p_unit) const {
+	if (!check_unit(p_unit, "get_attack_targets")) {
+		return Array();
+	}
+	return units_to_array(sim.get_attack_targets(static_cast<int>(p_unit)));
+}
+
+Array TacticsBattle::get_skill_cells(int64_t p_unit) const {
+	if (!check_unit(p_unit, "get_skill_cells")) {
+		return Array();
+	}
+	return tactics_cells_to_array(sim.get_skill_cells(static_cast<int>(p_unit)));
+}
+
+// Like forecast_engagement(), an impossible cast is not an error here:
+// the screen asks about cells as the player touches them.
+Dictionary TacticsBattle::preview_skill(int64_t p_unit, const Vector2i &p_cell) const {
+	Dictionary preview;
+	if (!check_unit(p_unit, "preview_skill")) {
+		return preview;
+	}
+	tactics::SkillPreview result;
+	std::string error;
+	preview["is_valid"] = sim.preview_skill(static_cast<int>(p_unit), to_cell(p_cell), &result, &error);
+	preview["unit"] = static_cast<int>(p_unit);
+	preview["cell"] = p_cell;
+	if (!bool(preview["is_valid"])) {
+		return preview;
+	}
+	preview["cells"] = tactics_cells_to_array(result.cells);
+	preview["targets"] = units_to_array(result.targets);
+	Array results;
+	for (const tactics::SkillTargetResult &entry : result.results) {
+		Dictionary item;
+		item["unit"] = entry.unit;
+		item["amount"] = entry.amount;
+		item["hp_after"] = entry.hp_after;
+		item["is_dead"] = entry.is_dead;
+		results.push_back(item);
+	}
+	preview["results"] = results;
+	preview["buffed"] = units_to_array(result.buffed);
+	preview["zone_cells"] = tactics_cells_to_array(result.zone_cells);
+	return preview;
 }

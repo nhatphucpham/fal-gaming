@@ -21,6 +21,24 @@ int get_sign(int p_value) {
 	return p_value > 0 ? 1 : (p_value < 0 ? -1 : 0);
 }
 
+// Sums a skill hit into the preview's result for its target.
+void add_preview_damage(SkillPreview &r_preview, const Event &p_event) {
+	for (SkillTargetResult &result : r_preview.results) {
+		if (result.unit == p_event.target) {
+			result.amount += p_event.amount;
+			result.hp_after = p_event.hp_after;
+			result.is_dead = p_event.hp_after <= 0;
+			return;
+		}
+	}
+	SkillTargetResult result;
+	result.unit = p_event.target;
+	result.amount = p_event.amount;
+	result.hp_after = p_event.hp_after;
+	result.is_dead = p_event.hp_after <= 0;
+	r_preview.results.push_back(result);
+}
+
 } // namespace
 
 bool TacticsSim::check_command(int p_unit, std::string *r_error) const {
@@ -226,6 +244,76 @@ std::vector<std::pair<int, Cell>> TacticsSim::preview_squad(int p_leader, const 
 		}
 	}
 	return placements;
+}
+
+bool TacticsSim::can_leader_act(int p_unit) const {
+	std::string error;
+	return check_leader_can_act(p_unit, &error);
+}
+
+bool TacticsSim::can_leader_move(int p_unit) const {
+	return can_leader_act(p_unit) && !units[p_unit].has_moved;
+}
+
+std::vector<int> TacticsSim::get_attack_targets(int p_unit) const {
+	std::vector<int> targets;
+	if (!can_leader_act(p_unit)) {
+		return targets;
+	}
+	for (const UnitState &unit : units) {
+		if (can_attack(*this, p_unit, unit.index)) {
+			targets.push_back(unit.index);
+		}
+	}
+	return targets;
+}
+
+std::vector<Cell> TacticsSim::get_skill_cells(int p_unit) const {
+	std::vector<Cell> cells;
+	if (!can_leader_act(p_unit) || !is_skill_ready(units[p_unit])) {
+		return cells;
+	}
+	const UnitState &caster = units[p_unit];
+	const int cell_count = map.width * map.height;
+	for (int index = 0; index < cell_count; index++) {
+		SkillSelection selection;
+		std::string error;
+		const Cell cell = get_cell_at(index);
+		if (caster.def.skill.target->select(*this, p_unit, caster.cell, cell, selection, &error)) {
+			cells.push_back(cell);
+		}
+	}
+	return cells;
+}
+
+// The copy casts exactly as use_skill() would; its events say what changed.
+bool TacticsSim::preview_skill(int p_unit, const Cell &p_cell, SkillPreview *r_preview, std::string *r_error) const {
+	if (!check_leader_can_act(p_unit, r_error)) {
+		return false;
+	}
+	if (!is_skill_ready(units[p_unit])) {
+		*r_error = "leader " + std::to_string(p_unit) + " has no skill ready";
+		return false;
+	}
+	TacticsSim copy = *this;
+	copy.events.clear();
+	if (cast_skill(copy, p_unit, p_cell, 0, r_error) == 0) {
+		return false;
+	}
+	const std::string &skill_id = units[p_unit].def.skill.id;
+	for (const Event &event : copy.events) {
+		if (event.type == EventType::SKILL_USED) {
+			r_preview->cells = event.cells;
+			r_preview->targets = event.units;
+		} else if (event.type == EventType::DAMAGE_DEALT && event.content_id == skill_id) {
+			add_preview_damage(*r_preview, event);
+		} else if (event.type == EventType::BUFF_APPLIED) {
+			r_preview->buffed.push_back(event.unit);
+		} else if (event.type == EventType::ZONE_CREATED) {
+			r_preview->zone_cells.insert(r_preview->zone_cells.end(), event.cells.begin(), event.cells.end());
+		}
+	}
+	return true;
 }
 
 } // namespace tactics

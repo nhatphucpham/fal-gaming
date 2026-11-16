@@ -54,6 +54,10 @@ public:
 	// map's spawn cells in order, each with its own squad. On failure the
 	// battle is left with no setup, so start() is refused.
 	bool load_scenario(const Ref<TacticsScenarioData> &p_scenario);
+	// load_scenario() with other squads for one side: p_squads holds one
+	// Array of TacticsTroopData per leader of that side, in order (each up
+	// to the leader's capacity). The other side keeps its own squads.
+	bool load_scenario_with_squads(const Ref<TacticsScenarioData> &p_scenario, int64_t p_side, const Array &p_squads);
 	void set_side_ai(int64_t p_side, bool p_is_ai);
 	bool is_side_ai(int64_t p_side) const;
 	// The leader's unit index, or -1 with an error. Uses the leader's squad.
@@ -94,6 +98,11 @@ public:
 	Array preview_squad(int64_t p_leader, const Vector2i &p_cell) const;
 	Dictionary get_skill_charge(int64_t p_leader) const;
 	Array get_enemy_intents() const;
+	bool can_move(int64_t p_unit) const;
+	bool can_act(int64_t p_unit) const;
+	Array get_attack_targets(int64_t p_unit) const;
+	Array get_skill_cells(int64_t p_unit) const;
+	Dictionary preview_skill(int64_t p_unit, const Vector2i &p_cell) const;
 
 	void set_log_enabled(bool p_enabled) { log_enabled = p_enabled; }
 	bool is_log_enabled() const { return log_enabled; }

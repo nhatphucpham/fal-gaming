@@ -40,7 +40,15 @@ struct HitModifiers {
 	int armor_break_pct = 0;
 	// Strongest cover among adjacent allies (not summed).
 	int cover_pct = 0;
+
+	bool operator==(const HitModifiers &p_other) const {
+		return increase_pct == p_other.increase_pct && taken_pct == p_other.taken_pct && armor_break_pct == p_other.armor_break_pct && cover_pct == p_other.cover_pct;
+	}
 };
+
+// Appends p_id to r_sources (when not null) if a hook changed the modifiers
+// from p_before; each id once. Only the forecast asks for sources.
+void note_hit_source(std::vector<std::string> *r_sources, const HitModifiers &p_before, const HitModifiers &p_after, const std::string &p_id);
 
 struct KeywordHandler {
 	const char *id;

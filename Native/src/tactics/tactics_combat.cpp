@@ -13,10 +13,14 @@ namespace {
 
 constexpr int BASIC_COEFFICIENT_PCT = 100;
 
-void gather_hit_modifiers(const TacticsSim &p_sim, const HitContext &p_context, HitModifiers &r_mods) {
+// The modifiers of one hit; with r_sources, also the ids of what changed
+// them (the forecast's list), so both come from the same code.
+void gather_hit_modifiers(const TacticsSim &p_sim, const HitContext &p_context, HitModifiers &r_mods, std::vector<std::string> *r_sources = nullptr) {
 	for (const KeywordDef *keyword : p_sim.collect_keywords(p_context.attacker)) {
 		if (keyword->handler->modify_outgoing != nullptr) {
+			const HitModifiers before = r_mods;
 			keyword->handler->modify_outgoing(*keyword, p_context, r_mods);
+			note_hit_source(r_sources, before, r_mods, keyword->id);
 		}
 	}
 	const UnitState &defender = p_sim.get_units()[p_context.defender];
@@ -31,26 +35,35 @@ void gather_hit_modifiers(const TacticsSim &p_sim, const HitContext &p_context, 
 		}
 		for (const KeywordDef *keyword : p_sim.collect_keywords(ally)) {
 			if (keyword->handler->modify_incoming_as_ally != nullptr) {
+				const HitModifiers before = r_mods;
 				keyword->handler->modify_incoming_as_ally(*keyword, p_context, r_mods);
+				note_hit_source(r_sources, before, r_mods, keyword->id);
 			}
 		}
 	}
 	const TerrainDef &terrain = p_sim.get_terrain(defender.cell);
+	const HitModifiers before_terrain = r_mods;
 	r_mods.taken_pct += terrain.damage_taken_pct;
 	if (p_context.kind == AttackKind::RANGED) {
 		r_mods.taken_pct += terrain.ranged_damage_taken_pct;
 	}
-	apply_zones_to_hit(p_sim, p_context, r_mods);
+	note_hit_source(r_sources, before_terrain, r_mods, terrain.id);
+	apply_zones_to_hit(p_sim, p_context, r_mods, r_sources);
 	r_mods.taken_pct -= r_mods.cover_pct;
 }
 
-bool has_first_strike(const TacticsSim &p_sim, int p_defender, AttackKind p_incoming) {
+// The defender's keyword that makes it strike first, or nullptr.
+const KeywordDef *find_first_strike_keyword(const TacticsSim &p_sim, int p_defender, AttackKind p_incoming) {
 	for (const KeywordDef *keyword : p_sim.collect_keywords(p_defender)) {
 		if (keyword->handler->strikes_first != nullptr && keyword->handler->strikes_first(*keyword, p_incoming)) {
-			return true;
+			return keyword;
 		}
 	}
-	return false;
+	return nullptr;
+}
+
+bool has_first_strike(const TacticsSim &p_sim, int p_defender, AttackKind p_incoming) {
+	return find_first_strike_keyword(p_sim, p_defender, p_incoming) != nullptr;
 }
 
 // Lands up to p_hits hits while the target lives; returns how many landed.
@@ -185,6 +198,28 @@ EngagementResult resolve_engagement(TacticsSim &p_sim, int p_attacker, int p_def
 		close_engagement(p_sim, result);
 	}
 	return result;
+}
+
+std::vector<std::string> collect_hit_sources(const TacticsSim &p_sim, int p_attacker, int p_defender, bool p_is_counter) {
+	std::vector<std::string> sources;
+	const UnitState &attacker = p_sim.get_units()[p_attacker];
+	if (p_is_counter) {
+		const KeywordDef *first = find_first_strike_keyword(p_sim, p_attacker, get_attack_kind(p_sim.get_units()[p_defender]));
+		if (first != nullptr) {
+			sources.push_back(first->id);
+		}
+	}
+	HitContext context;
+	context.sim = &p_sim;
+	context.attacker = p_attacker;
+	context.defender = p_defender;
+	context.kind = get_attack_kind(attacker);
+	context.is_counter = p_is_counter;
+	HitModifiers mods;
+	gather_hit_modifiers(p_sim, context, mods, &sources);
+	p_sim.collect_stat_sources(p_attacker, StatUse::ATTACK, sources);
+	p_sim.collect_stat_sources(p_defender, StatUse::DEFENCE, sources);
+	return sources;
 }
 
 } // namespace tactics

@@ -34,7 +34,8 @@ const ZoneHandler *find_zone_handler(const std::string &p_id);
 bool is_cell_in_zone(const ZoneState &p_zone, const Cell &p_cell);
 // The zone acts on p_unit: on its cell and on the side its handler affects.
 bool does_zone_affect(const TacticsSim &p_sim, const ZoneState &p_zone, int p_unit);
-// Applies every zone covering the defender's cell to one hit.
-void apply_zones_to_hit(const TacticsSim &p_sim, const HitContext &p_context, HitModifiers &r_mods);
+// Applies every zone covering the defender's cell to one hit; the ids of
+// the zones that changed it go to r_sources when it is not null.
+void apply_zones_to_hit(const TacticsSim &p_sim, const HitContext &p_context, HitModifiers &r_mods, std::vector<std::string> *r_sources = nullptr);
 
 } // namespace tactics

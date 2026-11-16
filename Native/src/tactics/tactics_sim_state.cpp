@@ -74,6 +74,56 @@ Stats TacticsSim::get_stats_at(int p_unit, const Cell &p_cell) const {
 	return stats;
 }
 
+namespace {
+
+bool does_stat_matter(StatUse p_use, const StatModifiers &p_mods) {
+	return p_use == StatUse::ATTACK ? p_mods.attack_pct != 0 : (p_mods.armor != 0 || p_mods.magic_resist != 0);
+}
+
+void add_unique_source(std::vector<std::string> &r_sources, const std::string &p_id) {
+	if (std::find(r_sources.begin(), r_sources.end(), p_id) == r_sources.end()) {
+		r_sources.push_back(p_id);
+	}
+}
+
+} // namespace
+
+// Runs the same hooks as get_stats_at(), one source at a time.
+void TacticsSim::collect_stat_sources(int p_unit, StatUse p_use, std::vector<std::string> &r_sources) const {
+	const UnitState &unit = units[p_unit];
+	if (is_leader(p_unit)) {
+		for (const PassiveDef &passive : unit.def.passives) {
+			StatModifiers mods;
+			if (passive.handler->modify_own_stats != nullptr) {
+				passive.handler->modify_own_stats(*this, p_unit, unit.cell, passive, mods);
+			}
+			if (does_stat_matter(p_use, mods)) {
+				add_unique_source(r_sources, passive.id);
+			}
+		}
+	} else if (unit.leader != NO_UNIT && units[unit.leader].is_alive) {
+		for (const PassiveDef &passive : units[unit.leader].def.passives) {
+			StatModifiers mods;
+			if (passive.handler->modify_soldier_stats != nullptr) {
+				passive.handler->modify_soldier_stats(*this, p_unit, passive, mods);
+			}
+			if (does_stat_matter(p_use, mods)) {
+				add_unique_source(r_sources, passive.id);
+			}
+		}
+	}
+	for (const BuffState &buff : buffs) {
+		StatModifiers mods;
+		add_stat_modifier(buff.stat, buff.amount, mods);
+		if (buff.unit == p_unit && does_stat_matter(p_use, mods)) {
+			add_unique_source(r_sources, buff.source_id);
+		}
+	}
+	if (p_use == StatUse::DEFENCE && is_on_map(unit.cell) && get_terrain(unit.cell).armor_bonus != 0) {
+		add_unique_source(r_sources, get_terrain(unit.cell).id);
+	}
+}
+
 std::vector<const KeywordDef *> TacticsSim::collect_keywords(int p_unit) const {
 	const UnitState &unit = units[p_unit];
 	std::vector<const KeywordDef *> keywords;

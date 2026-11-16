@@ -93,4 +93,16 @@ MoveProfile build_move_profile(const TacticsSim &p_sim, int p_unit) {
 	return profile;
 }
 
+void note_hit_source(std::vector<std::string> *r_sources, const HitModifiers &p_before, const HitModifiers &p_after, const std::string &p_id) {
+	if (r_sources == nullptr || p_before == p_after) {
+		return;
+	}
+	for (const std::string &source : *r_sources) {
+		if (source == p_id) {
+			return;
+		}
+	}
+	r_sources->push_back(p_id);
+}
+
 } // namespace tactics

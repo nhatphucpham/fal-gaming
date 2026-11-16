@@ -221,6 +221,7 @@ error.
 | --- | --- | --- |
 | `setup(rules, map) -> bool` | method | Starts a new battle setup; false when the data is invalid (then nothing stays set up) or the battle already started |
 | `load_scenario(scenario) -> bool` | method | `setup` plus the scenario's leaders on the spawn cells; on failure nothing stays set up |
+| `load_scenario_with_squads(scenario, side, squads) -> bool` | method | The same, but `squads` (one Array of `TacticsTroopData` per leader of `side`, in order) replaces that side's squads; refused (nothing set up) when the count differs or a squad is over its leader's capacity. The muster screen uses it |
 | `set_side_ai(side, is_ai)`, `is_side_ai(side)` | method | AI phases run on their own after the human's `end_phase()` |
 | `add_leader(side, leader, cell) -> int` | method | Adds the leader and its `squad`; returns the unit index or -1 |
 | `add_leader_with_squad(side, leader, cell, squad) -> int` | method | Same with another squad (up to capacity) |
@@ -232,8 +233,12 @@ error.
 | `get_reachable_cells(unit)`, `get_path_to(unit, cell)` | method | Cells the unit can end a move on from where it stands (without its own), and the path to one, both ends included (`[cell]` for its own cell); empty for a dead unit or a cell it cannot stop on. They do not check whose phase it is or whether the leader already moved or acted, which `move_leader()` also needs |
 | `get_formation_slots(leader)` | method | The slot cells of the leader's order (empty for `hold`, `free` or a dead leader) |
 | `preview_squad(leader, cell)` | method | `[{unit, cell}]`: where the soldiers would stand after the leader moved there; `[]` and an error when that move would be refused |
-| `forecast_engagement(attacker, defender) -> Dictionary` | method | Hits, damage per hit and hp after, without changing state; any two units (an enemy's attack too, whoever's phase it is); `is_valid` false when either is dead, they are on the same side, the defender is out of range or the battle ended |
+| `forecast_engagement(attacker, defender) -> Dictionary` | method | Hits, damage per hit and hp after, without changing state; any two units (an enemy's attack too, whoever's phase it is); `is_valid` false when either is dead, they are on the same side, the defender is out of range or the battle ended. `attacker_modifiers` and `defender_modifiers` (the counter; empty without one) list the ids that change that side's hits, each once: the first-strike keyword, keywords, terrain and zones of the hit, then passives, buffs and terrain behind attack and armor |
 | `get_skill_charge(leader)` | method | `{skill, charge, value, threshold, is_ready, area_bonus}` |
+| `can_move(unit)`, `can_act(unit)` | method | The leader may still move (neither moved nor acted) or act in this phase: alive, on the active side, battle running; false for soldiers |
+| `get_attack_targets(unit)` | method | Unit indexes `attack(unit, target)` would accept now |
+| `get_skill_cells(unit)` | method | Cells `use_skill(unit, cell)` would accept now (row-major; empty when the skill is not ready or the leader is done) |
+| `preview_skill(unit, cell) -> Dictionary` | method | `use_skill` run on a copy: `is_valid` (false, without an error, when it would be refused), `cells`, `targets`, `results` (`[{unit, amount, hp_after, is_dead}]`, the skill's hits summed per target), `buffed` (units), `zone_cells` |
 | `get_enemy_intents()` | method | `[{unit, to, action, target, target_cell}]` (`action` `wait`, `attack` or `skill`); `target` is the enemy aimed at (-1 and `target_cell` (-1, -1) when none), or the leader itself for a skill cast on its own cell; a leader that died loses its intent |
 | `get_state_hash() -> String` | method | FNV-1a 64 of the whole state (rules, map terrain, round, turn, units, zones, buffs, intents, the next event id), 16 hex digits; units, terrains and zones are identified by ids |
 | `set_log_enabled(enabled)` | method | Prints the log events below |
@@ -323,12 +328,16 @@ the five passive kinds, the side a zone affects, side B durations and
 event causes) and `Tests/tactics_fuzz_test.gd` (random maps, leaders
 and commands, legal and not, on 24 seeds: queries and refused commands
 leave the hash unchanged, a command is accepted exactly when its query
-said so, moves follow `get_path_to()` and `preview_squad()`, attacks land
-the forecast, the events account for every cell, hp, charge and zone
+said so (`can_move`, `can_act`, `get_attack_targets`, `get_skill_cells`),
+moves follow `get_path_to()` and `preview_squad()`, attacks land the
+forecast, skills what `preview_skill()` said, the events account for every cell, hp, charge and zone
 change, one unit per cell, `battle_ended` last, and a replay gives the
-same hashes), sharing `Tests/tactics_test_kit.gd`. Run:
+same hashes) and `Tests/tactics_query_test.gd` (a scenario loaded with
+other squads and refused ones, `can_move` / `can_act`, attack targets, skill
+cells, `preview_skill()` against the real cast for damage and support, the
+forecast's modifier lists), sharing `Tests/tactics_test_kit.gd`. Run:
 `godot --headless --path . --script res://Tests/tactics_test.gd` (and the
-squad and fuzz tests). All three are in CI.
+squad, fuzz and query tests). All four are in CI.
 
 ## Known limits
 

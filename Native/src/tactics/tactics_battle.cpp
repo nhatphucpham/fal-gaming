@@ -50,7 +50,15 @@ bool TacticsBattle::setup(const Ref<TacticsRulesData> &p_rules, const Ref<Tactic
 }
 
 bool TacticsBattle::load_scenario(const Ref<TacticsScenarioData> &p_scenario) {
+	return load_scenario_with_squads(p_scenario, tactics::SIDE_A, Array());
+}
+
+// An empty p_squads keeps every leader's own squad (load_scenario).
+bool TacticsBattle::load_scenario_with_squads(const Ref<TacticsScenarioData> &p_scenario, int64_t p_side, const Array &p_squads) {
 	ERR_FAIL_COND_V_MSG(p_scenario.is_null(), false, "Tactics: load_scenario() got a null scenario");
+	ERR_FAIL_COND_V_MSG(!is_valid_side(p_side), false, vformat("Tactics: load_scenario_with_squads() got side %d, expected 0 or 1", p_side));
+	const int64_t override_count = p_scenario->get_leaders(static_cast<int>(p_side)).size();
+	ERR_FAIL_COND_V_MSG(!p_squads.is_empty() && p_squads.size() != override_count, false, vformat("Tactics: load_scenario_with_squads() got %d squads for %d leaders", p_squads.size(), override_count));
 	if (!setup(p_scenario->get_rules(), p_scenario->get_map())) {
 		// A running battle stays; an earlier setup does not.
 		if (!sim.is_started()) {
@@ -62,8 +70,16 @@ bool TacticsBattle::load_scenario(const Ref<TacticsScenarioData> &p_scenario) {
 		const TypedArray<TacticsLeaderData> leaders = p_scenario->get_leaders(side);
 		const TypedArray<Vector2i> spawns = p_scenario->get_map()->get_spawn_cells(side);
 		const bool has_spawns = leaders.size() <= spawns.size();
+		const bool is_overridden = side == p_side && !p_squads.is_empty();
 		for (int64_t index = 0; has_spawns && index < leaders.size(); index++) {
-			if (add_leader(side, leaders[index], spawns[index]) < 0) {
+			const Ref<TacticsLeaderData> leader = leaders[index];
+			const bool is_squad_array = !is_overridden || p_squads[index].get_type() == Variant::ARRAY;
+			if (!is_squad_array || leader.is_null()) {
+				clear_setup();
+				ERR_FAIL_V_MSG(false, vformat("Tactics: %s side %d leader %d has no leader data or a squad that is not an Array", p_scenario->get_id(), side, index));
+			}
+			const Array squad = is_overridden ? Array(p_squads[index]) : Array(leader->get_squad());
+			if (add_leader_with_squad(side, leader, spawns[index], squad) < 0) {
 				clear_setup();
 				return false;
 			}
@@ -244,6 +260,7 @@ void TacticsBattle::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("setup", "rules", "map"), &TacticsBattle::setup);
 	ClassDB::bind_method(D_METHOD("load_scenario", "scenario"), &TacticsBattle::load_scenario);
+	ClassDB::bind_method(D_METHOD("load_scenario_with_squads", "scenario", "side", "squads"), &TacticsBattle::load_scenario_with_squads);
 	ClassDB::bind_method(D_METHOD("set_side_ai", "side", "is_ai"), &TacticsBattle::set_side_ai);
 	ClassDB::bind_method(D_METHOD("is_side_ai", "side"), &TacticsBattle::is_side_ai);
 	ClassDB::bind_method(D_METHOD("add_leader", "side", "leader", "cell"), &TacticsBattle::add_leader);
@@ -277,6 +294,11 @@ void TacticsBattle::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("preview_squad", "leader", "cell"), &TacticsBattle::preview_squad);
 	ClassDB::bind_method(D_METHOD("get_skill_charge", "leader"), &TacticsBattle::get_skill_charge);
 	ClassDB::bind_method(D_METHOD("get_enemy_intents"), &TacticsBattle::get_enemy_intents);
+	ClassDB::bind_method(D_METHOD("can_move", "unit"), &TacticsBattle::can_move);
+	ClassDB::bind_method(D_METHOD("can_act", "unit"), &TacticsBattle::can_act);
+	ClassDB::bind_method(D_METHOD("get_attack_targets", "unit"), &TacticsBattle::get_attack_targets);
+	ClassDB::bind_method(D_METHOD("get_skill_cells", "unit"), &TacticsBattle::get_skill_cells);
+	ClassDB::bind_method(D_METHOD("preview_skill", "unit", "cell"), &TacticsBattle::preview_skill);
 	ClassDB::bind_method(D_METHOD("set_log_enabled", "enabled"), &TacticsBattle::set_log_enabled);
 	ClassDB::bind_method(D_METHOD("is_log_enabled"), &TacticsBattle::is_log_enabled);
 
