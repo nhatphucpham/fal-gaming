@@ -238,9 +238,8 @@ func _terrain_panel() -> Control:
 		texts.add_theme_constant_override(&"separation", -4)
 		row.add_child(texts)
 		texts.add_child(_label(tr(terrain.name_key), 21, Palette.CREAM))
-		var effects := _label(_text.terrain_effects(terrain.id), 19, Palette.TEXT_DIM)
-		effects.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		effects.clip_text = true
+		var effects := _label(_text.terrain_effects(terrain.id), GameTheme.SMALL_FONT_SIZE, Palette.TEXT_DIM)
+		effects.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		texts.add_child(effects)
 	return box
 
@@ -367,7 +366,8 @@ func _chip(leader_slot: int, soldier_slot: int) -> PressButton:
 		chip.theme_type_variation = &"PrimaryButton"
 	var face := _Token.new()
 	face.glyph = TacticsPainter.glyph_for(troop.base_class.id, _keyword_ids(troop))
-	face.caption = tr(troop.name_key)
+	# The chip is narrow: the troop's short name ("Giáo", "Cung").
+	face.caption = tr(troop.name_key + "_SHORT")
 	face.look = person.get("look", -1)
 	face.marks = (person["marks"] as Array).size() if not person.is_empty() else 0
 	face.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -404,10 +404,11 @@ func _panel() -> PanelContainer:
 	return box
 
 
+# No text is drawn under GameTheme.SMALL_FONT_SIZE.
 func _label(text: String, font_px: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text
-	label.add_theme_font_size_override(&"font_size", font_px)
+	label.add_theme_font_size_override(&"font_size", maxi(font_px, GameTheme.SMALL_FONT_SIZE))
 	label.add_theme_color_override(&"font_color", color)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
@@ -464,6 +465,6 @@ class _Token extends Control:
 		if caption.is_empty():
 			return
 		var font := get_theme_default_font()
-		var font_px := 17
+		var font_px := GameTheme.SMALL_FONT_SIZE
 		var width := font.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, font_px).x
 		draw_string(font, Vector2((size.x - width) / 2.0, size.y - 8.0), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, font_px, Palette.CREAM)

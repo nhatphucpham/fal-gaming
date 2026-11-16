@@ -15,6 +15,8 @@ extends Control
 signal closed()
 
 const FACE_PX: float = 56.0
+## A roster row is a touch target.
+const ROW_MIN_PX: float = 88.0
 const SHEET_FACE_PX: float = 132.0
 const STATUS_ORDER: Array[String] = ["active", "traitor", "deserted", "dead"]
 
@@ -164,7 +166,8 @@ func _row(person: Dictionary) -> Control:
 	var row := PressButton.new()
 	row.focus_mode = Control.FOCUS_NONE
 	row.mouse_filter = Control.MOUSE_FILTER_PASS
-	row.custom_minimum_size = Vector2(0, FACE_PX + 16)
+	# A row is a touch target: at least 88 layout px (44 px on a phone).
+	row.custom_minimum_size = Vector2(0, maxf(FACE_PX + 16, ROW_MIN_PX))
 	row.name = "Person%d" % person["id"]
 	row.pressed.connect(func() -> void:
 		Sound.play(&"ui_tap")

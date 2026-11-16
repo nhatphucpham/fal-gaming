@@ -12,10 +12,11 @@ const STAGGER_SEC: float = 0.05
 const ROW_IN_SEC: float = 0.2
 
 
+## A one-line label; no text is drawn under GameTheme.SMALL_FONT_SIZE.
 static func label(text: String, font_px: int, color: Color) -> Label:
 	var result := Label.new()
 	result.text = text
-	result.add_theme_font_size_override(&"font_size", font_px)
+	result.add_theme_font_size_override(&"font_size", maxi(font_px, GameTheme.SMALL_FONT_SIZE))
 	result.add_theme_color_override(&"font_color", color)
 	result.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	result.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS

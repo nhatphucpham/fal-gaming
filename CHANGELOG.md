@@ -269,6 +269,11 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Fixed
 
+- Chiến Dịch menus on a phone: the muster, the roster, the character sheet
+  and the summary no longer use text smaller than the rest of the game; a
+  terrain's effects wrap instead of being cut, soldier chips show a short
+  troop name ("Giáo", "Cung") that fits, and roster rows are tall enough
+  to tap.
 - Chiến Dịch on a phone: the bottom panel's text is bigger (no smaller
   than the rest of the game) and is never cut with "…": a long card line
   wraps, the wavering line always shows whole, and the hint fits the top

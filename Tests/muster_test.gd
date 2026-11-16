@@ -8,7 +8,9 @@ extends SceneTree
 # retreating writes the battle into the roster and shows the summary,
 # whose "Tiếp tục" opens the muster again. With
 # touch, taps on a soldier chip and a leader card move a soldier, and a
-# drag that starts on a card or a chip scrolls the page instead.
+# drag that starts on a card or a chip scrolls the page instead. At the
+# 720x1280 layout no text on the muster, roster, character sheet or
+# summary is cut or under the game's small font size.
 
 const SLIDE_WAIT_SEC: float = 0.5
 
@@ -54,7 +56,7 @@ func _run() -> bool:
 	_main.queue_free()
 	_main = null
 	await process_frame
-	return await _check_touch()
+	return await _check_touch() and await _check_text_fits()
 
 
 # A muster screen of its own at the 720x1280 layout, driven by pushed taps
@@ -221,4 +223,83 @@ func _check_muster(muster: MusterScreen) -> bool:
 	if not _main.current_screen is TitleScreen:
 		push_error("Về should go back to the title")
 		return false
+	return true
+
+
+# A roster with marks, a named soldier and a returning traitor, on every
+# campaign screen at the 720x1280 layout: no one-line text is cut, none is
+# under GameTheme.SMALL_FONT_SIZE, every button is at least 88 px tall.
+func _check_text_fits() -> bool:
+	Input.emulate_touch_from_mouse = false
+	var catalog := load("res://Data/Tactics/tactics_catalog.tres") as TacticsCatalog
+	var scenario := load("res://Data/Tactics/Scenarios/river_crossing.tres") as TacticsScenarioData
+	var roster := TacticsRoster.create(424242)
+	TacticsCampaign.new(roster, catalog, scenario)
+	var mark := func(incident: StringName, terrain: StringName, battle: int) -> Dictionary:
+		return {"incident": incident, "leader_id": &"leader.lieu_mi", "terrain": terrain, "round": 12, "battle": battle}
+	for index: int in 3:
+		roster.people[6]["marks"].append(mark.call(&"incident.stand", &"terrain.village", index + 1))
+	roster.people[6]["is_named"] = true
+	roster.people[2]["marks"].append(mark.call(&"incident.betray", &"terrain.ford", 1))
+	roster.people[2]["marks"].append(mark.call(&"incident.discontent", &"terrain.forest", 2))
+	roster.people[2]["status"] = "traitor"
+	roster.battles = 3
+	for count: int in 12:
+		roster.recruit(&"troop.kite_scout", &"leader.lieu_mi")
+	var campaign := TacticsCampaign.new(roster, catalog, scenario)
+	var muster := MusterScreen.new()
+	muster.campaign = campaign
+	muster.size = Vector2(720, 1280)
+	root.add_child(muster)
+	await process_frame
+	if not await _texts_fit(muster, "muster"):
+		return false
+	var view := muster.open_roster()
+	await create_timer(SLIDE_WAIT_SEC).timeout
+	if not await _texts_fit(view, "roster"):
+		return false
+	for person: Dictionary in [roster.people[6], roster.people[2], roster.people[0]]:
+		view.show_sheet(person["id"])
+		await create_timer(SLIDE_WAIT_SEC).timeout
+		if not await _texts_fit(view, "sheet %d" % person["id"]):
+			return false
+	muster.queue_free()
+	var screen := TacticsScreen.new()
+	screen.scenario = campaign.scenario
+	screen.squads = campaign.squads
+	screen.campaign = campaign
+	screen.is_instant = true
+	screen.size = Vector2(720, 1280)
+	root.add_child(screen)
+	await process_frame
+	screen.retreat()
+	screen.retreat()
+	await create_timer(SLIDE_WAIT_SEC).timeout
+	var ok := await _texts_fit(screen.get_summary(), "summary")
+	screen.queue_free()
+	await process_frame
+	TacticsRoster.delete()
+	return ok
+
+
+func _texts_fit(screen: Control, where: String) -> bool:
+	await process_frame
+	for node: Node in screen.find_children("*", "Control", true, false):
+		var control := node as Control
+		if not control.is_visible_in_tree():
+			continue
+		var label := control as Label
+		if label != null and label.text != "":
+			var font_px := label.get_theme_font_size(&"font_size")
+			if font_px < GameTheme.SMALL_FONT_SIZE:
+				push_error("%s: \"%s\" is %d px, under %d" % [where, label.text, font_px, GameTheme.SMALL_FONT_SIZE])
+				return false
+			var font := label.get_theme_font(&"font")
+			if label.autowrap_mode == TextServer.AUTOWRAP_OFF and font.get_string_size(tr(label.text), HORIZONTAL_ALIGNMENT_LEFT, -1, font_px).x > label.size.x + 0.5:
+				push_error("%s: \"%s\" is cut (%.0f px wide label)" % [where, tr(label.text), label.size.x])
+				return false
+		var button := control as Button
+		if button != null and button.size.y < 88.0:
+			push_error("%s: the button \"%s\" is %.0f px tall, under 88" % [where, tr(button.text), button.size.y])
+			return false
 	return true

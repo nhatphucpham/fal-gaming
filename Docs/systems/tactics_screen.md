@@ -189,7 +189,8 @@ takes a tap only when press and release are within 24 px; `get_squad(slot)`, `ge
 bool` (false when full), `start_battle()`; signals `battle_requested(squads)`
 and `back_requested`. With `campaign` set it takes the campaign's
 scenario and squads and moves the person ids with the soldiers
-(`get_people()`); chips show the soldier's face, troop glyph and marks; a
+(`get_people()`); chips show the soldier's face, troop glyph, short troop
+name (`TROOP_<X>_SHORT`: "Giáo", "Cung") and marks; a
 named leader's card shows its face and name; the enemy panel lists
 returning traitors; "Sổ quân" opens the roster (`open_roster()`).
 
@@ -199,6 +200,11 @@ soldier named in this battle (face, name, biography), every roster soldier
 who fought with its fate and new marks (named first, the fallen last), the
 karma line; buttons "Sổ quân" (`open_roster()`) and "Tiếp tục"
 (`continue_requested`). The epiphany sound plays when someone was named.
+
+No text on the muster, the roster, the character sheet or the summary is
+under `GameTheme.SMALL_FONT_SIZE` (`TacticsViews.label` and the muster's
+labels raise a smaller size to it), and a roster row is at least 88 layout
+px tall.
 
 `TacticsRosterView` (Control): `campaign`; `show_list()` (named first,
 then the living, traitors, deserters, the fallen), `show_sheet(id)`
@@ -334,7 +340,10 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   to the title;
   then, with touch emulated, taps on a chip and a leader card move a
   soldier, and drags that start on a card or a chip scroll the page
-  without picking or moving anyone.
+  without picking or moving anyone; last, with a roster holding marks, a
+  named soldier and a traitor, no text on the muster, the roster, three
+  character sheets or the summary is cut or under the small font size,
+  and no button is under 88 px.
 
 Run one with
 `godot --headless --path . --script res://Tests/tactics_screen_test.gd`.
