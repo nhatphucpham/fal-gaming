@@ -323,3 +323,163 @@ HOWTO_TIP_4,Hệ nào đánh nhiều sẽ tích Ngộ. Đầy Ngộ thì gặp K
 BUTTON_HOWTO,Cách chơi,How to play
 SOUND_ON,Âm: Bật,Sound: On
 SOUND_OFF,Âm: Tắt,Sound: Off
+BUTTON_CAMPAIGN,Chiến Dịch,Campaign
+LEADER_LAC_HONG,Lạc Hồng,Lac Hong
+LEADER_MOON_SPEAR,Nguyệt Thương,Moon Spear
+LEADER_LIEU_MI,Liễu Mi,Lieu Mi
+LEADER_BA_KHAC,Ba Khắc,Ba Khac
+LEADER_THIET_NHA,Thiết Nha,Thiet Nha
+TROOP_ARCHER,Binh cung,Archer
+TROOP_KITE_SCOUT,Diều trinh sát,Kite scout
+TROOP_RIDER,Kỵ binh,Rider
+TROOP_SHIELDMAN,Binh khiên,Shieldman
+TROOP_SPEARMAN,Binh giáo,Spearman
+TROOP_SWORDSMAN,Binh đao,Swordsman
+TERRAIN_PLAIN,Đồng bằng,Plain
+TERRAIN_FOREST,Rừng,Forest
+TERRAIN_HILL,Đồi,Hill
+TERRAIN_RIVER,Sông,River
+TERRAIN_FORD,Chỗ cạn,Ford
+TERRAIN_BRIDGE,Cầu,Bridge
+TERRAIN_FORT,Đồn,Fort
+TERRAIN_VILLAGE,Làng,Village
+TERRAIN_MOVE_FORMAT,Đi %d,Move %d
+TERRAIN_IMPASSABLE,Không qua được,Impassable
+TERRAIN_ARMOR_FORMAT,Giáp %+d,Armor %+d
+TERRAIN_TAKEN_FORMAT,Chịu đòn %+d%%,Damage taken %+d%%
+TERRAIN_RANGED_TAKEN_FORMAT,Đòn tầm xa %+d%%,Ranged damage %+d%%
+TERRAIN_RANGE_FORMAT,Cung %+d tầm,Bows %+d range
+KEYWORD_LONG_WEAPON,Vũ khí dài,Long weapon
+KEYWORD_LONG_WEAPON_DESC,Bị áp sát thì ra đòn trước.,Strikes first when attacked in melee.
+KEYWORD_CHARGE,Xung phong,Charge
+KEYWORD_CHARGE_DESC,Chạy thẳng 3 ô rồi đánh thì mạnh hơn 30%.,+30% after a straight run of 3 cells.
+KEYWORD_ARMOR_PIERCE,Xuyên giáp,Armor pierce
+KEYWORD_ARMOR_PIERCE_DESC,Bỏ qua một nửa giáp.,Ignores half of the armor.
+KEYWORD_COVER,Che chắn,Cover
+KEYWORD_COVER_DESC,Đồng đội đứng kề chịu đòn tầm xa ít hơn 30%.,Allies next to it take 30% less ranged damage.
+KEYWORD_FLYING,Bay,Flying
+KEYWORD_FLYING_DESC,"Bay qua mọi địa hình, không bị chặn đường.",Ignores terrain and zones of control.
+KEYWORD_HEAVY,Nặng,Heavy
+KEYWORD_HEAVY_DESC,Vào rừng và chỗ cạn tốn thêm 1 bước.,Forests and fords cost 1 more.
+TACTICS_PASSIVE_DRILLED_RANKS,Luyện binh,Drilled ranks
+TACTICS_PASSIVE_DRILLED_RANKS_DESC,"Binh trong toán thêm 10% công, có Che chắn; dẫn thêm 1 binh.",Soldiers +10% attack and cover; leads 1 more.
+TACTICS_PASSIVE_FOREST_AMBUSH,Phục rừng,Forest ambush
+TACTICS_PASSIVE_FOREST_AMBUSH_DESC,Đứng trong rừng thì thêm 20% công.,+20% attack in a forest.
+TACTICS_PASSIVE_HOOK_SPEAR,Giáo móc,Hook spear
+TACTICS_PASSIVE_HOOK_SPEAR_DESC,Đánh xong thì kéo mục tiêu lại gần 1 ô.,Pulls the target 1 cell after its attack.
+TACTICS_PASSIVE_IRON_WILL,Ý chí sắt,Iron will
+TACTICS_PASSIVE_IRON_WILL_DESC,Đứng trên đồn thì thêm 15 giáp.,+15 armor on a fort.
+TACTICS_PASSIVE_PACK_FURY,Bầy hung,Pack fury
+TACTICS_PASSIVE_PACK_FURY_DESC,Có 2 đồng đội đứng kề thì thêm 20% công.,+20% attack with 2 allies next to it.
+TACTICS_PASSIVE_WARLORD_GROWTH,Bá chủ,Warlord
+TACTICS_PASSIVE_WARLORD_GROWTH_DESC,"Mỗi lần hạ tướng địch, kỹ năng rộng thêm 1 ô.",Skill area +1 per enemy leader killed.
+TACTICS_PASSIVE_WIND_TRAIL,Tên gọi gió,Wind trail
+TACTICS_PASSIVE_WIND_TRAIL_DESC,"Dừng chân ở đâu, Gió nổi quanh đó 1 vòng: tên địch bắn vào yếu đi.",Wind around where it stops for 1 round: enemy arrows weaken.
+TACTICS_SKILL_BLOOD_OATH,Huyết thệ,Blood oath
+TACTICS_SKILL_BLOOD_OATH_DESC,Khi 2 binh trong toán ngã: một đòn 250% công vào địch đứng kề.,After 2 soldiers fall: a 250% strike on an enemy next to it.
+TACTICS_SKILL_CHAIN_ARROWS,Liên tiễn,Chain arrows
+TACTICS_SKILL_CHAIN_ARROWS_DESC,"Sau 2 hiệp đánh: tên nảy qua 3 địch, mỗi lần nảy yếu đi 30%.","After 2 engagements: an arrow bouncing through 3 enemies, 30% weaker each jump."
+TACTICS_SKILL_FIRE_RAIN,Mưa lửa,Fire rain
+TACTICS_SKILL_FIRE_RAIN_DESC,Chịu đủ 300 sát thương: lửa đổ xuống vùng 3×3 trong tầm 4 ô và cháy 2 vòng.,"After taking 300 damage: fire on a 3×3 area within 4 cells, burning 2 rounds."
+TACTICS_SKILL_PIERCING_THRUST,Xuyên tâm,Piercing thrust
+TACTICS_SKILL_PIERCING_THRUST_DESC,Đứng yên tụ lực 2 lượt: đâm 200% công vào địch trong 2 ô.,Stand still 2 phases: a 200% thrust within 2 cells.
+TACTICS_SKILL_RALLY_BANNER,Hiệu triệu,Rally banner
+TACTICS_SKILL_RALLY_BANNER_DESC,Sau 3 lượt: binh trong toán thêm 25% công trong 2 vòng.,After 3 phases: soldiers +25% attack for 2 rounds.
+ZONE_FIRE,Lửa,Fire
+ZONE_FIRE_DESC,Địch đứng trong lửa mất 60 máu đầu lượt.,Enemies inside lose 60 hp at their phase start.
+ZONE_WIND,Gió,Wind
+ZONE_WIND_DESC,Quân ta trong gió chịu đòn tầm xa ít hơn 50%.,Allies inside take 50% less ranged damage.
+MAP_RIVER_CROSSING,Bến sông,River crossing
+SCENARIO_RIVER_CROSSING,Qua sông,Crossing the river
+ORDER_FOLLOW,Bám sát,Follow
+ORDER_FOLLOW_DESC,Binh đi sau lưng tướng.,Soldiers walk behind the leader.
+ORDER_VANGUARD,Tiên phong,Vanguard
+ORDER_VANGUARD_DESC,Binh đi trước mở đường.,Soldiers walk ahead.
+ORDER_FLANK,Hai cánh,Flank
+ORDER_FLANK_DESC,Binh dàn hai bên tướng.,Soldiers spread on both sides.
+ORDER_HOLD,Giữ chỗ,Hold
+ORDER_HOLD_DESC,Binh đứng yên tại chỗ.,Soldiers stay where they are.
+ORDER_FREE,Tự do,Free
+ORDER_FREE_DESC,Binh tự tìm địch gần nhất hoặc cứu bạn đang bị đánh.,Soldiers hunt the nearest enemy or help an ally under attack.
+CHARGE_TURNS,Lượt,Turns
+CHARGE_ENGAGEMENTS,Hiệp đánh,Engagements
+CHARGE_FOCUS,Tụ lực,Focus
+CHARGE_DAMAGE_TAKEN,Chịu đòn,Damage taken
+CHARGE_SOLDIERS_LOST,Binh ngã,Soldiers lost
+MUSTER_TITLE,Điểm binh,Muster
+MUSTER_OBJECTIVE_FORMAT,Đưa một tướng tới %s (ô cờ vàng) hoặc hạ hết tướng địch. Quá %d vòng là thua.,Bring a leader to the %s (gold flag) or defeat every enemy leader. After %d rounds you lose.
+MUSTER_TERRAIN,Địa hình,Terrain
+MUSTER_FORCES,Quân ta,Our forces
+MUSTER_ENEMY_FORMAT,Quân địch: %s,Enemy: %s
+MUSTER_ENEMY_LEADER_FORMAT,%s (%d binh),%s (%d soldiers)
+MUSTER_HINT,Chạm một binh rồi chạm tướng khác để chuyển binh sang.,"Tap a soldier, then another leader, to move it."
+MUSTER_CAPACITY_FORMAT,%d/%d binh,%d/%d soldiers
+MUSTER_FULL_FORMAT,%s đã đủ binh.,%s is full.
+MUSTER_PICKED_FORMAT,Chọn %s. Chạm tướng để chuyển sang.,%s picked. Tap a leader to move it.
+MUSTER_SKILL_FORMAT,Kỹ năng: %s (%s %d),Skill: %s (%s %d)
+BUTTON_START_BATTLE,Xuất quân,March
+TACTICS_ROUND_FORMAT,Vòng %d/%d,Round %d/%d
+TACTICS_PHASE_PLAYER,Lượt ta,Our turn
+TACTICS_PHASE_ENEMY,Lượt địch,Enemy turn
+TACTICS_OBJECTIVE_SHORT_FORMAT,Mục tiêu: chiếm %s,Goal: take the %s
+BUTTON_END_TURN,Hết lượt,End turn
+BUTTON_WAIT,Chờ,Wait
+BUTTON_SKILL,Kỹ năng,Skill
+BUTTON_ORDER,Lệnh,Order
+BUTTON_CONFIRM_MOVE,Đi tới,Move
+BUTTON_ATTACK,Đánh,Attack
+BUTTON_CAST,Tung chiêu,Cast
+BUTTON_CANCEL,Hủy,Cancel
+BUTTON_RETREAT,Rút,Retreat
+TACTICS_RETREAT_CONFIRM,Chạm Rút lần nữa để bỏ trận.,Tap Retreat again to leave the battle.
+TACTICS_HINT_IDLE,Chạm một tướng của ta để ra lệnh.,Tap one of our leaders.
+TACTICS_HINT_SELECTED,Ô xanh: đi tới. Viền đỏ: đánh được.,Blue: move. Red outline: attack.
+TACTICS_HINT_PREVIEW,Bóng mờ là chỗ binh sẽ đứng.,Ghosts show where the soldiers will stand.
+TACTICS_HINT_SKILL,Chạm ô sáng để chọn đích.,Tap a lit cell to aim.
+TACTICS_HINT_DONE,Tướng này đã xong lượt.,This leader is done.
+TACTICS_HINT_ORDER,Chọn Lệnh cho toán binh.,Pick the squad's order.
+TACTICS_HINT_ALL_DONE,Các tướng đã xong. Chạm Hết lượt.,Every leader is done. Tap End turn.
+TACTICS_HP_FORMAT,Máu %d/%d,HP %d/%d
+TACTICS_SKILL_LINE_FORMAT,%s · %s %d/%d,%s · %s %d/%d
+TACTICS_SKILL_READY,Kỹ năng sẵn sàng!,Skill ready!
+TACTICS_ORDER_FORMAT,Lệnh: %s,Order: %s
+TACTICS_PASSIVES_FORMAT,Nội tại: %s,Passives: %s
+TACTICS_KEYWORDS_FORMAT,Từ khóa: %s,Keywords: %s
+TACTICS_SQUAD_FORMAT,Binh %d/%d,Squad %d/%d
+TACTICS_SOLDIER_OF_FORMAT,Binh của %s,Soldier of %s
+TACTICS_NO_LEADER,Mất tướng,Leaderless
+INTENT_ATTACK_FORMAT,Ý đồ: đánh %s,Intent: attack %s
+INTENT_SKILL_FORMAT,Ý đồ: dùng %s,Intent: use %s
+INTENT_WAIT,Ý đồ: đứng chờ,Intent: wait
+FORECAST_HITS_FORMAT,%d đòn × %d,%d hits × %d
+FORECAST_HP_FORMAT,Máu %d → %d,HP %d → %d
+FORECAST_NO_COUNTER,Không với tới để phản đòn,Cannot reach to counter
+FORECAST_FIRST_STRIKE_FORMAT,%s ra đòn trước,%s strikes first
+FORECAST_DIES,ngã,falls
+FORECAST_MODIFIERS_FORMAT,Ảnh hưởng: %s,Modifiers: %s
+FORECAST_NO_MODIFIERS,Ảnh hưởng: không,Modifiers: none
+SKILL_PREVIEW_TARGETS_FORMAT,Trúng %d địch,Hits %d enemies
+SKILL_PREVIEW_BUFF_FORMAT,%d binh được tăng công,%d soldiers get attack
+SKILL_HITS_OURS_FORMAT,Trúng %d quân ta,Hits %d of ours
+SKILL_PREVIEW_ZONE_FORMAT,Để lại %s,Leaves %s
+TACTICS_FLOAT_ATTACK_FORMAT,+%d%% Công,+%d%% Atk
+TACTICS_FLOAT_BUFF_ENDED,Hết tăng công,Buff over
+TACTICS_FLOAT_WAIT,Chờ,Wait
+TACTICS_FLOAT_SKILL_GREW_FORMAT,Chiêu rộng %d ô,Skill +%d
+TACTICS_FLOAT_ZONE_FORMAT,%s · %d vòng,%s · %d rounds
+TACTICS_FLOAT_ZONE_ENDED_FORMAT,Hết %s,%s gone
+TACTICS_FLOAT_ORDER_FORMAT,Lệnh: %s,Order: %s
+TACTICS_FLOAT_BURN,Cháy,Burn
+TACTICS_END_ROUT_WIN,Mọi tướng địch đã ngã.,Every enemy leader has fallen.
+TACTICS_END_ROUT_LOSS,Mọi tướng ta đã ngã.,Every one of our leaders has fallen.
+TACTICS_END_OBJECTIVE_WIN,Tướng ta đã chiếm được mục tiêu.,Our leader took the objective.
+TACTICS_END_OBJECTIVE_LOSS,Địch đã chiếm được mục tiêu.,The enemy took the objective.
+TACTICS_END_TIME_LIMIT_WIN,Ta trụ vững đủ số vòng.,We held for every round.
+TACTICS_END_TIME_LIMIT_LOSS,Hết vòng mà chưa chiếm được mục tiêu.,Out of rounds before taking the objective.
+CLOSEUP_SKIP,Chạm để bỏ qua,Tap to skip
+CLOSEUP_FIRST_STRIKE,Ra đòn trước!,First strike!
+CLOSEUP_COUNTER,Phản đòn,Counter
+CLOSEUP_FALLEN,Ngã!,Down!
+FORECAST_SIDE_FORMAT,%s: %s,%s: %s
+SKILL_PREVIEW_HIT_FORMAT,%s −%d → %d,%s −%d → %d
+TACTICS_TERRAIN_FORMAT,Đứng trên: %s,Standing on: %s
