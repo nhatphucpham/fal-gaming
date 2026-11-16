@@ -739,7 +739,7 @@ func _selected_hint(unit: int) -> String:
 			return "TACTICS_HINT_MOVE_ON" if state["has_moved"] else "TACTICS_HINT_SELECTED"
 		return "TACTICS_HINT_MOVE_ON_STRUCK" if state["has_attacked"] else "TACTICS_HINT_WALK_ONLY"
 	if _can_undo(unit):
-		return "TACTICS_HINT_MOVED"
+		return "TACTICS_HINT_MOVED" if not _battle.get_strike_targets(unit).is_empty() else "TACTICS_HINT_MOVED_NO_TARGET"
 	if _is_done(unit):
 		return "TACTICS_HINT_DONE"
 	return "TACTICS_HINT_ACT" if not _battle.get_strike_targets(unit).is_empty() else "TACTICS_HINT_SKILL_LEFT"

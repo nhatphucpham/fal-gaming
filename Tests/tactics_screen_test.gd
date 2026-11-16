@@ -59,7 +59,7 @@ func _run() -> bool:
 	await process_frame
 	if not await _idle():
 		return false
-	var checks: Array[Callable] = [_check_start, _check_undo, _check_move, _check_forecast_and_order, _check_tips, _check_battle_to_victory]
+	var checks: Array[Callable] = [_check_start, _check_undo, _check_move, _check_forecast_and_order, _check_tips, _check_moved_out_of_reach, _check_battle_to_victory]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Tactics screen test failed in %s" % check.get_method())
@@ -154,6 +154,45 @@ func _check_undo() -> bool:
 	return true
 
 
+# A leader that walked all its points away from the enemy, with nobody to
+# strike: the hint offers only Undo or Wait, never "tap an enemy". Undone
+# after, so the battle goes on as it was.
+func _check_moved_out_of_reach() -> bool:
+	var leader := _our_leaders()[1]
+	var home := _cell(leader)
+	var hash_before := _battle().get_state_hash()
+	var enemy := _nearest_enemy_leader(leader)
+	for hop: int in 4:
+		if not _battle().can_move(leader):
+			break
+		_screen.tap_cell(_cell(leader))
+		_screen.tap_cell(_farthest_reachable(leader, enemy))
+		if not await _idle():
+			return false
+	if _battle().can_move(leader) or not _battle().get_strike_targets(leader).is_empty() or not _battle().can_undo_move(leader):
+		return _fail("Leader %d should have walked out its points, out of reach, undoable" % leader)
+	if _screen.get_selected() != leader:
+		_screen.tap_cell(_cell(leader))
+	if not _expect_hint("TACTICS_HINT_MOVED_NO_TARGET"):
+		return false
+	while _battle().can_undo_move(leader):
+		_screen.press_button(&"undo")
+		if not await _idle():
+			return false
+	if _cell(leader) != home or _battle().get_state_hash() != hash_before:
+		return _fail("Undoing every step should bring leader %d home" % leader)
+	_screen.cancel()
+	return true
+
+
+func _farthest_reachable(leader: int, from: Vector2i) -> Vector2i:
+	var best := _cell(leader)
+	for cell: Vector2i in _battle().get_reachable_cells(leader):
+		if absi(cell.x - from.x) + absi(cell.y - from.y) > absi(best.x - from.x) + absi(best.y - from.y):
+			best = cell
+	return best
+
+
 func _check_move() -> bool:
 	var leader := _our_leaders()[0]
 	var hash_before := _battle().get_state_hash()
@@ -234,7 +273,7 @@ func _check_move() -> bool:
 		return false
 	# Moved as far as it goes toward the enemy: the hint speaks of moving on,
 	# or (no points left) of attacking, undoing or waiting.
-	if _screen.get_selected() != leader or not _expect_hint(_move_on_hint(leader) if _battle().can_move(leader) else "TACTICS_HINT_MOVED"):
+	if _screen.get_selected() != leader or not _expect_hint(_move_on_hint(leader) if _battle().can_move(leader) else _moved_hint(leader)):
 		return false
 	return true
 
@@ -243,6 +282,11 @@ func _check_move() -> bool:
 # is an enemy to strike.
 func _move_on_hint(leader: int) -> String:
 	return "TACTICS_HINT_MOVE_ON" if not _battle().get_strike_targets(leader).is_empty() else "TACTICS_HINT_WALK_ONLY"
+
+
+# After a move with no points left: "tap an enemy" only with one to strike.
+func _moved_hint(leader: int) -> String:
+	return "TACTICS_HINT_MOVED" if not _battle().get_strike_targets(leader).is_empty() else "TACTICS_HINT_MOVED_NO_TARGET"
 
 
 # The free cell next to the leader closest to `goal`.

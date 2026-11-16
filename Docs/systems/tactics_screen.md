@@ -126,7 +126,9 @@ Taps (the flow a phone player uses):
   and the hint says "Đi tiếp ô xanh, đánh địch viền đỏ, xong thì Chờ."
   (with no enemy in reach "Chưa với tới địch: chạm ô xanh, xong thì
   Chờ.", after its attack "Đã đánh: đi tiếp ô xanh, hoặc Chờ."); with
-  none left, "Hết điểm đi: chạm địch, Hoàn tác hoặc Chờ." (with only its
+  none left, "Hết điểm đi: chạm địch, Hoàn tác hoặc Chờ." (with no
+  enemy in reach "Hết điểm đi, chưa với tới địch: Hoàn tác hoặc Chờ.";
+  with only its
   skill left, "Còn Kỹ năng: bấm Kỹ năng hoặc Chờ."). It may
   attack before or after moving, cast its skill as well, and change its
   order any number of times until it waits. "Hoàn tác" takes back one

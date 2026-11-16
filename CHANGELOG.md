@@ -45,6 +45,8 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Fixed
 
+- Chiến Dịch: a leader that has walked all its points with no enemy in
+  reach is no longer told to tap an enemy; the hint says Undo or Wait.
 - Chiến Dịch: the objective shows through the fog and the night, and a
   gold flag on the edge of the map points at it while it is out of view;
   edge marks no longer tuck their pointer under the top bar.

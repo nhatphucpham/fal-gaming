@@ -656,6 +656,7 @@ BUTTON_UNDO,Hoàn tác,Undo
 TACTICS_WHOLE_MAP,Toàn cảnh,Whole map
 TACTICS_ZOOM_IN,Phóng to,Zoom in
 TACTICS_HINT_MOVED,"Hết điểm đi: chạm địch, Hoàn tác hoặc Chờ.","No points left: tap an enemy, Undo or Wait."
+TACTICS_HINT_MOVED_NO_TARGET,"Hết điểm đi, chưa với tới địch: Hoàn tác hoặc Chờ.","No points left, no enemy in reach: Undo or Wait."
 TACTICS_HINT_MOVE_ON,"Đi tiếp ô xanh, đánh địch viền đỏ, xong thì Chờ.","Move on in blue, strike red, then Wait."
 TACTICS_HINT_AUTO_END,Các tướng đã xong. Tự kết lượt…,Every leader is done. Ending the turn…
 TACTICS_HINT_UNDONE,"Đã lùi một bước, tướng đi lại được.",One move undone: the leader can move again.
