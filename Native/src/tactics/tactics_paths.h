@@ -34,6 +34,12 @@ struct PathField {
 // Every cell the unit can reach within p_max_cost from its cell; none for a
 // dead unit.
 PathField find_paths(const TacticsSim &p_sim, int p_unit, int p_max_cost, ZocMode p_zoc);
+// find_paths() with the move points the unit may spend now
+// (TacticsSim::get_move_budget) and zones of control.
+PathField find_move_paths(const TacticsSim &p_sim, int p_unit);
+// A unit standing on p_cell is in an enemy's zone of control there (an
+// enemy orthogonally next to it), unless it ignores zones of control.
+bool is_in_enemy_zone(const TacticsSim &p_sim, int p_unit, const Cell &p_cell);
 // Remaining cost from each cell to the nearest of p_goals (zones of control
 // ignored), for walking toward something out of reach this phase.
 std::vector<int> find_goal_distances(const TacticsSim &p_sim, int p_unit, const std::vector<Cell> &p_goals);
@@ -42,8 +48,8 @@ std::vector<Cell> get_path(const TacticsSim &p_sim, const PathField &p_field, co
 // The unit may end a move here: on the map, passable for it, and free (or
 // its own cell).
 bool can_stop_at(const TacticsSim &p_sim, int p_unit, const Cell &p_cell);
-// Cells the unit can end its move on this phase, without its own cell, in
-// row-major order.
+// Cells the unit can end a move on with the move points it may spend now,
+// without its own cell, in row-major order.
 std::vector<Cell> get_reachable_cells(const TacticsSim &p_sim, int p_unit);
 // Steps of the same direction at the end of the path.
 int get_trailing_straight_cells(const std::vector<Cell> &p_path);

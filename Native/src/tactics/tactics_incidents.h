@@ -60,7 +60,7 @@ int find_hit_guard(const TacticsSim &p_sim, int p_leader);
 void note_soldier_hit(TacticsSim &p_sim, int p_soldier, int p_cause);
 void note_unit_died(TacticsSim &p_sim, int p_unit, int p_cause);
 // Rescue: the leader's own move ended next to a hurt soldier of its side
-// that has an enemy next to it.
+// that has an enemy next to it; at most once per leader and phase.
 void note_leader_moved(TacticsSim &p_sim, int p_leader, int p_cause);
 
 } // namespace tactics

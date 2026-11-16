@@ -2,7 +2,8 @@ class_name TacticsTip
 extends Control
 ## First-time tips on the tactics map: one short line in a gold-edged box
 ## just above the bottom panel, the first time the player selects a
-## leader, moves one, changes an order and sees a soldier waver. Each tip
+## leader, moves one, spends a leader's last move point, changes an order
+## and sees a soldier waver. Each tip
 ## slides up with a sound, stays a few seconds and fades; one shown is
 ## remembered in the settings (RunSettings) and never shown again. A tip
 ## that comes while another shows waits for it. It never catches taps.
@@ -16,6 +17,7 @@ extends Control
 const TIPS: Dictionary = {
 	&"select": "TACTICS_TIP_SELECT",
 	&"move": "TACTICS_TIP_MOVE",
+	&"undo": "TACTICS_TIP_UNDO",
 	&"order": "TACTICS_TIP_ORDER",
 	&"waver": "TACTICS_TIP_WAVER",
 }

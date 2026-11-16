@@ -110,8 +110,17 @@ public:
 	Array preview_squad(int64_t p_leader, const Vector2i &p_cell) const;
 	Dictionary get_skill_charge(int64_t p_leader) const;
 	Array get_enemy_intents() const;
+	// A leader's turn (Docs/systems/tactics.md, A leader's turn): open
+	// (can_act: wait and orders), may move with the points left, may still
+	// attack, may still cast; closed when nothing is left to do.
 	bool can_move(int64_t p_unit) const;
 	bool can_act(int64_t p_unit) const;
+	bool can_attack(int64_t p_unit) const;
+	bool can_cast(int64_t p_unit) const;
+	bool is_closed(int64_t p_unit) const;
+	// Move points the unit may spend now (its full points out of its phase).
+	int get_move_points_left(int64_t p_unit) const;
+	bool has_attacked(int64_t p_unit) const;
 	Array get_attack_targets(int64_t p_unit) const;
 	Array get_skill_cells(int64_t p_unit) const;
 	Dictionary preview_skill(int64_t p_unit, const Vector2i &p_cell) const;
@@ -120,9 +129,10 @@ public:
 	// when it cannot reach it; enemies it could strike this phase.
 	Vector2i get_strike_cell(int64_t p_unit, int64_t p_target) const;
 	Array get_strike_targets(int64_t p_unit) const;
-	// forecast_engagement() after the leader moved to p_cell, its squad
-	// stepped and struck: `target_gone` when the squad would kill p_target
-	// first (is_valid false then), `squad` the soldiers' new cells.
+	// forecast_engagement() after the leader moved to p_cell and its squad
+	// stepped: `target_gone` when p_target died on the way (is_valid false
+	// then), `squad` the soldiers' new cells; is_valid false too when the
+	// leader may not attack or move there.
 	Dictionary forecast_move_attack(int64_t p_unit, const Vector2i &p_cell, int64_t p_target) const;
 	// Tests and tools only: the hidden seeds; the screen never shows them.
 	Array get_incident_seeds() const;

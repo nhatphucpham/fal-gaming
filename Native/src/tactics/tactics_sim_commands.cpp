@@ -62,8 +62,34 @@ bool TacticsSim::check_leader_can_act(int p_unit, std::string *r_error) const {
 	if (!check_command(p_unit, r_error)) {
 		return false;
 	}
-	if (units[p_unit].has_acted) {
-		*r_error = "leader " + std::to_string(p_unit) + " has already acted this phase";
+	if (units[p_unit].has_waited) {
+		*r_error = "leader " + std::to_string(p_unit) + " has already waited this phase";
+		return false;
+	}
+	return true;
+}
+
+bool TacticsSim::check_leader_can_attack(int p_unit, std::string *r_error) const {
+	if (!check_leader_can_act(p_unit, r_error)) {
+		return false;
+	}
+	if (units[p_unit].has_attacked) {
+		*r_error = "leader " + std::to_string(p_unit) + " has already attacked this phase";
+		return false;
+	}
+	return true;
+}
+
+bool TacticsSim::check_leader_can_cast(int p_unit, std::string *r_error) const {
+	if (!check_leader_can_act(p_unit, r_error)) {
+		return false;
+	}
+	if (units[p_unit].has_cast) {
+		*r_error = "leader " + std::to_string(p_unit) + " has already cast its skill this phase";
+		return false;
+	}
+	if (!is_skill_ready(units[p_unit])) {
+		*r_error = "leader " + std::to_string(p_unit) + " has no skill ready";
 		return false;
 	}
 	return true;
@@ -73,16 +99,12 @@ bool TacticsSim::check_leader_move(int p_unit, const Cell &p_cell, std::string *
 	if (!check_leader_can_act(p_unit, r_error)) {
 		return false;
 	}
-	if (units[p_unit].has_moved) {
-		*r_error = "leader " + std::to_string(p_unit) + " has already moved this phase";
-		return false;
-	}
 	for (const Cell &cell : get_reachable_cells(*this, p_unit)) {
 		if (cell == p_cell) {
 			return true;
 		}
 	}
-	*r_error = "leader " + std::to_string(p_unit) + " cannot reach " + describe_cell(p_cell);
+	*r_error = "leader " + std::to_string(p_unit) + " cannot reach " + describe_cell(p_cell) + " with " + std::to_string(get_move_budget(p_unit)) + " move points";
 	return false;
 }
 
@@ -90,35 +112,41 @@ bool TacticsSim::move_leader(int p_unit, const Cell &p_cell, std::string *r_erro
 	if (!check_leader_move(p_unit, p_cell, r_error)) {
 		return false;
 	}
-	clear_undo();
-	// Only a human phase can take a move back; the AI never needs it.
+	// Only a human phase can take a move back; the AI never needs it. The
+	// copy is the exact state before, steps back of any leader included.
 	std::shared_ptr<TacticsSim> before;
 	if (!side_is_ai[active_side]) {
 		before = std::make_shared<TacticsSim>(*this);
 	}
+	// Steps back belong to one leader: a move of another ends them.
+	if (undo_leader != p_unit) {
+		clear_undo();
+	}
 	const size_t first_event = events.size();
 	const int move_id = apply_leader_move(p_unit, p_cell, 0);
 	if (!finished) {
-		run_squad_step(p_unit, move_id);
+		run_squad_moves(p_unit, move_id);
 	}
 	bool is_plain = before != nullptr && !finished;
 	for (size_t index = first_event; index < events.size() && is_plain; index++) {
 		is_plain = events[index].type == EventType::UNIT_MOVED || events[index].type == EventType::SKILL_CHARGE_CHANGED;
 	}
-	if (is_plain) {
-		undo_state = before;
-		undo_leader = p_unit;
+	if (!is_plain) {
+		clear_undo();
+		return true;
 	}
+	undo_states.push_back(before);
+	undo_leader = p_unit;
 	return true;
 }
 
 void TacticsSim::clear_undo() {
-	undo_state.reset();
+	undo_states.clear();
 	undo_leader = NO_UNIT;
 }
 
 bool TacticsSim::can_undo_move(int p_unit) const {
-	return undo_state != nullptr && undo_leader == p_unit && !finished;
+	return !undo_states.empty() && undo_leader == p_unit && !finished;
 }
 
 bool TacticsSim::undo_move(int p_unit, std::string *r_error) {
@@ -126,22 +154,21 @@ bool TacticsSim::undo_move(int p_unit, std::string *r_error) {
 		*r_error = "leader " + std::to_string(p_unit) + " has no move to take back";
 		return false;
 	}
-	const std::shared_ptr<const TacticsSim> state = undo_state;
-	// The events of the move were already taken; the copy has none pending.
+	const std::shared_ptr<const TacticsSim> state = undo_states.back();
+	// The copy holds the steps below this one. The events of the move were
+	// already taken; the copy has none pending.
 	*this = *state;
 	events.clear();
-	clear_undo();
 	return true;
 }
 
 // Passives that react to the move are caused by the leader's unit_moved.
 int TacticsSim::apply_leader_move(int p_unit, const Cell &p_cell, int p_cause) {
-	const PathField field = find_paths(*this, p_unit, get_stats(p_unit).move_points, ZocMode::APPLY);
+	const PathField field = find_move_paths(*this, p_unit);
 	const std::vector<Cell> path = get_path(*this, field, p_cell);
-	update_heading(p_unit, units[p_unit].cell, p_cell);
 	units[p_unit].has_moved = true;
-	units[p_unit].straight_cells = get_trailing_straight_cells(path);
-	const int move_id = relocate_unit(p_unit, path, "move", p_cause);
+	const int move_id = walk_unit(p_unit, path, field.cost[get_cell_index(p_cell)], "move", p_cause);
+	update_heading(p_unit);
 	check_objective_taken(p_unit, move_id);
 	// The move may have taken the objective: nothing happens after the end.
 	if (finished) {
@@ -157,31 +184,57 @@ int TacticsSim::apply_leader_move(int p_unit, const Cell &p_cell, int p_cause) {
 	return move_id;
 }
 
-// Heading: the dominant axis of the move; on a tie the current heading
-// stays if it points along one of the two axes, else the row axis wins.
-void TacticsSim::update_heading(int p_unit, const Cell &p_from, const Cell &p_to) {
+int TacticsSim::walk_unit(int p_unit, const std::vector<Cell> &p_path, int p_cost, const std::string &p_kind, int p_cause) {
 	UnitState &unit = units[p_unit];
-	const Cell by_col = { get_sign(p_to.col - p_from.col), 0 };
-	const Cell by_row = { 0, get_sign(p_to.row - p_from.row) };
-	const int cols = abs_int(p_to.col - p_from.col);
-	const int rows = abs_int(p_to.row - p_from.row);
-	Cell heading = cols > rows ? by_col : by_row;
-	if (cols == rows && (unit.heading == by_col || unit.heading == by_row)) {
-		heading = unit.heading;
+	if (p_path.size() < 2) {
+		return 0;
 	}
-	unit.heading_streak = heading == unit.heading && unit.heading_streak > 0 ? unit.heading_streak + 1 : 1;
+	unit.move_points_left = p_cost < unit.move_points_left ? unit.move_points_left - p_cost : 0;
+	// A run goes on when the new walk is straight and keeps its direction.
+	const Cell first_step = p_path[1] - p_path[0];
+	const int trailing = get_trailing_straight_cells(p_path);
+	const bool goes_on = trailing == static_cast<int>(p_path.size()) - 1 && first_step == unit.last_step;
+	unit.straight_cells = goes_on ? unit.straight_cells + trailing : trailing;
+	unit.last_step = p_path.back() - p_path[p_path.size() - 2];
+	unit.is_held_by_zoc = is_in_enemy_zone(*this, p_unit, p_path.back());
+	return relocate_unit(p_unit, p_path, p_kind, p_cause);
+}
+
+// Heading: the dominant axis of the whole way walked this phase (from
+// where the phase began), so splitting a walk into moves changes nothing;
+// on a tie the phase's first heading stays if it points along one of the
+// two axes, else the row axis wins. Back where it began, nothing changed.
+void TacticsSim::update_heading(int p_unit) {
+	UnitState &unit = units[p_unit];
+	const Cell from = unit.phase_start_cell;
+	const Cell to = unit.cell;
+	if (from == to) {
+		unit.heading = unit.phase_start_heading;
+		unit.heading_streak = 0;
+		return;
+	}
+	const Cell by_col = { get_sign(to.col - from.col), 0 };
+	const Cell by_row = { 0, get_sign(to.row - from.row) };
+	const int cols = abs_int(to.col - from.col);
+	const int rows = abs_int(to.row - from.row);
+	Cell heading = cols > rows ? by_col : by_row;
+	if (cols == rows && (unit.phase_start_heading == by_col || unit.phase_start_heading == by_row)) {
+		heading = unit.phase_start_heading;
+	}
+	unit.heading_streak = heading == unit.phase_start_heading && unit.phase_start_streak > 0 ? unit.phase_start_streak + 1 : 1;
 	unit.heading = heading;
 }
 
 bool TacticsSim::attack(int p_unit, int p_target, std::string *r_error) {
-	if (!check_leader_can_act(p_unit, r_error)) {
+	if (!check_leader_can_attack(p_unit, r_error)) {
 		return false;
 	}
-	clear_undo();
 	if (p_target < 0 || p_target >= static_cast<int>(units.size()) || !can_attack(*this, p_unit, p_target)) {
 		*r_error = "leader " + std::to_string(p_unit) + " cannot attack unit " + std::to_string(p_target);
 		return false;
 	}
+	clear_undo();
+	units[p_unit].has_attacked = true;
 	const EngagementResult result = resolve_engagement(*this, p_unit, p_target, 0);
 	if (!result.is_attacker_dead && !finished) {
 		const std::vector<PassiveDef> passives = units[p_unit].def.passives;
@@ -191,24 +244,27 @@ bool TacticsSim::attack(int p_unit, int p_target, std::string *r_error) {
 			}
 		}
 	}
-	finish_leader_action(p_unit, result.event_id);
+	// The soldiers strike with their leader's attack, once a phase.
+	if (!finished && !units[p_unit].has_squad_struck) {
+		run_squad_strike(p_unit, result.event_id);
+	}
 	return true;
 }
 
 bool TacticsSim::use_skill(int p_unit, const Cell &p_cell, std::string *r_error) {
-	if (!check_leader_can_act(p_unit, r_error)) {
+	if (!check_leader_can_cast(p_unit, r_error)) {
+		return false;
+	}
+	// A cast the target refuses changes nothing, the steps back included.
+	SkillSelection selection;
+	selection.center = p_cell;
+	const UnitState &caster = units[p_unit];
+	if (!caster.def.skill.target->select(*this, p_unit, caster.cell, p_cell, selection, r_error)) {
 		return false;
 	}
 	clear_undo();
-	if (!is_skill_ready(units[p_unit])) {
-		*r_error = "leader " + std::to_string(p_unit) + " has no skill ready";
-		return false;
-	}
-	const int skill_id = cast_skill(*this, p_unit, p_cell, 0, r_error);
-	if (skill_id == 0) {
-		return false;
-	}
-	finish_leader_action(p_unit, skill_id);
+	units[p_unit].has_cast = true;
+	cast_skill(*this, p_unit, p_cell, 0, r_error);
 	return true;
 }
 
@@ -217,15 +273,19 @@ bool TacticsSim::wait(int p_unit, std::string *r_error) {
 		return false;
 	}
 	clear_undo();
+	units[p_unit].has_waited = true;
 	Event event;
 	event.type = EventType::LEADER_WAITED;
 	event.unit = p_unit;
-	finish_leader_action(p_unit, emit(event));
+	const int wait_id = emit(event);
+	if (!units[p_unit].has_squad_struck) {
+		run_squad_strike(p_unit, wait_id);
+	}
 	return true;
 }
 
 bool TacticsSim::set_order(int p_unit, int p_order, std::string *r_error) {
-	if (!check_command(p_unit, r_error)) {
+	if (!check_leader_can_act(p_unit, r_error)) {
 		return false;
 	}
 	if (p_order < 0 || p_order >= get_order_count()) {
@@ -242,21 +302,9 @@ bool TacticsSim::set_order(int p_unit, int p_order, std::string *r_error) {
 	return true;
 }
 
-// Acting ends the leader's phase; a squad that has not stepped yet (the
-// leader did not move) steps right after the action, caused by p_cause.
-void TacticsSim::finish_leader_action(int p_unit, int p_cause) {
-	if (finished) {
-		return;
-	}
-	units[p_unit].has_acted = true;
-	if (!units[p_unit].has_squad_acted) {
-		run_squad_step(p_unit, p_cause);
-	}
-}
-
-void TacticsSim::run_squad_step(int p_leader, int p_cause) {
-	units[p_leader].has_squad_acted = true;
+void TacticsSim::run_squad_strike(int p_leader, int p_cause) {
 	move_squad(*this, p_leader, p_cause);
+	units[p_leader].has_squad_struck = true;
 	attack_with_squad(*this, p_leader, p_cause);
 }
 
@@ -290,30 +338,30 @@ std::vector<std::pair<int, Cell>> TacticsSim::preview_squad(int p_leader, const 
 }
 
 Cell TacticsSim::get_strike_cell(int p_unit, int p_target) const {
-	if (!can_leader_act(p_unit) || p_target < 0 || p_target >= static_cast<int>(units.size())) {
+	if (!can_leader_attack(p_unit) || p_target < 0 || p_target >= static_cast<int>(units.size())) {
 		return NO_CELL;
 	}
 	if (!can_leader_move(p_unit)) {
 		return can_attack(*this, p_unit, p_target) ? units[p_unit].cell : NO_CELL;
 	}
-	const PathField field = find_paths(*this, p_unit, get_stats(p_unit).move_points, ZocMode::APPLY);
+	const PathField field = find_move_paths(*this, p_unit);
 	const std::vector<Strike> strikes = list_strikes(*this, p_unit, field, [&](const Cell &p_cell) {
-		return is_in_range_from(*this, p_unit, p_cell, units[p_target].cell);
+		return !takes_objective(p_unit, p_cell) && is_in_range_from(*this, p_unit, p_cell, units[p_target].cell);
 	});
 	return pick_safest_strike_cell(*this, strikes, count_enemy_reach(*this, units[p_unit].side), p_target);
 }
 
 std::vector<int> TacticsSim::get_strike_targets(int p_unit) const {
 	std::vector<int> targets;
-	if (!can_leader_act(p_unit)) {
+	if (!can_leader_attack(p_unit)) {
 		return targets;
 	}
 	if (!can_leader_move(p_unit)) {
 		return get_attack_targets(p_unit);
 	}
-	const PathField field = find_paths(*this, p_unit, get_stats(p_unit).move_points, ZocMode::APPLY);
+	const PathField field = find_move_paths(*this, p_unit);
 	std::vector<bool> is_target(units.size(), false);
-	for (const Strike &strike : list_strikes(*this, p_unit, field, [](const Cell &) { return true; })) {
+	for (const Strike &strike : list_strikes(*this, p_unit, field, [&](const Cell &p_cell) { return !takes_objective(p_unit, p_cell); })) {
 		is_target[strike.target] = true;
 	}
 	for (size_t index = 0; index < units.size(); index++) {
@@ -322,6 +370,12 @@ std::vector<int> TacticsSim::get_strike_targets(int p_unit) const {
 		}
 	}
 	return targets;
+}
+
+// A move there wins the battle outright, so it is no cell to strike from:
+// the player takes it with a plain move.
+bool TacticsSim::takes_objective(int p_unit, const Cell &p_cell) const {
+	return map.has_objective && units[p_unit].side == map.objective_side && p_cell == map.objective && p_cell != units[p_unit].cell;
 }
 
 bool TacticsSim::simulate_move(int p_unit, const Cell &p_cell, TacticsSim *r_copy, std::string *r_error) const {
@@ -343,13 +397,38 @@ bool TacticsSim::can_leader_act(int p_unit) const {
 	return check_leader_can_act(p_unit, &error);
 }
 
+int TacticsSim::get_move_budget(int p_unit) const {
+	const UnitState &unit = units[p_unit];
+	if (!started || finished || unit.side != active_side) {
+		return get_stats(p_unit).move_points;
+	}
+	return unit.is_held_by_zoc && is_in_enemy_zone(*this, p_unit, unit.cell) ? 0 : unit.move_points_left;
+}
+
 bool TacticsSim::can_leader_move(int p_unit) const {
-	return can_leader_act(p_unit) && !units[p_unit].has_moved;
+	return can_leader_act(p_unit) && get_move_budget(p_unit) > 0 && !get_reachable_cells(*this, p_unit).empty();
+}
+
+bool TacticsSim::can_leader_attack(int p_unit) const {
+	std::string error;
+	return check_leader_can_attack(p_unit, &error);
+}
+
+bool TacticsSim::can_leader_cast(int p_unit) const {
+	std::string error;
+	return check_leader_can_cast(p_unit, &error);
+}
+
+bool TacticsSim::is_leader_closed(int p_unit) const {
+	if (p_unit < 0 || p_unit >= static_cast<int>(units.size()) || !can_leader_act(p_unit)) {
+		return true;
+	}
+	return !can_leader_move(p_unit) && get_strike_targets(p_unit).empty() && get_skill_cells(p_unit).empty();
 }
 
 std::vector<int> TacticsSim::get_attack_targets(int p_unit) const {
 	std::vector<int> targets;
-	if (!can_leader_act(p_unit)) {
+	if (!can_leader_attack(p_unit)) {
 		return targets;
 	}
 	for (const UnitState &unit : units) {
@@ -362,7 +441,7 @@ std::vector<int> TacticsSim::get_attack_targets(int p_unit) const {
 
 std::vector<Cell> TacticsSim::get_skill_cells(int p_unit) const {
 	std::vector<Cell> cells;
-	if (!can_leader_act(p_unit) || !is_skill_ready(units[p_unit])) {
+	if (!can_leader_cast(p_unit)) {
 		return cells;
 	}
 	const UnitState &caster = units[p_unit];
@@ -380,11 +459,7 @@ std::vector<Cell> TacticsSim::get_skill_cells(int p_unit) const {
 
 // The copy casts exactly as use_skill() would; its events say what changed.
 bool TacticsSim::preview_skill(int p_unit, const Cell &p_cell, SkillPreview *r_preview, std::string *r_error) const {
-	if (!check_leader_can_act(p_unit, r_error)) {
-		return false;
-	}
-	if (!is_skill_ready(units[p_unit])) {
-		*r_error = "leader " + std::to_string(p_unit) + " has no skill ready";
+	if (!check_leader_can_cast(p_unit, r_error)) {
 		return false;
 	}
 	TacticsSim copy = *this;

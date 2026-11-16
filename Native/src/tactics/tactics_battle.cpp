@@ -319,6 +319,11 @@ void TacticsBattle::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_enemy_intents"), &TacticsBattle::get_enemy_intents);
 	ClassDB::bind_method(D_METHOD("can_move", "unit"), &TacticsBattle::can_move);
 	ClassDB::bind_method(D_METHOD("can_act", "unit"), &TacticsBattle::can_act);
+	ClassDB::bind_method(D_METHOD("can_attack", "unit"), &TacticsBattle::can_attack);
+	ClassDB::bind_method(D_METHOD("can_cast", "unit"), &TacticsBattle::can_cast);
+	ClassDB::bind_method(D_METHOD("is_closed", "unit"), &TacticsBattle::is_closed);
+	ClassDB::bind_method(D_METHOD("get_move_points_left", "unit"), &TacticsBattle::get_move_points_left);
+	ClassDB::bind_method(D_METHOD("has_attacked", "unit"), &TacticsBattle::has_attacked);
 	ClassDB::bind_method(D_METHOD("get_attack_targets", "unit"), &TacticsBattle::get_attack_targets);
 	ClassDB::bind_method(D_METHOD("get_skill_cells", "unit"), &TacticsBattle::get_skill_cells);
 	ClassDB::bind_method(D_METHOD("preview_skill", "unit", "cell"), &TacticsBattle::preview_skill);

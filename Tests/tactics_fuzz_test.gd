@@ -11,13 +11,17 @@ extends SceneTree
 # events account for every cell, hp and charge change, one unit per cell,
 # battle_ended is last, and a replay of the commands gives the same hashes.
 # Strikes (get_strike_cell, then a move there and the attack) land what
-# forecast_move_attack() said; an undo is offered exactly after a plain
-# human move and gives back the hash from before it, and every query from
-# before it too (units, incident seeds and stages, karma, the report,
-# intents, zones). A second replay leaves out each undone move (and the
-# refused commands between it and its undo): every later command must give
-# the same events and hash, so nothing outside the hash (the incident
-# generator, event ids) differs after an undo either.
+# forecast_move_attack() said. Leaders often move several times in a row
+# (the turn stays open until "Chờ"): no unit walks more cells in a phase
+# than its move points, its points left only go down, and no soldier
+# strikes twice in a phase. Undo is a stack: it is offered exactly while
+# the leader's plain human moves since its last other command are not all
+# taken back, and each undo gives back the hash from before that move and
+# every query from before it too (units, incident seeds and stages, karma,
+# the report, intents, zones). A second replay leaves out each undone move
+# (and the refused commands between it and its undo): every later command
+# must give the same events and hash, so nothing outside the hash (the
+# incident generator, event ids) differs after an undo either.
 # Every other seed plays with incidents, most soldiers seeded with a random
 # one: the events must account for flights and defections too.
 
@@ -46,12 +50,16 @@ var _model: Dictionary = {}
 var _zone_count: int = 0
 ## Incident events seen over all seeds, by type.
 var _incident_counts: Dictionary = {}
-## Per leader: the hash before its last accepted move.
-var _move_hashes: Dictionary = {}
-## Per leader: every query's answer before its last accepted move.
-var _move_snapshots: Dictionary = {}
-## Per leader: the command index of its last accepted move.
-var _move_indexes: Dictionary = {}
+## The moves that can still be taken back, the last on top: each
+## {hash, snapshot, index, budget} from before the move; and whose they are.
+var _undo_stack: Array[Dictionary] = []
+var _undo_leader: int = -1
+## Per unit of the human side: move points it may still walk in this turn
+## (cells), from its points at the turn's first command; and that turn.
+var _budget: Dictionary = {}
+var _budget_turn: int = -1
+## [turn, unit] pairs that struck, to catch a second strike in a phase.
+var _soldier_strikes: Dictionary = {}
 ## [first, last] command indexes of each undone move and its undo.
 var _undone_spans: Array = []
 var _command_index: int = 0
@@ -59,6 +67,8 @@ var _undos: int = 0
 ## The leader the last command moved, else -1 (an undo is likelier next).
 var _last_moved: int = -1
 var _strikes: int = 0
+## The most moves of one leader taken back one by one in a row.
+var _deepest_undo: int = 0
 
 
 func _initialize() -> void:
@@ -74,9 +84,11 @@ func _initialize() -> void:
 	Engine.print_error_messages = true
 	for failure: String in _failures.slice(0, 20):
 		printerr("Tactics fuzz test: %s" % failure)
-	print("Tactics fuzz test: incident events %s, %d strikes, %d undos" % [_incident_counts, _strikes, _undos])
+	print("Tactics fuzz test: incident events %s, %d strikes, %d undos (up to %d moves deep)" % [_incident_counts, _strikes, _undos, _deepest_undo])
 	if _incident_counts.get(&"incident_fired", 0) == 0:
 		_failures.append("no incident fired on any seed")
+	if _deepest_undo < 3:
+		_failures.append("no leader had three moves to take back one by one")
 	if _failures.is_empty():
 		print("Tactics fuzz test passed")
 		quit(0)
@@ -107,15 +119,21 @@ func _run_seed() -> void:
 	var hashes: Array[String] = []
 	var event_texts: Array[String] = []
 	_undone_spans.clear()
-	_move_indexes.clear()
+	_undo_stack.clear()
+	_undo_leader = -1
+	_budget.clear()
+	_budget_turn = -1
+	_soldier_strikes.clear()
 	while commands.size() < MAX_COMMANDS and not battle.is_finished():
 		_command_index = commands.size()
 		var before := battle.get_state_hash()
 		_check_queries(battle)
 		if battle.get_state_hash() != before:
 			_fail("queries changed the hash before command %d" % commands.size())
+		_note_turn(battle)
 		var command := _pick_command(battle)
 		events = _run_checked(battle, command)
+		_note_undo_stack(battle, command, events)
 		if events.is_empty() and battle.get_state_hash() != before and command[0] != &"undo":
 			_fail("refused %s changed the hash" % [command])
 		_check_events(battle, events)
@@ -280,6 +298,10 @@ func _pick_command(battle: TacticsBattle) -> Array:
 	_last_moved = -1
 	if moved >= 0 and _rng.randf() < 0.3:
 		return [&"undo", moved, null]
+	# The turn stays open after a move: often the same leader moves on.
+	if moved >= 0 and _rng.randf() < 0.45 and not battle.get_reachable_cells(moved).is_empty():
+		var next_cells: Array = battle.get_reachable_cells(moved)
+		return [&"move", moved, next_cells[_rng.randi_range(0, next_cells.size() - 1)]]
 	var leaders: Array[int] = []
 	for unit: Dictionary in battle.get_units():
 		if unit["role"] == &"leader" and unit["side"] == battle.get_active_side() and (unit["alive"] or _rng.randf() < 0.1):
@@ -373,23 +395,23 @@ func _run_checked(battle: TacticsBattle, command: Array) -> Array:
 	var unit: int = command[1]
 	var state := battle.get_unit_state(unit)
 	var is_commandable: bool = state["role"] == &"leader" and state["alive"] and state["side"] == battle.get_active_side()
-	var can_act: bool = is_commandable and not state["has_acted"]
+	var can_act: bool = is_commandable and not state["has_waited"]
+	var can_attack: bool = can_act and not state["has_attacked"]
 	var expected := true
 	var path: Array = []
 	var preview: Array = []
 	var forecast: Dictionary = {}
 	var is_ready := false
 	var skill_preview: Dictionary = {}
-	if battle.can_act(unit) != can_act or battle.can_move(unit) != (can_act and not state["has_moved"]):
-		_fail("can_act/can_move of %d disagree with its state %s" % [unit, state])
+	_check_turn_queries(battle, unit, state, can_act, can_attack)
 	match command[0]:
 		&"move":
-			expected = can_act and not state["has_moved"] and battle.get_reachable_cells(unit).has(command[2])
+			expected = can_act and battle.get_reachable_cells(unit).has(command[2])
 			path = battle.get_path_to(unit, command[2])
 			preview = battle.preview_squad(unit, command[2]) if expected else []
 		&"attack":
 			forecast = battle.forecast_engagement(unit, command[2])
-			expected = can_act and forecast["is_valid"]
+			expected = can_attack and forecast["is_valid"]
 			if battle.get_attack_targets(unit).has(command[2]) != expected:
 				_fail("get_attack_targets(%d) disagrees about %d" % [unit, command[2]])
 		&"skill":
@@ -398,25 +420,28 @@ func _run_checked(battle: TacticsBattle, command: Array) -> Array:
 			skill_preview = battle.preview_skill(unit, command[2])
 			if skill_preview["is_valid"] != expected:
 				_fail("preview_skill(%d, %s) is %s, get_skill_cells() says %s" % [unit, command[2], skill_preview["is_valid"], expected])
-		&"wait":
-			expected = can_act
 		_:
-			expected = is_commandable
+			expected = can_act
 	var hash_before := battle.get_state_hash()
 	var snapshot := _snapshot(battle) if command[0] == &"move" else {}
 	var events := _run(battle, command)
 	if command[0] == &"move" and not events.is_empty():
-		_move_hashes[unit] = hash_before
-		_move_snapshots[unit] = snapshot
-		_move_indexes[unit] = _command_index
 		_last_moved = unit
 		var is_plain := not battle.is_finished() and not battle.is_side_ai(state["side"])
 		for event: Dictionary in events:
 			is_plain = is_plain and event["type"] in [&"unit_moved", &"skill_charge_changed"]
 		if battle.can_undo_move(unit) != is_plain:
 			_fail("after %s can_undo_move is %s, the move was plain=%s" % [command, battle.can_undo_move(unit), is_plain])
+		if is_plain:
+			var step := {"hash": hash_before, "snapshot": snapshot, "index": _command_index, "budget": _budget.duplicate(), "below": _undo_stack.duplicate(), "below_leader": _undo_leader}
+			if _undo_leader != unit:
+				_undo_stack.clear()
+			_undo_leader = unit
+			_undo_stack.append(step)
+		else:
+			_undo_stack.clear()
 	if command[0] == &"skill":
-		if not events.is_empty() and not (can_act and is_ready):
+		if not events.is_empty() and not (can_act and is_ready and not state["has_cast"]):
 			_fail("%s accepted without a ready skill or with the leader done" % [command])
 		if events.is_empty() == expected:
 			_fail("%s accepted %s, get_skill_cells() said %s" % [command, not events.is_empty(), expected])
@@ -441,18 +466,27 @@ func _run_undo(battle: TacticsBattle, unit: int) -> Array:
 	var is_undone := battle.undo_move(unit)
 	if is_undone != expected:
 		_fail("undo_move(%d) gave %s, can_undo_move said %s" % [unit, is_undone, expected])
-	if is_undone:
+	if is_undone != (unit == _undo_leader and not _undo_stack.is_empty()):
+		_fail("undo_move(%d) gave %s with %d moves of %d to take back" % [unit, is_undone, _undo_stack.size(), _undo_leader])
+	if is_undone and not _undo_stack.is_empty():
 		_undos += 1
-		if battle.get_state_hash() != _move_hashes.get(unit, ""):
+		_deepest_undo = maxi(_deepest_undo, _undo_stack.size())
+		var step: Dictionary = _undo_stack.pop_back()
+		if battle.get_state_hash() != step["hash"]:
 			_fail("undo_move(%d) did not give back the hash before the move" % unit)
-		var before: Dictionary = _move_snapshots.get(unit, {})
+		var before: Dictionary = step["snapshot"]
 		var after := _snapshot(battle)
 		for key: String in after:
 			if before.get(key) != after[key]:
 				_fail("undo_move(%d) did not give back the %s from before the move" % [unit, key])
-		_undone_spans.append([_move_indexes[unit], _command_index])
-		if battle.can_undo_move(unit):
-			_fail("undo_move(%d) can be taken twice" % unit)
+		_undone_spans.append([step["index"], _command_index])
+		_budget = step["budget"]
+		# The state before that move: the steps back it had come back too.
+		_undo_stack.assign(step["below"])
+		_undo_leader = step["below_leader"]
+		var can_undo_more: bool = _undo_leader == unit and not _undo_stack.is_empty()
+		if battle.can_undo_move(unit) != can_undo_more:
+			_fail("after an undo can_undo_move(%d) is %s with %d moves left" % [unit, battle.can_undo_move(unit), _undo_stack.size()])
 		_reset_model(battle)
 		_zone_count = battle.get_zones().size()
 	return []
@@ -563,7 +597,7 @@ func _check_queries(battle: TacticsBattle) -> void:
 				_fail("path to %s is %s but reachable is %s" % [cell, path, is_reachable])
 			if not path.is_empty() and (path[0] != state["cell"] or path[path.size() - 1] != cell):
 				_fail("path %s does not join %s and %s" % [path, state["cell"], cell])
-	if not reachable.is_empty() and state["side"] == battle.get_active_side() and not state["has_moved"] and not state["has_acted"]:
+	if not reachable.is_empty() and state["side"] == battle.get_active_side() and not state["has_waited"]:
 		for placement: Dictionary in battle.preview_squad(leader, reachable[_rng.randi_range(0, reachable.size() - 1)]):
 			if not battle.get_unit_state(placement["unit"])["alive"]:
 				_fail("preview lists dead soldier %d" % placement["unit"])
@@ -620,7 +654,7 @@ func _reset_model(battle: TacticsBattle) -> void:
 	_zone_count = 0
 	for unit: Dictionary in battle.get_units():
 		var charge: int = battle.get_skill_charge(unit["index"])["value"] if unit["role"] == &"leader" else 0
-		_model[unit["index"]] = {"cell": unit["cell"], "hp": unit["hp"], "alive": unit["alive"], "charge": charge, "side": unit["side"]}
+		_model[unit["index"]] = {"cell": unit["cell"], "hp": unit["hp"], "alive": unit["alive"], "charge": charge, "side": unit["side"], "is_soldier": unit["role"] == &"soldier"}
 
 
 ## Applies the events to the model, then compares it with the battle: every
@@ -632,6 +666,12 @@ func _apply_model(battle: TacticsBattle, events: Array) -> void:
 				if _model[event["unit"]]["cell"] != event["from"]:
 					_fail("unit %d moved from %s, but it was on %s" % [event["unit"], event["from"], _model[event["unit"]]["cell"]])
 				_model[event["unit"]]["cell"] = event["to"]
+				_spend_budget(event)
+			&"engagement_started":
+				var key := [event["turn"], event["unit"]]
+				if _soldier_strikes.has(key):
+					_fail("%s %d struck twice in turn %d" % ["soldier" if _model[event["unit"]]["is_soldier"] else "leader", event["unit"], event["turn"]])
+				_soldier_strikes[key] = true
 			&"damage_dealt":
 				var target: Dictionary = _model[event["target"]]
 				if not target["alive"] or event["hp_after"] != maxi(0, target["hp"] - event["amount"]):
@@ -658,7 +698,7 @@ func _apply_model(battle: TacticsBattle, events: Array) -> void:
 	for unit: Dictionary in battle.get_units():
 		var entry: Dictionary = _model[unit["index"]]
 		var charge: int = battle.get_skill_charge(unit["index"])["value"] if unit["role"] == &"leader" else 0
-		var actual := {"cell": unit["cell"], "hp": unit["hp"], "alive": unit["alive"], "charge": charge, "side": unit["side"]}
+		var actual := {"cell": unit["cell"], "hp": unit["hp"], "alive": unit["alive"], "charge": charge, "side": unit["side"], "is_soldier": unit["role"] == &"soldier"}
 		if not unit["alive"]:
 			actual["cell"] = entry["cell"]
 		if actual != entry:
@@ -674,3 +714,56 @@ func _check_nothing_after_end(battle: TacticsBattle) -> void:
 	var refused := [battle.end_phase(), battle.wait(0), battle.move_leader(0, Vector2i(0, 0))]
 	if refused != [[], [], []] or battle.get_state_hash() != before:
 		_fail("a command changed the battle after its end")
+
+
+## The leader's turn queries agree with its state: open until it waited,
+## one attack and one cast, moves while its points reach a cell, and
+## closed exactly when nothing is left. After "Chờ" nothing is possible.
+func _check_turn_queries(battle: TacticsBattle, unit: int, state: Dictionary, can_act: bool, can_attack: bool) -> void:
+	var can_move: bool = can_act and int(state["move_points_left"]) > 0 and not battle.get_reachable_cells(unit).is_empty()
+	var can_cast: bool = can_act and not state.get("has_cast", false) and state["role"] == &"leader" and battle.get_skill_charge(unit)["is_ready"]
+	var actual := [battle.can_act(unit), battle.can_move(unit), battle.can_attack(unit), battle.can_cast(unit)]
+	if actual != [can_act, can_move, can_attack, can_cast]:
+		_fail("can_act/move/attack/cast of %d are %s, its state says %s: %s" % [unit, actual, [can_act, can_move, can_attack, can_cast], state])
+	if battle.get_move_points_left(unit) != int(state["move_points_left"]) or battle.has_attacked(unit) != bool(state["has_attacked"]):
+		_fail("move points left or has_attacked of %d disagree with its state %s" % [unit, state])
+	var is_closed: bool = not can_act or (not can_move and battle.get_strike_targets(unit).is_empty() and battle.get_skill_cells(unit).is_empty())
+	if battle.is_closed(unit) != is_closed:
+		_fail("is_closed(%d) is %s, expected %s: %s" % [unit, battle.is_closed(unit), is_closed, state])
+	if state["has_waited"] and not (battle.get_attack_targets(unit).is_empty() and battle.get_skill_cells(unit).is_empty() and battle.get_strike_targets(unit).is_empty()):
+		_fail("leader %d waited but still has targets or skill cells" % unit)
+
+
+## At a human turn's first command: the move points of every unit of the
+## active side, which its walking this turn may not exceed.
+func _note_turn(battle: TacticsBattle) -> void:
+	if battle.get_turn() == _budget_turn or battle.is_side_ai(battle.get_active_side()):
+		return
+	_budget_turn = battle.get_turn()
+	_budget.clear()
+	for unit: Dictionary in battle.get_units():
+		if unit["alive"] and unit["side"] == battle.get_active_side():
+			_budget[unit["index"]] = int(unit["move_points_left"])
+
+
+## A move or squad walk of the human turn spends at least one point a cell.
+func _spend_budget(event: Dictionary) -> void:
+	if event["turn"] != _budget_turn or not _budget.has(event["unit"]) or not (event["kind"] in [&"move", &"squad"]):
+		return
+	var left: int = _budget[event["unit"]] - ((event["path"] as Array).size() - 1)
+	if left < 0:
+		_fail("unit %d walked past its move points in turn %d (%s)" % [event["unit"], event["turn"], event["path"]])
+	_budget[event["unit"]] = left
+
+
+## Any accepted command other than a plain move ends the moves that can be
+## taken back; checks the points left never exceed the walked budget.
+func _note_undo_stack(battle: TacticsBattle, command: Array, events: Array) -> void:
+	if not events.is_empty() and command[0] != &"move":
+		_undo_stack.clear()
+	if battle.get_turn() != _budget_turn or battle.is_finished():
+		return
+	for unit: int in _budget:
+		var state := battle.get_unit_state(unit)
+		if state["alive"] and state["side"] == battle.get_active_side() and int(state["move_points_left"]) > int(_budget[unit]):
+			_fail("unit %d has %d move points left, more than the %d cells it may still walk" % [unit, state["move_points_left"], _budget[unit]])

@@ -525,14 +525,17 @@ void note_unit_died(TacticsSim &p_sim, int p_unit, int p_cause) {
 	}
 }
 
+// Only the leader's first rescue in a phase counts, so moving back and
+// forth next to a hurt soldier earns nothing more.
 void note_leader_moved(TacticsSim &p_sim, int p_leader, int p_cause) {
-	if (!p_sim.get_incident_rules().enabled) {
+	if (!p_sim.get_incident_rules().enabled || p_sim.get_units()[p_leader].has_rescued) {
 		return;
 	}
 	const UnitState &leader = p_sim.get_units()[p_leader];
 	for (const UnitState &unit : p_sim.get_units()) {
 		const bool is_hurt_ally = unit.is_alive && unit.side == leader.side && !p_sim.is_leader(unit.index) && get_hp_pct(unit) <= p_sim.get_incident_rules().rescue_hp_pct;
 		if (is_hurt_ally && get_manhattan(unit.cell, leader.cell) == 1 && count_near(p_sim, unit.index, 1, true) > 0) {
+			p_sim.edit_unit(p_leader).has_rescued = true;
 			p_sim.add_karma(leader.side, KarmaKind::RESCUE, p_cause);
 			return;
 		}

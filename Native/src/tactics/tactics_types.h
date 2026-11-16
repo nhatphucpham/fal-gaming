@@ -41,6 +41,10 @@ inline Cell operator+(const Cell &p_a, const Cell &p_b) {
 	return { p_a.col + p_b.col, p_a.row + p_b.row };
 }
 
+inline Cell operator-(const Cell &p_a, const Cell &p_b) {
+	return { p_a.col - p_b.col, p_a.row - p_b.row };
+}
+
 inline int abs_int(int p_value) {
 	return p_value < 0 ? -p_value : p_value;
 }

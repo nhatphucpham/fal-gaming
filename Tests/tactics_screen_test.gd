@@ -3,8 +3,10 @@ extends SceneTree
 # Headless test of the tactics screen on the river crossing, through its
 # public methods and the map's signals (the same ones its taps call): a tap
 # off the map selection undoes it, dragging a leader shows ghosts without
-# changing the battle, a tap on a blue cell moves at once and "Hoàn tác"
-# brings back the exact state, one tap on the order row changes an order,
+# changing the battle, a tap on a blue cell moves at once and the leader
+# stays selected with the cells its points left reach and says so on its
+# card, a second move spends more, and "Hoàn tác" takes them back one at a
+# time to the exact state, one tap on the order row changes an order,
 # a tap on an enemy shows the forecast from the cell the battle picks and a
 # second tap walks there and attacks, a charged skill is aimed, previewed
 # and cast, and the battle is then played to victory by a simple scripted
@@ -153,29 +155,52 @@ func _check_move() -> bool:
 	if _screen.get_mode() != TacticsScreen.Mode.SELECTED or _battle().get_state_hash() != hash_before:
 		push_error("Lifting the finger on the leader should keep it selected and still")
 		return false
-	# A tap on a blue cell moves at once.
-	_screen.tap_cell(target)
+	# A tap on a blue cell next to the leader moves at once; the leader stays
+	# selected with the blue cells its points left reach.
+	var step := _step_toward(leader, target)
+	_screen.tap_cell(step)
 	if not await _idle():
 		return false
-	if _cell(leader) != target:
-		push_error("The leader should stand on %s, not %s" % [target, _cell(leader)])
+	if _cell(leader) != step:
+		push_error("The leader should stand on %s, not %s" % [step, _cell(leader)])
 		return false
 	var piece := _screen.get_map().get_piece(leader)
-	if piece.position != _screen.get_map().cell_to_local(target):
+	if piece.position != _screen.get_map().cell_to_local(step):
 		push_error("The leader's piece should be on its new cell")
 		return false
-	if _screen.get_selected() != leader or not _expect_hint("TACTICS_HINT_MOVED") or not _button_actions().has(&"undo"):
-		push_error("A moved leader should stay selected and offer undo")
+	var left := _battle().get_move_points_left(leader)
+	var reachable: Array = _screen.get_map().get_marks().get("reachable", [])
+	if _screen.get_selected() != leader or not _expect_hint("TACTICS_HINT_MOVE_ON") or not _button_actions().has(&"undo") \
+			or reachable != _battle().get_reachable_cells(leader) or reachable.is_empty() or piece.is_done:
+		push_error("A leader with points left should stay selected, open, with its blue cells and undo")
 		return false
-	# Undo: the exact state before, the pieces home.
+	var turn_line: String = tr("TACTICS_TURN_FORMAT") % [left, _battle().get_unit_state(leader)["move_points"], tr("TACTICS_TURN_ATTACK_READY")]
+	if not _screen.get_panel().get_shown_card_lines().has(turn_line):
+		push_error("The card should say \"%s\", got %s" % [turn_line, _screen.get_panel().get_shown_card_lines()])
+		return false
+	# A second move with the points left, then two undos, one step each.
+	var hash_mid := _battle().get_state_hash()
+	var second := _closest_reachable(leader, _nearest_enemy_leader(leader))
+	_screen.tap_cell(second)
+	if not await _idle():
+		return false
+	if _cell(leader) != second or _battle().get_move_points_left(leader) >= left:
+		push_error("A second tap on a blue cell should move on to %s with fewer points" % second)
+		return false
+	_screen.press_button(&"undo")
+	if not await _idle():
+		return false
+	if _battle().get_state_hash() != hash_mid or _cell(leader) != step or not _button_actions().has(&"undo"):
+		push_error("The first undo should go back one step, with one more to take back")
+		return false
 	_screen.press_button(&"undo")
 	if not await _idle():
 		return false
 	if _battle().get_state_hash() != hash_before or _cell(leader) != home:
 		push_error("Undo should give back the state before the move")
 		return false
-	if piece.position != _screen.get_map().cell_to_local(home) or not _battle().can_move(leader):
-		push_error("After undo the leader's piece should be home and free to move")
+	if piece.position != _screen.get_map().cell_to_local(home) or not _battle().can_move(leader) or _button_actions().has(&"undo"):
+		push_error("After undo the leader's piece should be home and free to move, nothing left to undo")
 		return false
 	# A drag released on the cell moves there.
 	_screen.get_map().cell_held.emit(home)
@@ -186,10 +211,21 @@ func _check_move() -> bool:
 	if _cell(leader) != target:
 		push_error("Releasing a drag on a blue cell should move there")
 		return false
-	# Moved but not done: the hint speaks of attacking or undoing.
-	if _screen.get_selected() != leader or not _expect_hint("TACTICS_HINT_MOVED"):
+	# Moved as far as it goes toward the enemy: the hint speaks of moving on,
+	# or (no points left) of attacking, undoing or waiting.
+	if _screen.get_selected() != leader or not _expect_hint("TACTICS_HINT_MOVE_ON" if _battle().can_move(leader) else "TACTICS_HINT_MOVED"):
 		return false
 	return true
+
+
+# The free cell next to the leader closest to `goal`.
+func _step_toward(leader: int, goal: Vector2i) -> Vector2i:
+	var from := _cell(leader)
+	var best := Vector2i(-1, -1)
+	for cell: Vector2i in _battle().get_reachable_cells(leader):
+		if absi(cell.x - from.x) + absi(cell.y - from.y) == 1 and (best.x < 0 or absi(cell.x - goal.x) + absi(cell.y - goal.y) < absi(best.x - goal.x) + absi(best.y - goal.y)):
+			best = cell
+	return best
 
 
 func _expect_hint(key: String) -> bool:
@@ -348,7 +384,7 @@ func _attack(leader: int, target: int) -> bool:
 	_screen.select_unit(leader)
 	_screen.tap_cell(_cell(target))
 	if _screen.get_mode() != TacticsScreen.Mode.FORECAST:
-		push_error("A tap on an enemy within a walk and a strike should show the forecast")
+		push_error("A tap on an enemy within a walk and a strike should show the forecast (mode %d, target %d at %s, strike cell %s, strike targets %s)" % [_screen.get_mode(), target, _cell(target), _battle().get_strike_cell(leader, target), _battle().get_strike_targets(leader)])
 		return false
 	var cell := _battle().get_strike_cell(leader, target)
 	var forecast := _battle().forecast_move_attack(leader, cell, target)

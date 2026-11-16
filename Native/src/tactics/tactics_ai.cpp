@@ -144,7 +144,7 @@ struct Aim {
 // safest cell; else the nearest enemy by path.
 Aim pick_ai_aim(const TacticsSim &p_sim, int p_leader) {
 	Aim aim;
-	const PathField field = find_paths(p_sim, p_leader, p_sim.get_stats(p_leader).move_points, ZocMode::APPLY);
+	const PathField field = find_move_paths(p_sim, p_leader);
 	const std::vector<Strike> all_strikes = list_strikes(p_sim, p_leader, field, [](const Cell &) { return true; });
 	const int side = p_sim.get_units()[p_leader].side;
 	const bool is_guard = is_guard_side(p_sim, side);
@@ -225,7 +225,7 @@ Intent plan_intent(const TacticsSim &p_sim, int p_leader) {
 	}
 	const Cell target_cell = p_sim.get_units()[intent.target].cell;
 	intent.target_cell = target_cell;
-	const PathField field = find_paths(p_sim, p_leader, p_sim.get_stats(p_leader).move_points, ZocMode::APPLY);
+	const PathField field = find_move_paths(p_sim, p_leader);
 	const std::vector<Cell> attack_cells = get_attack_cells(p_sim, p_leader, intent.target);
 	const std::vector<int> distance = find_goal_distances(p_sim, p_leader, attack_cells);
 	// Attack cells have distance 0, so a reachable one always wins.
@@ -258,7 +258,7 @@ Intent plan_intent(const TacticsSim &p_sim, int p_leader) {
 }
 
 Cell resolve_intent_destination(const TacticsSim &p_sim, int p_leader, const Intent &p_intent) {
-	const PathField field = find_paths(p_sim, p_leader, p_sim.get_stats(p_leader).move_points, ZocMode::APPLY);
+	const PathField field = find_move_paths(p_sim, p_leader);
 	const Cell declared = p_intent.destination;
 	return pick_reachable_cell(p_sim, p_leader, field, [&](const Cell &p_cell) { return get_manhattan(p_cell, declared); });
 }

@@ -171,12 +171,37 @@ placed on the spawn cells in order. Sample: `scenario.river_crossing`.
 ## Rules
 
 - Cells are (col, row); distances are Manhattan, except the area square.
-- A round is side A's phase then side B's. In its phase each leader of the
-  active side may move once and then act once (attack, skill or wait);
-  acting ends its turn. `end_phase()` passes the turn.
+- A round is side A's phase then side B's. `end_phase()` passes the turn.
+- A leader's turn stays open until it waits (Chờ) or the phase ends. While
+  open, in any order:
+  - it may move any number of times, each move paid from one budget of
+    its `move_points` per phase (`move_points_left` in its state). The
+    budget is fixed when the phase starts (after expired buffs are gone),
+    so walking onto terrain that a passive rewards with move points does
+    not add points mid-phase;
+  - it may attack once (`has_attacked`), before or after moving;
+  - it may cast its skill once when charged (`has_cast`); the attack and
+    the skill are independent, so a leader may do both;
+  - it may change its order any number of times.
+  `wait()` closes it: after that it can do nothing more in the phase, not
+  even change its order. A leader is also *closed* (`is_leader_closed`,
+  `is_closed()` on the bridge) when nothing is left for it: it cannot move
+  (no points, or no reachable cell) and has no attack target and no skill
+  cell. A human phase never ends on its own; the screen ends it when every
+  leader of the side is closed, and "Kết lượt" (`end_phase()`) ends it
+  early.
+- Heading: a leader's heading and straight-move streak follow the net
+  move of the phase (from where it stood at the phase start), so two short
+  moves give the same heading and streak as one long one; with no net move
+  it keeps the heading it started the phase with and the streak drops to
+  0. The `charge` keyword's straight run goes on over a second move only
+  when that move is straight and continues the last step.
 - Movement: Dijkstra over move costs; enemies block; allies can be
   passed but not stopped on; a cell next to an enemy (zone of control)
-  ends movement unless the unit starts there.
+  ends movement unless the unit starts there. A unit whose move ended in a
+  zone of control is *held*: it cannot move again in the phase while an
+  enemy stays next to it (flying units are never held). Killing that enemy
+  frees it with the points it has left.
 - Engagement: attacker and defender trade `hits_per_engagement` hits
   each, attacker first (defender first with `long_weapon` against melee);
   the defender only counters if the attacker is in its range. Per-hit
@@ -188,8 +213,9 @@ placed on the spawn cells in order. Sample: `scenario.river_crossing`.
   (each soldier on the free cell nearest its slot; with none free it is
   left out, dead, at (-1, -1)), then follow their order: formation slots are relative to the leader's
   heading; after two straight moves the slots shift forward by
-  `anticipation_shift_cells`. Soldiers step after their leader moves (or
-  acts, or at the end of the phase), then attack; how they choose is under
+  `anticipation_shift_cells`. Soldiers step after each of their leader's
+  moves, and step once more and attack when the leader attacks, waits, or
+  at the end of the phase, whichever comes first; how they choose is under
   Soldiers below. `order.hold` stays put (it still attacks).
   A squad whose leader died acts as `free`. `preview_squad()` shows where
   soldiers would go if the leader moved to a cell: it runs the same step
@@ -215,6 +241,8 @@ placed on the spawn cells in order. Sample: `scenario.river_crossing`.
   is human, the AI's intents are declared at the start of the human phase
   (`get_enemy_intents()`) and followed as closely as the board allows; a
   declared skill that is no longer possible becomes an attack or a wait.
+  The AI keeps to one move and one action per leader (it does not use the
+  open turn), so a declared intent stays what it does.
 - Guard AI: the side that defends the map's objective (the other side
   holds `objective_side`) plays the guard. It strikes only with a local
   edge: its hp within `ai_strength_radius_cells` of the strike cell (the
@@ -235,7 +263,8 @@ placed on the spawn cells in order. Sample: `scenario.river_crossing`.
   approaches and waits for a leader that comes alone.
 - Victory: all enemy leaders dead (`rout`); a leader of `objective_side`
   ending its own move (`move_leader`, or the AI's move) on the objective
-  (`objective`); side B after `max_rounds` (`time_limit`). Being pulled or
+  (`objective`; `get_strike_cell()` and `get_strike_targets()` never use a
+  strike cell on the objective, since that move alone wins); side B after `max_rounds` (`time_limit`). Being pulled or
   otherwise moved onto the objective does not win, and neither does
   starting the battle or a phase on it: such a leader must move off and
   back on. `battle_ended` is the last event: an engagement or skill that
@@ -254,6 +283,17 @@ attack a unit standing there in their next phase (a move with zones of
 control, then their range). Everything is a pure function of the state in
 squad order, so the squad preview and the real step agree, and both sides
 use the same rules. All numbers are in `TacticsRulesData` (above).
+
+- Budget: each soldier has its own `move_points` per phase. Every squad
+  step walks within what is left of it, so a leader that moves in six
+  short hops leads its squad no farther than one long move would. A
+  soldier held by a zone of control stays held as a leader does.
+- One strike: the squad strikes once per phase, when its leader attacks or
+  closes (waits, or the phase ends), whichever comes first
+  (`has_squad_struck`). Steps after that strike only take slots or fall
+  back: no soldier steps out to strike again. A soldier attacked between
+  two of the squad's steps still counts as attacked for `free` allies
+  until its squad strikes.
 
 - Slots: the order's slots for the living soldiers (`get_formation_slots`
   gives one per living soldier). Soldiers are matched to slots for the
@@ -308,12 +348,16 @@ enemy leader's move and action came out as it declared them, wins and
 how battles ended; `--policy=idle` plays a side A that only ends its
 phases:
 `godot --headless --path . --script res://Tools/tactics_brain_probe.gd -- --battles=200 [--policy=idle]`.
-With the guard AI (200 seeds): the scripted side wins 137 (rout 104,
-objective 33; the enemy wins 55 by the time limit and 8 by rout), the
-idle side loses all 200 by the time limit, and 85% of enemy intents come
-true move and action alike (91% the move; the player's own moves block
-the rest). Before it, the scripted side won 200 and the idle one 101,
-with 57% of intents kept.
+With the guard AI and the open leader turn (200 seeds): the scripted
+side wins 139 (rout 114, objective 25; the enemy wins 56 by the time
+limit and 5 by rout), the idle side loses all 200 by the time limit, and
+86% of enemy intents come true move and action alike (91% the move; the
+player's own moves block the rest). With one move and one action per
+leader it was 137 (rout 104, objective 33, 55 and 8) and 85%; before the
+guard AI the scripted side won 200 and the idle one 101, with 57% of
+intents kept. The scripted side still makes one move and one action, so
+these numbers show the soldier budgets and squad strikes, not a player
+who uses move, attack, move.
 
 ## Incidents
 
@@ -396,7 +440,10 @@ Rules:
 - Karma: bait (a soldier hit or killed while its living leader is at
   least `bait_distance_cells` away; once per soldier and phase) and rescue
   (above) each add 1 to the side's battle karma (`karma_changed`). It
-  weighs only the next battle's seeds, through the roster.
+  weighs only the next battle's seeds, through the roster. A leader earns
+  at most one rescue per phase (its first move that qualifies), so moving
+  back and forth beside a hurt soldier farms nothing; that move cannot be
+  undone.
 - Every mark records the incident, the leader's id, the terrain and cell
   under the soldier and the round. Marks given by `set_unit_record`
   (good, bad) only weigh the seeds.
@@ -417,21 +464,25 @@ error.
 | `add_leader_with_squad(side, leader, cell, squad) -> int` | method | Same with another squad (up to capacity) |
 | `start() -> Array` | method | Starts round 1, side A |
 | `move_leader(unit, cell)`, `attack(unit, target)`, `use_skill(unit, cell)`, `wait(unit)`, `set_order(unit, order)`, `end_phase()` | method | Commands for the active side; return events |
-| `undo_move(unit) -> bool`, `can_undo_move(unit)` | method | Takes back the leader's last move in a human phase: the battle returns to the exact state (and hash) before it, and no event is sent. Only while the move's events were all `unit_moved` or `skill_charge_changed` (no squad attack, passive, zone, incident or end) and nothing happened since: any other command, another move or `end_phase()` drops it. The screen animates the pieces back itself |
-| `get_strike_targets(unit)` | method | Enemies the leader could attack this phase, after a move when it may still move (`get_attack_targets` once it moved) |
-| `get_strike_cell(unit, target) -> Vector2i` | method | Where the leader should strike `target` from: its own cell once it moved, else the reachable cell in range that does not get it killed, then the fewest enemies able to reach the cell, the least counter damage, the better terrain, the shortest walk, the lower cell index; (-1, -1) when none |
-| `forecast_move_attack(unit, cell, target) -> Dictionary` | method | `forecast_engagement` after the leader moved to `cell` (its own cell: no move) and its squad stepped, on a copy: the same keys plus `cell`, `squad` (`[{unit, cell}]`) and `target_gone` (the squad's step already killed it); `is_valid` false without an error when the move would be refused |
+| `undo_move(unit) -> bool`, `can_undo_move(unit)` | method | Takes back the leader's moves in a human phase one at a time, newest first: each undo returns the battle to the exact state (and hash) before that move, points left included, and sends no event. The moves of one leader stack; a move by another leader starts a new stack (undoing that move brings the first leader's stack back). Undo is blocked (the stack is cleared) by: a move whose events are anything but `unit_moved` or `skill_charge_changed` (a squad or passive strike, a zone, a rescue, an incident, the objective or the end); an attack, a skill, a wait, an order change, or `end_phase()`. A refused command changes nothing. The screen animates the pieces back itself |
+| `get_strike_targets(unit)` | method | Enemies the leader could attack this phase from a cell it can still reach with its points left (its own cell when it cannot move); empty once it attacked or closed |
+| `get_strike_cell(unit, target) -> Vector2i` | method | Where the leader should strike `target` from: its own cell when it cannot move, else the cell in range it can reach with its points left that does not get it killed, then the fewest enemies able to reach the cell, the least counter damage, the better terrain, the shortest walk, the lower cell index; (-1, -1) when none |
+| `forecast_move_attack(unit, cell, target) -> Dictionary` | method | `forecast_engagement` after the leader moved to `cell` (its own cell: no move) and its squad stepped, on a copy: the same keys plus `cell`, `squad` (`[{unit, cell}]`) and `target_gone` (the squad's step already killed it); `is_valid` false without an error when the move would be refused or the leader already attacked. The squad strikes after the leader, so the result is the leader's own engagement |
 | `is_started`, `is_finished`, `get_winner`, `get_end_reason`, `get_round`, `get_turn`, `get_active_side` | method | Battle state |
 | `get_unit_count`, `get_unit_state(unit)`, `get_units()`, `get_zones()` | method | Unit and zone dictionaries; a unit also has `start_side`, `record_id`, `has_fled`, `wavering` (the incident id while it wavers, else empty: a dormant seed stays hidden), `is_wavering_good`, `marks` (this battle), `is_guarding`, `holds_ground`, `acts_free` |
 | `get_map_width`, `get_map_height`, `get_terrain_id(cell)` | method | Map |
-| `get_reachable_cells(unit)`, `get_path_to(unit, cell)` | method | Cells the unit can end a move on from where it stands (without its own), and the path to one, both ends included (`[cell]` for its own cell); empty for a dead unit or a cell it cannot stop on. They do not check whose phase it is or whether the leader already moved or acted, which `move_leader()` also needs |
+| `get_reachable_cells(unit)`, `get_path_to(unit, cell)` | method | Cells the unit can end a move on from where it stands (without its own) with the points it has left (its full points outside its own side's phase, for threat ranges), and the path to one, both ends included (`[cell]` for its own cell); empty for a dead unit or a cell it cannot stop on. They do not check whether the leader waited, which `move_leader()` also needs |
 | `get_formation_slots(leader)` | method | The slot cells of the leader's order (empty for `hold`, `free` or a dead leader) |
 | `preview_squad(leader, cell)` | method | `[{unit, cell}]`: where the soldiers would stand after the leader moved there; `[]` and an error when that move would be refused |
 | `forecast_engagement(attacker, defender) -> Dictionary` | method | Hits, damage per hit and hp after, without changing state; any two units (an enemy's attack too, whoever's phase it is); `is_valid` false when either is dead, they are on the same side, the defender is out of range or the battle ended. `attacker_modifiers` and `defender_modifiers` (the counter; empty without one) list the ids that change that side's hits, each once: the first-strike keyword, keywords, terrain and zones of the hit, then passives, buffs and terrain behind attack and armor |
 | `get_skill_charge(leader)` | method | `{skill, charge, value, threshold, is_ready, area_bonus}` |
-| `can_move(unit)`, `can_act(unit)` | method | The leader may still move (neither moved nor acted) or act in this phase: alive, on the active side, battle running; false for soldiers |
+| `can_act(unit)` | method | The leader's turn is open: alive, on the active side, battle running, not waited; it may still wait and change orders. False for soldiers |
+| `can_move(unit)`, `get_move_points_left(unit)` | method | The leader can act, has points left, is not held by a zone of control and has a cell to go to; the points it has left this phase |
+| `can_attack(unit)`, `has_attacked(unit)` | method | The leader can act and has not attacked this phase (it may have no target in reach); whether it attacked |
+| `can_cast(unit)` | method | The leader can act, has not cast this phase and its skill is ready |
+| `is_closed(unit)` | method | Nothing is left for the leader this phase: it waited, or it cannot move and has no attack target and no skill cell. True for soldiers and the other side's leaders |
 | `get_attack_targets(unit)` | method | Unit indexes `attack(unit, target)` would accept now |
-| `get_skill_cells(unit)` | method | Cells `use_skill(unit, cell)` would accept now (row-major; empty when the skill is not ready or the leader is done) |
+| `get_skill_cells(unit)` | method | Cells `use_skill(unit, cell)` would accept now (row-major; empty when the skill is not ready, already cast this phase, or the leader waited) |
 | `preview_skill(unit, cell) -> Dictionary` | method | `use_skill` run on a copy: `is_valid` (false, without an error, when it would be refused), `cells`, `targets`, `results` (`[{unit, amount, hp_after, is_dead}]`, the skill's hits summed per target), `buffed` (units), `zone_cells` |
 | `get_enemy_intents()` | method | `[{unit, to, action, target, target_cell}]` (`action` `wait`, `attack` or `skill`); `target` is the enemy aimed at (-1 and `target_cell` (-1, -1) when none), or the leader itself for a skill cast on its own cell; a leader that died loses its intent |
 | `get_state_hash() -> String` | method | FNV-1a 64 of the whole state (rules, map terrain, round, turn, units, zones, buffs, intents, the next event id), 16 hex digits; units, terrains and zones are identified by ids |
@@ -449,11 +500,12 @@ error.
 Every event has `id`, `turn`, `round`, `type` and `cause` (the id of the
 event that caused it, 0 if none; ids start at 1). A command's own first
 event has cause 0; what follows from it points back: a squad's step to the
-leader's `unit_moved`, `engagement_started`, `skill_used` or
-`leader_waited`, a trail zone to the move, a pull to the engagement.
+leader's `unit_moved`, `engagement_started` or `leader_waited` (a skill
+does not move the squad), a trail zone to the move, a pull to the
+engagement.
 Expiries, burns and intents at the start of a phase point to its
-`phase_started`; a squad that steps at the end of the phase (its leader
-neither moved nor acted) and the charge gained then have cause 0. Types: `battle_started`, `phase_started`,
+`phase_started`; a squad that strikes at the end of the phase (its leader
+neither attacked nor waited) and the charge gained then have cause 0. Types: `battle_started`, `phase_started`,
 `phase_ended`, `unit_moved` (`kind` `move`, `squad`, `pull`),
 `order_changed`, `leader_waited`, `intent_declared`, `engagement_started`,
 `damage_dealt`, `engagement_ended`, `unit_died`, `skill_used`,
@@ -536,14 +588,18 @@ loads and setups, movement, paths and zones of control, engagement and forecast,
 keywords, terrain, AI intent, victory, defeat and time limit, objective
 only by the leader's own move, `battle_ended` as the last event, a replay
 that must give the same state hash, what the hash covers (rules and
-terrain too), one move and one action per leader and phase, data range
+terrain too), the open leader turn (moves within the points, one attack,
+skill and attack apart, nothing after a wait), data range
 checks, side bounds, map legends, dead units in queries and intents) and
 `Tests/tactics_brain_test.gd` (soldiers step out and come back, the
 leash, ranged soldiers in the rear, focus on a kill, no deadly strike
 except under vanguard, falling back, shielding the leader, a free soldier
 not walking into a wall of enemies, `forecast_move_attack()` against the
-real move and attack, undo back to the same hash and refused after an
-attack, the same events for the same commands) and
+real move and attack, three moves undone one at a time back to the exact
+units and hash, what blocks undo (a zone, an order, an attack, another
+leader's move and undoing it), soldiers gaining no distance from many
+short moves, the squad striking once, the same events for the same
+commands) and
 `Tests/tactics_squad_test.gd` (orders, anticipation, slots of a dead
 leader, the five charge mechanisms, skills and zones, the AI casting a
 skill on an enemy and on its own side and a focus skill without moving,
@@ -556,12 +612,18 @@ moves follow `get_path_to()` and `preview_squad()`, attacks land the
 forecast, skills what `preview_skill()` said, the events account for every cell, hp, charge and zone
 change, one unit per cell, `battle_ended` last, and a replay gives the
 same hashes; strikes from `get_strike_cell()` land what
-`forecast_move_attack()` said, and an undo is offered exactly after a
-plain human move and gives back the hash and every query's answer from
-before it; a second replay that leaves the undone moves out must give the
-same events and hashes afterwards) and
+`forecast_move_attack()` said; leaders often move again, each turn's
+walks stay within its points and each unit strikes once per phase,
+`can_attack` / `can_cast` / `is_closed` / points left agree with the
+state and nothing is accepted after a wait; undo follows a modelled stack
+(at least three deep in the run) and gives back the hash and every
+query's answer from before each move; a second replay that leaves the
+undone moves out must give the same events and hashes afterwards) and
 `Tests/tactics_query_test.gd` (a scenario loaded with
-other squads and refused ones, `can_move` / `can_act`, attack targets, skill
+other squads and refused ones, `can_move` / `can_act` over an open turn
+(two moves within the points, not past them, attack then move, move,
+attack, move, an order after moving, nothing after a wait, a moved leader
+with no target still open), the zone-of-control hold, attack targets, skill
 cells, `preview_skill()` against the real cast for damage and support, the
 forecast's modifier lists) and `Tests/tactics_incident_test.gd` (each
 incident's trigger, its calm and its effect, hesitation, the escape edge,
@@ -583,7 +645,11 @@ squad, fuzz, query, incident and brain tests). All six are in CI.
 - Soldiers judge one fight at a time from the state at their step; they
   do not plan for the enemy's reply beyond the reach count, and a squad's
   later soldiers see what the earlier ones did.
-- An undo covers only the last plain move of one leader in the phase.
+- Undo covers only plain moves of the latest leader to move (and, after
+  those are undone, the leader before it); any action clears it.
+- The AI and the probe's scripted player make one move and one action per
+  leader; neither uses move, attack, move, so the balance numbers do not
+  measure it.
 - Damage has no randomness; ties are broken by unit index and cell order.
   Incidents are the only random part, from the battle's seed.
 - Incidents only touch soldiers; leaders never waver. The AI does not

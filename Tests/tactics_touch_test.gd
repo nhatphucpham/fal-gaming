@@ -6,7 +6,8 @@ extends SceneTree
 # touch only), with real camera glides: a finger that lands on a leader
 # of ours that is not selected and slides pans the map and moves no one;
 # a tap on something in view never moves the camera, so a fast double
-# tap on an enemy near the edge of the view strikes that enemy; a drag of
+# tap on an enemy near the edge of the view strikes that enemy, and after
+# a one-step move it walks there within the points left; a drag of
 # the selected leader lifted over the panel or on a cell it cannot reach
 # moves nothing; a pinch begun on the selected leader zooms and moves
 # nothing.
@@ -50,7 +51,7 @@ func _run() -> bool:
 	if not ClassDB.class_exists("TacticsBattle"):
 		push_error("TacticsBattle is missing: build the GDExtension (scons) before importing")
 		return false
-	var checks: Array[Callable] = [_check_pan_from_leader, _check_drag_lifted_away, _check_pinch_on_leader, _check_double_tap_at_edge]
+	var checks: Array[Callable] = [_check_pan_from_leader, _check_drag_lifted_away, _check_pinch_on_leader, _check_double_tap_at_edge, _check_strike_with_points_left]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Tactics touch test failed in %s" % check.get_method())
@@ -278,8 +279,62 @@ func _check_double_tap_at_edge() -> bool:
 	if not await _wait_idle():
 		return false
 	var state := _battle().get_unit_state(target)
-	if _battle().can_act(leader) or (state["alive"] and int(state["hp"]) >= hp_before):
-		return _fail("A double tap on the enemy should strike it (leader can act %s, hp %d -> %d)" % [_battle().can_act(leader), hp_before, state["hp"]])
+	if not _battle().has_attacked(leader) or (state["alive"] and int(state["hp"]) >= hp_before):
+		return _fail("A double tap on the enemy should strike it (leader attacked %s, hp %d -> %d)" % [_battle().has_attacked(leader), hp_before, state["hp"]])
+	return true
+
+
+# A tap on a blue cell moves one step and the leader stays selected with
+# the cells its points left reach; a double tap on an enemy then walks
+# there within those points and strikes.
+func _check_strike_with_points_left() -> bool:
+	await _open()
+	var pair := await _find_contact()
+	if pair.is_empty():
+		return _fail("No leader of ours came within reach of an enemy")
+	var leader: int = pair[0]
+	var target: int = pair[1]
+	var map := _map()
+	_screen.select_unit(leader)
+	map.center_on(map.cell_to_local(_cell(leader)))
+	await _frames(30)
+	var home := _cell(leader)
+	var stepped := false
+	for cell: Vector2i in _battle().get_reachable_cells(leader):
+		if absi(cell.x - home.x) + absi(cell.y - home.y) != 1 or _unit_at(cell) >= 0 or not map.is_in_view(map.cell_to_local(cell)):
+			continue
+		await _tap(_point(cell))
+		if not await _wait_idle():
+			return false
+		if _cell(leader) != cell:
+			return _fail("A tap on the blue cell %s should move the leader there" % cell)
+		if _battle().get_strike_targets(leader).has(target):
+			stepped = true
+			break
+		_screen.press_button(&"undo")
+		if not await _wait_idle():
+			return false
+	if not stepped:
+		return _fail("No one-step move kept the enemy in reach")
+	var reachable: Array = _battle().get_reachable_cells(leader)
+	if _screen.get_selected() != leader or Array(map.get_marks().get("reachable", [])) != reachable or reachable.is_empty():
+		return _fail("After one step the leader should stay selected with its blue cells left, got %s" % [map.get_marks().get("reachable")])
+	var points_left := _battle().get_move_points_left(leader)
+	var strike_cell := _battle().get_strike_cell(leader, target)
+	if strike_cell != _cell(leader) and not reachable.has(strike_cell):
+		return _fail("The strike cell %s is beyond the points left" % strike_cell)
+	map.center_on((map.cell_to_local(_cell(leader)) + map.cell_to_local(_cell(target))) / 2.0)
+	await _frames(30)
+	if not map.is_in_view(map.cell_to_local(_cell(target))):
+		return _fail("The enemy at %s should be in view" % _cell(target))
+	var at := _point(_cell(target))
+	await _tap(at)
+	await _frames(6)
+	await _tap(at)
+	if not await _wait_idle():
+		return false
+	if not _battle().has_attacked(leader) or _cell(leader) != strike_cell or _battle().get_move_points_left(leader) > points_left:
+		return _fail("The double tap should walk to %s within %d points and strike (at %s, attacked %s)" % [strike_cell, points_left, _cell(leader), _battle().has_attacked(leader)])
 	return true
 
 

@@ -2,9 +2,10 @@ extends SceneTree
 
 # Plays random taps through the tactics screen (instant playback) on several
 # seeds: map cells, our leaders (often marched to the blue cell nearest
-# the enemy), drags of a leader's ghosts, the enabled
-# panel buttons (undo among them) and the order row, legal or not; the
-# phase also ends by itself once every leader is done (waited out). After every playback, before the screen syncs, the
+# the enemy, and often again with the points left), drags of a leader's
+# ghosts, the enabled panel buttons (undo among them) and the order row,
+# legal or not; the phase also ends by itself once every leader is closed
+# (it waited, or nothing is left). After every playback, before the screen syncs, the
 # map must already show what the battle has (tokens, hp, deaths, charge
 # pips, zones), so nothing jumps silently; after every tap the synced screen
 # must agree with the battle's queries (marks, buttons, intents, the done
@@ -284,7 +285,9 @@ func _check_pieces(what: String, is_synced: bool) -> void:
 			if piece.charge_value != int(charge.get("value", 0)) or piece.charge_threshold != int(charge.get("threshold", 0)):
 				_problems.append("%s: leader %d charge %s/%s, pips %d/%d" % [what, unit, charge.get("value"), charge.get("threshold"), piece.charge_value, piece.charge_threshold])
 			if is_synced:
-				var has_nothing: bool = not _battle().can_move(unit) and _battle().get_attack_targets(unit).is_empty() and _battle().get_skill_cells(unit).is_empty()
+				# Closed: it waited, or no point reaches a cell, no strike is left
+				# (moving first with the points left) and no skill cell.
+				var has_nothing: bool = not _battle().can_move(unit) and _battle().get_strike_targets(unit).is_empty() and _battle().get_skill_cells(unit).is_empty()
 				var is_done: bool = state["side"] == 0 and _battle().get_active_side() == 0 and (not _battle().can_act(unit) or has_nothing)
 				if piece.is_done != is_done:
 					_problems.append("%s: leader %d done=%s, piece done=%s" % [what, unit, is_done, piece.is_done])
@@ -343,6 +346,14 @@ func _check_marks(what: String) -> void:
 		_problems.append("%s: leader %d slot marks %s, battle %s" % [what, leader, marks.get("slots"), _battle().get_formation_slots(leader)])
 	if not _screen.get_panel().is_order_row_shown() or _screen.get_panel().get_current_order() != state["order"]:
 		_problems.append("%s: leader %d order row missing or not on %s" % [what, leader, state["order"]])
+	for button: PressButton in _screen.get_panel().get_order_buttons().values():
+		if button.disabled == _battle().can_act(leader):
+			_problems.append("%s: leader %d order buttons disabled=%s, can_act=%s" % [what, leader, button.disabled, _battle().can_act(leader)])
+			break
+	# The card says what the leader can still do: points left, the attack.
+	var turn_line: String = tr("TACTICS_TURN_WAITED") if state["has_waited"] else tr("TACTICS_TURN_FORMAT") % [_battle().get_move_points_left(leader), state["move_points"], tr("TACTICS_TURN_ATTACK_USED") if _battle().has_attacked(leader) else tr("TACTICS_TURN_ATTACK_READY")]
+	if not _screen.get_panel().get_shown_card_lines().has(turn_line):
+		_problems.append("%s: leader %d card lacks \"%s\": %s" % [what, leader, turn_line, _screen.get_panel().get_shown_card_lines()])
 
 
 # Buttons that would send a command are enabled only when the battle takes it.

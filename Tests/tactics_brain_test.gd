@@ -6,7 +6,9 @@ extends SceneTree
 # into a deadly counter, except under vanguard; falling back hurt; shielding
 # a hurt leader; a free soldier holding outside a wall of enemies), the
 # leader's strike cell and move-and-attack forecast, taking a move back,
-# and the same hashes for the same commands. Side B is played by hand
+# and the same hashes for the same commands. A squad walks no farther in a
+# phase than its own move points however often its leader moves, and each
+# soldier strikes once: with its leader's attack, or when the leader waits. Side B is played by hand
 # unless a check says otherwise. Cells are (col, row). Last, river
 # crossings with every formation order on both sides: no archer or kite
 # scout ever steps next to a living enemy (it cannot shoot it there).
@@ -44,7 +46,7 @@ func _run() -> bool:
 	var checks: Array[Callable] = [
 		_check_steps_out_and_returns, _check_leash, _check_ranged_rear, _check_focus_kill, _check_no_deadly_strike,
 		_check_vanguard_risks, _check_falls_back, _check_shields_leader, _check_free_wall, _check_strike_cell,
-		_check_undo, _check_undo_refused, _check_determinism, _check_ranged_keep_clear,
+		_check_undo, _check_undo_refused, _check_squad_budget, _check_squad_strikes_once, _check_determinism, _check_ranged_keep_clear,
 		_check_guard_holds, _check_guard_strikes_lone, _check_guard_cell_off_map,
 	]
 	for check: Callable in checks:
@@ -315,9 +317,17 @@ func _check_strike_cell() -> bool:
 	var squad: Array = []
 	for soldier: int in battle.get_unit_state(leader)["soldiers"]:
 		squad.append({"unit": soldier, "cell": Kit.cell_of(battle, soldier)})
-	battle.attack(leader, enemy)
+	# The squad strikes after its leader's attack: the forecast is the
+	# leader's own engagement.
+	var hp_after := {leader: Kit.hp_of(battle, leader), enemy: Kit.hp_of(battle, enemy)}
+	var engagement := -1
+	for event: Dictionary in battle.attack(leader, enemy):
+		if event["type"] == &"engagement_started" and event["unit"] == leader:
+			engagement = event["id"]
+		elif event["type"] == &"damage_dealt" and event["cause"] == engagement:
+			hp_after[event["target"]] = event["hp_after"]
 	return Kit.expect("squad cells", forecast["squad"], squad) \
-		and Kit.expect("hp after", [Kit.hp_of(battle, leader), Kit.hp_of(battle, enemy)], [forecast["attacker_hp_after"], forecast["defender_hp_after"]])
+		and Kit.expect("hp after", [hp_after[leader], hp_after[enemy]], [forecast["attacker_hp_after"], forecast["defender_hp_after"]])
 
 
 const BA_KHAC: StringName = &"leader.ba_khac"
@@ -406,38 +416,102 @@ func _check_undo() -> bool:
 	var leader := _kit.add(battle, A, _kit.leader(&"leader.lac_hong"), Vector2i(5, 9), _troops([SPEARMAN, ARCHER]))
 	_kit.add(battle, B, _leader(THIET_NHA), FAR)
 	battle.start()
-	var hash_before := battle.get_state_hash()
-	var cells_before := battle.get_units().map(func(unit: Dictionary) -> Vector2i: return unit["cell"])
 	if not Kit.expect("nothing to undo yet", battle.can_undo_move(leader), false):
 		return false
-	battle.move_leader(leader, Vector2i(5, 6))
-	if not Kit.expect("undo offered", battle.can_undo_move(leader), true):
+	# Three moves spend the four points (1, 2, 1); each undo takes one back.
+	var befores: Array = []
+	for cell: Vector2i in [Vector2i(5, 8), Vector2i(4, 7), Vector2i(4, 6)]:
+		befores.append([battle.get_state_hash(), var_to_str(battle.get_units())])
+		if not Kit.expect_true("moved to %s" % cell, not battle.move_leader(leader, cell).is_empty()):
+			return false
+	if not Kit.expect("points spent, three steps back", [battle.get_move_points_left(leader), battle.can_move(leader), battle.can_undo_move(leader)], [0, false, true]):
 		return false
-	var undone := battle.undo_move(leader)
-	return Kit.expect("undone", undone, true) and Kit.expect("same hash", battle.get_state_hash(), hash_before) \
-		and Kit.expect("same cells", battle.get_units().map(func(unit: Dictionary) -> Vector2i: return unit["cell"]), cells_before) \
-		and Kit.expect("can move again", battle.can_move(leader), true) and Kit.expect("once only", battle.can_undo_move(leader), false)
+	for step: int in range(befores.size() - 1, -1, -1):
+		var undone := battle.undo_move(leader)
+		if not (Kit.expect("undone", undone, true) and Kit.expect("same hash", battle.get_state_hash(), befores[step][0]) \
+				and Kit.expect("same units", var_to_str(battle.get_units()), befores[step][1]) \
+				and Kit.expect("more to undo", battle.can_undo_move(leader), step > 0)):
+			return false
+	return Kit.expect("can move again with every point", [battle.can_move(leader), battle.get_move_points_left(leader)], [true, 4])
 
 
-# A move whose squad strikes, or an attack after a move, cannot be taken back.
+# What ends the steps back: a move that left a zone behind, an order, an
+# attack, and another leader's move (undoing that move brings them back).
 func _check_undo_refused() -> bool:
 	var battle := _kit.new_battle(_kit.plain_rows())
-	var leader := _kit.add(battle, A, _leader(MOON_SPEAR), Vector2i(5, 9), _troops([SPEARMAN]))
-	_kit.add(battle, B, _leader(THIET_NHA, {"hp_pct": 4, "attack_pct": 0}), Vector2i(3, 7))
+	var trail: Array[TacticsPassiveData] = [_kit.catalog.get_passive(&"tactics_passive.wind_trail")]
+	var leader := _kit.add(battle, A, _kit.leader(&"leader.lieu_mi", trail, {"keywords": _kit.keywords([])}), Vector2i(5, 9), _troops([SPEARMAN]))
 	var other := _kit.add(battle, A, _leader(MOON_SPEAR), Vector2i(9, 9), [])
-	var target := _kit.add(battle, B, _leader(THIET_NHA, {"attack_pct": 0}), Vector2i(9, 6))
+	var third := _kit.add(battle, A, _leader(MOON_SPEAR), Vector2i(1, 9), [])
+	var target := _kit.add(battle, B, _leader(THIET_NHA, {"attack_pct": 0}), Vector2i(9, 5))
 	battle.start()
-	var events := battle.move_leader(leader, Vector2i(4, 8))
-	if not (Kit.expect_true("the squad struck", not _engagements(events).is_empty()) and Kit.expect("no undo", battle.can_undo_move(leader), false)):
+	var events := battle.move_leader(leader, Vector2i(5, 8))
+	if not (Kit.expect_true("the move left a zone", events.any(func(event: Dictionary) -> bool: return event["type"] == &"zone_created")) \
+			and Kit.expect("no undo after a zone", battle.can_undo_move(leader), false)):
+		return false
+	battle.move_leader(other, Vector2i(9, 8))
+	battle.set_order(other, &"order.hold")
+	if not Kit.expect("no undo after an order", battle.can_undo_move(other), false):
 		return false
 	battle.move_leader(other, Vector2i(9, 7))
-	if not Kit.expect("undo after a plain move", battle.can_undo_move(other), true):
+	var hash_before_third := battle.get_state_hash()
+	battle.move_leader(third, Vector2i(1, 8))
+	if not Kit.expect("only the leader that moved last", [battle.can_undo_move(other), battle.can_undo_move(third)], [false, true]):
+		return false
+	battle.undo_move(third)
+	if not Kit.expect("undoing it brings the other's back", [battle.get_state_hash() == hash_before_third, battle.can_undo_move(other)], [true, true]):
 		return false
 	battle.attack(other, target)
 	Engine.print_error_messages = false
 	var undone := battle.undo_move(other)
 	Engine.print_error_messages = true
 	return Kit.expect("no undo after the attack", [battle.can_undo_move(other), undone], [false, false])
+
+
+# Ba Khắc (6 points) moves one cell at a time six times: his shieldman (3
+# points) walks 3 cells in all, as after one long move, and is not farther
+# from where it began.
+func _check_squad_budget() -> bool:
+	var paths: Array = []
+	for is_split: bool in [false, true]:
+		var battle := _kit.new_battle(_kit.plain_rows(14))
+		var leader := _kit.add(battle, A, _leader(&"leader.ba_khac"), Vector2i(5, 12), _troops([SHIELDMAN]))
+		_kit.add(battle, B, _leader(THIET_NHA), FAR)
+		battle.start()
+		var soldier: int = battle.get_unit_state(leader)["soldiers"][0]
+		var start := Kit.cell_of(battle, soldier)
+		var walked := 0
+		var cells: Array = [Vector2i(5, 11), Vector2i(5, 10), Vector2i(5, 9), Vector2i(5, 8), Vector2i(5, 7), Vector2i(5, 6)] if is_split else [Vector2i(5, 6)]
+		for cell: Vector2i in cells:
+			for event: Dictionary in battle.move_leader(leader, cell):
+				if event["type"] == &"unit_moved" and event["unit"] == soldier:
+					walked += (event["path"] as Array).size() - 1
+		if not Kit.expect("leader went all the way", Kit.cell_of(battle, leader), Vector2i(5, 6)):
+			return false
+		paths.append([walked, _distance(start, Kit.cell_of(battle, soldier)), battle.get_unit_state(soldier)["move_points_left"]])
+	return Kit.expect("one long move", paths[0], [3, 3, 0]) and Kit.expect("six short moves gain nothing", paths[1], paths[0])
+
+
+# The soldiers strike with their leader's attack and not again when it moves
+# on; a squad whose leader never attacks strikes when it waits, once.
+func _check_squad_strikes_once() -> bool:
+	var results: Array = []
+	for attacks: bool in [true, false]:
+		var battle := _kit.new_battle(_kit.plain_rows())
+		var leader := _kit.add(battle, A, _leader(MOON_SPEAR), Vector2i(5, 8), _troops([SPEARMAN, SPEARMAN]))
+		var enemy := _kit.add(battle, B, _leader(THIET_NHA, {"attack_pct": 0, "hp_pct": 900}), Vector2i(5, 6))
+		battle.start()
+		var strikes: Array = []
+		var commands: Array = [battle.attack(leader, enemy)] if attacks else [battle.move_leader(leader, Vector2i(4, 8))]
+		commands.append(battle.move_leader(leader, Vector2i(5, 8)))
+		commands.append(battle.move_leader(leader, Vector2i(6, 8)))
+		commands.append(battle.wait(leader))
+		commands.append(battle.end_phase())
+		for events: Array in commands:
+			strikes.append(_engagements(events).filter(func(pair: Array) -> bool: return pair[0] != leader and battle.get_unit_state(pair[0])["side"] == A).size())
+		results.append(strikes)
+	return Kit.expect("with the attack, then never again", results[0], [2, 0, 0, 0, 0]) \
+		and Kit.expect("no attack: on Chờ, once", results[1], [0, 0, 0, 2, 0])
 
 
 # Two battles with the brains at work and the same commands give the same

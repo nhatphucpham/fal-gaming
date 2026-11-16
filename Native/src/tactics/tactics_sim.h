@@ -76,11 +76,12 @@ public:
 	bool set_order(int p_unit, int p_order, std::string *r_error);
 	// Ends the phase; AI phases that follow run before it returns.
 	bool end_phase(std::string *r_error);
-	// Takes back the last command when it was p_unit's move in a human
-	// phase and that move only moved the leader and its squad (and changed
-	// its charge): the battle returns to the state before it, same hash.
-	// Any other command, or a move that caused anything else (a squad
-	// strike, a zone, karma, the objective), makes it impossible.
+	// Takes back p_unit's last move in a human phase, one step at a time,
+	// while its moves since its last other command only moved the leader
+	// and its squad (and changed its charge): the battle returns to the
+	// state before that move, same hash. Any other command, or a move that
+	// caused anything else (a zone, karma, the objective), ends the steps
+	// that can be taken back (Docs/systems/tactics.md, Undo).
 	bool can_undo_move(int p_unit) const;
 	bool undo_move(int p_unit, std::string *r_error);
 
@@ -129,19 +130,33 @@ public:
 	std::vector<std::pair<int, Cell>> preview_squad(int p_leader, const Cell &p_cell, std::string *r_error) const;
 	uint64_t get_state_hash() const;
 	// The cell p_unit would strike p_target from this phase: where it stands
-	// once it has moved, else the safest reachable cell in range
-	// (tactics_brain.h, pick_safest_strike_cell); NO_CELL when none.
+	// when it can no longer move, else the safest cell its points left reach
+	// in range (tactics_brain.h, pick_safest_strike_cell), never a move that
+	// takes the objective (that move alone wins); NO_CELL when none.
 	Cell get_strike_cell(int p_unit, int p_target) const;
-	// Enemies p_unit could attack this phase, moving first if it still may.
+	// Enemies p_unit could attack this phase, moving first with the points
+	// left if it still may (the same cells as get_strike_cell).
 	std::vector<int> get_strike_targets(int p_unit) const;
 	// A copy of the battle after p_unit moved to p_cell (its squad steps and
 	// strikes as move_leader() makes it), or its own cell unchanged. False
 	// with r_error when the move would be refused.
 	bool simulate_move(int p_unit, const Cell &p_cell, TacticsSim *r_copy, std::string *r_error) const;
-	// The leader of the active side may still move (it has neither moved
-	// nor acted) or act this phase; false for soldiers and dead units.
-	bool can_leader_move(int p_unit) const;
+	// A leader's turn (Docs/systems/tactics.md, A leader's turn). Its turn
+	// is open while it is alive, on the active side and has not waited:
+	// it may then wait or change its order. It may move while open with
+	// move points that reach a cell, attack once and cast once.
 	bool can_leader_act(int p_unit) const;
+	bool can_leader_move(int p_unit) const;
+	bool can_leader_attack(int p_unit) const;
+	bool can_leader_cast(int p_unit) const;
+	// Nothing left to do this phase: not open, or no cell to move to, no
+	// strike (moving first if it may) and no skill cell. True for units
+	// that are not a leader of the active side.
+	bool is_leader_closed(int p_unit) const;
+	// Move points p_unit may still spend now: what is left this phase for
+	// a unit of the active side (0 while held by a zone of control), its
+	// full move points otherwise (its next phase, for reach and intents).
+	int get_move_budget(int p_unit) const;
 	// Units attack() would accept for p_unit now, by index.
 	std::vector<int> get_attack_targets(int p_unit) const;
 	// Cells use_skill() would accept for p_unit now, row-major.
@@ -173,8 +188,13 @@ public:
 	// Puts a unit on a free cell with no event and no other effect, for the
 	// what-if checks of tactics_brain.cpp; only ever on a copy.
 	void place_for_query(int p_unit, const Cell &p_cell, int p_straight_cells);
-	// Runs the soldiers' moves only (orders.h); the preview uses it alone.
+	// Runs the soldiers' moves only (orders.h): after each leader move, and
+	// in the preview.
 	void run_squad_moves(int p_leader, int p_cause);
+	// Moves p_unit along p_path (a leader's move or a soldier's squad walk)
+	// and spends its move points, p_cost: its straight run goes on across
+	// walks, and it is held when it stops in an enemy's zone of control.
+	int walk_unit(int p_unit, const std::vector<Cell> &p_path, int p_cost, const std::string &p_kind, int p_cause);
 	// Incident helpers (tactics_incidents.cpp).
 	IncidentRandom &edit_random() { return random; }
 	void add_karma(int p_side, KarmaKind p_kind, int p_cause);
@@ -209,21 +229,25 @@ private:
 	IncidentRandom random;
 	std::vector<std::pair<int, int>> forced_seeds;
 	int carried_karma[SIDE_COUNT][2] = { { 0, 0 }, { 0, 0 } };
-	// The battle before the last undoable move, and whose move it was.
-	std::shared_ptr<const TacticsSim> undo_state;
+	// The battle before each move that can still be taken back, the last
+	// on top, and whose moves they were. Each copy holds the stack below it.
+	std::vector<std::shared_ptr<const TacticsSim>> undo_states;
 	int undo_leader = NO_UNIT;
 	int battle_karma[SIDE_COUNT][2] = { { 0, 0 }, { 0, 0 } };
 
 	bool check_new_leader(int p_side, const UnitDef &p_leader, const std::vector<UnitDef> &p_squad, std::string *r_error) const;
 	bool check_command(int p_unit, std::string *r_error) const;
 	bool check_leader_can_act(int p_unit, std::string *r_error) const;
+	bool check_leader_can_attack(int p_unit, std::string *r_error) const;
+	bool check_leader_can_cast(int p_unit, std::string *r_error) const;
 	bool check_leader_move(int p_unit, const Cell &p_cell, std::string *r_error) const;
+	bool takes_objective(int p_unit, const Cell &p_cell) const;
 	void place_soldiers(int p_leader);
 	// Returns the leader's unit_moved event id.
 	int apply_leader_move(int p_unit, const Cell &p_cell, int p_cause);
-	void update_heading(int p_unit, const Cell &p_from, const Cell &p_to);
-	void finish_leader_action(int p_unit, int p_cause);
-	void run_squad_step(int p_leader, int p_cause);
+	void update_heading(int p_unit);
+	// The squad steps and, if it has not yet this phase, strikes.
+	void run_squad_strike(int p_leader, int p_cause);
 	void begin_phase(int p_side);
 	void clear_undo();
 	void close_phase();

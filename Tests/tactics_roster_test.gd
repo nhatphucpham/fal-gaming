@@ -269,9 +269,12 @@ func _check_karma_carry() -> bool:
 
 
 # Both sides played by the AI over several battle seeds: incidents leave
-# marks on roster soldiers, and the roster saves them.
+# marks on roster soldiers, and the roster saves them. Whether an AI-vs-AI
+# battle lasts long enough for an incident depends on the roster seed: with
+# seed 23 every battle now ends by objective in round 6, before any seed can
+# grow. Seed 27 gives battles that earn marks.
 func _check_real_battle() -> bool:
-	var roster := TacticsRoster.create(23)
+	var roster := TacticsRoster.create(27)
 	var marks := 0
 	for attempt: int in 12:
 		var campaign := TacticsCampaign.new(roster, _catalog, _scenario)

@@ -35,17 +35,36 @@ struct UnitState {
 	bool is_alive = true;
 	int hp = 1;
 	Cell cell;
-	// Reset at the start of the unit's side phase.
+	// Reset at the start of the unit's side phase (Docs/systems/tactics.md,
+	// A leader's turn). A leader's turn stays open until has_waited.
 	bool has_moved = false;
-	bool has_acted = false;
-	bool has_squad_acted = false;
-	// Steps of the same direction at the end of the last move this phase.
+	bool has_attacked = false;
+	bool has_cast = false;
+	bool has_waited = false;
+	bool has_squad_struck = false;
+	// A leader's first rescue this phase already counted as karma.
+	bool has_rescued = false;
+	// Movement budget left this phase, spent by the path cost of each move
+	// (leaders) or squad walk (soldiers).
+	int move_points_left = 0;
+	// The unit's last move this phase ended in an enemy's zone of control:
+	// it may not move again while an enemy stands next to it.
+	bool is_held_by_zoc = false;
+	// Steps of the same direction at the end of the unit's walking this
+	// phase, across moves, and the direction of its last step ({0, 0}: none).
 	int straight_cells = 0;
+	Cell last_step = { 0, 0 };
 	// Leaders.
 	int order = 0;
 	Cell heading = { 0, -1 };
-	// Consecutive moves with the same heading (0 before any move).
+	// Phases in a row that ended with a move along the same heading (0
+	// before any move).
 	int heading_streak = 0;
+	// Where the leader stood and faced when its phase began: the heading of
+	// a phase is that of the whole way walked since.
+	Cell phase_start_cell = NO_CELL;
+	Cell phase_start_heading = { 0, -1 };
+	int phase_start_streak = 0;
 	int skill_charge = 0;
 	int skill_area_bonus = 0;
 	// Soldiers: attacked since the soldier last took its squad step.

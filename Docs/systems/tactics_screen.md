@@ -114,32 +114,46 @@ Incidents on the map:
 
 Taps (the flow a phone player uses):
 
-- Tap one of our leaders: it is selected; blue cells are where it can go,
-  red rings the enemies it can strike this phase (after a walk too), cream
+- Tap one of our leaders: it is selected; blue cells are where it can
+  still go with the move points it has left this phase, red rings the
+  enemies it can strike (after a walk within those points too), cream
   circles its squad's slots, and the panel shows its card, the row of five
-  orders and Kỹ năng, Chờ, (Hoàn tác,) Kết lượt.
-- Tap a blue cell: the leader moves at once with its squad. "Hoàn tác"
-  then takes the move back: `TacticsBattle.undo_move()` restores the exact
-  state from before it (same hash), and the pieces slide home (0.25 s,
-  card-flip sound). It is offered only while the battle allows it: after a
-  move whose events were only moves and charge changes, until anything
-  else is done.
+  orders and Kỹ năng, Chờ, (Hoàn tác,) Kết lượt. The card's turn line says
+  what is left: "Còn 2/4 điểm đi · còn đòn đánh" (or "đã đánh"), and
+  "Đã Chờ: xong lượt." once it waited.
+- Tap a blue cell: the leader moves at once with its squad. While it has
+  points left it stays selected with the blue cells it can still reach,
+  and the hint says "Đi tiếp ô xanh, đánh địch viền đỏ, xong thì Chờ.";
+  with none left, "Hết điểm đi: chạm địch, Hoàn tác hoặc Chờ.". It may
+  attack before or after moving, cast its skill as well, and change its
+  order any number of times until it waits. "Hoàn tác" takes back one
+  move at a time: `TacticsBattle.undo_move()` restores the exact state
+  from before that move (same hash, points included), and the pieces slide
+  home (0.25 s, card-flip sound). It is offered only while the battle
+  allows it: after moves whose events were only moves and charge changes,
+  until an attack, a skill, Chờ, an order change or the end of the phase
+  (see the battle doc for the full list).
 - Press on the selected leader and drag: the ghosts of the leader and its
   squad follow the finger over blue cells, with the path; lifting on a
   blue cell moves there, anywhere else (or a pinch) cancels. A finger
   that lands on any other piece and slides pans the map, so a pan never
   moves a leader.
 - Tap a red-ringed enemy: the battle picks the cell to strike from
-  (`get_strike_cell`: not dying, fewest enemies able to reach it, least
-  counter, better terrain, shortest walk) and the forecast shows the walk
+  (`get_strike_cell`, within the points left: not dying, fewest enemies
+  able to reach it, least counter, better terrain, shortest walk) and the
+  forecast shows the walk
   ("Đi 3 ô rồi đánh"), the ghosts and both sides' hits and hp
   (`forecast_move_attack`, exact). A second tap on the enemy or "Đánh"
   walks there and attacks, played as one. To choose the cell by hand, tap
   a blue cell first, then the enemy.
 - Tap an order in the row: the squad takes it at once (its slots on the
-  map follow); the line under the row says what it does.
-- A leader is done when it acted, or moved and has nothing to strike and
-  no skill to cast; its token dims. When all of ours are done, the hint
+  map follow); the line under the row says what it does. After Chờ the row
+  is greyed out.
+- Chờ closes the leader: its squad strikes (if it has not yet) and the
+  leader can do nothing more this phase. A leader is also done when
+  nothing is left for it (`TacticsBattle.is_closed`: no cell to reach, no
+  strike and no skill); its token dims. A leader that moved and still has
+  points is not done, even with no enemy near. When all of ours are done, the hint
   says "Tự kết lượt…" and the phase ends after 1 s (1.8 s while the last
   move can be undone); any tap holds it, and "Kết lượt" is always there.
 - Tap any unit for its card: hp, a leader's skill and charge, its order
@@ -147,11 +161,13 @@ Taps (the flow a phone player uses):
   keywords with what they do ("Vũ khí dài: Bị áp sát thì ra đòn trước.").
 
 First-time tips: the first time the player selects a leader of ours,
-moves one (a move that can be taken back), changes an order and sees a
-soldier of ours waver with a bad incident, one line slides up in a
+moves one (a move that can be taken back), first spends its last move
+point on such moves, changes an order and sees a soldier of ours waver
+with a bad incident, one line slides up in a
 gold-edged box just above the panel with the text-blip sound, stays 4.5 s
-and fades ("Tướng đi đâu, toán binh dàn quanh đó.", "Đi nhầm? Hoàn tác
-được tới khi đánh hay đổi lệnh.", "Đổi lệnh không mất lượt: tướng vẫn đi,
+and fades ("Tướng đi đâu, toán binh dàn quanh đó.", "Còn điểm thì đi
+tiếp. Xong thì bấm Chờ.", "Đi nhầm? Hoàn tác lùi từng bước
+tới khi đánh hay đổi lệnh.", "Đổi lệnh không mất lượt: tướng vẫn đi,
 đánh được.", "Dấu ! đỏ: binh sắp làm loạn, đưa tướng lại sát nó."; the
 `TACTICS_TIP_*` rows). A tip that comes while another shows waits for it.
 Each is saved as shown (`RunSettings.save_seen_tip("tactics.<id>")`) and
@@ -319,7 +335,9 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
 - `Tests/tactics_screen_test.gd`: the river crossing through the screen's
   public methods and the map's signals: selection (its buttons and the
   order row) and stepping back, a drag preview (ghosts, no state change),
-  a tap that moves at once, "Hoàn tác" back to the same hash, a drag
+  a one-step tap that moves at once and keeps the leader selected with
+  the cells its points still reach, the turn line on its card, a second
+  move, two "Hoàn tác" each back one move to the same hash, a drag
   released on a cell, one tap on the order row (slots and the description
   follow), strikes by tapping the enemy twice or "Đánh" (the walk, the
   ghosts, the forecast against the battle), skills aimed, previewed and
@@ -347,8 +365,10 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   with the auto end on (waited out); after every
   playback, before the sync, tokens, hp, deaths, pips, zones and the top
   bar's round and phase must match the battle, and after every tap the
-  marks (strike targets, slots), the order row, buttons (undo only when
-  the battle can), intents and the "done" look must match its queries, with
+  marks (strike targets, slots), the order row (greyed out exactly when
+  the leader can no longer act), the card's turn line, buttons (undo only
+  when the battle can), intents and the "done" look must match its
+  queries, with
   no error logged. Odd seeds play through a campaign with forced incident
   seeds: each token's side, wavering bubble and mark count must match the
   battle, and some incident steps must have played.
@@ -367,8 +387,10 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   touch) with real camera glides: a slide from a leader that is not
   selected pans and moves no one, a drag of the selected leader lifted
   over the panel or on a cell it cannot reach moves nothing, a pinch begun
-  on the selected leader zooms and moves nothing, and a fast double tap on
-  an enemy in the view's outer row strikes it without the camera moving.
+  on the selected leader zooms and moves nothing, a fast double tap on
+  an enemy in the view's outer row strikes it without the camera moving,
+  and after a one-step move a double tap on an enemy walks there within
+  the points left and strikes.
 - `Tests/muster_test.gd`: Main's title "Chiến Dịch" to the muster screen,
   squads and capacities, a soldier moved and one refused, "Xuất quân" to the
   tactics screen with those squads, a double "Rút" to the summary (the
@@ -389,9 +411,14 @@ Run one with
 - The default zoom shows eight columns and about nine rows; the rest of
   the board is a drag (or "Toàn cảnh") away. At the whole-map zoom a cell
   is under the 44 px touch target again.
-- An undo covers only the last plain move of the selected leader: a move
-  during which the squad attacked, a passive fired or an incident stirred
-  cannot be taken back.
+- Undo steps back over the plain moves of the selected leader only: a
+  move during which the squad attacked, a passive fired, a zone was made,
+  a rescue counted or an incident stirred cannot be taken back, and an
+  attack, a skill, Chờ or an order change clears what could be.
+- A melee leader that strikes ends next to its target and is held there
+  by the zone of control, so it usually closes on its own; when the blow
+  kills, it is free again with its points left and needs Chờ (or the end
+  of the phase).
 - The auto end also ends the phase while a soldier of ours wavers (the
   leaders have nothing left to do about it); a tap during the beat holds
   it.

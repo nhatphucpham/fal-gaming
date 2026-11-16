@@ -5,11 +5,14 @@ extends Control
 ## bottom panel with a card or forecast, the selected leader's row of
 ## orders and one row of buttons ("Kết lượt" always among them). A tap on
 ## one of our leaders selects it; a tap on a blue cell moves it at once
-## ("Hoàn tác" takes the move back); a tap on a red-ringed enemy shows the
-## forecast from the safest cell that can strike it, and a second tap (or
-## "Đánh") walks there and attacks. Pressing on the selected leader and dragging shows
-## the ghosts under the finger and moves where it lifts. Once every leader
-## of ours is done, the phase ends by itself after a short beat. The screen
+## and it stays selected, the blue cells now what its points left reach
+## ("Hoàn tác" takes the moves back one by one); a tap on a red-ringed
+## enemy shows the forecast from the safest cell that can strike it, and a
+## second tap (or "Đánh") walks there and attacks. "Chờ" closes the
+## leader's turn. Pressing on the selected leader and dragging shows the
+## ghosts under the finger and moves where it lifts. Once every leader of
+## ours is closed (it waited, or has nothing left to do), the phase ends
+## by itself after a short beat. The screen
 ## sends commands to its TacticsBattle and plays the events back through
 ## TacticsPlayback, then brings the map in line with the battle. It holds
 ## no rules: every list of cells, target, strike cell and forecast comes
@@ -184,7 +187,8 @@ func select_unit(unit: int) -> void:
 	var state: Dictionary = _units[unit]
 	if _is_commandable(unit):
 		_set_hint(_selected_hint(unit))
-		_panel.show_order_row(state["order"], _text)
+		# After "Chờ" the order is shown but can no longer change.
+		_panel.show_order_row(state["order"], _text, _battle.can_act(unit))
 		_tips.offer(&"select")
 	else:
 		_panel.hide_order_row()
@@ -197,15 +201,17 @@ func select_unit(unit: int) -> void:
 
 
 ## Moves the selected leader to a reachable cell at once (its squad steps
-## with it); "Hoàn tác" can take it back while nothing else happened.
+## with it); "Hoàn tác" can take it back while nothing else happened. The
+## leader stays selected while it can do more.
 func move_to(cell: Vector2i) -> void:
 	if not _is_commandable(_selected) or not _battle.can_move(_selected) or not _battle.get_reachable_cells(_selected).has(cell):
 		return
 	_run(_battle.move_leader(_selected, cell))
 
 
-## Takes the selected leader's last move back: the battle returns to the
-## exact state before it, and the pieces slide home.
+## Takes the selected leader's last move back (one step; press again for
+## the one before): the battle returns to the exact state before it, and
+## the pieces slide home.
 func undo() -> void:
 	if _mode == Mode.BUSY or _mode == Mode.ENDED or not _can_undo(_selected):
 		return
@@ -254,7 +260,7 @@ func press_button(action: StringName) -> void:
 ## One tap on the order row: the squad takes the order at once (the slots
 ## on the map follow it).
 func choose_order(order: StringName) -> void:
-	if _mode == Mode.BUSY or _mode == Mode.ENDED or not _is_commandable(_selected):
+	if _mode == Mode.BUSY or _mode == Mode.ENDED or not _is_commandable(_selected) or not _battle.can_act(_selected):
 		return
 	_cancel_auto_end()
 	if order == _units[_selected]["order"]:
@@ -478,7 +484,7 @@ func _after_playback() -> void:
 		return
 	var keep := _selected
 	_mode = Mode.IDLE
-	# A leader that is done goes back to the phase card, unless its move
+	# A leader that is closed goes back to the phase card, unless its move
 	# can still be taken back or its order just changed.
 	var was_order := _is_order_change
 	_is_order_change = false
@@ -582,11 +588,12 @@ func _end_turn_button(is_primary: bool) -> Array[Dictionary]:
 	return buttons
 
 
-# Blue cells only while the leader may still move; red outlines while it
-# may act.
+# Blue cells only while the leader's points reach a cell; red outlines
+# while it may still attack.
 func _selected_hint(unit: int) -> String:
 	if _battle.can_move(unit):
-		return "TACTICS_HINT_SELECTED"
+		var state: Dictionary = _units[unit]
+		return "TACTICS_HINT_MOVE_ON" if state["has_moved"] or state["has_attacked"] else "TACTICS_HINT_SELECTED"
 	if _can_undo(unit):
 		return "TACTICS_HINT_MOVED"
 	return "TACTICS_HINT_ACT" if not _is_done(unit) else "TACTICS_HINT_DONE"
@@ -786,8 +793,9 @@ func _show_forecast(target: int) -> void:
 
 
 # Walks to the forecast's cell (if it is not the leader's own) and
-# attacks, played back as one; if the squad fells the target on the way,
-# the walk is all.
+# attacks, played back as one; the walk spends the leader's points, and
+# if the target is gone after it (nothing on the way should fell it), the
+# walk is all.
 func _strike() -> void:
 	var leader := _selected
 	var target := _pending_target
@@ -887,6 +895,10 @@ func _show_unit_card(unit: int) -> void:
 		var squad_line: String = tr("TACTICS_ORDER_FORMAT") % _text.order_name(state["order"]) + " · " + tr("TACTICS_SQUAD_FORMAT") % [_alive_soldiers(state), state["capacity"]]
 		if state["side"] != player_side:
 			squad_line = _intent_text(unit) + " · " + tr("TACTICS_SQUAD_FORMAT") % [_alive_soldiers(state), state["capacity"]]
+		# Our leader in our phase: what it can still do comes before its
+		# passives (they show again in the enemy phase).
+		if _is_commandable(unit):
+			lines.append(_turn_line(state))
 		lines.append(squad_line)
 		details.append_array(_text.passive_lines(state["id"]))
 	else:
@@ -905,6 +917,14 @@ func _show_unit_card(unit: int) -> void:
 			lines.append(line)
 	lines.append(_terrain_line(state["cell"]))
 	_panel.show_card(_text.unit_name(state), title_color, side_note, lines)
+
+
+# Move points left and whether the attack is spent, or that it waited.
+func _turn_line(state: Dictionary) -> String:
+	if state["has_waited"]:
+		return tr("TACTICS_TURN_WAITED")
+	var attack := tr("TACTICS_TURN_ATTACK_USED") if state["has_attacked"] else tr("TACTICS_TURN_ATTACK_READY")
+	return tr("TACTICS_TURN_FORMAT") % [state["move_points_left"], state["move_points"], attack]
 
 
 func _show_terrain(cell: Vector2i) -> void:
@@ -996,22 +1016,24 @@ func _wavering_hint() -> String:
 
 
 # First-time tips after our command played: the first move that can be
-# taken back, the first order change, the first soldier that wavers badly.
+# taken back (moving on until "Chờ"), the first time such moves spent the
+# last point (undo step by step), the first order change, the first
+# soldier that wavers badly.
 func _offer_tips(unit: int, was_order: bool) -> void:
 	if _can_undo(unit):
 		_tips.offer(&"move")
+		if not _battle.can_move(unit):
+			_tips.offer(&"undo")
 	if was_order:
 		_tips.offer(&"order")
 	if _wavering_hint() == "TACTICS_HINT_WAVERING":
 		_tips.offer(&"waver")
 
 
-# A leader of ours with nothing left to do: it acted, or it moved and has
-# no one to strike and no skill to cast.
+# A leader of ours whose turn is closed: it waited, or it has no point to
+# reach a cell, no strike and no skill left (TacticsBattle.is_closed).
 func _is_done(unit: int) -> bool:
-	if not _battle.can_act(unit):
-		return true
-	return not _battle.can_move(unit) and _battle.get_attack_targets(unit).is_empty() and _battle.get_skill_cells(unit).is_empty()
+	return _battle.is_closed(unit)
 
 
 func _are_all_done() -> bool:

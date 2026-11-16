@@ -68,28 +68,21 @@ struct SquadContext {
 	std::vector<int> leader_threats;
 	int shield = NO_UNIT;
 	Cell shield_cell = NO_CELL;
+	// The squad already struck this phase: no stepping out to strike.
+	bool has_struck = false;
 };
 
-// The soldier took its squad step without leaving its cell.
-void stay(TacticsSim &p_sim, int p_soldier) {
-	UnitState &soldier = p_sim.edit_unit(p_soldier);
-	soldier.was_attacked_since_move = false;
-	soldier.last_attacker = NO_UNIT;
-	soldier.straight_cells = 0;
-}
-
+// A soldier walks within what is left of its own move points this phase,
+// so a squad that steps after every leader move gains no distance from it.
 void walk_to(TacticsSim &p_sim, int p_soldier, const PathField &p_field, const Cell &p_cell, int p_cause) {
-	stay(p_sim, p_soldier);
 	if (p_cell == p_sim.get_units()[p_soldier].cell) {
 		return;
 	}
-	const std::vector<Cell> path = get_path(p_sim, p_field, p_cell);
-	p_sim.edit_unit(p_soldier).straight_cells = get_trailing_straight_cells(path);
-	p_sim.relocate_unit(p_soldier, path, "squad", p_cause);
+	p_sim.walk_unit(p_soldier, get_path(p_sim, p_field, p_cell), p_field.cost[p_sim.get_cell_index(p_cell)], "squad", p_cause);
 }
 
 PathField find_step_paths(const TacticsSim &p_sim, int p_soldier) {
-	return find_paths(p_sim, p_soldier, p_sim.get_stats(p_soldier).move_points, ZocMode::APPLY);
+	return find_move_paths(p_sim, p_soldier);
 }
 
 std::vector<SlotPlace> build_slots(const TacticsSim &p_sim, int p_leader) {
@@ -351,7 +344,10 @@ void move_in_formation(TacticsSim &p_sim, const SquadContext &p_context, int p_s
 		const int exposed = is_exposed(p_sim, p_soldier, p_cell, NO_UNIT) ? FAR_PENALTY : 0;
 		return exposed + get_manhattan(p_cell, p_slot) * CELL_WEIGHT - get_terrain_fit(p_sim, p_soldier, p_cell);
 	});
-	const std::vector<Strike> strikes = drop_exposed(p_sim, p_soldier, list_strikes(p_sim, p_soldier, field, [&](const Cell &p_cell) { return is_in_leash(p_context, p_cell); }));
+	std::vector<Strike> strikes;
+	if (!p_context.has_struck) {
+		strikes = drop_exposed(p_sim, p_soldier, list_strikes(p_sim, p_soldier, field, [&](const Cell &p_cell) { return is_in_leash(p_context, p_cell); }));
+	}
 	const Strike *best = pick_strike(strikes, [&](const Strike &p_strike) {
 		return std::vector<int>{
 			p_strike.cell == slot_cell ? 0 : 1,
@@ -439,7 +435,10 @@ void move_free(TacticsSim &p_sim, const SquadContext &p_context, int p_soldier, 
 		return;
 	}
 	const int answer = find_enemy_to_answer(p_sim, p_soldier);
-	const std::vector<Strike> strikes = drop_exposed(p_sim, p_soldier, list_strikes(p_sim, p_soldier, field, [](const Cell &) { return true; }));
+	std::vector<Strike> strikes;
+	if (!p_context.has_struck) {
+		strikes = drop_exposed(p_sim, p_soldier, list_strikes(p_sim, p_soldier, field, [](const Cell &) { return true; }));
+	}
 	const Strike *best = pick_strike(strikes, [&](const Strike &p_strike) {
 		return std::vector<int>{
 			p_strike.result.is_defender_dead ? 0 : 1,
@@ -456,7 +455,6 @@ void move_free(TacticsSim &p_sim, const SquadContext &p_context, int p_soldier, 
 	}
 	const int goal = answer != NO_UNIT ? answer : find_nearest_enemy_by_path(p_sim, p_soldier);
 	if (goal == NO_UNIT) {
-		stay(p_sim, p_soldier);
 		return;
 	}
 	// No fight worth taking: close in, but stop short of a cell that more
@@ -615,6 +613,7 @@ void move_squad(TacticsSim &p_sim, int p_leader, int p_cause) {
 	SquadContext context;
 	context.leader = p_leader;
 	context.has_leader = leader.is_alive;
+	context.has_struck = leader.has_squad_struck;
 	context.leader_cell = leader.cell;
 	const OrderHandler &order = get_order_handler(leader.order);
 	if (leader.is_alive && order.leash_cells != nullptr) {
@@ -650,7 +649,7 @@ void move_squad(TacticsSim &p_sim, int p_leader, int p_cause) {
 			continue;
 		}
 		if (p_sim.is_holding_ground(soldier)) {
-			stay(p_sim, soldier);
+			continue;
 		} else if (mode == SquadMode::FREE || p_sim.is_acting_free(soldier)) {
 			move_free(p_sim, context, soldier, p_cause);
 		} else if (mode == SquadMode::FORMATION) {
@@ -660,14 +659,21 @@ void move_squad(TacticsSim &p_sim, int p_leader, int p_cause) {
 			}
 			const Cell target = slot == NO_INDEX ? p_sim.get_units()[soldier].cell : slots[slot].cell;
 			move_in_formation(p_sim, context, soldier, target, p_cause);
-		} else {
-			stay(p_sim, soldier);
 		}
 	}
 }
 
 void attack_with_squad(TacticsSim &p_sim, int p_leader, int p_cause) {
 	const std::vector<int> soldiers = p_sim.get_units()[p_leader].soldiers;
+	// An attack on a soldier is answered by its free allies until its squad
+	// strikes (which is after its last step that phase).
+	for (int soldier : soldiers) {
+		UnitState &unit = p_sim.edit_unit(soldier);
+		if (unit.is_alive && unit.stage != IncidentStage::WAVERING) {
+			unit.was_attacked_since_move = false;
+			unit.last_attacker = NO_UNIT;
+		}
+	}
 	const bool risks = does_risk_soldiers(p_sim, p_leader);
 	// A wavering soldier hesitates: it neither strikes nor counts as a
 	// squadmate that will strike (Docs/systems/tactics.md, Incidents).

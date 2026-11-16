@@ -29,6 +29,17 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Changed
 
+- Chiến Dịch: a leader's turn stays open until you press "Chờ". It can
+  move several times within its move points for the turn (the blue cells
+  show what it can still reach, its card shows the points left), attack
+  once before or after moving, also use its skill when charged, and
+  change orders as often as you like. Its soldiers keep their own move
+  points, so short hops gain them nothing, and they still strike once a
+  turn: when the leader attacks or when it is done. "Hoàn tác" now steps
+  back one move at a time, until you attack, cast, wait or change orders.
+  Tapping an enemy walks up with the points left. The turn ends by itself
+  only once every leader has waited or has nothing left to do. The enemy
+  still moves and acts once per leader, so its stated intent holds.
 - Chiến Dịch: the enemy defends the fort. Outnumbered, its leaders hold
   the fort and the cells before it on good ground and wait; they strike
   only where they are locally stronger, go for a leader that comes alone

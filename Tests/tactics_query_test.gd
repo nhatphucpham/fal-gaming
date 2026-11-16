@@ -1,7 +1,10 @@
 extends SceneTree
 
 # Headless tests for the queries the tactics screen asks before a command:
-# a scenario loaded with other squads, can_move / can_act, attack targets,
+# a scenario loaded with other squads, a leader's turn (can_move, can_act,
+# can_attack, is_closed, move points left: several moves within the points,
+# an attack before or between moves, an order after a move, nothing after
+# "Chờ", the hold of a zone of control), attack targets,
 # the cells a skill can be cast on, the skill preview against the real
 # cast, and the modifiers the forecast lists. Every query must leave the
 # state hash unchanged. Cells are (col, row).
@@ -27,7 +30,8 @@ func _run() -> bool:
 	if not _kit.load_catalog():
 		return false
 	var checks: Array[Callable] = [
-		_check_scenario_squads, _check_refused_squads, _check_move_and_act, _check_attack_targets,
+		_check_scenario_squads, _check_refused_squads, _check_move_and_act, _check_attack_then_move,
+		_check_move_attack_move, _check_zone_of_control_hold, _check_attack_targets,
 		_check_skill_cells, _check_skill_preview_damage, _check_skill_preview_support,
 		_check_forecast_modifiers, _check_counter_modifiers,
 	]
@@ -89,6 +93,8 @@ func _check_refused_squads() -> bool:
 		and Kit.expect("wrong count refused", wrong_count, false) and Kit.expect("start refused", battle.start(), [])
 
 
+# Moves within the points, an order after moving, and a moved leader with
+# no one to strike stays open while it has points; "Chờ" closes it.
 func _check_move_and_act() -> bool:
 	var battle := _kit.new_battle(_kit.plain_rows())
 	var leader := _kit.add(battle, A, _kit.leader(&"leader.moon_spear"), Vector2i(5, 8))
@@ -98,12 +104,59 @@ func _check_move_and_act() -> bool:
 	var fresh := battle.can_move(leader) and battle.can_act(leader) and not battle.can_move(enemy) and not battle.can_act(enemy)
 	var same_hash := battle.get_state_hash() == hash
 	battle.move_leader(leader, Vector2i(5, 6))
-	var moved := not battle.can_move(leader) and battle.can_act(leader)
+	var moved := [battle.can_move(leader), battle.can_act(leader), battle.get_move_points_left(leader), battle.is_closed(leader)]
+	var ordered := battle.set_order(leader, &"order.vanguard")
+	battle.move_leader(leader, Vector2i(5, 4))
+	var spent := [battle.can_move(leader), battle.can_act(leader), battle.get_move_points_left(leader), battle.is_closed(leader)]
 	battle.wait(leader)
-	var done := not battle.can_move(leader) and not battle.can_act(leader)
+	var done := [battle.can_move(leader), battle.can_act(leader), battle.can_attack(leader), battle.is_closed(leader)]
 	return Kit.expect_true("fresh leader can move and act, the enemy cannot", fresh) \
-		and Kit.expect_true("a moved leader can still act", moved) and Kit.expect_true("a waiting leader is done", done) \
+		and Kit.expect("a moved leader with points and no target stays open", moved, [true, true, 2, false]) \
+		and Kit.expect_true("an order after a move", not ordered.is_empty()) \
+		and Kit.expect("no points and nothing in reach: closed, an order or Chờ still allowed", spent, [false, true, 0, true]) \
+		and Kit.expect("a waiting leader is done", done, [false, false, false, true]) \
 		and Kit.expect_true("queries keep the hash", same_hash)
+
+
+# An attack first, then a walk with all four points.
+func _check_attack_then_move() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows())
+	var leader := _kit.add(battle, A, _kit.leader(&"leader.moon_spear"), Vector2i(5, 8))
+	var enemy := _kit.add(battle, B, _kit.leader(&"leader.thiet_nha", [], {"attack_pct": 0, "hp_pct": 300}), Vector2i(5, 6))
+	battle.start()
+	if not Kit.expect_true("attacked", not battle.attack(leader, enemy).is_empty()):
+		return false
+	var after := [battle.can_attack(leader), battle.has_attacked(leader), battle.get_attack_targets(leader), battle.get_strike_targets(leader), battle.can_move(leader), battle.get_move_points_left(leader)]
+	var walked := battle.move_leader(leader, Vector2i(9, 8))
+	return Kit.expect("one attack, every point left", after, [false, true, [], [], true, 4]) \
+		and Kit.expect_true("walked four cells after the attack", not walked.is_empty() and Kit.cell_of(battle, leader) == Vector2i(9, 8)) \
+		and Kit.expect("no second attack", battle.attack(leader, enemy), [])
+
+
+# A move, the attack, then a move with the point left.
+func _check_move_attack_move() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows())
+	var leader := _kit.add(battle, A, _kit.leader(&"leader.moon_spear"), Vector2i(5, 9))
+	var enemy := _kit.add(battle, B, _kit.leader(&"leader.thiet_nha", [], {"attack_pct": 0, "hp_pct": 300}), Vector2i(5, 4))
+	battle.start()
+	var steps := [battle.move_leader(leader, Vector2i(5, 6)), battle.attack(leader, enemy), battle.move_leader(leader, Vector2i(3, 6)), battle.move_leader(leader, Vector2i(4, 6))]
+	return Kit.expect("move, attack, too far, one more cell", steps.map(func(events: Array) -> bool: return not events.is_empty()), [true, true, false, true]) \
+		and Kit.expect("points spent", [battle.get_move_points_left(leader), battle.can_move(leader), battle.can_act(leader)], [0, false, true])
+
+
+# A move that ends next to an enemy holds the leader there (whatever its
+# points) until that enemy is gone; then it walks on with what is left.
+func _check_zone_of_control_hold() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows())
+	var leader := _kit.add(battle, A, _kit.leader(&"leader.moon_spear", [], {"move_points": 6}), Vector2i(5, 9))
+	var enemy := _kit.add(battle, B, _kit.leader(&"leader.thiet_nha", [], {"attack_pct": 0, "hp_pct": 1}), Vector2i(5, 5))
+	_kit.add(battle, B, _kit.leader(&"leader.ba_khac"), Vector2i(0, 0))
+	battle.start()
+	battle.move_leader(leader, Vector2i(5, 6))
+	var held := [battle.can_move(leader), battle.get_move_points_left(leader), battle.get_reachable_cells(leader)]
+	battle.attack(leader, enemy)
+	var freed := [battle.get_unit_state(enemy)["alive"], battle.can_move(leader), battle.get_move_points_left(leader)]
+	return Kit.expect("held next to the enemy", held, [false, 0, []]) and Kit.expect("free again once it fell", freed, [false, true, 3])
 
 
 func _check_attack_targets() -> bool:

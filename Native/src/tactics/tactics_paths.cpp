@@ -97,6 +97,14 @@ PathField find_paths(const TacticsSim &p_sim, int p_unit, int p_max_cost, ZocMod
 	return field;
 }
 
+PathField find_move_paths(const TacticsSim &p_sim, int p_unit) {
+	return find_paths(p_sim, p_unit, p_sim.get_move_budget(p_unit), ZocMode::APPLY);
+}
+
+bool is_in_enemy_zone(const TacticsSim &p_sim, int p_unit, const Cell &p_cell) {
+	return !build_move_profile(p_sim, p_unit).ignores_zone_of_control && is_next_to_enemy(p_sim, p_sim.get_units()[p_unit].side, p_cell);
+}
+
 std::vector<int> find_goal_distances(const TacticsSim &p_sim, int p_unit, const std::vector<Cell> &p_goals) {
 	const UnitState &unit = p_sim.get_units()[p_unit];
 	const MoveProfile profile = build_move_profile(p_sim, p_unit);
@@ -161,7 +169,7 @@ bool can_stop_at(const TacticsSim &p_sim, int p_unit, const Cell &p_cell) {
 }
 
 std::vector<Cell> get_reachable_cells(const TacticsSim &p_sim, int p_unit) {
-	const PathField field = find_paths(p_sim, p_unit, p_sim.get_stats(p_unit).move_points, ZocMode::APPLY);
+	const PathField field = find_move_paths(p_sim, p_unit);
 	std::vector<Cell> cells;
 	for (size_t index = 0; index < field.cost.size(); index++) {
 		const Cell cell = p_sim.get_cell_at(static_cast<int>(index));
