@@ -26,6 +26,7 @@ var _screen: TacticsScreen
 var _rng := RandomNumberGenerator.new()
 var _problems: Array[String] = []
 var _played: int = 0
+var _phase_began: bool = false
 
 
 func _initialize() -> void:
@@ -70,6 +71,7 @@ func _play_seed(seed_value: int) -> bool:
 	root.add_child(_screen)
 	await process_frame
 	_screen.get_playback().played.connect(_check_played)
+	_screen.get_playback().phase_shown.connect(func(_side: int, _round_number: int) -> void: _phase_began = true)
 	_check_synced("start")
 	for tap: int in MAX_TAPS:
 		if _battle().is_finished():
@@ -151,6 +153,10 @@ func _check_played() -> void:
 	var round_text := "%s · %s" % [tr("TACTICS_ROUND_FORMAT") % [_battle().get_round(), _screen.scenario.rules.max_rounds], phase]
 	if not _battle().is_finished() and _screen.get_round_text() != round_text:
 		_problems.append("before the sync: the top bar reads \"%s\", the battle is in \"%s\"" % [_screen.get_round_text(), round_text])
+	# A playback that began a phase leaves the panel on that phase's card.
+	if _phase_began and not _battle().is_finished() and _screen.get_panel().get_card_texts()[0] != phase:
+		_problems.append("before the sync: the panel reads \"%s\" in \"%s\"" % [_screen.get_panel().get_card_texts()[0], phase])
+	_phase_began = false
 
 
 func _check_synced(what: String) -> void:

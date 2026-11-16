@@ -18,6 +18,8 @@ signal back_requested()
 const CATALOG_PATH: String = "res://Data/Tactics/tactics_catalog.tres"
 const CHIP_PX := Vector2(100, 90)
 const SWATCH_PX: float = 44.0
+## How far a press on a leader card may slide and still be a tap.
+const TAP_SLOP_PX: float = 24.0
 
 var scenario: TacticsScenarioData
 var catalog: TacticsCatalog
@@ -26,6 +28,7 @@ var _text: TacticsText
 var _squads: Array[Array] = []
 var _capacities: Array[int] = []
 var _picked := Vector2i(-1, -1)
+var _press_position := Vector2.ZERO
 var _forces: VBoxContainer
 var _hint: Label
 
@@ -225,11 +228,11 @@ func _refresh() -> void:
 func _leader_card(slot: int) -> Control:
 	var leader: TacticsLeaderData = scenario.leaders_a[slot]
 	var box := _panel()
-	box.mouse_filter = Control.MOUSE_FILTER_STOP
-	box.gui_input.connect(func(event: InputEvent) -> void:
-		var press := event as InputEventMouseButton
-		if press != null and press.button_index == MOUSE_BUTTON_LEFT and not press.pressed:
-			move_selected_to(slot))
+	box.name = "LeaderCard%d" % slot
+	# PASS: a drag that starts on a card still scrolls the page; only a
+	# press and release close together count as a tap on the leader.
+	box.mouse_filter = Control.MOUSE_FILTER_PASS
+	box.gui_input.connect(_on_card_input.bind(slot))
 	var rows := VBoxContainer.new()
 	rows.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	rows.add_theme_constant_override(&"separation", 2)
@@ -263,10 +266,21 @@ func _leader_card(slot: int) -> Control:
 	return box
 
 
+func _on_card_input(event: InputEvent, slot: int) -> void:
+	var button := event as InputEventMouseButton
+	if button == null or button.button_index != MOUSE_BUTTON_LEFT:
+		return
+	if button.pressed:
+		_press_position = button.global_position
+	elif button.global_position.distance_to(_press_position) <= TAP_SLOP_PX:
+		move_selected_to(slot)
+
+
 func _chip(leader_slot: int, soldier_slot: int) -> PressButton:
 	var troop: TacticsTroopData = _squads[leader_slot][soldier_slot]
 	var chip := PressButton.new()
 	chip.focus_mode = Control.FOCUS_NONE
+	chip.mouse_filter = Control.MOUSE_FILTER_PASS
 	chip.custom_minimum_size = CHIP_PX
 	if _picked == Vector2i(leader_slot, soldier_slot):
 		chip.theme_type_variation = &"PrimaryButton"

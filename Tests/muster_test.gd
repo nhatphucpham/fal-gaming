@@ -4,7 +4,9 @@ extends SceneTree
 # title's "Chiến Dịch" opens it, it lists our leaders with their squads and
 # capacities (from the battle rules), a soldier moves between leaders
 # while there is room and is refused when the leader is full, and
-# "Xuất quân" opens the tactics screen with the squads as mustered.
+# "Xuất quân" opens the tactics screen with the squads as mustered. With
+# touch, taps on a soldier chip and a leader card move a soldier, and a
+# drag that starts on a card or a chip scrolls the page instead.
 
 const SLIDE_WAIT_SEC: float = 0.5
 
@@ -41,7 +43,111 @@ func _run() -> bool:
 	if muster == null:
 		push_error("Chiến Dịch should open the muster screen")
 		return false
-	return await _check_muster(muster)
+	if not await _check_muster(muster):
+		return false
+	# Main's screens would sit above the muster screen made below.
+	_main.queue_free()
+	_main = null
+	await process_frame
+	return await _check_touch()
+
+
+# A muster screen of its own at the 720x1280 layout, driven by pushed taps
+# and drags with touch emulated (as on a phone).
+func _check_touch() -> bool:
+	Input.emulate_touch_from_mouse = true
+	var muster := MusterScreen.new()
+	muster.scenario = load("res://Data/Tactics/Scenarios/river_crossing.tres") as TacticsScenarioData
+	muster.size = Vector2(720, 1280)
+	root.add_child(muster)
+	await process_frame
+	await process_frame
+	var scroll := muster.find_children("*", "ScrollContainer", true, false)[0] as ScrollContainer
+	if _card(muster, 0) == null or _card(muster, 1) == null:
+		push_error("The muster screen should name its leader cards LeaderCard<slot>")
+		return false
+	if scroll.get_v_scroll_bar().max_value <= scroll.get_v_scroll_bar().page:
+		push_error("The muster page should be taller than the 720x1280 screen for this check")
+		return false
+	await _drag(_card(muster, 1), Vector2(0, -300))
+	var from_card := scroll.scroll_vertical
+	scroll.scroll_vertical = 0
+	await process_frame
+	await _drag(_chip(muster, 1, 0), Vector2(0, -300))
+	var from_chip := scroll.scroll_vertical
+	if from_card <= 0 or from_chip <= 0 or muster.get_picked() != Vector2i(-1, -1):
+		push_error("A drag on a leader card (%d px) or a chip (%d px) should scroll and pick nothing" % [from_card, from_chip])
+		return false
+	scroll.scroll_vertical = 0
+	await process_frame
+	_tap(_chip(muster, 1, 0))
+	await process_frame
+	if muster.get_picked() != Vector2i(1, 0):
+		push_error("A tap on a soldier chip should pick it")
+		return false
+	await _drag(_card(muster, 0), Vector2(0, -300))
+	if muster.get_squad(0).size() != muster.scenario.leaders_a[0].squad.size():
+		push_error("A drag that ends on a leader card must not move the soldier")
+		return false
+	scroll.scroll_vertical = 0
+	await process_frame
+	_tap(_card(muster, 0), Vector2(0.5, 0.1))
+	await process_frame
+	var moved := muster.get_squad(0).size() == muster.scenario.leaders_a[0].squad.size() + 1
+	muster.queue_free()
+	Input.emulate_touch_from_mouse = false
+	if not moved:
+		push_error("A tap on a leader card with room should take the picked soldier")
+	return moved
+
+
+func _card(muster: MusterScreen, slot: int) -> Control:
+	return muster.find_child("LeaderCard%d" % slot, true, false) as Control
+
+
+func _chip(muster: MusterScreen, slot: int, soldier: int) -> Control:
+	return _card(muster, slot).find_children("*", "PressButton", true, false)[soldier]
+
+
+# A tap at a point of the control given as fractions of its size.
+func _tap(control: Control, where: Vector2 = Vector2(0.5, 0.5)) -> void:
+	var at := root.get_final_transform() * (control.get_global_rect().position + control.size * where)
+	for is_pressed: bool in [true, false]:
+		var event := InputEventMouseButton.new()
+		event.button_index = MOUSE_BUTTON_LEFT
+		event.pressed = is_pressed
+		event.position = at
+		event.global_position = at
+		Input.parse_input_event(event)
+
+
+# Presses near the control's top, slides by `by` (layout pixels) and lets go.
+func _drag(control: Control, by: Vector2) -> void:
+	var to_screen := root.get_final_transform()
+	var start := to_screen * (control.get_global_rect().position + Vector2(control.size.x * 0.5, 20))
+	var step := to_screen.basis_xform(by) / 10.0
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	press.position = start
+	press.global_position = start
+	Input.parse_input_event(press)
+	await process_frame
+	for index: int in 10:
+		var motion := InputEventMouseMotion.new()
+		motion.button_mask = MOUSE_BUTTON_MASK_LEFT
+		motion.position = start + step * (index + 1)
+		motion.global_position = motion.position
+		motion.relative = step
+		Input.parse_input_event(motion)
+		await process_frame
+	var release := InputEventMouseButton.new()
+	release.button_index = MOUSE_BUTTON_LEFT
+	release.position = start + step * 10
+	release.global_position = release.position
+	Input.parse_input_event(release)
+	for frame: int in 5:
+		await process_frame
 
 
 func _check_muster(muster: MusterScreen) -> bool:

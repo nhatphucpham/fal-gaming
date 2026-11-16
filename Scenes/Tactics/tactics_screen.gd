@@ -418,6 +418,8 @@ func _show_round(round_number: int, side: int) -> void:
 func _on_phase_shown(side: int, round_number: int) -> void:
 	_show_round(round_number, side)
 	if side == player_side:
+		_set_hint("TACTICS_HINT_IDLE")
+		_show_our_phase_card(round_number)
 		return
 	_set_hint("TACTICS_HINT_ENEMY_PHASE")
 	var lines: Array[String] = [tr("TACTICS_HINT_ENEMY_PHASE"), "", ""]
@@ -435,10 +437,14 @@ func _go_idle() -> void:
 		if _is_commandable(state["index"]) and _battle.can_act(state["index"]):
 			is_all_done = false
 	_set_hint("TACTICS_HINT_ALL_DONE" if is_all_done else "TACTICS_HINT_IDLE")
+	_show_our_phase_card(_battle.get_round())
+	_panel.set_buttons(_end_turn_button(is_all_done))
+
+
+func _show_our_phase_card(round_number: int) -> void:
 	var objective := _text.terrain_name(_map.get_terrain_at(scenario.map.objective_cell))
 	var lines: Array[String] = [tr("TACTICS_OBJECTIVE_SHORT_FORMAT") % objective, tr(scenario.name_key), ""]
-	_panel.show_card(tr("TACTICS_PHASE_PLAYER"), Palette.GOLD, tr("TACTICS_ROUND_FORMAT") % [_battle.get_round(), scenario.rules.max_rounds], lines)
-	_panel.set_buttons(_end_turn_button(is_all_done))
+	_panel.show_card(tr("TACTICS_PHASE_PLAYER"), Palette.GOLD, tr("TACTICS_ROUND_FORMAT") % [round_number, scenario.rules.max_rounds], lines)
 
 
 func _end_turn_button(is_primary: bool) -> Array[Dictionary]:

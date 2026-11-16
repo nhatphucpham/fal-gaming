@@ -94,7 +94,9 @@ test drives the screen through them.
 | `home_requested` | signal | The result's "Về màn hình chính" or a confirmed retreat |
 | `became_idle` | signal | After each playback, when the next tap is taken |
 
-`MusterScreen` (Control): `scenario`; `get_squad(slot)`, `get_capacity(slot)`
+`MusterScreen` (Control): `scenario`; its leader cards (`LeaderCard<slot>`)
+and soldier chips pass drags on to the page's ScrollContainer, and a card
+takes a tap only when press and release are within 24 px; `get_squad(slot)`, `get_capacity(slot)`
 (from a scratch `TacticsBattle`), `select_soldier(leader_slot, soldier_slot)`
 (again to put it back), `get_picked()`, `move_selected_to(leader_slot) ->
 bool` (false when full), `start_battle()`; signals `battle_requested(squads)`
@@ -181,7 +183,10 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   mid-playback.
 - `Tests/muster_test.gd`: Main's title "Chiến Dịch" to the muster screen,
   squads and capacities, a soldier moved and one refused, "Xuất quân" to the
-  tactics screen with those squads, and a double "Rút" back to the title.
+  tactics screen with those squads, and a double "Rút" back to the title;
+  then, with touch emulated, taps on a chip and a leader card move a
+  soldier, and drags that start on a card or a chip scroll the page
+  without picking or moving anyone.
 
 Run one with
 `godot --headless --path . --script res://Tests/tactics_screen_test.gd`.

@@ -24,8 +24,8 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 - Chiến Dịch: a turn-based tactics battle from the title. "Điểm binh" shows
   the objective, the terrains and both sides' leaders, and lets soldiers move
-  between our leaders while there is room; "Xuất quân" starts the river
-  crossing. Tap a leader to see where it can go and whom it can hit, tap a
+  between our leaders while there is room (a drag on a leader or a soldier
+  scrolls the page); "Xuất quân" starts the river crossing. Tap a leader to see where it can go and whom it can hit, tap a
   cell to see where its soldiers will stand, tap an enemy for the exact
   forecast (hits, damage both ways, hp after, what changes them), and tap
   again or the button to confirm. Pick one of five orders for the squad,
