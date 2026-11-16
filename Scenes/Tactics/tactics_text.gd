@@ -3,7 +3,9 @@ extends RefCounted
 ## Player-facing text for the tactics screens, looked up from the tactics
 ## catalog by id: names of units, terrains, keywords, passives, skills,
 ## zones, orders and charges, terrain effect lines and the forecast's
-## modifier names. Presentation only; it formats data, it decides nothing.
+## modifier names. Leaders made at runtime (named soldiers) and the names of
+## roster soldiers are registered on it. Presentation only; it formats
+## data, it decides nothing.
 ## [codeblock]
 ## var text := TacticsText.new(catalog)
 ## label.text = text.unit_name(battle.get_unit_state(0))
@@ -13,15 +15,26 @@ extends RefCounted
 const ORDERS: Array[StringName] = [&"order.follow", &"order.vanguard", &"order.flank", &"order.hold", &"order.free"]
 
 var catalog: TacticsCatalog
+## Leaders that are not in the catalog, by id (register_unit).
+var extra_units: Dictionary = {}
+## Names of roster soldiers by record id (get_unit_state's record_id).
+var person_names: Dictionary = {}
 
 
 func _init(tactics_catalog: TacticsCatalog) -> void:
 	catalog = tactics_catalog
 
 
+## Lets unit_name() and unit_data() find a leader made at runtime.
+func register_unit(data: TacticsUnitData) -> void:
+	extra_units[data.id] = data
+
+
 ## The translated name of a unit dictionary (get_unit_state) or a leader
-## or troop id.
+## or troop id; a roster soldier with a name goes by it.
 func unit_name(unit: Variant) -> String:
+	if unit is Dictionary and person_names.has(int(unit.get("record_id", -1))):
+		return person_names[int(unit["record_id"])]
 	var id: StringName = unit["id"] if unit is Dictionary else unit
 	var data := unit_data(id)
 	return tr(data.name_key) if data != null else String(id)
@@ -29,6 +42,8 @@ func unit_name(unit: Variant) -> String:
 
 ## The leader or troop resource with this id, or null.
 func unit_data(id: StringName) -> TacticsUnitData:
+	if extra_units.has(id):
+		return extra_units[id]
 	var leader := catalog.get_leader(id)
 	if leader != null:
 		return leader
@@ -73,6 +88,11 @@ func skill_name(id: StringName) -> String:
 func zone_name(id: StringName) -> String:
 	var zone := catalog.get_zone(id)
 	return tr(zone.name_key) if zone != null else String(id)
+
+
+func incident_name(id: StringName) -> String:
+	var incident := catalog.get_incident(id)
+	return tr(incident.name_key) if incident != null else String(id)
 
 
 func passive_name(id: StringName) -> String:
@@ -132,7 +152,7 @@ func skill_outcome(is_ours: bool, hit_count: int, buffed_count: int, zone_id: St
 
 ## The passive names of a leader id, joined; empty for a troop.
 func leader_passive_names(id: StringName) -> String:
-	var leader := catalog.get_leader(id)
+	var leader := unit_data(id) as TacticsLeaderData
 	if leader == null:
 		return ""
 	var names: PackedStringArray = []

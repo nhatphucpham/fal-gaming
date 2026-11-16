@@ -87,7 +87,7 @@ class TacticsIncidentRulesData : public Resource {
 	int traitor_marks_to_return = 2;
 	int karma_keep_pct = 50;
 	int named_lead_capacity = 2;
-	int named_hp_pct = 90;
+	int named_hp_pct = 130;
 	int named_attack_pct = 110;
 	Ref<TacticsSkillData> named_skill;
 

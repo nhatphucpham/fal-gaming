@@ -25,6 +25,6 @@ marks_to_name = 3
 traitor_marks_to_return = 2
 karma_keep_pct = 50
 named_lead_capacity = 2
-named_hp_pct = 90
+named_hp_pct = 130
 named_attack_pct = 110
 named_skill = ExtResource("named_skill")

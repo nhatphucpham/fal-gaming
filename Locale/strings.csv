@@ -524,3 +524,42 @@ TACTICS_PASSIVE_MARK_BETRAY,Dấu Phản,Betray mark
 TACTICS_PASSIVE_MARK_BETRAY_DESC,Thêm 15% công.,+15% attack.
 TACTICS_SKILL_NAMED_RALLY,Hô quân,Rally
 TACTICS_SKILL_NAMED_RALLY_DESC,Sau 3 lần giao chiến: cả toán thêm 20% công trong 2 vòng.,After 3 engagements: the squad gets +20% attack for 2 rounds.
+NAME_NUMBER_1,Cả,One
+NAME_NUMBER_2,Hai,Two
+NAME_NUMBER_3,Ba,Three
+NAME_NUMBER_4,Tư,Four
+NAME_NUMBER_5,Năm,Five
+NAME_NUMBER_6,Sáu,Six
+NAME_NUMBER_7,Bảy,Seven
+NAME_NUMBER_8,Tám,Eight
+NAME_NUMBER_9,Chín,Nine
+NAME_NUMBER_10,Mười,Ten
+NAME_ORDINAL_1,nhất,first
+NAME_ORDINAL_2,hai,second
+NAME_ORDINAL_3,ba,third
+NAME_ORDINAL_4,tư,fourth
+NAME_ORDINAL_5,năm,fifth
+NAME_ORDINAL_6,sáu,sixth
+NAME_ORDINAL_7,bảy,seventh
+NAME_ORDINAL_8,tám,eighth
+NAME_ORDINAL_9,chín,ninth
+NAME_ORDINAL_10,mười,tenth
+NAME_PLACE_PLAIN,Đồng,Field
+NAME_PLACE_FOREST,Rừng,Wood
+NAME_PLACE_HILL,Đồi,Hill
+NAME_PLACE_RIVER,Sông,River
+NAME_PLACE_FORD,Bến,Ford
+NAME_PLACE_BRIDGE,Cầu,Bridge
+NAME_PLACE_FORT,Đồn,Fort
+NAME_PLACE_VILLAGE,Làng,Village
+ROSTER_PLAIN_NAME_FORMAT,%s số %d,%s no. %d
+BIO_OPENING_FORMAT,%s thứ %s của toán %s.,"%s, the %s of %s's squad."
+BIO_MARK_RESCUE_FORMAT,"Vòng %d, ở %s, lao ra đỡ đòn thay %s.","Round %d, at the %s, took the blows meant for %s."
+BIO_MARK_STAND_FORMAT,"Vòng %d, ở %s, một mình đứng chặn khi toán của %s đã lùi.","Round %d, at the %s, stood alone when %s's squad fell back."
+BIO_MARK_SURGE_FORMAT,"Vòng %d, ở %s, thấy đồng đội gục, xông lên dưới cờ %s.","Round %d, at the %s, saw a comrade fall and charged under %s's banner."
+BIO_MARK_DISCONTENT_FORMAT,"Vòng %d, ở %s, bị đem làm mồi mãi, cãi lệnh %s.","Round %d, at the %s, tired of being bait, defied %s."
+BIO_MARK_RIOT_FORMAT,"Vòng %d, ở %s, làm loạn khi toán của %s tan tác.","Round %d, at the %s, ran riot as %s's squad broke."
+BIO_MARK_FLEE_FORMAT,"Vòng %d, ở %s, bỏ %s mà chạy.","Round %d, at the %s, left %s and ran."
+BIO_MARK_BETRAY_FORMAT,"Vòng %d, ở %s, bỏ %s theo giặc.","Round %d, at the %s, left %s for the enemy."
+BIO_CLOSING_FORMAT,Người trong toán gọi là %s.,The squad calls them %s.
+ROSTER_MARK_LINE_FORMAT,%s · %s · vòng %d · dưới cờ %s,%s · %s · round %d · under %s
