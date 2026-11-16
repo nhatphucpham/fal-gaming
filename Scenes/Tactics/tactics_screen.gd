@@ -1,0 +1,691 @@
+class_name TacticsScreen
+extends Control
+## The tactics battle screen: a top bar (round, phase, hint, "Rút"), the
+## map, and the bottom panel with a card or forecast over one row of
+## buttons. Taps on the map select, preview and confirm; the screen sends
+## commands to its TacticsBattle and plays the events back through
+## TacticsPlayback, then brings the map in line with the battle. It holds
+## no rules: every list of cells, target and forecast comes from the
+## battle. See Docs/systems/tactics_screen.md.
+## [codeblock]
+## var screen := TacticsScreen.new()
+## screen.scenario = load("res://Data/Tactics/Scenarios/river_crossing.tres")
+## screen.home_requested.connect(show_title)
+## [/codeblock]
+
+signal home_requested()
+## Every time the screen is ready for the next tap (after a playback).
+signal became_idle()
+
+enum Mode {IDLE, SELECTED, MOVE_PREVIEW, FORECAST, ORDER_PICK, SKILL_TARGET, SKILL_PREVIEW, BUSY, ENDED}
+
+const CATALOG_PATH: String = "res://Data/Tactics/tactics_catalog.tres"
+const LOOKS_PATH: String = "res://Data/Tactics/Looks/skill_looks.tres"
+const TOP_BAR_PX: float = 92.0
+const PANEL_PX: float = 256.0
+const RETREAT_ARM_SEC: float = 3.0
+const NO_CELL := Vector2i(-1, -1)
+
+var scenario: TacticsScenarioData
+## One Array of TacticsTroopData per leader of the player's side, from the
+## muster screen; empty keeps the scenario's squads.
+var squads: Array = []
+var catalog: TacticsCatalog
+## Tests: playback steps end at once and close-ups are skipped.
+var is_instant: bool = false
+var player_side: int = 0
+
+var _battle: TacticsBattle
+var _text: TacticsText
+var _map: TacticsMapView
+var _panel: TacticsPanel
+var _banner: TacticsBanner
+var _close_up: TacticsCloseUp
+var _result: ResultBanner
+var _playback: TacticsPlayback
+var _skip_catcher: Control
+var _round_label: Label
+var _hint_label: Label
+var _retreat_button: PressButton
+var _mode: Mode = Mode.IDLE
+var _selected: int = -1
+var _pending_cell := NO_CELL
+var _pending_target: int = -1
+var _units: Array = []
+var _zones: Array = []
+var _intents: Array = []
+var _is_retreat_armed: bool = false
+var _retreat_arm_count: int = 0
+
+
+func _ready() -> void:
+	theme = GameTheme.create()
+	if catalog == null:
+		catalog = load(CATALOG_PATH) as TacticsCatalog
+	_text = TacticsText.new(catalog)
+	_battle = TacticsBattle.new()
+	_battle.name = "Battle"
+	add_child(_battle)
+	var is_loaded := _battle.load_scenario_with_squads(scenario, player_side, squads) if not squads.is_empty() else _battle.load_scenario(scenario)
+	if not is_loaded:
+		push_error("TacticsScreen: the scenario %s did not load" % scenario.id)
+		return
+	_build()
+	_map.setup(_battle, scenario.map.objective_cell if scenario.map.objective_side == player_side else NO_CELL)
+	_banner.max_rounds = scenario.rules.max_rounds
+	_units = _battle.get_units()
+	for state: Dictionary in _units:
+		var piece := TacticsPieceView.new()
+		var data := _text.unit_data(state["id"])
+		piece.setup(state, TacticsPainter.glyph_for(data.base_class.id if data != null else &"", state["keywords"]))
+		_map.add_piece(piece, state["cell"])
+	_sync()
+	Sound.play_music(&"music_battle")
+	_run(_battle.start())
+
+
+## The cell was tapped: selects, previews or confirms by what is there
+## and what is selected now. Ignored while a playback runs.
+func tap_cell(cell: Vector2i) -> void:
+	if _mode == Mode.BUSY or _mode == Mode.ENDED or not _map.is_on_map(cell):
+		return
+	_disarm_retreat()
+	var unit := _unit_at(cell)
+	match _mode:
+		Mode.MOVE_PREVIEW:
+			if cell == _pending_cell:
+				confirm()
+				return
+		Mode.FORECAST:
+			if unit == _pending_target:
+				confirm()
+				return
+		Mode.SKILL_TARGET, Mode.SKILL_PREVIEW:
+			if _mode == Mode.SKILL_PREVIEW and cell == _pending_cell:
+				confirm()
+			elif _battle.get_skill_cells(_selected).has(cell):
+				_preview_skill(cell)
+			else:
+				select_unit(_selected)
+			return
+	if _is_commandable(_selected) and _mode != Mode.IDLE:
+		if unit >= 0 and _battle.get_attack_targets(_selected).has(unit):
+			_show_forecast(unit)
+			return
+		if unit < 0 and _battle.can_move(_selected) and _battle.get_reachable_cells(_selected).has(cell):
+			_preview_move(cell)
+			return
+	# Anything else: another unit is selected; a tap elsewhere steps back.
+	if unit >= 0 and unit != _selected:
+		select_unit(unit)
+	elif _mode in [Mode.MOVE_PREVIEW, Mode.FORECAST, Mode.ORDER_PICK]:
+		select_unit(_selected)
+	elif unit < 0 and _mode == Mode.IDLE:
+		_show_terrain(cell)
+	else:
+		_go_idle()
+
+
+## Selects a unit: ours shows where it can go and what it can hit; any
+## other shows its card (and an enemy's intent).
+func select_unit(unit: int) -> void:
+	if _mode == Mode.BUSY or _mode == Mode.ENDED or unit < 0 or not _units[unit]["alive"]:
+		return
+	_selected = unit
+	_pending_cell = NO_CELL
+	_pending_target = -1
+	_mode = Mode.SELECTED
+	var state: Dictionary = _units[unit]
+	var marks := {"selected": state["cell"]}
+	if _is_commandable(unit):
+		if _battle.can_move(unit):
+			marks["reachable"] = _battle.get_reachable_cells(unit)
+		marks["attackable"] = _cells_of(_battle.get_attack_targets(unit))
+		_set_hint("TACTICS_HINT_SELECTED" if _battle.can_act(unit) else "TACTICS_HINT_DONE")
+	elif state["role"] == &"leader" and state["side"] != player_side:
+		marks["threat"] = _battle.get_reachable_cells(unit)
+		_set_hint("TACTICS_HINT_IDLE")
+	_map.set_marks(marks)
+	_show_unit_card(unit)
+	_panel.set_buttons(_unit_buttons(unit))
+
+
+## Confirms what is previewed: the move, the attack or the skill.
+func confirm() -> void:
+	match _mode:
+		Mode.MOVE_PREVIEW:
+			_run(_battle.move_leader(_selected, _pending_cell))
+		Mode.FORECAST:
+			_run(_battle.attack(_selected, _pending_target))
+		Mode.SKILL_PREVIEW:
+			_run(_battle.use_skill(_selected, _pending_cell))
+
+
+## Back one step: a preview to its leader, a selection to nothing.
+func cancel() -> void:
+	if _mode in [Mode.MOVE_PREVIEW, Mode.FORECAST, Mode.ORDER_PICK, Mode.SKILL_TARGET, Mode.SKILL_PREVIEW]:
+		select_unit(_selected)
+	elif _mode == Mode.SELECTED:
+		_go_idle()
+
+
+## Presses a panel button by its action, as a tap on it would.
+func press_button(action: StringName) -> void:
+	_on_action(action)
+
+
+func choose_order(order: StringName) -> void:
+	if _mode != Mode.ORDER_PICK:
+		return
+	if order == _units[_selected]["order"]:
+		select_unit(_selected)
+		return
+	_run(_battle.set_order(_selected, order))
+
+
+## The retreat button: the first tap asks, a second within a few seconds
+## leaves the battle.
+func retreat() -> void:
+	if _mode == Mode.ENDED:
+		return
+	if _is_retreat_armed:
+		home_requested.emit()
+		return
+	_is_retreat_armed = true
+	_retreat_arm_count += 1
+	_retreat_button.theme_type_variation = &"PrimaryButton"
+	_hint_label.text = tr("TACTICS_RETREAT_CONFIRM")
+	var arm_count := _retreat_arm_count
+	get_tree().create_timer(RETREAT_ARM_SEC).timeout.connect(func() -> void:
+		if arm_count == _retreat_arm_count:
+			_disarm_retreat())
+
+
+func is_busy() -> bool:
+	return _mode == Mode.BUSY
+
+
+func get_mode() -> Mode:
+	return _mode
+
+
+func get_selected() -> int:
+	return _selected
+
+
+func get_battle() -> TacticsBattle:
+	return _battle
+
+
+func get_map() -> TacticsMapView:
+	return _map
+
+
+func get_panel() -> TacticsPanel:
+	return _panel
+
+
+func get_playback() -> TacticsPlayback:
+	return _playback
+
+
+func get_close_up() -> TacticsCloseUp:
+	return _close_up
+
+
+func get_result_banner() -> ResultBanner:
+	return _result
+
+
+func get_retreat_button() -> PressButton:
+	return _retreat_button
+
+
+func _build() -> void:
+	var background := ColorRect.new()
+	background.color = Palette.BACKDROP
+	background.set_anchors_preset(Control.PRESET_FULL_RECT)
+	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(background)
+	var map_area := CenterContainer.new()
+	map_area.set_anchors_preset(Control.PRESET_FULL_RECT)
+	map_area.offset_top = TOP_BAR_PX
+	map_area.offset_bottom = -PANEL_PX
+	map_area.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(map_area)
+	_map = TacticsMapView.new()
+	_map.cell_tapped.connect(tap_cell)
+	map_area.add_child(_map)
+	_build_top_bar()
+	_panel = TacticsPanel.new()
+	_panel.anchor_top = 1.0
+	_panel.anchor_right = 1.0
+	_panel.anchor_bottom = 1.0
+	_panel.offset_top = -PANEL_PX
+	_panel.action_pressed.connect(_on_action)
+	_panel.order_chosen.connect(choose_order)
+	add_child(_panel)
+	_banner = TacticsBanner.new()
+	add_child(_banner)
+	_skip_catcher = Control.new()
+	_skip_catcher.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_skip_catcher.mouse_filter = Control.MOUSE_FILTER_STOP
+	_skip_catcher.visible = false
+	_skip_catcher.gui_input.connect(_on_skip_input)
+	add_child(_skip_catcher)
+	_close_up = TacticsCloseUp.new()
+	add_child(_close_up)
+	_result = ResultBanner.new()
+	_result.button_pressed.connect(home_requested.emit)
+	add_child(_result)
+	_playback = TacticsPlayback.new()
+	_playback.map = _map
+	_playback.close_up = _close_up
+	_playback.banner = _banner
+	_playback.text = _text
+	_playback.looks = load(LOOKS_PATH) as TacticsSkillLookSet
+	_playback.player_side = player_side
+	_playback.is_instant = is_instant
+	add_child(_playback)
+
+
+func _build_top_bar() -> void:
+	var bar := PanelContainer.new()
+	bar.anchor_right = 1.0
+	bar.offset_bottom = TOP_BAR_PX
+	var box := GameTheme.make_panel(Palette.PANEL, 0, 4)
+	box.content_margin_left = 16
+	box.content_margin_right = 8
+	box.content_margin_top = 2
+	box.content_margin_bottom = 2
+	bar.add_theme_stylebox_override(&"panel", box)
+	add_child(bar)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 10)
+	bar.add_child(row)
+	var texts := VBoxContainer.new()
+	texts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	texts.alignment = BoxContainer.ALIGNMENT_CENTER
+	texts.add_theme_constant_override(&"separation", 0)
+	row.add_child(texts)
+	_round_label = _bar_label(28, Palette.GOLD)
+	texts.add_child(_round_label)
+	_hint_label = _bar_label(21, Palette.CREAM)
+	texts.add_child(_hint_label)
+	_retreat_button = PressButton.new()
+	_retreat_button.text = "BUTTON_RETREAT"
+	_retreat_button.focus_mode = Control.FOCUS_NONE
+	_retreat_button.custom_minimum_size = Vector2(140, 88)
+	_retreat_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_retreat_button.add_theme_font_size_override(&"font_size", 26)
+	_retreat_button.pressed.connect(func() -> void:
+		Sound.play(&"ui_tap")
+		retreat())
+	row.add_child(_retreat_button)
+
+
+func _bar_label(font_px: int, color: Color) -> Label:
+	var label := Label.new()
+	label.add_theme_font_size_override(&"font_size", font_px)
+	label.add_theme_color_override(&"font_color", color)
+	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	label.clip_text = true
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return label
+
+
+# Plays a command's events, then brings the map in line with the battle.
+func _run(events: Array) -> void:
+	if events.is_empty():
+		_after_playback()
+		return
+	_mode = Mode.BUSY
+	_skip_catcher.visible = true
+	_map.set_marks({})
+	_panel.set_buttons([{"action": &"end_turn", "text": "BUTTON_END_TURN", "enabled": false}])
+	_playback.reset(_units, _zones)
+	await _playback.play(events)
+	_skip_catcher.visible = false
+	_after_playback()
+
+
+func _after_playback() -> void:
+	_sync()
+	if _battle.is_finished():
+		_show_end()
+		return
+	var keep := _selected
+	_mode = Mode.IDLE
+	if _is_commandable(keep) and (_battle.can_act(keep) or _battle.can_move(keep)):
+		select_unit(keep)
+	else:
+		_go_idle()
+	became_idle.emit()
+
+
+# Every piece, zone and intent as the battle has them now.
+func _sync() -> void:
+	_units = _battle.get_units()
+	_zones = _battle.get_zones()
+	for state: Dictionary in _units:
+		var piece := _map.get_piece(state["index"])
+		if piece == null:
+			continue
+		var is_alive: bool = state["alive"]
+		piece.is_dead = not is_alive
+		piece.visible = is_alive
+		piece.hp = state["hp"]
+		piece.position = _map.cell_to_local(state["cell"])
+		piece.is_done = state["role"] == &"leader" and state["side"] == player_side and _battle.get_active_side() == player_side and not _battle.can_act(state["index"]) and not _battle.can_move(state["index"])
+		if state["role"] == &"leader":
+			var charge := _battle.get_skill_charge(state["index"])
+			piece.set_charge(charge.get("value", 0), charge.get("threshold", 0))
+	_map.set_zones(_zones)
+	_intents.clear()
+	if _battle.get_active_side() == player_side and not _battle.is_finished():
+		for intent: Dictionary in _battle.get_enemy_intents():
+			var entry := intent.duplicate()
+			entry["from"] = _units[intent["unit"]]["cell"]
+			_intents.append(entry)
+	_map.set_intents(_intents)
+	_round_label.text = "%s · %s" % [tr("TACTICS_ROUND_FORMAT") % [_battle.get_round(), scenario.rules.max_rounds], tr("TACTICS_PHASE_PLAYER") if _battle.get_active_side() == player_side else tr("TACTICS_PHASE_ENEMY")]
+
+
+func _go_idle() -> void:
+	_mode = Mode.IDLE
+	_selected = -1
+	_pending_cell = NO_CELL
+	_pending_target = -1
+	_map.set_marks({})
+	var is_all_done := true
+	for state: Dictionary in _units:
+		if _is_commandable(state["index"]) and _battle.can_act(state["index"]):
+			is_all_done = false
+	_set_hint("TACTICS_HINT_ALL_DONE" if is_all_done else "TACTICS_HINT_IDLE")
+	var objective := _text.terrain_name(_map.get_terrain_at(scenario.map.objective_cell))
+	var lines: Array[String] = [tr("TACTICS_OBJECTIVE_SHORT_FORMAT") % objective, tr(scenario.name_key), ""]
+	_panel.show_card(tr("TACTICS_PHASE_PLAYER"), Palette.GOLD, tr("TACTICS_ROUND_FORMAT") % [_battle.get_round(), scenario.rules.max_rounds], lines)
+	_panel.set_buttons(_end_turn_button(is_all_done))
+
+
+func _end_turn_button(is_primary: bool) -> Array[Dictionary]:
+	var buttons: Array[Dictionary] = [{"action": &"end_turn", "text": "BUTTON_END_TURN", "primary": is_primary, "enabled": _battle.get_active_side() == player_side}]
+	return buttons
+
+
+func _unit_buttons(unit: int) -> Array[Dictionary]:
+	if not _is_commandable(unit):
+		return _end_turn_button(false)
+	var can_act := _battle.can_act(unit)
+	var buttons: Array[Dictionary] = [
+		{"action": &"skill", "text": "BUTTON_SKILL", "enabled": can_act and not _battle.get_skill_cells(unit).is_empty(), "primary": can_act and bool(_battle.get_skill_charge(unit).get("is_ready", false))},
+		{"action": &"order", "text": "BUTTON_ORDER"},
+		{"action": &"wait", "text": "BUTTON_WAIT", "enabled": can_act},
+		{"action": &"end_turn", "text": "BUTTON_END_TURN", "primary": not can_act},
+	]
+	return buttons
+
+
+func _on_action(action: StringName) -> void:
+	if _mode == Mode.BUSY or _mode == Mode.ENDED:
+		return
+	_disarm_retreat()
+	match action:
+		&"end_turn":
+			_selected = -1
+			_run(_battle.end_phase())
+		&"wait":
+			_run(_battle.wait(_selected))
+		&"skill":
+			_aim_skill()
+		&"order":
+			_mode = Mode.ORDER_PICK
+			_set_hint("TACTICS_HINT_ORDER")
+			_panel.show_orders(_units[_selected]["order"], _text)
+			_panel.set_buttons([{"action": &"cancel", "text": "BUTTON_CANCEL"}])
+		&"confirm_move", &"attack", &"cast":
+			confirm()
+		&"cancel":
+			cancel()
+
+
+func _on_skip_input(event: InputEvent) -> void:
+	var button := event as InputEventMouseButton
+	if button != null and button.button_index == MOUSE_BUTTON_LEFT and not button.pressed:
+		_playback.skip_step()
+
+
+func _preview_move(cell: Vector2i) -> void:
+	_mode = Mode.MOVE_PREVIEW
+	_pending_cell = cell
+	var leader: Dictionary = _units[_selected]
+	var ghosts: Array = [{"cell": cell, "from": leader["cell"], "side": player_side, "is_leader": true}]
+	for placement: Dictionary in _battle.preview_squad(_selected, cell):
+		ghosts.append({"cell": placement["cell"], "from": _units[placement["unit"]]["cell"], "side": player_side, "is_leader": false})
+	_map.set_marks({
+		"selected": leader["cell"], "reachable": _battle.get_reachable_cells(_selected),
+		"path": _battle.get_path_to(_selected, cell), "ghosts": ghosts, "target": NO_CELL,
+	})
+	_set_hint("TACTICS_HINT_PREVIEW")
+	_show_unit_card(_selected)
+	_panel.set_buttons([
+		{"action": &"cancel", "text": "BUTTON_CANCEL"},
+		{"action": &"confirm_move", "text": "BUTTON_CONFIRM_MOVE", "primary": true},
+	])
+
+
+func _show_forecast(target: int) -> void:
+	var forecast := _battle.forecast_engagement(_selected, target)
+	if not forecast.get("is_valid", false):
+		return
+	_mode = Mode.FORECAST
+	_pending_target = target
+	var attacker: Dictionary = _units[_selected]
+	var defender: Dictionary = _units[target]
+	_map.set_marks({"selected": attacker["cell"], "attackable": _cells_of(_battle.get_attack_targets(_selected)), "target": defender["cell"]})
+	var left: Array[String] = [
+		_text.unit_name(attacker),
+		tr("FORECAST_HITS_FORMAT") % [forecast["attacker_hits"], forecast["attacker_damage_per_hit"]],
+		_hp_line(attacker["hp"], forecast["attacker_hp_after"], forecast["is_attacker_dead"]),
+	]
+	var right: Array[String] = [
+		_text.unit_name(defender),
+		tr("FORECAST_HITS_FORMAT") % [forecast["defender_hits"], forecast["defender_damage_per_hit"]] if forecast["can_counter"] else tr("FORECAST_NO_COUNTER"),
+		_hp_line(defender["hp"], forecast["defender_hp_after"], forecast["is_defender_dead"]),
+	]
+	var notes: PackedStringArray = []
+	if forecast["is_first_strike"]:
+		notes.append(tr("FORECAST_FIRST_STRIKE_FORMAT") % _text.unit_name(defender))
+	var sides: PackedStringArray = []
+	for pair: Array in [[attacker, forecast["attacker_modifiers"]], [defender, forecast["defender_modifiers"]]]:
+		if not (pair[1] as Array).is_empty():
+			sides.append(tr("FORECAST_SIDE_FORMAT") % [_text.unit_name(pair[0]), _text.keyword_names(pair[1])])
+	notes.append(tr("FORECAST_MODIFIERS_FORMAT") % " · ".join(sides) if not sides.is_empty() else tr("FORECAST_NO_MODIFIERS"))
+	_panel.show_forecast(left, right, " · ".join(notes))
+	_set_hint("TACTICS_HINT_SELECTED")
+	_panel.set_buttons([
+		{"action": &"cancel", "text": "BUTTON_CANCEL"},
+		{"action": &"attack", "text": "BUTTON_ATTACK", "primary": true},
+	])
+
+
+func _hp_line(hp: int, hp_after: int, is_dead: bool) -> String:
+	var line: String = tr("FORECAST_HP_FORMAT") % [hp, hp_after]
+	return line + " · " + tr("FORECAST_DIES") if is_dead else line
+
+
+func _aim_skill() -> void:
+	var cells := _battle.get_skill_cells(_selected)
+	if cells.is_empty():
+		return
+	# A skill with one possible cell (cast on the leader itself) goes
+	# straight to its preview.
+	if cells.size() == 1:
+		_preview_skill(cells[0])
+		return
+	_mode = Mode.SKILL_TARGET
+	_pending_cell = NO_CELL
+	_map.set_marks({"selected": _units[_selected]["cell"], "skill_cells": cells})
+	_set_hint("TACTICS_HINT_SKILL")
+	_show_unit_card(_selected)
+	_panel.set_buttons([{"action": &"cancel", "text": "BUTTON_CANCEL"}])
+
+
+func _preview_skill(cell: Vector2i) -> void:
+	var preview := _battle.preview_skill(_selected, cell)
+	if not preview.get("is_valid", false):
+		return
+	_mode = Mode.SKILL_PREVIEW
+	_pending_cell = cell
+	var marks := {"selected": _units[_selected]["cell"], "skill_cells": _battle.get_skill_cells(_selected), "area": preview["cells"], "target": cell}
+	_map.set_marks(marks)
+	var charge := _battle.get_skill_charge(_selected)
+	var skill_id: StringName = charge["skill"]
+	var lines: Array[String] = []
+	for result: Dictionary in preview["results"]:
+		if lines.size() < 3:
+			var line: String = tr("SKILL_PREVIEW_HIT_FORMAT") % [_text.unit_name(_units[result["unit"]]), result["amount"], result["hp_after"]]
+			lines.append(line + " · " + tr("FORECAST_DIES") if result["is_dead"] else line)
+	var side_note: String = tr("SKILL_PREVIEW_TARGETS_FORMAT") % (preview["results"] as Array).size()
+	if (preview["results"] as Array).is_empty():
+		side_note = tr("SKILL_PREVIEW_BUFF_FORMAT") % (preview["buffed"] as Array).size()
+	var zone := _skill_zone_name(skill_id)
+	if not (preview["zone_cells"] as Array).is_empty() and not zone.is_empty():
+		lines.resize(mini(lines.size(), 2))
+		lines.append(tr("SKILL_PREVIEW_ZONE_FORMAT") % zone)
+	if lines.is_empty():
+		lines.append(tr(catalog.get_skill(skill_id).description_key))
+	_panel.show_card(_text.skill_name(skill_id), Palette.GOLD, side_note, lines)
+	_set_hint("TACTICS_HINT_SKILL")
+	_panel.set_buttons([
+		{"action": &"cancel", "text": "BUTTON_CANCEL"},
+		{"action": &"cast", "text": "BUTTON_CAST", "primary": true},
+	])
+
+
+func _skill_zone_name(skill_id: StringName) -> String:
+	var skill := catalog.get_skill(skill_id)
+	if skill == null:
+		return ""
+	for effect: TacticsSkillEffectData in skill.effects:
+		if effect.zone != null:
+			return tr(effect.zone.name_key)
+	return ""
+
+
+func _show_unit_card(unit: int) -> void:
+	var state: Dictionary = _units[unit]
+	var lines: Array[String] = []
+	var title_color := TacticsPainter.PLAYER_FILL.lightened(0.45) if state["side"] == player_side else TacticsPainter.ENEMY_FILL.lightened(0.35)
+	var side_note: String = tr("TACTICS_HP_FORMAT") % [state["hp"], state["max_hp"]]
+	if state["role"] == &"leader":
+		var charge := _battle.get_skill_charge(unit)
+		if charge.get("is_ready", false):
+			lines.append("%s · %s" % [_text.skill_name(charge["skill"]), tr("TACTICS_SKILL_READY")])
+		else:
+			lines.append(tr("TACTICS_SKILL_LINE_FORMAT") % [_text.skill_name(charge["skill"]), _text.charge_name(charge["charge"]), charge["value"], charge["threshold"]])
+		var squad_line: String = tr("TACTICS_ORDER_FORMAT") % _text.order_name(state["order"]) + " · " + tr("TACTICS_SQUAD_FORMAT") % [_alive_soldiers(state), state["capacity"]]
+		if state["side"] != player_side:
+			squad_line = _intent_text(unit) + " · " + tr("TACTICS_SQUAD_FORMAT") % [_alive_soldiers(state), state["capacity"]]
+		lines.append(squad_line)
+		var passives := _text.leader_passive_names(state["id"])
+		var keywords := _text.keyword_names(state["keywords"])
+		var extra: PackedStringArray = []
+		if not passives.is_empty():
+			extra.append(tr("TACTICS_PASSIVES_FORMAT") % passives)
+		if not keywords.is_empty():
+			extra.append(tr("TACTICS_KEYWORDS_FORMAT") % keywords)
+		lines.append(" · ".join(extra) if not extra.is_empty() else _terrain_line(state["cell"]))
+	else:
+		var leader: int = state["leader"]
+		lines.append(tr("TACTICS_SOLDIER_OF_FORMAT") % _text.unit_name(_units[leader]) if leader >= 0 and _units[leader]["alive"] else tr("TACTICS_NO_LEADER"))
+		var keywords := _text.keyword_names(state["keywords"])
+		lines.append(tr("TACTICS_KEYWORDS_FORMAT") % keywords if not keywords.is_empty() else "")
+		lines.append(_terrain_line(state["cell"]))
+	_panel.show_card(_text.unit_name(state), title_color, side_note, lines)
+
+
+func _show_terrain(cell: Vector2i) -> void:
+	var terrain := _map.get_terrain_at(cell)
+	_map.set_marks({"selected": cell})
+	var lines: Array[String] = [_text.terrain_effects(terrain), "", ""]
+	if cell == scenario.map.objective_cell:
+		lines[1] = tr("TACTICS_OBJECTIVE_SHORT_FORMAT") % _text.terrain_name(terrain)
+	_panel.show_card(_text.terrain_name(terrain), Palette.CREAM, "", lines)
+
+
+func _terrain_line(cell: Vector2i) -> String:
+	var terrain := _map.get_terrain_at(cell)
+	return tr("TACTICS_TERRAIN_FORMAT") % ("%s (%s)" % [_text.terrain_name(terrain), _text.terrain_effects(terrain)])
+
+
+func _intent_text(unit: int) -> String:
+	for intent: Dictionary in _intents:
+		if intent["unit"] != unit:
+			continue
+		match intent["action"]:
+			&"attack":
+				return tr("INTENT_ATTACK_FORMAT") % _text.unit_name(_units[intent["target"]]) if intent["target"] >= 0 else tr("INTENT_WAIT")
+			&"skill":
+				return tr("INTENT_SKILL_FORMAT") % _text.skill_name(_battle.get_skill_charge(unit)["skill"])
+	return tr("INTENT_WAIT")
+
+
+func _alive_soldiers(leader: Dictionary) -> int:
+	var count := 0
+	for soldier: int in leader["soldiers"]:
+		if _units[soldier]["alive"]:
+			count += 1
+	return count
+
+
+func _show_end() -> void:
+	_mode = Mode.ENDED
+	_map.set_marks({})
+	_map.set_intents([])
+	_panel.set_buttons([])
+	var is_win := _battle.get_winner() == player_side
+	var key := "TACTICS_END_%s_%s" % [String(_battle.get_end_reason()).to_upper(), "WIN" if is_win else "LOSS"]
+	Sound.play(&"win" if is_win else &"lose")
+	_hint_label.text = tr(key)
+	var lines: Array[String] = [tr(key), tr(scenario.name_key), ""]
+	_panel.show_card(tr("RESULT_WIN") if is_win else tr("RESULT_LOSS"), Palette.GOLD if is_win else Palette.VERMILION, tr("TACTICS_ROUND_FORMAT") % [_battle.get_round(), scenario.rules.max_rounds], lines)
+	_result.present(is_win, tr(key), [], "BUTTON_HOME")
+
+
+func _is_commandable(unit: int) -> bool:
+	if unit < 0 or unit >= _units.size():
+		return false
+	var state: Dictionary = _units[unit]
+	return state["alive"] and state["role"] == &"leader" and state["side"] == player_side and _battle.get_active_side() == player_side and not _battle.is_finished()
+
+
+# The living unit on a cell, a leader before a soldier; -1 if none.
+func _unit_at(cell: Vector2i) -> int:
+	var found := -1
+	for state: Dictionary in _units:
+		if state["alive"] and state["cell"] == cell:
+			if state["role"] == &"leader":
+				return state["index"]
+			found = state["index"]
+	return found
+
+
+func _cells_of(units: Array) -> Array:
+	var cells: Array = []
+	for unit: int in units:
+		cells.append(_units[unit]["cell"])
+	return cells
+
+
+func _set_hint(key: String) -> void:
+	if not _is_retreat_armed:
+		_hint_label.text = tr(key)
+
+
+func _disarm_retreat() -> void:
+	if not _is_retreat_armed:
+		return
+	_is_retreat_armed = false
+	_retreat_button.theme_type_variation = &""
+	_hint_label.text = tr("TACTICS_HINT_IDLE")

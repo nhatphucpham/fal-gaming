@@ -1,15 +1,18 @@
 extends Node2D
 ## Root of the game: holds the SimClock and the current screen, and moves
-## between screens with a slide: title, run, end, sandbox. The clock does
+## between screens with a slide: title, run, end, sandbox, and the tactics
+## muster and battle. The clock does
 ## not tick by itself here; BattlePlayback drives it at the chosen battle
 ## speed (see Docs/systems/battle_playback.md).
 
 const LOCALE: String = "vi"
 const CATALOG_PATH: String = "res://Data/catalog.tres"
 const SANDBOX_SCENE: PackedScene = preload("res://Scenes/Sandbox/sandbox_screen.tscn")
+const TACTICS_SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/river_crossing.tres"
 const SLIDE_SEC: float = 0.32
 
-## The screen shown now (TitleScreen, RunScreen, EndScreen or SandboxScreen).
+## The screen shown now (TitleScreen, RunScreen, EndScreen, SandboxScreen,
+## MusterScreen or TacticsScreen).
 var current_screen: Control
 
 var _catalog: Catalog
@@ -39,6 +42,7 @@ func show_title() -> void:
 	title.new_run_requested.connect(start_new_run)
 	title.continue_requested.connect(continue_run)
 	title.sandbox_requested.connect(open_sandbox)
+	title.campaign_requested.connect(open_campaign)
 	_switch_to(title, -1.0)
 
 
@@ -70,6 +74,25 @@ func open_sandbox() -> SandboxScreen:
 	sandbox.back_requested.connect(show_title)
 	_switch_to(sandbox, 1.0)
 	return sandbox
+
+
+## "Chiến Dịch": the muster screen of the tactics scenario, then its battle.
+func open_campaign() -> MusterScreen:
+	var muster := MusterScreen.new()
+	muster.scenario = load(TACTICS_SCENARIO_PATH) as TacticsScenarioData
+	muster.back_requested.connect(show_title)
+	muster.battle_requested.connect(func(squads: Array) -> void: open_tactics(muster.scenario, squads))
+	_switch_to(muster, 1.0)
+	return muster
+
+
+func open_tactics(scenario: TacticsScenarioData, squads: Array) -> TacticsScreen:
+	var screen := TacticsScreen.new()
+	screen.scenario = scenario
+	screen.squads = squads
+	screen.home_requested.connect(show_title)
+	_switch_to(screen, 1.0)
+	return screen
 
 
 func _open_run(run: RunState) -> RunScreen:

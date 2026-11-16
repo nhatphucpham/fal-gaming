@@ -1,7 +1,8 @@
 class_name TitleScreen
 extends Control
 ## The title screen: the game name over a few idle unit figures, "Ván mới",
-## "Chơi tiếp" (only when a save exists), "Bàn thử" (the sandbox), "Cách
+## "Chơi tiếp" (only when a save exists), "Chiến Dịch" (the tactics
+## battle), "Bàn thử" (the sandbox), "Cách
 ## chơi", the preparation-time setting and the sound switch (both stored in
 ## user://settings.json). Its first tap unlocks audio (the web needs a
 ## gesture first).
@@ -9,6 +10,7 @@ extends Control
 signal new_run_requested()
 signal continue_requested()
 signal sandbox_requested()
+signal campaign_requested()
 
 ## Who stands on the title backdrop, and where (fractions of the column).
 const FIGURES: Array[Array] = [
@@ -59,6 +61,7 @@ func _ready() -> void:
 	if has_save:
 		rows.add_child(_button("BUTTON_CONTINUE_RUN", continue_requested.emit, true))
 	rows.add_child(_button("BUTTON_NEW_RUN", new_run_requested.emit, not has_save))
+	rows.add_child(_button("BUTTON_CAMPAIGN", campaign_requested.emit, false))
 	var pair := _pair_row(rows)
 	pair.add_child(_button("BUTTON_SANDBOX", sandbox_requested.emit, false, true))
 	pair.add_child(_button("BUTTON_HOWTO", open_how_to, false, true))

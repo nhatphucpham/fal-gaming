@@ -8,7 +8,7 @@ control, engagements with a counter, keywords, orders, passives, charged
 leader skills, zones, an AI that declares its intent, and victory. Integer
 math only, so the same commands give the same events and state hash on every
 device. It does not draw, read input, or touch the auto-battle (`Battle`);
-no scene uses it yet.
+the [Tactics screen](tactics_screen.md) shows it and sends its commands.
 
 ## Layer and files
 
@@ -341,7 +341,6 @@ squad, fuzz and query tests). All four are in CI.
 
 ## Known limits
 
-- No scene, input or presentation yet; no Locale rows for the name keys.
 - The AI is greedy (nearest enemy, one leader at a time), does not use
   orders, does not go for the objective, and casts a skill for its own
   side as soon as it is ready, even with no soldier left to help.

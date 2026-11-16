@@ -1,0 +1,350 @@
+class_name MusterScreen
+extends Control
+## "Điểm binh", before a tactics battle: the objective, a legend of the
+## map's terrains, our leaders with their squads and the enemy's leaders.
+## Tapping a soldier and then another leader moves it there when that
+## leader has room (capacities come from a TacticsBattle loaded with the
+## scenario, so the rules stay in C++). "Xuất quân" hands the squads on.
+## [codeblock]
+## var muster := MusterScreen.new()
+## muster.scenario = scenario
+## muster.battle_requested.connect(func(squads: Array) -> void: ...)
+## [/codeblock]
+
+## `squads`: one Array of TacticsTroopData per leader of side 0, in order.
+signal battle_requested(squads: Array)
+signal back_requested()
+
+const CATALOG_PATH: String = "res://Data/Tactics/tactics_catalog.tres"
+const CHIP_PX := Vector2(100, 90)
+const SWATCH_PX: float = 44.0
+
+var scenario: TacticsScenarioData
+var catalog: TacticsCatalog
+
+var _text: TacticsText
+var _squads: Array[Array] = []
+var _capacities: Array[int] = []
+var _picked := Vector2i(-1, -1)
+var _forces: VBoxContainer
+var _hint: Label
+
+
+func _ready() -> void:
+	theme = GameTheme.create()
+	if catalog == null:
+		catalog = load(CATALOG_PATH) as TacticsCatalog
+	_text = TacticsText.new(catalog)
+	_read_capacities()
+	for leader: TacticsLeaderData in scenario.leaders_a:
+		var squad: Array = []
+		squad.assign(leader.squad)
+		_squads.append(squad)
+	_build()
+	_refresh()
+
+
+## The soldiers the leader at `leader_slot` (in the scenario's order) has now.
+func get_squad(leader_slot: int) -> Array:
+	return _squads[leader_slot]
+
+
+func get_capacity(leader_slot: int) -> int:
+	return _capacities[leader_slot]
+
+
+## Picks the soldier at `soldier_slot` of that leader to move; picking it
+## again puts it back.
+func select_soldier(leader_slot: int, soldier_slot: int) -> void:
+	var slot := Vector2i(leader_slot, soldier_slot)
+	_picked = Vector2i(-1, -1) if _picked == slot else slot
+	if _picked.x >= 0:
+		var troop: TacticsTroopData = _squads[leader_slot][soldier_slot]
+		_hint.text = tr("MUSTER_PICKED_FORMAT") % tr(troop.name_key)
+	else:
+		_hint.text = tr("MUSTER_HINT")
+	_refresh()
+
+
+func get_picked() -> Vector2i:
+	return _picked
+
+
+## Moves the picked soldier to that leader; false (and a hint) when the
+## leader is full or nothing is picked.
+func move_selected_to(leader_slot: int) -> bool:
+	if _picked.x < 0 or _picked.x == leader_slot:
+		return false
+	if _squads[leader_slot].size() >= _capacities[leader_slot]:
+		Sound.play(&"block")
+		_hint.text = tr("MUSTER_FULL_FORMAT") % tr(scenario.leaders_a[leader_slot].name_key)
+		return false
+	var troop: TacticsTroopData = _squads[_picked.x][_picked.y]
+	_squads[_picked.x].remove_at(_picked.y)
+	_squads[leader_slot].append(troop)
+	_picked = Vector2i(-1, -1)
+	Sound.play(&"merge")
+	_hint.text = tr("MUSTER_HINT")
+	_refresh()
+	return true
+
+
+func start_battle() -> void:
+	var squads: Array = []
+	for squad: Array in _squads:
+		var typed: Array[TacticsTroopData] = []
+		typed.assign(squad)
+		squads.append(typed)
+	battle_requested.emit(squads)
+
+
+# The squad capacity of each of our leaders, from the rules in C++.
+func _read_capacities() -> void:
+	var scratch := TacticsBattle.new()
+	if not scratch.load_scenario(scenario):
+		push_error("MusterScreen: the scenario %s did not load" % scenario.id)
+	for state: Dictionary in scratch.get_units():
+		if state["role"] == &"leader" and state["side"] == 0:
+			_capacities.append(int(state["capacity"]))
+	scratch.free()
+
+
+func _build() -> void:
+	var background := Backdrop.new()
+	background.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(background)
+	var page := VBoxContainer.new()
+	page.set_anchors_preset(Control.PRESET_FULL_RECT)
+	page.offset_left = 16
+	page.offset_right = -16
+	page.offset_top = 16
+	page.offset_bottom = -16
+	page.add_theme_constant_override(&"separation", 8)
+	add_child(page)
+	var title := _label("MUSTER_TITLE", 44, Palette.GOLD)
+	title.theme_type_variation = &"TitleLabel"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	page.add_child(title)
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	page.add_child(scroll)
+	var body := VBoxContainer.new()
+	body.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	body.add_theme_constant_override(&"separation", 8)
+	scroll.add_child(body)
+	body.add_child(_objective_panel())
+	body.add_child(_terrain_panel())
+	_forces = VBoxContainer.new()
+	_forces.add_theme_constant_override(&"separation", 10)
+	body.add_child(_forces)
+	body.add_child(_enemy_panel())
+	_hint = _label("MUSTER_HINT", 22, Palette.CREAM)
+	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	page.add_child(_hint)
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override(&"separation", 16)
+	page.add_child(buttons)
+	buttons.add_child(_button("BUTTON_BACK", back_requested.emit, false))
+	buttons.add_child(_button("BUTTON_START_BATTLE", start_battle, true))
+
+
+func _objective_panel() -> Control:
+	var box := _panel()
+	var rows := VBoxContainer.new()
+	box.add_child(rows)
+	rows.add_child(_label(tr(scenario.name_key), 34, Palette.GOLD))
+	var map := scenario.map
+	var cell := map.objective_cell
+	var objective_terrain := map.legend_terrains[map.legend_symbols.find(map.rows[cell.y][cell.x])]
+	var objective := _label(tr("MUSTER_OBJECTIVE_FORMAT") % [tr(objective_terrain.name_key), scenario.rules.max_rounds], 22, Palette.TEXT)
+	objective.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	rows.add_child(objective)
+	return box
+
+
+# One swatch per terrain the map uses, drawn like the map draws it.
+func _terrain_panel() -> Control:
+	var box := _panel()
+	var rows := VBoxContainer.new()
+	rows.add_theme_constant_override(&"separation", 4)
+	box.add_child(rows)
+	rows.add_child(_label("MUSTER_TERRAIN", 28, Palette.GOLD))
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override(&"h_separation", 12)
+	grid.add_theme_constant_override(&"v_separation", 6)
+	rows.add_child(grid)
+	var map := scenario.map
+	for index: int in map.legend_terrains.size():
+		if not "".join(map.rows).contains(map.legend_symbols[index]):
+			continue
+		var terrain := map.legend_terrains[index]
+		var row := HBoxContainer.new()
+		row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_theme_constant_override(&"separation", 8)
+		grid.add_child(row)
+		var swatch := _Swatch.new()
+		swatch.terrain_id = terrain.id
+		swatch.custom_minimum_size = Vector2(SWATCH_PX, SWATCH_PX)
+		row.add_child(swatch)
+		var texts := VBoxContainer.new()
+		texts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		texts.add_theme_constant_override(&"separation", -4)
+		row.add_child(texts)
+		texts.add_child(_label(tr(terrain.name_key), 21, Palette.CREAM))
+		var effects := _label(_text.terrain_effects(terrain.id), 19, Palette.TEXT_DIM)
+		effects.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		effects.clip_text = true
+		texts.add_child(effects)
+	return box
+
+
+func _enemy_panel() -> Control:
+	var box := _panel()
+	var names: PackedStringArray = []
+	for leader: TacticsLeaderData in scenario.leaders_b:
+		names.append(tr("MUSTER_ENEMY_LEADER_FORMAT") % [tr(leader.name_key), leader.squad.size()])
+	var label := _label(tr("MUSTER_ENEMY_FORMAT") % ", ".join(names), 22, TacticsPainter.ENEMY_FILL.lightened(0.4))
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	box.add_child(label)
+	return box
+
+
+# Rebuilds the leader cards (a menu screen; nothing here runs per frame).
+func _refresh() -> void:
+	for child: Node in _forces.get_children():
+		_forces.remove_child(child)
+		child.queue_free()
+	_forces.add_child(_label("MUSTER_FORCES", 28, Palette.GOLD))
+	for slot: int in scenario.leaders_a.size():
+		_forces.add_child(_leader_card(slot))
+
+
+func _leader_card(slot: int) -> Control:
+	var leader: TacticsLeaderData = scenario.leaders_a[slot]
+	var box := _panel()
+	box.mouse_filter = Control.MOUSE_FILTER_STOP
+	box.gui_input.connect(func(event: InputEvent) -> void:
+		var press := event as InputEventMouseButton
+		if press != null and press.button_index == MOUSE_BUTTON_LEFT and not press.pressed:
+			move_selected_to(slot))
+	var rows := VBoxContainer.new()
+	rows.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rows.add_theme_constant_override(&"separation", 2)
+	box.add_child(rows)
+	var head := HBoxContainer.new()
+	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	head.add_theme_constant_override(&"separation", 10)
+	rows.add_child(head)
+	var token := _Token.new()
+	token.is_leader = true
+	token.glyph = TacticsPainter.glyph_for(leader.base_class.id, _keyword_ids(leader))
+	token.custom_minimum_size = Vector2(52, 52)
+	head.add_child(token)
+	var texts := VBoxContainer.new()
+	texts.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	texts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	texts.add_theme_constant_override(&"separation", -2)
+	head.add_child(texts)
+	texts.add_child(_label(tr(leader.name_key), 27, Palette.CREAM))
+	var skill := leader.skill
+	if skill != null:
+		texts.add_child(_label(tr("MUSTER_SKILL_FORMAT") % [tr(skill.name_key), _text.charge_name(skill.charge), skill.charge_threshold], 20, Palette.TEXT_DIM))
+	var is_full := _squads[slot].size() >= _capacities[slot]
+	head.add_child(_label(tr("MUSTER_CAPACITY_FORMAT") % [_squads[slot].size(), _capacities[slot]], 24, Palette.GOLD if is_full else Palette.TEXT))
+	var chips := HBoxContainer.new()
+	chips.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chips.add_theme_constant_override(&"separation", 8)
+	rows.add_child(chips)
+	for soldier_slot: int in _squads[slot].size():
+		chips.add_child(_chip(slot, soldier_slot))
+	return box
+
+
+func _chip(leader_slot: int, soldier_slot: int) -> PressButton:
+	var troop: TacticsTroopData = _squads[leader_slot][soldier_slot]
+	var chip := PressButton.new()
+	chip.focus_mode = Control.FOCUS_NONE
+	chip.custom_minimum_size = CHIP_PX
+	if _picked == Vector2i(leader_slot, soldier_slot):
+		chip.theme_type_variation = &"PrimaryButton"
+	var face := _Token.new()
+	face.glyph = TacticsPainter.glyph_for(troop.base_class.id, _keyword_ids(troop))
+	face.caption = tr(troop.name_key)
+	face.set_anchors_preset(Control.PRESET_FULL_RECT)
+	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip.add_child(face)
+	chip.pressed.connect(func() -> void:
+		Sound.play(&"ui_tap")
+		select_soldier(leader_slot, soldier_slot))
+	return chip
+
+
+func _keyword_ids(unit: TacticsUnitData) -> Array:
+	var ids: Array = []
+	for keyword: TacticsKeywordData in unit.keywords:
+		ids.append(keyword.id)
+	return ids
+
+
+func _panel() -> PanelContainer:
+	var box := PanelContainer.new()
+	var style := GameTheme.make_panel(Palette.PANEL, 16, 4)
+	style.content_margin_left = 14
+	style.content_margin_right = 14
+	style.content_margin_top = 6
+	style.content_margin_bottom = 8
+	box.add_theme_stylebox_override(&"panel", style)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return box
+
+
+func _label(text: String, font_px: int, color: Color) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_size_override(&"font_size", font_px)
+	label.add_theme_color_override(&"font_color", color)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return label
+
+
+func _button(text_key: String, action: Callable, is_primary: bool) -> PressButton:
+	var button := PressButton.new()
+	button.text = text_key
+	button.focus_mode = Control.FOCUS_NONE
+	button.custom_minimum_size = Vector2(0, 96)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if is_primary:
+		button.theme_type_variation = &"PrimaryButton"
+	button.pressed.connect(func() -> void:
+		Sound.play(&"ui_tap")
+		action.call())
+	return button
+
+
+## A terrain swatch for the legend.
+class _Swatch extends Control:
+	var terrain_id: StringName
+
+	func _draw() -> void:
+		TacticsPainter.draw_terrain(self, terrain_id, Rect2(Vector2.ZERO, size))
+		draw_rect(Rect2(Vector2.ZERO, size), Palette.INK, false, 2.0)
+
+
+## A token as the map draws it, with an optional caption under it.
+class _Token extends Control:
+	var glyph: StringName = &"class.sword"
+	var is_leader: bool = false
+	var caption: String = ""
+
+	func _draw() -> void:
+		var c := Vector2(size.x / 2.0, size.y * (0.4 if not caption.is_empty() else 0.5))
+		TacticsPainter.draw_token(self, c, 0, is_leader, glyph, false)
+		if caption.is_empty():
+			return
+		var font := get_theme_default_font()
+		var font_px := 17
+		var width := font.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, font_px).x
+		draw_string(font, Vector2((size.x - width) / 2.0, size.y - 8.0), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, font_px, Palette.CREAM)

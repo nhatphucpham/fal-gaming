@@ -163,7 +163,8 @@ Git.
   [Synergy](Docs/systems/synergy.md), [Formation](Docs/systems/formation.md),
   [Kỳ Ngộ](Docs/systems/epiphany.md), [Cutscene](Docs/systems/cutscene.md),
   [Boss](Docs/systems/boss.md), [Audio](Docs/systems/audio.md),
-  [Voice](Docs/systems/voice.md)
+  [Voice](Docs/systems/voice.md), [Tactics](Docs/systems/tactics.md),
+  [Tactics screen](Docs/systems/tactics_screen.md)
 - [Changelog](CHANGELOG.md)
 - [Agent instructions](AGENTS.md)
 
