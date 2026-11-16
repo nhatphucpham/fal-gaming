@@ -23,9 +23,12 @@ after each command.
     leaders within capacity.
   - `tactics_screen.gd` (`TacticsScreen`): owns the `TacticsBattle` node, the
     tap state machine and the layout (top bar, map, panel, overlays).
-  - `tactics_map_view.gd` (`TacticsMapView`): the board, in layers that
-    redraw only when their content changes; the terrain is painted once into
-    a `SubViewport` texture at the screen's pixel scale.
+  - `tactics_map_view.gd` (`TacticsMapView`): a clipping window onto the
+    board, which zooms and pans; the board's layers redraw only when their
+    content changes and a camera move only moves the board; the terrain is
+    painted once into a `SubViewport` texture at the screen's pixel scale
+    times the zoom (at most 2.5x), painted again only when a closer zoom
+    needs more pixels.
   - `tactics_piece_view.gd` (`TacticsPieceView`): one token with its hp bar
     and charge pips.
   - `tactics_painter.gd` (`TacticsPainter`): static drawing of terrains,
@@ -107,6 +110,47 @@ Incidents on the map:
 - `unit_defected`: the token squashes and comes back in the other side's
   colours.
 
+Taps (the flow a phone player uses):
+
+- Tap one of our leaders: it is selected; blue cells are where it can go,
+  red rings the enemies it can strike this phase (after a walk too), cream
+  circles its squad's slots, and the panel shows its card, the row of five
+  orders and Kỹ năng, Chờ, (Hoàn tác,) Kết lượt.
+- Tap a blue cell: the leader moves at once with its squad. "Hoàn tác"
+  then takes the move back: `TacticsBattle.undo_move()` restores the exact
+  state from before it (same hash), and the pieces slide home (0.25 s,
+  card-flip sound). It is offered only while the battle allows it: after a
+  move whose events were only moves and charge changes, until anything
+  else is done.
+- Press on one of our leaders and drag: the ghosts of the leader and its
+  squad follow the finger over blue cells, with the path; lifting on a
+  blue cell moves there, anywhere else (or a pinch) cancels.
+- Tap a red-ringed enemy: the battle picks the cell to strike from
+  (`get_strike_cell`: not dying, fewest enemies able to reach it, least
+  counter, better terrain, shortest walk) and the forecast shows the walk
+  ("Đi 3 ô rồi đánh"), the ghosts and both sides' hits and hp
+  (`forecast_move_attack`, exact). A second tap on the enemy or "Đánh"
+  walks there and attacks, played as one. To choose the cell by hand, tap
+  a blue cell first, then the enemy.
+- Tap an order in the row: the squad takes it at once (its slots on the
+  map follow); the line under the row says what it does.
+- A leader is done when it acted, or moved and has nothing to strike and
+  no skill to cast; its token dims. When all of ours are done, the hint
+  says "Tự kết lượt…" and the phase ends after 1 s (1.8 s while the last
+  move can be undone); any tap holds it, and "Kết lượt" is always there.
+- Tap any unit for its card: hp, a leader's skill and charge, its order
+  (an enemy leader's declared intent instead), and its passives and
+  keywords with what they do ("Vũ khí dài: Bị áp sát thì ra đòn trước.").
+
+Map camera: it opens at the zoom that fits eight columns across (90 layout
+px a cell, 45 px on a 360-px-wide phone), centred on our leaders; one
+finger drags it (a press that slides more than 24 px is a drag, not a
+tap), two fingers pinch it between the whole board and 1.4x that zoom
+(the mouse wheel too), and "Toàn cảnh" / "Phóng to" switches to the whole
+board and back. Selecting a unit and every leader move, attack and soldier
+fight in the playback bring it into view (0.28 s glide) unless it is
+already well inside.
+
 Campaign flow: muster (roster soldiers fill the squads; named soldiers are
 extra leaders of ours, returning traitors extra enemy leaders) → battle →
 summary (also after a retreat) → "Tiếp tục" back to the muster.
@@ -120,16 +164,18 @@ test drives the screen through them.
 | Member | Kind | Description |
 | --- | --- | --- |
 | `scenario`, `squads`, `catalog`, `player_side` | property | The battle to load; `squads` empty keeps the scenario's; the side not `player_side` is played by the AI |
-| `is_instant` | property | Tests: playback steps end at once, close-ups are counted but not shown |
-| `tap_cell(cell)` | method | A tap on the map: select, preview a move or forecast, confirm (a second tap on the same cell or target), or step back (a tap elsewhere) |
-| `select_unit(unit)`, `confirm()`, `cancel()` | method | Select a unit; confirm the move, attack or skill previewed; step back one level |
-| `press_button(action)`, `choose_order(order)` | method | A panel button (`end_turn`, `wait`, `skill`, `order`, `confirm_move`, `attack`, `cast`, `cancel`); an order of the picker |
+| `is_instant` | property | Tests: playback steps end at once, close-ups are counted but not shown, camera moves and the auto end's beat are immediate |
+| `auto_end` | property | End our phase by itself once every leader of ours is done (default true) |
+| `tap_cell(cell)` | method | A tap on the map: select, move at once (a blue cell), forecast a strike (a red-ringed enemy), confirm (a second tap on the target or the skill cell), or step back (a tap elsewhere) |
+| `select_unit(unit)`, `move_to(cell)`, `undo()`, `confirm()`, `cancel()` | method | Select a unit; move the selected leader; take its move back; confirm the strike or skill previewed; step back one level |
+| `press_button(action)`, `choose_order(order)` | method | A panel button (`end_turn`, `wait`, `skill`, `undo`, `attack`, `cast`, `cancel`); an order of the row |
+| `is_auto_end_pending()` | method | The phase is about to end by itself |
 | `campaign`, `squad_people` | property | Optional `TacticsCampaign` and the person ids per squad slot (from the muster): the battle gets the rules, karma and records before it starts, and its end opens the summary |
 | `get_summary()` | method | The `TacticsSummaryView` shown, or null |
 | `campaign_continue_requested` | signal | The summary's "Tiếp tục" |
 | `retreat()` | method | "Rút": the first tap asks, a second within 3 s emits `home_requested` (with a campaign: shows the summary, the battle counted as a retreat). The top bar sits above the skip catcher and the close-up, so it works during any playback |
 | `get_round_text()` | method | The top bar's round and phase line |
-| `is_busy()`, `get_mode()`, `get_selected()` | method | Playback running; `Mode` (`IDLE`, `SELECTED`, `MOVE_PREVIEW`, `FORECAST`, `ORDER_PICK`, `SKILL_TARGET`, `SKILL_PREVIEW`, `BUSY`, `ENDED`); the selected unit |
+| `is_busy()`, `get_mode()`, `get_selected()` | method | Playback running; `Mode` (`IDLE`, `SELECTED`, `MOVE_PREVIEW` (a drag), `FORECAST`, `SKILL_TARGET`, `SKILL_PREVIEW`, `BUSY`, `ENDED`); the selected unit |
 | `get_battle()`, `get_map()`, `get_panel()`, `get_playback()`, `get_close_up()`, `get_result_banner()`, `get_retreat_button()`, `get_hint()` | method | Parts and the hint line, for tests and screenshots |
 | `home_requested` | signal | The result's "Về màn hình chính" or a confirmed retreat |
 | `became_idle` | signal | After each playback, when the next tap is taken |
@@ -159,19 +205,32 @@ then the living, traitors, deserters, the fallen), `show_sheet(id)`
 biography, each mark with its round, place and leader), `get_sheet_id()`,
 `close()`; signal `closed`. Built on open; it never redraws on its own.
 
-`TacticsMapView` (Control): `setup(battle, objective_cell)`, `cell_to_local`,
-`local_to_cell`, `get_terrain_at`, `add_piece`, `get_piece(unit)`,
-`get_pieces()`, `get_zones()`, `set_marks(marks)` (`reachable`, `threat`, `attackable`,
-`skill_cells`, `area`, `selected`, `target`, `path`, `ghosts`),
-`set_intents(intents)`, `set_zones(zones)`, `float_text(...)` (stacks above
-text still rising from the same spot); signal `cell_tapped(cell)` (press and
-release on the same cell within 24 px).
+`TacticsMapView` (Control, fills the space between the top bar and the
+panel): `setup(battle, objective_cell)`, `cell_to_local` and
+`local_to_cell` (board coordinates), `view_to_cell`, `board_to_view`,
+`view_to_board`, `get_terrain_at`, `add_piece`, `get_piece(unit)`,
+`get_pieces()`, `get_zones()`, `set_marks(marks)` (`reachable`, `threat`,
+`attackable`, `skill_cells`, `area`, `selected`, `target`, `path`,
+`slots`, `ghosts`; an equal value is ignored), `set_intents(intents)`,
+`set_zones(zones)` (likewise), `float_text(...)` (stacks above text still
+rising from the same spot); camera: `center_on(point)`, `follow(point)`,
+`zoom_to(zoom, point, smooth)`, `toggle_whole_map()`, `get_zoom()`,
+`get_default_zoom()`, `get_whole_zoom()`, `get_max_zoom()`,
+`get_cell_px()`, `get_camera_offset()`, `is_whole_map()`, `is_in_view()`,
+`is_camera_moving()`, `get_whole_map_button()`, `get_layer_draw_count()`
+(tests); `hold_cells` (where a press starts a drag), `is_instant`;
+signals `cell_tapped(cell)` (press and release on the same cell within
+24 px), `cell_held(cell)` (a press on a hold cell, then each new cell under
+the finger), `hold_released(cell)`, `hold_cancelled()`.
 
-`TacticsPanel` (PanelContainer): `show_card(title, color, side_note,
-lines)`, `get_card_texts()`, `show_forecast(left, right, note)`, `show_orders(current, text)`,
-`set_buttons([{action, text, enabled, primary}])`, `get_buttons()`,
-`get_order_buttons()`; signals `action_pressed(action)`,
-`order_chosen(order)`.
+`TacticsPanel` (PanelContainer, 400 layout px tall): `show_card(title,
+color, side_note, lines)` (four lines), `get_card_texts()`,
+`show_forecast(left, right, note)`, `show_order_row(current, text,
+enabled)`, `hide_order_row()`, `is_order_row_shown()`,
+`get_current_order()`, `get_order_note()`, `set_buttons([{action, text,
+enabled, primary}])`, `get_buttons()`, `get_order_buttons()`; signals
+`action_pressed(action)`, `order_chosen(order)`. Order buttons are 88 px
+tall, action buttons 92 px.
 
 `TacticsPlayback` (Node): `reset(units, zones)`, `await play(events)`,
 `skip_step()`, `close_up_count`; signal `played` when the last step is
@@ -179,9 +238,13 @@ done, before the screen syncs the map (the map must already agree with the
 battle then), and `phase_shown(side, round_number)` when a phase banner
 starts, so the top bar and the panel say whose phase it is while the enemy
 plays. Handlers are a registry by event type.
-Squads step together (at most 0.55 s), soldier fights are batched (0.3 s
-each, starts staggered at most 0.28 s apart and all within 1.1 s), a
-leader's attack and every skill open the close-up.
+A leader's move plays with its squad setting off one step behind (squads
+at most 0.55 s), soldier fights of a squad are batched (0.3 s each, starts
+staggered at most 0.14 s apart and all within 0.6 s), a leader's attack
+plays on the map (lunge or shot, heavy hit, the numbers, the counter with
+a block sound; 0.5 s), and only a skill or a blow that kills a leader
+opens the close-up. The camera follows the leader's move, its target and
+each squad's fights.
 
 `TacticsCloseUp` (Control): `await play_engagement(attacker, defender, hits,
 is_first_strike, backdrop_kind)` (about 2.8 s for four hits and a counter),
@@ -221,17 +284,29 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
 ## Tests
 
 - `Tests/tactics_screen_test.gd`: the river crossing through the screen's
-  public methods: selection and its undo, a move preview (ghosts, no state
-  change) and its confirm, the order picker, forecasts checked against the
-  battle, skills aimed, previewed and cast (the preview's damage checked
-  against the cast), the hint of each step (a moved leader, the forecast,
-  the skill preview), and a scripted policy that wins (by rout in round 6);
-  it counts close-ups and presses the result's button.
-- `Tests/tactics_screen_sync_test.gd`: random taps (cells, leaders,
-  enabled buttons, orders) on six seeds in instant mode; after every
+  public methods and the map's signals: selection (its buttons and the
+  order row) and stepping back, a drag preview (ghosts, no state change),
+  a tap that moves at once, "Hoàn tác" back to the same hash, a drag
+  released on a cell, one tap on the order row (slots and the description
+  follow), strikes by tapping the enemy twice or "Đánh" (the walk, the
+  ghosts, the forecast against the battle), skills aimed, previewed and
+  cast (the preview's damage checked against the cast), the hint of each
+  step, and a scripted policy that wins; it counts close-ups and presses
+  the result's button.
+- `Tests/tactics_feel_test.gd`: the default zoom (a cell at least 88
+  layout px), an idle map with a leader selected drawing no frame and no
+  layer, a one-finger drag through the viewport panning without a redraw
+  or a selection, a tap and a press-drag-lift on a leader through the
+  viewport, a pinch, "Toàn cảnh" and back, the auto end (held by a tap in
+  its beat, then ending a phase without "Kết lượt"), and the taps of full
+  turns (9 for three leaders that each walk and strike).
+- `Tests/tactics_screen_sync_test.gd`: random taps (cells, leaders, drags,
+  enabled buttons with undo, the order row) on six seeds in instant mode,
+  with the auto end on (waited out); after every
   playback, before the sync, tokens, hp, deaths, pips, zones and the top
   bar's round and phase must match the battle, and after every tap the
-  marks, buttons, intents and the "done" look must match its queries, with
+  marks (strike targets, slots), the order row, buttons (undo only when
+  the battle can), intents and the "done" look must match its queries, with
   no error logged. Odd seeds play through a campaign with forced incident
   seeds: each token's side, wavering bubble and mark count must match the
   battle, and some incident steps must have played.
@@ -257,9 +332,15 @@ Run one with
 
 ## Known limits
 
-- On a 360-px-wide phone a cell is 29 px, under the 44 px touch target the
-  rest of the screen keeps (every button is at least 44 px); twelve columns
-  across a portrait phone do not leave more.
+- The default zoom shows eight columns and about nine rows; the rest of
+  the board is a drag (or "Toàn cảnh") away. At the whole-map zoom a cell
+  is under the 44 px touch target again.
+- An undo covers only the last plain move of the selected leader: a move
+  during which the squad attacked, a passive fired or an incident stirred
+  cannot be taken back.
+- The auto end also ends the phase while a soldier of ours wavers (the
+  leaders have nothing left to do about it); a tap during the beat holds
+  it.
 - No reduced-motion setting exists in the project, so the close-up and skill
   effects always play (a tap skips them).
 - One scenario (the river crossing), reached from the title; only the
@@ -268,5 +349,7 @@ Run one with
   hits can pile up over the same tokens.
 - The muster screen moves soldiers only; it does not change leaders or
   their start cells.
-- About 240 draw calls a frame on the map (tokens and their hp bars); the
-  terrain is one.
+- About 125 draw calls a frame on the map at the start and 180 with a
+  leader selected (360x640, Mesa), from about 240 and 250 before the zoom
+  (tokens outside the view are clipped); the terrain is one. An idle map
+  draws no frame.

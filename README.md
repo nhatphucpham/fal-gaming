@@ -97,7 +97,9 @@ first. `git status` should then show no deleted or modified files.
 
 The script checks Godot, Git LFS, the submodule, Python and SCons, builds the
 C++ extension, imports the project, runs every test in `Tests/` and then
-opens the editor (leave out `editor` to skip that). When a setup step fails it
+opens the editor (leave out `editor` to skip that). The tactics tests
+include `tactics_brain_test.gd` (soldiers' and the AI's choices) and
+`tactics_feel_test.gd` (zoom, pan, drag, auto end and tap counts). When a setup step fails it
 stops and says how to fix it; failed tests are listed at the end. It finds
 Godot in `C:\Godot`, on `PATH`, or in `Program Files\Godot`, Downloads or
 Desktop; to use another
@@ -145,7 +147,9 @@ New-Item -ItemType Directory -Force build\windows | Out-Null
 ```
 
 The `Web` preset builds the version to try on any phone, including iPhone:
-CI publishes it from `master` to <https://nhatphucpham.github.io/fal-gaming/>.
+CI publishes it from `master` to <https://nhatphucpham.github.io/fal-gaming/>,
+stamped with the commit so that a reload fetches the new build
+(`Tools/web_cache_bust.py`).
 The `Android` preset exports an arm64 APK. It needs the Android SDK and
 JDK 17 set in **Editor > Editor Settings > Export > Android**; see
 [Build and test](Docs/build.md). The `build` directory is ignored by

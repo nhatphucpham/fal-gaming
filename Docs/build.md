@@ -96,7 +96,8 @@ After building, run the editor import, `Tests/smoke_test.gd`,
 `Tests/tactics_fuzz_test.gd`, `Tests/tactics_query_test.gd`,
 `Tests/tactics_incident_test.gd`, `Tests/tactics_roster_test.gd`,
 `Tests/tactics_screen_test.gd`, `Tests/tactics_screen_sync_test.gd`,
-`Tests/tactics_screen_input_test.gd`) and `Tests/muster_test.gd` as shown in the
+`Tests/tactics_screen_input_test.gd`, `Tests/tactics_brain_test.gd`,
+`Tests/tactics_feel_test.gd`) and `Tests/muster_test.gd` as shown in the
 README. Tests that touch the
 settings file point `RunSettings.path` at `user://settings_test.json`, so
 the player's mute and preparation time are left alone.
@@ -146,6 +147,19 @@ xvfb-run -a -s "-screen 0 400x700x24" godot --rendering-driver opengl3 --audio-d
 
 What each number means, the budget and its rules are in
 [Performance](systems/performance.md).
+
+## Soldier probe
+
+`Tools/tactics_brain_probe.gd` plays seeded river crossings (side A
+scripted with random squads and orders, incidents on, side B the AI) and
+prints, per side, the soldiers lost per battle and the share of soldier
+attacks that killed or dealt more than they took
+(see [Tactics](systems/tactics.md), Soldiers). Run it before and after a
+change to the soldiers' rules or `Data/Tactics/Rules/tactics_rules.tres`:
+
+```
+godot --headless --path . --script res://Tools/tactics_brain_probe.gd -- --battles=200
+```
 
 ## Balance bot
 
@@ -278,10 +292,20 @@ artifact. On pushes to `master` the `pages` job publishes it to
 <https://nhatphucpham.github.io/fal-gaming/>. This needs **Settings > Pages >
 Source: GitHub Actions** turned on once in the repository.
 
+Before uploading, CI runs `Tools/web_cache_bust.py build/web "$GITHUB_SHA"`
+so that a reload fetches the new build instead of a cached one: the page
+loads `index.js?v=<sha>`, the engine fetches the wasm and pck files with
+`?v=<sha>` while online, the page compares itself with `version.txt` and
+clears the service worker and its caches once if they differ, and no-cache
+meta tags ask the browser to revalidate `index.html`. The tool and the CI
+step after it fail the job if Godot's exported page no longer looks as
+expected, rather than publishing a build that would stay cached.
+
 To try a build locally, export it and serve the folder over HTTP (opening
 `index.html` from disk does not work):
 
 ```sh
 "$GODOT" --headless --path . --export-release "Web" build/web/index.html
+python3 Tools/web_cache_bust.py build/web "$(git rev-parse --short HEAD)"
 python3 -m http.server --directory build/web 8000
 ```

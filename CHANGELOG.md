@@ -9,6 +9,24 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Changed
 
+- Chiến Dịch is quicker to play: tap an empty cell to move a selected
+  leader at once (Hoàn tác takes it back), drag a leader to see where its
+  squad would stand, and tap an enemy to see the forecast, then tap it
+  again to walk up and strike. The order row is always shown under a
+  selected leader and changes the order in one tap. The turn ends by itself
+  a moment after every leader is done ("Kết lượt" ends it early). A full
+  turn of three leaders that move and attack took 16 taps and now takes 9.
+- The Chiến Dịch map opens zoomed in on your leaders; drag to pan, pinch or
+  use the whole-map button to see everything. Attacks between leaders and
+  squads play on the map, faster, and the camera follows them; the close-up
+  is kept for a fallen leader. Cards explain keywords and passives in
+  words, and an enemy leader's card shows what it intends to do.
+- Soldiers fight with sense: they pick fights they can win, back off when
+  hurt, guard a wounded leader and stay near it. Soldiers that died to a
+  counter-attack fell from about 1 in 9 attacks to about 1 in 100.
+- The web version: a reload after an update loads the new build instead of
+  an old cached one.
+
 - Lighter on phones and weak PCs: the title and the preparation draw about
   30 frames a second instead of 60 while nothing moves (power saving, off
   during battles), the background, formation outlines and cutscene
