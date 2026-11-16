@@ -1,0 +1,9 @@
+[gd_resource type="TacticsKeywordData" format=3]
+
+[resource]
+id = &"keyword.cover"
+name_key = "KEYWORD_COVER"
+description_key = "KEYWORD_COVER_DESC"
+amount = 30
+min_cells = 0
+terrain_ids = Array[StringName]([])

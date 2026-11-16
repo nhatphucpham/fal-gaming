@@ -1,0 +1,25 @@
+[gd_resource type="TacticsLeaderData" format=3]
+
+[ext_resource type="UnitData" path="res://Data/Units/lieu_mi.tres" id="base_unit"]
+[ext_resource type="ClassData" path="res://Data/Classes/archer.tres" id="base_class"]
+[ext_resource type="TacticsPassiveData" path="res://Data/Tactics/Passives/wind_trail.tres" id="passive_wind_trail"]
+[ext_resource type="TacticsSkillData" path="res://Data/Tactics/Skills/chain_arrows.tres" id="skill"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/archer.tres" id="troop_archer"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/shieldman.tres" id="troop_shieldman"]
+
+[resource]
+id = &"leader.lieu_mi"
+name_key = "LEADER_LIEU_MI"
+base_unit = ExtResource("base_unit")
+base_class = ExtResource("base_class")
+hp_pct = 150
+attack_pct = 120
+min_range_cells = 2
+max_range_cells = 4
+move_points = 4
+keywords = Array[TacticsKeywordData]([])
+lead_capacity = 3
+passives = Array[TacticsPassiveData]([ExtResource("passive_wind_trail")])
+skill = ExtResource("skill")
+default_order = &"order.follow"
+squad = Array[TacticsTroopData]([ExtResource("troop_archer"), ExtResource("troop_archer"), ExtResource("troop_shieldman")])

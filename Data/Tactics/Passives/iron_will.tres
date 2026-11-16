@@ -1,0 +1,10 @@
+[gd_resource type="TacticsPassiveData" format=3]
+
+[resource]
+id = &"tactics_passive.iron_will"
+name_key = "TACTICS_PASSIVE_IRON_WILL"
+description_key = "TACTICS_PASSIVE_IRON_WILL_DESC"
+handler = &"passive.stat_bonus"
+stat = &"stat.armor"
+amount = 15
+condition_terrain_id = &"terrain.fort"

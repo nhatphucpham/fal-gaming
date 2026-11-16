@@ -1,0 +1,16 @@
+[gd_resource type="TacticsSkillData" format=3]
+
+[sub_resource type="TacticsSkillEffectData" id="effect_1"]
+handler = &"skill_effect.damage"
+coefficient_pct = 200
+damage_kind = 0
+
+[resource]
+id = &"tactics_skill.piercing_thrust"
+name_key = "TACTICS_SKILL_PIERCING_THRUST"
+description_key = "TACTICS_SKILL_PIERCING_THRUST_DESC"
+charge = &"charge.focus"
+charge_threshold = 2
+target = &"skill_target.single"
+cast_range_cells = 2
+effects = Array[TacticsSkillEffectData]([SubResource("effect_1")])

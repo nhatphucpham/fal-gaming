@@ -1,0 +1,9 @@
+[gd_resource type="TacticsKeywordData" format=3]
+
+[resource]
+id = &"keyword.heavy"
+name_key = "KEYWORD_HEAVY"
+description_key = "KEYWORD_HEAVY_DESC"
+amount = 1
+min_cells = 0
+terrain_ids = Array[StringName]([&"terrain.forest", &"terrain.ford"])

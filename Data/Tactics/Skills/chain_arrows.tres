@@ -1,0 +1,19 @@
+[gd_resource type="TacticsSkillData" format=3]
+
+[sub_resource type="TacticsSkillEffectData" id="effect_1"]
+handler = &"skill_effect.damage"
+coefficient_pct = 120
+damage_kind = 0
+
+[resource]
+id = &"tactics_skill.chain_arrows"
+name_key = "TACTICS_SKILL_CHAIN_ARROWS"
+description_key = "TACTICS_SKILL_CHAIN_ARROWS_DESC"
+charge = &"charge.engagements"
+charge_threshold = 2
+target = &"skill_target.chain"
+cast_range_cells = 4
+chain_count = 3
+chain_jump_cells = 3
+chain_falloff_pct = 30
+effects = Array[TacticsSkillEffectData]([SubResource("effect_1")])
