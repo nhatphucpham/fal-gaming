@@ -14,6 +14,9 @@ extends Node
 ## [/codeblock]
 
 signal step_started(type: StringName)
+## The last step of a play() is done; the map shows what the events did,
+## before the screen syncs it with the battle (tests compare the two here).
+signal played()
 
 const MOVE_SEC_PER_CELL: float = 0.1
 const SQUAD_MOVE_MAX_SEC: float = 0.55
@@ -85,6 +88,7 @@ func play(events: Array) -> void:
 		else:
 			index += 1
 	is_playing = false
+	played.emit()
 
 
 ## A tap during playback: the step that plays now ends at once.
@@ -366,7 +370,7 @@ func _play_skill(events: Array, index: int) -> int:
 	var results := {}
 	var buffed: Array[int] = []
 	var mark_text := ""
-	var zone_text := ""
+	var zone_id: StringName = &""
 	for at: int in range(index, span_end):
 		var event: Dictionary = events[at]
 		if event["type"] == &"damage_dealt" and event["source_id"] == used["skill"]:
@@ -378,15 +382,13 @@ func _play_skill(events: Array, index: int) -> int:
 			buffed.append(event["unit"])
 			mark_text = tr("TACTICS_FLOAT_ATTACK_FORMAT") % event["amount"]
 		elif event["type"] == &"zone_created":
-			zone_text = tr("SKILL_PREVIEW_ZONE_FORMAT") % text.zone_name(event["zone"])
+			zone_id = event["zone"]
 	var shown: Array = []
 	for unit: int in (results.keys() if not results.is_empty() else buffed):
 		if shown.size() < 3:
 			shown.append(_actor(unit))
-	var hits_key := "SKILL_PREVIEW_TARGETS_FORMAT" if int(_units[used["unit"]]["side"]) == player_side else "SKILL_HITS_OURS_FORMAT"
-	var subtitle := tr(hits_key) % results.size() if not results.is_empty() else tr("SKILL_PREVIEW_BUFF_FORMAT") % buffed.size()
-	if not zone_text.is_empty():
-		subtitle += " · " + zone_text
+	var is_ours := int(_units[used["unit"]]["side"]) == player_side
+	var subtitle := text.skill_outcome(is_ours, results.size(), buffed.size(), zone_id)
 	close_up_count += 1
 	var caster := _actor(used["unit"])
 	if not is_instant:

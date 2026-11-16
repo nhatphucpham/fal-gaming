@@ -184,6 +184,10 @@ func set_zones(zones: Array) -> void:
 	_zone_layer.queue_redraw()
 
 
+func get_zones() -> Array:
+	return _zones
+
+
 ## Text rising from a cell and fading, such as a damage number.
 func float_text(at: Vector2, text: String, color: Color, font_px: int = 26, rise_px: float = 36.0, seconds: float = 0.9) -> Label:
 	var label := Label.new()

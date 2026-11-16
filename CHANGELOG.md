@@ -33,7 +33,11 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
   elsewhere undoes the selection. The enemy's intents show on the map during
   our turn. A leader's attack and every skill play a short side-view
   close-up (a tap skips it), each of the five skills with its own colours and
-  shapes. The battle ends with a victory or defeat banner and its reason.
+  shapes; its line says whom the skill hit, how many soldiers it
+  strengthened (ours or the enemy's), or that it reached nobody. A tap
+  under the top bar skips the step that plays; "Rút" stays above it and
+  answers at any time, also while the enemy plays or a close-up runs. The
+  battle ends with a victory or defeat banner and its reason.
 - Voice: an optional `Voice` module can speak dialogue lines with the
   Falevon TTS service and keeps every line in a cache, so it is generated
   once. Nothing in the game speaks yet; `Scenes/Dev/voice_demo.tscn` tries

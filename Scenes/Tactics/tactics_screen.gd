@@ -55,6 +55,7 @@ var _units: Array = []
 var _zones: Array = []
 var _intents: Array = []
 var _is_retreat_armed: bool = false
+var _hint_key: String = "TACTICS_HINT_IDLE"
 var _retreat_arm_count: int = 0
 
 
@@ -70,6 +71,9 @@ func _ready() -> void:
 	if not is_loaded:
 		push_error("TacticsScreen: the scenario %s did not load" % scenario.id)
 		return
+	# The other side plays itself, whichever side we are.
+	_battle.set_side_ai(player_side, false)
+	_battle.set_side_ai(1 - player_side, true)
 	_build()
 	_map.setup(_battle, scenario.map.objective_cell if scenario.map.objective_side == player_side else NO_CELL)
 	_banner.max_rounds = scenario.rules.max_rounds
@@ -241,6 +245,11 @@ func get_retreat_button() -> PressButton:
 	return _retreat_button
 
 
+## The top bar's hint line as shown now.
+func get_hint() -> String:
+	return _hint_label.text
+
+
 func _build() -> void:
 	var background := ColorRect.new()
 	background.color = Palette.BACKDROP
@@ -256,7 +265,6 @@ func _build() -> void:
 	_map = TacticsMapView.new()
 	_map.cell_tapped.connect(tap_cell)
 	map_area.add_child(_map)
-	_build_top_bar()
 	_panel = TacticsPanel.new()
 	_panel.anchor_top = 1.0
 	_panel.anchor_right = 1.0
@@ -267,14 +275,18 @@ func _build() -> void:
 	add_child(_panel)
 	_banner = TacticsBanner.new()
 	add_child(_banner)
+	# A tap anywhere under the top bar skips the step that plays; the bar
+	# stays above it (and above the close-up), so "Rút" works at any time.
 	_skip_catcher = Control.new()
 	_skip_catcher.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_skip_catcher.offset_top = TOP_BAR_PX
 	_skip_catcher.mouse_filter = Control.MOUSE_FILTER_STOP
 	_skip_catcher.visible = false
 	_skip_catcher.gui_input.connect(_on_skip_input)
 	add_child(_skip_catcher)
 	_close_up = TacticsCloseUp.new()
 	add_child(_close_up)
+	_build_top_bar()
 	_result = ResultBanner.new()
 	_result.button_pressed.connect(home_requested.emit)
 	add_child(_result)
@@ -546,11 +558,13 @@ func _preview_skill(cell: Vector2i) -> void:
 		if lines.size() < 3:
 			var line: String = tr("SKILL_PREVIEW_HIT_FORMAT") % [_text.unit_name(_units[result["unit"]]), result["amount"], result["hp_after"]]
 			lines.append(line + " · " + tr("FORECAST_DIES") if result["is_dead"] else line)
-	var side_note: String = tr("SKILL_PREVIEW_TARGETS_FORMAT") % (preview["results"] as Array).size()
-	if (preview["results"] as Array).is_empty():
-		side_note = tr("SKILL_PREVIEW_BUFF_FORMAT") % (preview["buffed"] as Array).size()
+	var hit_count := (preview["results"] as Array).size()
+	var buffed_count := (preview["buffed"] as Array).size()
+	var has_zone := not (preview["zone_cells"] as Array).is_empty()
+	# A cast that only leaves a zone says so on its line below.
+	var side_note := "" if hit_count == 0 and buffed_count == 0 and has_zone else _text.skill_outcome(true, hit_count, buffed_count, &"")
 	var zone := _skill_zone_name(skill_id)
-	if not (preview["zone_cells"] as Array).is_empty() and not zone.is_empty():
+	if has_zone and not zone.is_empty():
 		lines.resize(mini(lines.size(), 2))
 		lines.append(tr("SKILL_PREVIEW_ZONE_FORMAT") % zone)
 	if lines.is_empty():
@@ -647,7 +661,8 @@ func _show_end() -> void:
 	var is_win := _battle.get_winner() == player_side
 	var key := "TACTICS_END_%s_%s" % [String(_battle.get_end_reason()).to_upper(), "WIN" if is_win else "LOSS"]
 	Sound.play(&"win" if is_win else &"lose")
-	_hint_label.text = tr(key)
+	_disarm_retreat()
+	_set_hint(key)
 	var lines: Array[String] = [tr(key), tr(scenario.name_key), ""]
 	_panel.show_card(tr("RESULT_WIN") if is_win else tr("RESULT_LOSS"), Palette.GOLD if is_win else Palette.VERMILION, tr("TACTICS_ROUND_FORMAT") % [_battle.get_round(), scenario.rules.max_rounds], lines)
 	_result.present(is_win, tr(key), [], "BUTTON_HOME")
@@ -678,7 +693,10 @@ func _cells_of(units: Array) -> Array:
 	return cells
 
 
+# The hint for the current state; the retreat question covers it while
+# armed and gives it back after.
 func _set_hint(key: String) -> void:
+	_hint_key = key
 	if not _is_retreat_armed:
 		_hint_label.text = tr(key)
 
@@ -688,4 +706,4 @@ func _disarm_retreat() -> void:
 		return
 	_is_retreat_armed = false
 	_retreat_button.theme_type_variation = &""
-	_hint_label.text = tr("TACTICS_HINT_IDLE")
+	_hint_label.text = tr(_hint_key)

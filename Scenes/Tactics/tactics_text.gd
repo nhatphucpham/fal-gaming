@@ -116,6 +116,20 @@ func keyword_names(ids: Array) -> String:
 	return ", ".join(names)
 
 
+## What a skill did or would do, for the close-up and the preview: the
+## enemies it hits ("ours" when the other side cast it), the soldiers it
+## strengthens, the zone it leaves, or that it reached nobody.
+func skill_outcome(is_ours: bool, hit_count: int, buffed_count: int, zone_id: StringName) -> String:
+	var parts: PackedStringArray = []
+	if hit_count > 0:
+		parts.append(tr("SKILL_PREVIEW_TARGETS_FORMAT" if is_ours else "SKILL_HITS_OURS_FORMAT") % hit_count)
+	if buffed_count > 0:
+		parts.append(tr("SKILL_BUFF_OURS_FORMAT" if is_ours else "SKILL_BUFF_ENEMY_FORMAT") % buffed_count)
+	if not zone_id.is_empty():
+		parts.append(tr("SKILL_PREVIEW_ZONE_FORMAT") % zone_name(zone_id))
+	return " · ".join(parts) if not parts.is_empty() else tr("SKILL_NO_EFFECT")
+
+
 ## The passive names of a leader id, joined; empty for a troop.
 func leader_passive_names(id: StringName) -> String:
 	var leader := catalog.get_leader(id)

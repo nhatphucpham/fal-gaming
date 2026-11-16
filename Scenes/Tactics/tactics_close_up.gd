@@ -192,6 +192,15 @@ func get_actors() -> Array[Dictionary]:
 	return _actors
 
 
+## The scene's title and subtitle as shown now, for tests.
+func get_title() -> String:
+	return _title.text
+
+
+func get_subtitle() -> String:
+	return _subtitle.text
+
+
 func _begin(backdrop_kind: StringName, title: String, subtitle: String) -> void:
 	_clear_stage()
 	is_playing = true

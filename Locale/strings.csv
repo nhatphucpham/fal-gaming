@@ -458,9 +458,11 @@ FORECAST_FIRST_STRIKE_FORMAT,%s ra đòn trước,%s strikes first
 FORECAST_DIES,ngã,falls
 FORECAST_MODIFIERS_FORMAT,Ảnh hưởng: %s,Modifiers: %s
 FORECAST_NO_MODIFIERS,Ảnh hưởng: không,Modifiers: none
-SKILL_PREVIEW_TARGETS_FORMAT,Trúng %d địch,Hits %d enemies
-SKILL_PREVIEW_BUFF_FORMAT,%d binh được tăng công,%d soldiers get attack
-SKILL_HITS_OURS_FORMAT,Trúng %d quân ta,Hits %d of ours
+SKILL_PREVIEW_TARGETS_FORMAT,Trúng %d địch,Enemies hit: %d
+SKILL_BUFF_OURS_FORMAT,%d binh ta được tăng công,%d of our soldiers gain attack
+SKILL_BUFF_ENEMY_FORMAT,%d binh địch được tăng công,%d enemy soldiers gain attack
+SKILL_NO_EFFECT,Chiêu không tác động đến ai,Nobody was affected
+SKILL_HITS_OURS_FORMAT,Trúng %d quân ta,Ours hit: %d
 SKILL_PREVIEW_ZONE_FORMAT,Để lại %s,Leaves %s
 TACTICS_FLOAT_ATTACK_FORMAT,+%d%% Công,+%d%% Atk
 TACTICS_FLOAT_BUFF_ENDED,Hết tăng công,Buff over
