@@ -627,6 +627,10 @@ TACTICS_HINT_MOVED,"Hết điểm đi: chạm địch, Hoàn tác hoặc Chờ."
 TACTICS_HINT_MOVE_ON,"Đi tiếp ô xanh, đánh địch viền đỏ, xong thì Chờ.","Move on in blue, strike red, then Wait."
 TACTICS_HINT_AUTO_END,Các tướng đã xong. Tự kết lượt…,Every leader is done. Ending the turn…
 TACTICS_HINT_UNDONE,"Đã lùi một bước, tướng đi lại được.",One move undone: the leader can move again.
+TACTICS_HINT_MOVE_ON_STRUCK,"Đã đánh: đi tiếp ô xanh, hoặc Chờ.","Struck: move on in blue, or Wait."
+TACTICS_HINT_SKILL_LEFT,Còn Kỹ năng: bấm Kỹ năng hoặc Chờ.,Skill left: tap Skill or Wait.
+TACTICS_HINT_ONLY_WALKS,"Hết đòn để đánh: đi tiếp, hay Kết lượt.","No strike left: move on, or End turn."
+TACTICS_HINT_WALK_ONLY,"Chưa với tới địch: chạm ô xanh, xong thì Chờ.","No enemy in reach: tap blue, then Wait."
 TACTICS_TIP_SELECT,"Tướng đi đâu, toán binh dàn quanh đó.","Where the leader goes, its squad forms up."
 TACTICS_TIP_MOVE,Còn điểm thì đi tiếp. Xong thì bấm Chờ.,Points left? Keep moving. Tap Wait when done.
 TACTICS_TIP_UNDO,Đi nhầm? Hoàn tác lùi từng bước tới khi đánh hay đổi lệnh.,Wrong cell? Undo steps back until you attack or change orders.

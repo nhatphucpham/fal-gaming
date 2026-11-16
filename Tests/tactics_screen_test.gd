@@ -25,6 +25,7 @@ var _screen: TacticsScreen
 var _went_home: bool = false
 var _skills_cast: int = 0
 var _attacks: int = 0
+var _settled_phases: int = 0
 
 
 func _initialize() -> void:
@@ -170,7 +171,7 @@ func _check_move() -> bool:
 		return false
 	var left := _battle().get_move_points_left(leader)
 	var reachable: Array = _screen.get_map().get_marks().get("reachable", [])
-	if _screen.get_selected() != leader or not _expect_hint("TACTICS_HINT_MOVE_ON") or not _button_actions().has(&"undo") \
+	if _screen.get_selected() != leader or not _expect_hint(_move_on_hint(leader)) or not _button_actions().has(&"undo") \
 			or reachable != _battle().get_reachable_cells(leader) or reachable.is_empty() or piece.is_done:
 		push_error("A leader with points left should stay selected, open, with its blue cells and undo")
 		return false
@@ -213,9 +214,15 @@ func _check_move() -> bool:
 		return false
 	# Moved as far as it goes toward the enemy: the hint speaks of moving on,
 	# or (no points left) of attacking, undoing or waiting.
-	if _screen.get_selected() != leader or not _expect_hint("TACTICS_HINT_MOVE_ON" if _battle().can_move(leader) else "TACTICS_HINT_MOVED"):
+	if _screen.get_selected() != leader or not _expect_hint(_move_on_hint(leader) if _battle().can_move(leader) else "TACTICS_HINT_MOVED"):
 		return false
 	return true
+
+
+# After a move with points left: red rings are only promised when there
+# is an enemy to strike.
+func _move_on_hint(leader: int) -> String:
+	return "TACTICS_HINT_MOVE_ON" if not _battle().get_strike_targets(leader).is_empty() else "TACTICS_HINT_WALK_ONLY"
 
 
 # The free cell next to the leader closest to `goal`.
@@ -298,6 +305,8 @@ func _check_battle_to_victory() -> bool:
 				return false
 		if _battle().is_finished():
 			break
+		if not _check_end_turn_look():
+			return false
 		_screen.press_button(&"end_turn")
 		if not await _idle():
 			return false
@@ -310,6 +319,9 @@ func _check_battle_to_victory() -> bool:
 		return false
 	if _skills_cast == 0 or _attacks == 0:
 		push_error("The battle should have used a skill and an attack (%d, %d)" % [_skills_cast, _attacks])
+		return false
+	if _settled_phases == 0:
+		push_error("Some phase should end with only walks left")
 		return false
 	if _screen.get_playback().close_up_count == 0:
 		push_error("A skill should open the close-up")
@@ -412,6 +424,34 @@ func _attack(leader: int, target: int) -> bool:
 		push_error("The forecast said hp %d after, the battle has %d" % [forecast["defender_hp_after"], hp_after])
 		return false
 	_attacks += 1
+	# Struck with points left: no red rings, so the hint no longer asks to
+	# tap one.
+	if _screen.get_selected() == leader and _battle().can_move(leader) and not _expect_hint("TACTICS_HINT_MOVE_ON_STRUCK"):
+		return false
+	return true
+
+
+# With every leader done, or with no strike and no skill left, only walks
+# remain: "Kết lượt" is the primary button and the hint says so, before
+# any leader waits. Otherwise it is not primary.
+func _check_end_turn_look() -> bool:
+	_screen.cancel()
+	_screen.cancel()
+	var is_settled := true
+	for leader: int in _our_leaders():
+		var is_walk_only := _battle().get_strike_targets(leader).is_empty() and _battle().get_skill_cells(leader).is_empty()
+		is_settled = is_settled and (_battle().is_closed(leader) or is_walk_only)
+	var is_primary := false
+	for entry: Dictionary in _screen.get_panel().get_buttons():
+		if entry["action"] == &"end_turn":
+			is_primary = entry.get("primary", false)
+	if is_primary != is_settled:
+		push_error("Kết lượt should be primary exactly when only walks are left (%s, %s) mode %d buttons %s" % [is_primary, is_settled, _screen.get_mode(), _screen.get_panel().get_buttons()])
+		return false
+	if is_settled and not _screen.get_hint() in [tr("TACTICS_HINT_ONLY_WALKS"), tr("TACTICS_HINT_ALL_DONE"), tr("TACTICS_HINT_WAVERING"), tr("TACTICS_HINT_WAVERING_GOOD")]:
+		push_error("With only walks left the hint should say Kết lượt, got %s" % _screen.get_hint())
+		return false
+	_settled_phases += 1 if is_settled else 0
 	return true
 
 

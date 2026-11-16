@@ -123,8 +123,11 @@ Taps (the flow a phone player uses):
   "Đã Chờ: xong lượt." once it waited.
 - Tap a blue cell: the leader moves at once with its squad. While it has
   points left it stays selected with the blue cells it can still reach,
-  and the hint says "Đi tiếp ô xanh, đánh địch viền đỏ, xong thì Chờ.";
-  with none left, "Hết điểm đi: chạm địch, Hoàn tác hoặc Chờ.". It may
+  and the hint says "Đi tiếp ô xanh, đánh địch viền đỏ, xong thì Chờ."
+  (with no enemy in reach "Chưa với tới địch: chạm ô xanh, xong thì
+  Chờ.", after its attack "Đã đánh: đi tiếp ô xanh, hoặc Chờ."); with
+  none left, "Hết điểm đi: chạm địch, Hoàn tác hoặc Chờ." (with only its
+  skill left, "Còn Kỹ năng: bấm Kỹ năng hoặc Chờ."). It may
   attack before or after moving, cast its skill as well, and change its
   order any number of times until it waits. "Hoàn tác" takes back one
   move at a time: `TacticsBattle.undo_move()` restores the exact state
@@ -156,6 +159,13 @@ Taps (the flow a phone player uses):
   points is not done, even with no enemy near. When all of ours are done, the hint
   says "Tự kết lượt…" and the phase ends after 1 s (1.8 s while the last
   move can be undone); any tap holds it, and "Kết lượt" is always there.
+  Only Chờ closes a leader, but a leader with no strike and no skill
+  left has only walks: once every leader of ours is done or in that
+  state, "Kết lượt" turns primary and the hint says "Hết đòn để đánh: đi
+  tiếp, hay Kết lượt.", so one tap ends the phase instead of a Chờ per
+  leader. "Kết lượt" asks nothing; the open leaders' squads strike as at
+  any end of phase. The phase does not end by itself then: a walk may
+  still matter.
 - Tap any unit for its card: hp, a leader's skill and charge, its order
   (an enemy leader's declared intent instead), and its passives and
   keywords with what they do ("Vũ khí dài: Bị áp sát thì ra đòn trước.").
@@ -274,7 +284,7 @@ no longer fit are left out from the last one up, never cut),
 `show_forecast(left, right, note)`, `show_order_row(current, text,
 enabled)`, `hide_order_row()`, `is_order_row_shown()`,
 `get_current_order()`, `get_order_note()`, `set_buttons([{action, text,
-enabled, primary}])`, `get_buttons()`, `get_order_buttons()`; signals
+enabled, primary}])`, `get_buttons()` (the same keys plus `button`), `get_order_buttons()`; signals
 `action_pressed(action)`, `order_chosen(order)`. Order buttons are 88 px
 tall, action buttons 92 px (44 and 46 px on a 360-px-wide phone); no text
 on the screen is under `GameTheme.SMALL_FONT_SIZE` (22 layout px, 11 px on
@@ -343,7 +353,10 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   ghosts, the forecast against the battle), skills aimed, previewed and
   cast (the preview's damage checked against the cast), the hint of each
   step, and a scripted policy that wins; it counts close-ups and presses
-  the result's button. The first select, move and order change each offer
+  the result's button. Before each "Kết lượt" of that policy, the button
+  is primary exactly when every leader is done or has no strike and no
+  skill left, with the hint saying so (some phase must end that way), and
+  a leader that struck with points left says so in the hint. The first select, move and order change each offer
   their tip once, the shown one with its text, and a new tip view never
   shows a saved tip again.
 - `Tests/tactics_feel_test.gd`: the default zoom (a cell at least 88

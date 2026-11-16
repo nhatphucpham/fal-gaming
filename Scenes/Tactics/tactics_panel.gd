@@ -158,11 +158,11 @@ func set_buttons(entries: Array[Dictionary]) -> void:
 		_buttons.add_child(button)
 
 
-## The buttons shown now: [{action, text, enabled, button}], for tests.
+## The buttons shown now: [{action, text, enabled, primary, button}], for tests.
 func get_buttons() -> Array[Dictionary]:
 	var entries: Array[Dictionary] = []
 	for button: PressButton in _buttons.get_children():
-		entries.append({"action": button.get_meta(&"action"), "text": button.text, "enabled": not button.disabled, "button": button})
+		entries.append({"action": button.get_meta(&"action"), "text": button.text, "enabled": not button.disabled, "primary": button.theme_type_variation == &"PrimaryButton", "button": button})
 	return entries
 
 

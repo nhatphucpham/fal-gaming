@@ -570,10 +570,12 @@ func _go_idle() -> void:
 	_map.set_marks({})
 	_panel.hide_order_row()
 	var is_all_done := _are_all_done()
+	var is_only_walks := _are_only_walks_left()
 	var wavering_hint := _wavering_hint()
-	_set_hint(wavering_hint if wavering_hint != "" else "TACTICS_HINT_ALL_DONE" if is_all_done else "TACTICS_HINT_IDLE")
+	var hint := "TACTICS_HINT_ALL_DONE" if is_all_done else "TACTICS_HINT_ONLY_WALKS" if is_only_walks else "TACTICS_HINT_IDLE"
+	_set_hint(wavering_hint if wavering_hint != "" else hint)
 	_show_our_phase_card(_battle.get_round())
-	_panel.set_buttons(_end_turn_button(is_all_done))
+	_panel.set_buttons(_end_turn_button(is_only_walks))
 	_update_hold_cells()
 
 
@@ -590,13 +592,18 @@ func _end_turn_button(is_primary: bool) -> Array[Dictionary]:
 
 # Blue cells only while the leader's points reach a cell; red outlines
 # while it may still attack.
+# Once it struck, the red rings are gone: the hint says what is left.
 func _selected_hint(unit: int) -> String:
+	var state: Dictionary = _units[unit]
 	if _battle.can_move(unit):
-		var state: Dictionary = _units[unit]
-		return "TACTICS_HINT_MOVE_ON" if state["has_moved"] or state["has_attacked"] else "TACTICS_HINT_SELECTED"
+		if not _battle.get_strike_targets(unit).is_empty():
+			return "TACTICS_HINT_MOVE_ON" if state["has_moved"] else "TACTICS_HINT_SELECTED"
+		return "TACTICS_HINT_MOVE_ON_STRUCK" if state["has_attacked"] else "TACTICS_HINT_WALK_ONLY"
 	if _can_undo(unit):
 		return "TACTICS_HINT_MOVED"
-	return "TACTICS_HINT_ACT" if not _is_done(unit) else "TACTICS_HINT_DONE"
+	if _is_done(unit):
+		return "TACTICS_HINT_DONE"
+	return "TACTICS_HINT_ACT" if not _battle.get_strike_targets(unit).is_empty() else "TACTICS_HINT_SKILL_LEFT"
 
 
 func _unit_buttons(unit: int) -> Array[Dictionary]:
@@ -609,7 +616,7 @@ func _unit_buttons(unit: int) -> Array[Dictionary]:
 	]
 	if _can_undo(unit):
 		buttons.append({"action": &"undo", "text": "BUTTON_UNDO"})
-	buttons.append({"action": &"end_turn", "text": "BUTTON_END_TURN", "primary": _are_all_done()})
+	buttons.append({"action": &"end_turn", "text": "BUTTON_END_TURN", "primary": _are_only_walks_left()})
 	return buttons
 
 
@@ -1041,6 +1048,19 @@ func _are_all_done() -> bool:
 		return false
 	for state: Dictionary in _units:
 		if _is_commandable(state["index"]) and not _is_done(state["index"]):
+			return false
+	return true
+
+
+# Every leader of ours is done, or has no strike and no skill left: only
+# walks remain, so "Kết lượt" is the button to press (one tap, not a Chờ
+# per leader). The phase still ends by itself only when all are done.
+func _are_only_walks_left() -> bool:
+	if _battle.get_active_side() != player_side or _battle.is_finished():
+		return false
+	for state: Dictionary in _units:
+		var unit: int = state["index"]
+		if _is_commandable(unit) and not _is_done(unit) and not (_battle.get_strike_targets(unit).is_empty() and _battle.get_skill_cells(unit).is_empty()):
 			return false
 	return true
 
