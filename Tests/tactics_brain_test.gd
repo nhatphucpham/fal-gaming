@@ -1,0 +1,383 @@
+extends SceneTree
+
+# Headless tests for the soldiers' judgement (Docs/systems/tactics.md,
+# Soldiers): a small scripted map per behaviour (step out and strike, then
+# back to formation; ranged in the rear; focus fire for a kill; no strike
+# into a deadly counter, except under vanguard; falling back hurt; shielding
+# a hurt leader; a free soldier holding outside a wall of enemies), the
+# leader's strike cell and move-and-attack forecast, taking a move back,
+# and the same hashes for the same commands. Side B is played by hand
+# unless a check says otherwise. Cells are (col, row).
+
+const Kit := preload("res://Tests/tactics_test_kit.gd")
+const MOON_SPEAR: StringName = &"leader.moon_spear"
+const LIEU_MI: StringName = &"leader.lieu_mi"
+const THIET_NHA: StringName = &"leader.thiet_nha"
+const SPEARMAN: StringName = &"troop.spearman"
+const ARCHER: StringName = &"troop.archer"
+const SHIELDMAN: StringName = &"troop.shieldman"
+const A: int = TacticsBattle.SIDE_A
+const B: int = TacticsBattle.SIDE_B
+const FAR: Vector2i = Vector2i(11, 0)
+
+var _kit := Kit.new()
+
+
+func _initialize() -> void:
+	var ok := _run()
+	_kit.free_battles()
+	if ok:
+		print("Tactics brain test passed")
+		quit(0)
+	else:
+		quit(1)
+
+
+func _run() -> bool:
+	if not _kit.load_catalog():
+		return false
+	var checks: Array[Callable] = [
+		_check_steps_out_and_returns, _check_leash, _check_ranged_rear, _check_focus_kill, _check_no_deadly_strike,
+		_check_vanguard_risks, _check_falls_back, _check_shields_leader, _check_free_wall, _check_strike_cell,
+		_check_undo, _check_undo_refused, _check_determinism,
+	]
+	for check: Callable in checks:
+		if not check.call():
+			push_error("Tactics brain test failed in %s" % check.get_method())
+			return false
+	return true
+
+
+func _leader(id: StringName, changes: Dictionary = {}) -> TacticsLeaderData:
+	var all := {"keywords": _kit.keywords([])}
+	all.merge(changes, true)
+	return _kit.leader(id, [], all)
+
+
+func _troops(ids: Array[StringName]) -> Array:
+	var squad: Array = []
+	for id: StringName in ids:
+		squad.append(_kit.troop(id))
+	return squad
+
+
+func _engagements(events: Array) -> Array:
+	return Kit.of_type(events, &"engagement_started").map(func(event: Dictionary) -> Array: return [event["unit"], event["target"]])
+
+
+static func _distance(a: Vector2i, b: Vector2i) -> int:
+	return absi(a.x - b.x) + absi(a.y - b.y)
+
+
+# Units not on `side` that could attack `cell` next phase: a reachable cell
+# (or their own) with the cell in range.
+static func _attackers_of(battle: TacticsBattle, cell: Vector2i, side: int) -> int:
+	var count := 0
+	for unit: Dictionary in battle.get_units():
+		if not unit["alive"] or unit["side"] == side:
+			continue
+		var cells: Array = battle.get_reachable_cells(unit["index"]).duplicate()
+		cells.append(unit["cell"])
+		for from: Vector2i in cells:
+			var distance := _distance(from, cell)
+			if distance >= int(unit["min_range"]) and distance <= int(unit["max_range"]):
+				count += 1
+				break
+	return count
+
+
+# A weak enemy two cells from the leader: the follow soldier leaves its slot
+# to kill it, and the next step brings it back to the slot. The preview of
+# the next move matches the real step.
+func _check_steps_out_and_returns() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows())
+	var leader := _kit.add(battle, A, _leader(MOON_SPEAR), Vector2i(5, 8), _troops([SPEARMAN]))
+	var soldier := leader + 1
+	var weak := _kit.add(battle, B, _leader(THIET_NHA, {"hp_pct": 4, "attack_pct": 0}), Vector2i(3, 9))
+	_kit.add(battle, B, _leader(THIET_NHA), FAR)
+	battle.start()
+	battle.set_order(leader, &"order.follow")
+	if not Kit.expect("slot", Kit.cell_of(battle, soldier), Vector2i(5, 9)):
+		return false
+	var events := battle.wait(leader)
+	var cell := Kit.cell_of(battle, soldier)
+	if not (Kit.expect("struck the weak enemy", _engagements(events), [[soldier, weak]]) and Kit.expect_true("next to it", _distance(cell, Vector2i(3, 9)) == 1) \
+			and Kit.expect_true("within the follow leash", _distance(cell, Vector2i(5, 8)) <= _kit.catalog.rules.leash_follow_cells) \
+			and Kit.expect("killed it", battle.get_unit_state(weak)["alive"], false)):
+		return false
+	battle.end_phase()
+	battle.end_phase()
+	var preview: Array = battle.preview_squad(leader, Vector2i(5, 7))
+	battle.move_leader(leader, Vector2i(5, 7))
+	return Kit.expect("back to the slot", Kit.cell_of(battle, soldier), Vector2i(5, 8)) \
+		and Kit.expect("preview", preview, [{"unit": soldier, "cell": Vector2i(5, 8)}])
+
+
+# Follow keeps a soldier within two cells of its leader: a weak enemy four
+# cells off is left alone; under vanguard (leash 4) the soldier goes for it.
+func _check_leash() -> bool:
+	var cells: Array = []
+	for order: StringName in [&"order.follow", &"order.vanguard"]:
+		var battle := _kit.new_battle(_kit.plain_rows())
+		var leader := _kit.add(battle, A, _leader(MOON_SPEAR), Vector2i(5, 8), _troops([SPEARMAN]))
+		var weak := _kit.add(battle, B, _leader(THIET_NHA, {"hp_pct": 4, "attack_pct": 0}), Vector2i(2, 9))
+		_kit.add(battle, B, _leader(THIET_NHA), FAR)
+		battle.start()
+		battle.set_order(leader, order)
+		var events := battle.wait(leader)
+		cells.append([Kit.cell_of(battle, leader + 1), _engagements(events).size(), battle.get_unit_state(weak)["alive"]])
+	return Kit.expect("follow stays, vanguard strikes", cells, [[Vector2i(5, 9), 0, true], [Vector2i(3, 9), 1, false]])
+
+
+# Squad order puts the shieldman first and an archer second; slots by role
+# put both archers on the rear slots, never ahead of a melee soldier.
+func _check_ranged_rear() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows())
+	var leader := _kit.add(battle, A, _leader(MOON_SPEAR, {"lead_capacity": 4}), Vector2i(5, 10), _troops([SHIELDMAN, ARCHER, SPEARMAN, ARCHER]))
+	_kit.add(battle, B, _leader(THIET_NHA), FAR)
+	battle.start()
+	battle.set_order(leader, &"order.follow")
+	var preview: Array = battle.preview_squad(leader, Vector2i(5, 8))
+	battle.move_leader(leader, Vector2i(5, 8))
+	var actual: Array = []
+	var deepest_ranged := -99
+	var rearmost_melee := 99
+	for soldier: int in battle.get_unit_state(leader)["soldiers"]:
+		var cell := Kit.cell_of(battle, soldier)
+		actual.append({"unit": soldier, "cell": cell})
+		var depth := 8 - cell.y
+		if battle.get_unit_state(soldier)["is_ranged"]:
+			deepest_ranged = maxi(deepest_ranged, depth)
+		else:
+			rearmost_melee = mini(rearmost_melee, depth)
+	# The shieldman (3 moves) cannot reach its front slot this step, so it
+	# may stand level with the archers, never behind them.
+	return Kit.expect_true("archers on the rear slots, behind or level with the melee (%d <= %d)" % [deepest_ranged, rearmost_melee], deepest_ranged == -1 and deepest_ranged <= rearmost_melee) \
+		and Kit.expect("preview", preview, actual)
+
+
+# Two held archers can reach an enemy beside their leader (too tough to
+# kill) and a weak one that neither kills alone but both together do: they
+# both shoot the weak one and it falls (the old rule shot the threat).
+func _check_focus_kill() -> bool:
+	var probe := _focus_battle(100)
+	var per_shot: int = probe[1]
+	var full_hp: int = probe[2]
+	var hp_pct := int(ceil(150.0 * per_shot / full_hp))
+	var parts := _focus_battle(hp_pct)
+	var battle: TacticsBattle = parts[0]
+	var leader: int = parts[3]
+	var weak: int = parts[4]
+	var hp: int = battle.get_unit_state(weak)["hp"]
+	if not Kit.expect_true("one shot (%d) leaves it, two (%d) kill it (%d hp)" % [per_shot, per_shot * 2, hp], per_shot < hp and per_shot * 2 >= hp):
+		return false
+	var events := battle.wait(leader)
+	return Kit.expect("both shoot the weak one", _engagements(events), [[leader + 1, weak], [leader + 2, weak]]) \
+		and Kit.expect("it fell", battle.get_unit_state(weak)["alive"], false)
+
+
+# [battle, archer damage per engagement on the weak enemy, its max hp at
+# hp_pct 100 or as made, leader, weak].
+func _focus_battle(hp_pct: int) -> Array:
+	var battle := _kit.new_battle(_kit.plain_rows())
+	var leader := _kit.add(battle, A, _leader(MOON_SPEAR, {"attack_pct": 0}), Vector2i(5, 8), _troops([ARCHER, ARCHER]))
+	_kit.add(battle, B, _leader(THIET_NHA), Vector2i(6, 8))
+	var weak := _kit.add(battle, B, _leader(THIET_NHA, {"hp_pct": hp_pct}), Vector2i(3, 10))
+	battle.start()
+	battle.set_order(leader, &"order.hold")
+	var forecast := battle.forecast_engagement(leader + 1, weak)
+	var per_shot: int = forecast["attacker_damage_per_hit"] * forecast["attacker_hits"]
+	return [battle, per_shot, battle.get_unit_state(weak)["max_hp"], leader, weak]
+
+
+# A held spearman beside an enemy whose counter would kill it does not strike.
+func _check_no_deadly_strike() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows())
+	var leader := _kit.add(battle, A, _leader(MOON_SPEAR), Vector2i(5, 8), _troops([SPEARMAN]))
+	var brute := _kit.add(battle, B, _leader(THIET_NHA, {"attack_pct": 3000}), Vector2i(5, 10))
+	battle.start()
+	battle.set_order(leader, &"order.hold")
+	var forecast := battle.forecast_engagement(leader + 1, brute)
+	if not Kit.expect_true("the counter would kill it", forecast["is_attacker_dead"] and not forecast["is_defender_dead"]):
+		return false
+	return Kit.expect("no strike", _engagements(battle.wait(leader)), []) and Kit.expect("alive", battle.get_unit_state(leader + 1)["alive"], true)
+
+
+# Vanguard accepts the trade: the soldier on its slot beside the brute strikes.
+func _check_vanguard_risks() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows())
+	var leader := _kit.add(battle, A, _leader(MOON_SPEAR), Vector2i(5, 8), _troops([SPEARMAN]))
+	var brute := _kit.add(battle, B, _leader(THIET_NHA, {"attack_pct": 3000}), Vector2i(5, 6))
+	_kit.add(battle, B, _leader(THIET_NHA), FAR)
+	battle.start()
+	battle.set_order(leader, &"order.vanguard")
+	return Kit.expect("strikes anyway", _engagements(battle.wait(leader)), [[leader + 1, brute]])
+
+
+# A spearman worn under 35% next to an enemy falls back, as far from it as
+# the follow leash allows, and fewer enemies can reach it there.
+func _check_falls_back() -> bool:
+	var rules := _kit.catalog.rules.duplicate() as TacticsRulesData
+	rules.hits_per_engagement = 1
+	var battle := _kit.new_battle(_kit.plain_rows(), false, rules)
+	var leader := _kit.add(battle, A, _leader(MOON_SPEAR, {"attack_pct": 0}), Vector2i(5, 8), [_kit.troop(SPEARMAN, {"attack_pct": 0})])
+	var soldier := leader + 1
+	var enemy := _kit.add(battle, B, _leader(THIET_NHA, {"attack_pct": 15, "hp_pct": 300}), Vector2i(5, 10))
+	battle.start()
+	battle.set_order(leader, &"order.hold")
+	for round_index: int in 30:
+		var state := battle.get_unit_state(soldier)
+		if int(state["hp"]) * 100 <= int(state["max_hp"]) * rules.retreat_hp_pct:
+			break
+		battle.end_phase()
+		battle.attack(enemy, soldier)
+		battle.end_phase()
+	var state := battle.get_unit_state(soldier)
+	if not Kit.expect_true("hurt and alive (%d / %d)" % [state["hp"], state["max_hp"]], state["alive"] and int(state["hp"]) * 100 <= int(state["max_hp"]) * rules.retreat_hp_pct):
+		return false
+	var before := Kit.cell_of(battle, soldier)
+	var reach_before := _attackers_of(battle, before, A)
+	battle.set_order(leader, &"order.follow")
+	battle.wait(leader)
+	var after := Kit.cell_of(battle, soldier)
+	return Kit.expect_true("moved away (%s -> %s)" % [before, after], _distance(after, Vector2i(5, 10)) > _distance(before, Vector2i(5, 10))) \
+		and Kit.expect_true("within the leash", _distance(after, Vector2i(5, 8)) <= rules.leash_follow_cells) \
+		and Kit.expect_true("no more enemies reach it", _attackers_of(battle, after, A) <= reach_before)
+
+
+# The leader is worn under half by an archer three cells north: the
+# shieldman (not the archer) steps onto the cell between them.
+func _check_shields_leader() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows())
+	var leader := _kit.add(battle, A, _leader(MOON_SPEAR, {"attack_pct": 0}), Vector2i(5, 8), _troops([ARCHER, SHIELDMAN]))
+	var shooter := _kit.add(battle, B, _leader(LIEU_MI, {"attack_pct": 60}), Vector2i(5, 5))
+	battle.start()
+	battle.set_order(leader, &"order.hold")
+	for round_index: int in 30:
+		var state := battle.get_unit_state(leader)
+		if int(state["hp"]) * 100 <= int(state["max_hp"]) * _kit.catalog.rules.shield_leader_hp_pct:
+			break
+		battle.end_phase()
+		battle.attack(shooter, leader)
+		battle.end_phase()
+	var state := battle.get_unit_state(leader)
+	if not Kit.expect_true("leader worn (%d / %d)" % [state["hp"], state["max_hp"]], state["alive"] and int(state["hp"]) * 100 <= int(state["max_hp"]) * _kit.catalog.rules.shield_leader_hp_pct):
+		return false
+	battle.set_order(leader, &"order.follow")
+	battle.wait(leader)
+	return Kit.expect("shieldman between", Kit.cell_of(battle, leader + 2), Vector2i(5, 7)) \
+		and Kit.expect_true("archer elsewhere", Kit.cell_of(battle, leader + 1) != Vector2i(5, 7))
+
+
+# A free spearman with no fight it can win (three leaders whose counter
+# kills it) closes in but stops where fewer than two of them can reach it.
+func _check_free_wall() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows())
+	var leader := _kit.add(battle, A, _leader(MOON_SPEAR), Vector2i(1, 11), _troops([SPEARMAN]))
+	var soldier := leader + 1
+	for col: int in [5, 6, 7]:
+		_kit.add(battle, B, _leader(THIET_NHA, {"attack_pct": 3000, "move_points": 2}), Vector2i(col, 3))
+	battle.start()
+	battle.set_order(leader, &"order.free")
+	var before := Kit.cell_of(battle, soldier)
+	battle.wait(leader)
+	var after := Kit.cell_of(battle, soldier)
+	return Kit.expect_true("closed in (%s -> %s)" % [before, after], _distance(after, Vector2i(6, 3)) < _distance(before, Vector2i(6, 3))) \
+		and Kit.expect_true("outside the wall (%d can reach %s)" % [_attackers_of(battle, after, A), after], _attackers_of(battle, after, A) < _kit.catalog.rules.free_threat_limit)
+
+
+# The leader's strike cell is reachable and in range; the forecast after the
+# move matches the real move then attack, soldiers' strikes included.
+func _check_strike_cell() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows())
+	var leader := _kit.add(battle, A, _leader(MOON_SPEAR), Vector2i(5, 9), _troops([SPEARMAN, ARCHER]))
+	var enemy := _kit.add(battle, B, _leader(THIET_NHA, {"hp_pct": 300}), Vector2i(5, 5))
+	battle.start()
+	if not Kit.expect_true("a strike target", battle.get_strike_targets(leader).has(enemy)):
+		return false
+	var cell := battle.get_strike_cell(leader, enemy)
+	var reach := battle.get_unit_state(leader)
+	var distance := _distance(cell, Vector2i(5, 5))
+	if not (Kit.expect_true("reachable", battle.get_reachable_cells(leader).has(cell)) \
+			and Kit.expect_true("in range", distance >= int(reach["min_range"]) and distance <= int(reach["max_range"]))):
+		return false
+	var hash_before := battle.get_state_hash()
+	var forecast := battle.forecast_move_attack(leader, cell, enemy)
+	if not (Kit.expect("forecast changes nothing", battle.get_state_hash(), hash_before) and Kit.expect("valid", forecast["is_valid"], true)):
+		return false
+	battle.move_leader(leader, cell)
+	var squad: Array = []
+	for soldier: int in battle.get_unit_state(leader)["soldiers"]:
+		squad.append({"unit": soldier, "cell": Kit.cell_of(battle, soldier)})
+	battle.attack(leader, enemy)
+	return Kit.expect("squad cells", forecast["squad"], squad) \
+		and Kit.expect("hp after", [Kit.hp_of(battle, leader), Kit.hp_of(battle, enemy)], [forecast["attacker_hp_after"], forecast["defender_hp_after"]])
+
+
+# A plain move is taken back to the exact state hash, cells and charge.
+func _check_undo() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows())
+	var leader := _kit.add(battle, A, _kit.leader(&"leader.lac_hong"), Vector2i(5, 9), _troops([SPEARMAN, ARCHER]))
+	_kit.add(battle, B, _leader(THIET_NHA), FAR)
+	battle.start()
+	var hash_before := battle.get_state_hash()
+	var cells_before := battle.get_units().map(func(unit: Dictionary) -> Vector2i: return unit["cell"])
+	if not Kit.expect("nothing to undo yet", battle.can_undo_move(leader), false):
+		return false
+	battle.move_leader(leader, Vector2i(5, 6))
+	if not Kit.expect("undo offered", battle.can_undo_move(leader), true):
+		return false
+	var undone := battle.undo_move(leader)
+	return Kit.expect("undone", undone, true) and Kit.expect("same hash", battle.get_state_hash(), hash_before) \
+		and Kit.expect("same cells", battle.get_units().map(func(unit: Dictionary) -> Vector2i: return unit["cell"]), cells_before) \
+		and Kit.expect("can move again", battle.can_move(leader), true) and Kit.expect("once only", battle.can_undo_move(leader), false)
+
+
+# A move whose squad strikes, or an attack after a move, cannot be taken back.
+func _check_undo_refused() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows())
+	var leader := _kit.add(battle, A, _leader(MOON_SPEAR), Vector2i(5, 9), _troops([SPEARMAN]))
+	_kit.add(battle, B, _leader(THIET_NHA, {"hp_pct": 4, "attack_pct": 0}), Vector2i(3, 7))
+	var other := _kit.add(battle, A, _leader(MOON_SPEAR), Vector2i(9, 9), [])
+	var target := _kit.add(battle, B, _leader(THIET_NHA, {"attack_pct": 0}), Vector2i(9, 6))
+	battle.start()
+	var events := battle.move_leader(leader, Vector2i(4, 8))
+	if not (Kit.expect_true("the squad struck", not _engagements(events).is_empty()) and Kit.expect("no undo", battle.can_undo_move(leader), false)):
+		return false
+	battle.move_leader(other, Vector2i(9, 7))
+	if not Kit.expect("undo after a plain move", battle.can_undo_move(other), true):
+		return false
+	battle.attack(other, target)
+	Engine.print_error_messages = false
+	var undone := battle.undo_move(other)
+	Engine.print_error_messages = true
+	return Kit.expect("no undo after the attack", [battle.can_undo_move(other), undone], [false, false])
+
+
+# Two battles with the brains at work and the same commands give the same
+# hashes after every command.
+func _check_determinism() -> bool:
+	var hashes: Array = []
+	for run: int in 2:
+		var battle := _kit.new_battle(_kit.plain_rows(), true)
+		var ours := _kit.add(battle, A, _kit.leader(MOON_SPEAR), Vector2i(4, 10), _troops([SPEARMAN, ARCHER, SHIELDMAN]))
+		_kit.add(battle, A, _kit.leader(&"leader.lac_hong"), Vector2i(7, 10), _troops([ARCHER, SPEARMAN]))
+		_kit.add(battle, B, _kit.leader(THIET_NHA), Vector2i(5, 2))
+		_kit.add(battle, B, _kit.leader(LIEU_MI), Vector2i(8, 1))
+		battle.start()
+		battle.set_order(ours, &"order.vanguard")
+		var trail: Array = []
+		for round_index: int in 8:
+			if battle.is_finished():
+				break
+			for unit: Dictionary in battle.get_units():
+				if unit["role"] == &"leader" and unit["side"] == A and battle.can_move(unit["index"]):
+					var reachable: Array = battle.get_reachable_cells(unit["index"])
+					if not reachable.is_empty():
+						battle.move_leader(unit["index"], reachable[reachable.size() / 2])
+					trail.append(battle.get_state_hash())
+			if not battle.is_finished():
+				battle.end_phase()
+				trail.append(battle.get_state_hash())
+		hashes.append(trail)
+	return Kit.expect("same hashes", hashes[0], hashes[1])

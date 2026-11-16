@@ -77,6 +77,22 @@ struct Rules {
 	int help_radius_cells = 4;
 	int max_leaders_per_side = 5;
 	int max_rounds = 30;
+	// Soldier brains (Docs/systems/tactics.md, Soldiers): how far from its
+	// leader a soldier may step out to strike, per formation order.
+	int leash_follow_cells = 2;
+	int leash_vanguard_cells = 4;
+	int leash_flank_cells = 4;
+	// A soldier at or under this % of its hp falls back.
+	int retreat_hp_pct = 35;
+	// A leader at or under this % of its hp with an enemy in reach gets a
+	// shield.
+	int shield_leader_hp_pct = 50;
+	// A `free` soldier does not end its step where this many enemies can
+	// reach it (more than allies next to it) unless it fights there.
+	int free_threat_limit = 2;
+	// Weight of a soldier's role (ranged rear, sturdy front) against the
+	// walking distance (10 per cell) when slots are shared out.
+	int role_slot_weight = 12;
 };
 
 struct KeywordHandler;

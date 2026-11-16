@@ -216,7 +216,14 @@ bool validate_rules(const Rules &p_rules, std::string *r_error) {
 			check_range(owner, "anticipation_shift_cells", p_rules.anticipation_shift_cells, 0, MAX_MOVE_POINTS, r_error) &&
 			check_range(owner, "help_radius_cells", p_rules.help_radius_cells, 0, MAX_MAP_CELLS_PER_AXIS * 2, r_error) &&
 			check_range(owner, "max_leaders_per_side", p_rules.max_leaders_per_side, 1, MAX_SQUAD_SIZE, r_error) &&
-			check_range(owner, "max_rounds", p_rules.max_rounds, 1, MAX_ROUNDS, r_error);
+			check_range(owner, "max_rounds", p_rules.max_rounds, 1, MAX_ROUNDS, r_error) &&
+			check_range(owner, "leash_follow_cells", p_rules.leash_follow_cells, 0, MAX_MAP_CELLS_PER_AXIS * 2, r_error) &&
+			check_range(owner, "leash_vanguard_cells", p_rules.leash_vanguard_cells, 0, MAX_MAP_CELLS_PER_AXIS * 2, r_error) &&
+			check_range(owner, "leash_flank_cells", p_rules.leash_flank_cells, 0, MAX_MAP_CELLS_PER_AXIS * 2, r_error) &&
+			check_range(owner, "retreat_hp_pct", p_rules.retreat_hp_pct, 0, MAX_PERCENT_MODIFIER, r_error) &&
+			check_range(owner, "shield_leader_hp_pct", p_rules.shield_leader_hp_pct, 0, MAX_PERCENT_MODIFIER, r_error) &&
+			check_range(owner, "free_threat_limit", p_rules.free_threat_limit, 1, MAX_MAP_CELLS_PER_AXIS * 2, r_error) &&
+			check_range(owner, "role_slot_weight", p_rules.role_slot_weight, 0, MAX_PERCENT_MODIFIER, r_error);
 }
 
 bool validate_map(const MapDef &p_map, std::string *r_error) {

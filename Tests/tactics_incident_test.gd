@@ -220,13 +220,16 @@ func _check_surge() -> bool:
 	var leader := _kit.add(battle, A, _leader(MOON_SPEAR, {"attack_pct": 0, "lead_capacity": 4}), Vector2i(5, 6), _spearmen(4))
 	var soldier := leader + 1
 	var victim := leader + 4
-	_kit.add(battle, B, _leader(THIET_NHA, {"attack_pct": 2000}), Vector2i(3, 7))
+	var enemy := _kit.add(battle, B, _leader(THIET_NHA, {"attack_pct": 2000}), Vector2i(3, 7))
 	if not _enable(battle, {soldier: &"incident.surge"}) or not Kit.expect("victim beside", Kit.cell_of(battle, victim), Vector2i(4, 7)):
 		return false
 	battle.start()
 	battle.set_order(leader, &"order.hold")
 	var attack: int = _state(battle, soldier)["attack"]
-	var died: bool = not Kit.of_type(battle.end_phase(), &"unit_died").is_empty()
+	# Soldiers no longer strike into a counter that kills them, so the enemy
+	# leader kills the comrade in its own phase.
+	battle.end_phase()
+	var died: bool = not Kit.of_type(battle.attack(enemy, victim), &"unit_died").is_empty()
 	var wavered := _first(battle.end_phase(), &"soldier_wavered")
 	var fired := _first(battle.end_phase(), &"incident_fired")
 	return Kit.expect_true("the comrade fell", died and not _state(battle, victim)["alive"]) and Kit.expect("wavered", wavered.get("incident"), &"incident.surge") \
@@ -282,12 +285,17 @@ func _riot_battle() -> Array:
 	var battle := _kit.new_battle(_kit.plain_rows(), false, _one_hit_rules())
 	var leader := _kit.add(battle, A, _leader(MOON_SPEAR, {"attack_pct": 0, "lead_capacity": 4}), Vector2i(5, 6), _spearmen(4))
 	var soldier := leader + 1
-	_kit.add(battle, B, _leader(THIET_NHA, {"attack_pct": 2000}), Vector2i(7, 6))
-	_kit.add(battle, B, _leader(THIET_NHA, {"attack_pct": 2000}), Vector2i(3, 6))
+	var east := _kit.add(battle, B, _leader(THIET_NHA, {"attack_pct": 2000}), Vector2i(7, 6))
+	var west := _kit.add(battle, B, _leader(THIET_NHA, {"attack_pct": 2000}), Vector2i(3, 6))
 	_enable(battle, {soldier: &"incident.riot"})
 	battle.start()
 	battle.set_order(leader, &"order.hold")
-	_pass_round(battle)
+	# Soldiers do not strike into a counter that kills them, so the enemy
+	# leaders kill the two beside them in their own phase.
+	battle.end_phase()
+	battle.attack(east, leader + 3)
+	battle.attack(west, leader + 2)
+	battle.end_phase()
 	return [battle, leader, soldier, leader + 4]
 
 

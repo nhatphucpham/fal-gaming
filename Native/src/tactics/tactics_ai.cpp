@@ -1,5 +1,6 @@
 #include "tactics_ai.h"
 
+#include "tactics_brain.h"
 #include "tactics_combat.h"
 #include "tactics_paths.h"
 #include "tactics_sim.h"
@@ -11,7 +12,7 @@ namespace {
 
 // The enemy with the shortest path (zones of control ignored) to a cell
 // the leader could attack it from; ties to the lower index.
-int pick_ai_target(const TacticsSim &p_sim, int p_leader) {
+int find_nearest_enemy(const TacticsSim &p_sim, int p_leader) {
 	const PathField field = find_paths(p_sim, p_leader, UNLIMITED_COST, ZocMode::IGNORE);
 	int best = NO_UNIT;
 	int best_cost = UNREACHABLE;
@@ -28,6 +29,40 @@ int pick_ai_target(const TacticsSim &p_sim, int p_leader) {
 		}
 	}
 	return best;
+}
+
+struct Aim {
+	int target = NO_UNIT;
+	// The cell to strike from this phase, NO_CELL when out of reach.
+	Cell strike_cell = NO_CELL;
+};
+
+// What the leader goes for: among enemies it can strike this phase without
+// dying to the counter for nothing, a leader before a soldier, a kill
+// before a hit, then the lowest hp, struck from the safest cell; else the
+// nearest enemy by path.
+Aim pick_ai_aim(const TacticsSim &p_sim, int p_leader) {
+	Aim aim;
+	const PathField field = find_paths(p_sim, p_leader, p_sim.get_stats(p_leader).move_points, ZocMode::APPLY);
+	const std::vector<Strike> strikes = list_strikes(p_sim, p_leader, field, [](const Cell &) { return true; });
+	std::vector<int> best_key;
+	for (const Strike &strike : strikes) {
+		if (strike.result.is_attacker_dead && !strike.result.is_defender_dead) {
+			continue;
+		}
+		const UnitState &enemy = p_sim.get_units()[strike.target];
+		const std::vector<int> key = { p_sim.is_leader(enemy.index) ? 0 : 1, strike.result.is_defender_dead ? 0 : 1, enemy.hp, enemy.index };
+		if (aim.target == NO_UNIT || key < best_key) {
+			aim.target = enemy.index;
+			best_key = key;
+		}
+	}
+	if (aim.target == NO_UNIT) {
+		aim.target = find_nearest_enemy(p_sim, p_leader);
+		return aim;
+	}
+	aim.strike_cell = pick_safest_strike_cell(p_sim, strikes, count_enemy_reach(p_sim, p_sim.get_units()[p_leader].side), aim.target);
+	return aim;
 }
 
 // The skill is ready once the leader stands on p_from: moving there first
@@ -72,7 +107,8 @@ Intent plan_intent(const TacticsSim &p_sim, int p_leader) {
 	Intent intent;
 	intent.leader = p_leader;
 	intent.destination = leader.cell;
-	intent.target = pick_ai_target(p_sim, p_leader);
+	const Aim aim = pick_ai_aim(p_sim, p_leader);
+	intent.target = aim.target;
 	if (intent.target == NO_UNIT) {
 		return can_cast_on_own_cell(p_sim, p_leader, intent.destination) ? cast_on_own_cell(intent, intent.destination) : intent;
 	}
@@ -82,7 +118,7 @@ Intent plan_intent(const TacticsSim &p_sim, int p_leader) {
 	const std::vector<Cell> attack_cells = get_attack_cells(p_sim, p_leader, intent.target);
 	const std::vector<int> distance = find_goal_distances(p_sim, p_leader, attack_cells);
 	// Attack cells have distance 0, so a reachable one always wins.
-	intent.destination = pick_reachable_cell(p_sim, p_leader, field, [&](const Cell &p_cell) { return distance[p_sim.get_cell_index(p_cell)]; });
+	intent.destination = aim.strike_cell != NO_CELL ? aim.strike_cell : pick_reachable_cell(p_sim, p_leader, field, [&](const Cell &p_cell) { return distance[p_sim.get_cell_index(p_cell)]; });
 	// A skill that moving would lose (charge.focus) is cast from where the
 	// leader stands when it can be.
 	const bool would_lose_skill = is_skill_ready(leader) && !is_skill_ready_on(leader, intent.destination);

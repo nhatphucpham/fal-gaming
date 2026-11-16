@@ -32,6 +32,20 @@ public:
 	int get_max_leaders_per_side() const { return rules.max_leaders_per_side; }
 	void set_max_rounds(int64_t p_value) { rules.max_rounds = clamp_to_int(p_value); }
 	int get_max_rounds() const { return rules.max_rounds; }
+	void set_leash_follow_cells(int64_t p_value) { rules.leash_follow_cells = clamp_to_int(p_value); }
+	int get_leash_follow_cells() const { return rules.leash_follow_cells; }
+	void set_leash_vanguard_cells(int64_t p_value) { rules.leash_vanguard_cells = clamp_to_int(p_value); }
+	int get_leash_vanguard_cells() const { return rules.leash_vanguard_cells; }
+	void set_leash_flank_cells(int64_t p_value) { rules.leash_flank_cells = clamp_to_int(p_value); }
+	int get_leash_flank_cells() const { return rules.leash_flank_cells; }
+	void set_retreat_hp_pct(int64_t p_value) { rules.retreat_hp_pct = clamp_to_int(p_value); }
+	int get_retreat_hp_pct() const { return rules.retreat_hp_pct; }
+	void set_shield_leader_hp_pct(int64_t p_value) { rules.shield_leader_hp_pct = clamp_to_int(p_value); }
+	int get_shield_leader_hp_pct() const { return rules.shield_leader_hp_pct; }
+	void set_free_threat_limit(int64_t p_value) { rules.free_threat_limit = clamp_to_int(p_value); }
+	int get_free_threat_limit() const { return rules.free_threat_limit; }
+	void set_role_slot_weight(int64_t p_value) { rules.role_slot_weight = clamp_to_int(p_value); }
+	int get_role_slot_weight() const { return rules.role_slot_weight; }
 };
 
 } // namespace godot

@@ -166,6 +166,7 @@ bool TacticsSim::end_phase(std::string *r_error) {
 		*r_error = "end_phase() needs a running battle";
 		return false;
 	}
+	clear_undo();
 	close_phase();
 	begin_next_phase();
 	run_ai_phases();

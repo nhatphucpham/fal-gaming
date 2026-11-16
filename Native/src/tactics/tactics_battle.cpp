@@ -190,6 +190,15 @@ Array TacticsBattle::set_order(int64_t p_unit, const StringName &p_order) {
 	return flush_events();
 }
 
+bool TacticsBattle::undo_move(int64_t p_unit) {
+	if (!check_not_emitting("undo_move")) {
+		return false;
+	}
+	std::string error;
+	ERR_FAIL_COND_V_MSG(!sim.undo_move(clamp_to_int(p_unit), &error), false, "Tactics: undo_move() refused: " + to_godot_string(error));
+	return true;
+}
+
 Array TacticsBattle::end_phase() {
 	if (!check_not_emitting("end_phase")) {
 		return Array();
@@ -281,6 +290,11 @@ void TacticsBattle::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("wait", "unit"), &TacticsBattle::wait);
 	ClassDB::bind_method(D_METHOD("set_order", "unit", "order"), &TacticsBattle::set_order);
 	ClassDB::bind_method(D_METHOD("end_phase"), &TacticsBattle::end_phase);
+	ClassDB::bind_method(D_METHOD("undo_move", "unit"), &TacticsBattle::undo_move);
+	ClassDB::bind_method(D_METHOD("can_undo_move", "unit"), &TacticsBattle::can_undo_move);
+	ClassDB::bind_method(D_METHOD("get_strike_cell", "unit", "target"), &TacticsBattle::get_strike_cell);
+	ClassDB::bind_method(D_METHOD("get_strike_targets", "unit"), &TacticsBattle::get_strike_targets);
+	ClassDB::bind_method(D_METHOD("forecast_move_attack", "unit", "cell", "target"), &TacticsBattle::forecast_move_attack);
 	ClassDB::bind_method(D_METHOD("is_started"), &TacticsBattle::is_started);
 	ClassDB::bind_method(D_METHOD("is_finished"), &TacticsBattle::is_finished);
 	ClassDB::bind_method(D_METHOD("get_winner"), &TacticsBattle::get_winner);

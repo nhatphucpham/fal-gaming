@@ -177,15 +177,15 @@ Array TacticsBattle::get_formation_slots(int64_t p_leader) const {
 	return tactics_cells_to_array(tactics::get_formation_slots(sim, static_cast<int>(p_leader)));
 }
 
-Dictionary TacticsBattle::forecast_engagement(int64_t p_attacker, int64_t p_defender) const {
+namespace {
+
+// The forecast dictionary of p_attacker engaging p_defender on p_sim.
+Dictionary make_forecast(const tactics::TacticsSim &p_sim, int p_attacker, int p_defender) {
 	Dictionary forecast;
-	if (!check_unit(p_attacker, "forecast_engagement") || !check_unit(p_defender, "forecast_engagement")) {
-		return forecast;
-	}
-	const tactics::EngagementResult result = sim.forecast_engagement(static_cast<int>(p_attacker), static_cast<int>(p_defender));
+	const tactics::EngagementResult result = p_sim.forecast_engagement(p_attacker, p_defender);
 	forecast["is_valid"] = result.is_valid;
-	forecast["attacker"] = static_cast<int>(p_attacker);
-	forecast["defender"] = static_cast<int>(p_defender);
+	forecast["attacker"] = p_attacker;
+	forecast["defender"] = p_defender;
 	if (!result.is_valid) {
 		return forecast;
 	}
@@ -200,8 +200,69 @@ Dictionary TacticsBattle::forecast_engagement(int64_t p_attacker, int64_t p_defe
 	forecast["defender_hp_after"] = result.defender_hp_after;
 	forecast["is_attacker_dead"] = result.is_attacker_dead;
 	forecast["is_defender_dead"] = result.is_defender_dead;
-	forecast["attacker_modifiers"] = ids_to_array(tactics::collect_hit_sources(sim, static_cast<int>(p_attacker), static_cast<int>(p_defender), false));
-	forecast["defender_modifiers"] = result.can_counter ? ids_to_array(tactics::collect_hit_sources(sim, static_cast<int>(p_defender), static_cast<int>(p_attacker), true)) : Array();
+	forecast["attacker_modifiers"] = ids_to_array(tactics::collect_hit_sources(p_sim, p_attacker, p_defender, false));
+	forecast["defender_modifiers"] = result.can_counter ? ids_to_array(tactics::collect_hit_sources(p_sim, p_defender, p_attacker, true)) : Array();
+	return forecast;
+}
+
+} // namespace
+
+Dictionary TacticsBattle::forecast_engagement(int64_t p_attacker, int64_t p_defender) const {
+	if (!check_unit(p_attacker, "forecast_engagement") || !check_unit(p_defender, "forecast_engagement")) {
+		return Dictionary();
+	}
+	return make_forecast(sim, static_cast<int>(p_attacker), static_cast<int>(p_defender));
+}
+
+bool TacticsBattle::can_undo_move(int64_t p_unit) const {
+	return check_unit(p_unit, "can_undo_move") && sim.can_undo_move(static_cast<int>(p_unit));
+}
+
+Vector2i TacticsBattle::get_strike_cell(int64_t p_unit, int64_t p_target) const {
+	if (!check_unit(p_unit, "get_strike_cell") || !check_unit(p_target, "get_strike_cell")) {
+		return Vector2i(-1, -1);
+	}
+	return to_vector2i(sim.get_strike_cell(static_cast<int>(p_unit), static_cast<int>(p_target)));
+}
+
+Array TacticsBattle::get_strike_targets(int64_t p_unit) const {
+	if (!check_unit(p_unit, "get_strike_targets")) {
+		return Array();
+	}
+	return units_to_array(sim.get_strike_targets(static_cast<int>(p_unit)));
+}
+
+// Like forecast_engagement(), a move that cannot happen is not an error:
+// the screen asks as the player touches cells.
+Dictionary TacticsBattle::forecast_move_attack(int64_t p_unit, const Vector2i &p_cell, int64_t p_target) const {
+	if (!check_unit(p_unit, "forecast_move_attack") || !check_unit(p_target, "forecast_move_attack")) {
+		return Dictionary();
+	}
+	const int unit = static_cast<int>(p_unit);
+	const int target = static_cast<int>(p_target);
+	tactics::TacticsSim copy;
+	std::string error;
+	if (!sim.simulate_move(unit, to_cell(p_cell), &copy, &error)) {
+		Dictionary refused;
+		refused["is_valid"] = false;
+		refused["attacker"] = unit;
+		refused["defender"] = target;
+		refused["target_gone"] = false;
+		return refused;
+	}
+	Dictionary forecast = make_forecast(copy, unit, target);
+	forecast["target_gone"] = !copy.get_units()[target].is_alive;
+	Array squad;
+	for (int soldier : copy.get_units()[unit].soldiers) {
+		if (copy.get_units()[soldier].is_alive) {
+			Dictionary placement;
+			placement["unit"] = soldier;
+			placement["cell"] = to_vector2i(copy.get_units()[soldier].cell);
+			squad.push_back(placement);
+		}
+	}
+	forecast["squad"] = squad;
+	forecast["cell"] = p_cell;
 	return forecast;
 }
 

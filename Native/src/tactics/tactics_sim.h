@@ -4,6 +4,7 @@
 #include "tactics_state.h"
 
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -75,6 +76,13 @@ public:
 	bool set_order(int p_unit, int p_order, std::string *r_error);
 	// Ends the phase; AI phases that follow run before it returns.
 	bool end_phase(std::string *r_error);
+	// Takes back the last command when it was p_unit's move in a human
+	// phase and that move only moved the leader and its squad (and changed
+	// its charge): the battle returns to the state before it, same hash.
+	// Any other command, or a move that caused anything else (a squad
+	// strike, a zone, karma, the objective), makes it impossible.
+	bool can_undo_move(int p_unit) const;
+	bool undo_move(int p_unit, std::string *r_error);
 
 	// Events appended since the last take_events().
 	std::vector<Event> take_events();
@@ -120,6 +128,16 @@ public:
 	// pairs of (soldier, cell). Empty with r_error when the move is refused.
 	std::vector<std::pair<int, Cell>> preview_squad(int p_leader, const Cell &p_cell, std::string *r_error) const;
 	uint64_t get_state_hash() const;
+	// The cell p_unit would strike p_target from this phase: where it stands
+	// once it has moved, else the safest reachable cell in range
+	// (tactics_brain.h, pick_safest_strike_cell); NO_CELL when none.
+	Cell get_strike_cell(int p_unit, int p_target) const;
+	// Enemies p_unit could attack this phase, moving first if it still may.
+	std::vector<int> get_strike_targets(int p_unit) const;
+	// A copy of the battle after p_unit moved to p_cell (its squad steps and
+	// strikes as move_leader() makes it), or its own cell unchanged. False
+	// with r_error when the move would be refused.
+	bool simulate_move(int p_unit, const Cell &p_cell, TacticsSim *r_copy, std::string *r_error) const;
 	// The leader of the active side may still move (it has neither moved
 	// nor acted) or act this phase; false for soldiers and dead units.
 	bool can_leader_move(int p_unit) const;
@@ -152,6 +170,9 @@ public:
 	void add_buff(BuffState p_buff, int p_duration_rounds, int p_cause);
 	void change_skill_charge(int p_leader, int p_delta, bool p_resets, int p_cause);
 	void emit_passive_triggered(int p_unit, const std::string &p_passive_id, int p_cause);
+	// Puts a unit on a free cell with no event and no other effect, for the
+	// what-if checks of tactics_brain.cpp; only ever on a copy.
+	void place_for_query(int p_unit, const Cell &p_cell, int p_straight_cells);
 	// Runs the soldiers' moves only (orders.h); the preview uses it alone.
 	void run_squad_moves(int p_leader, int p_cause);
 	// Incident helpers (tactics_incidents.cpp).
@@ -188,6 +209,9 @@ private:
 	IncidentRandom random;
 	std::vector<std::pair<int, int>> forced_seeds;
 	int carried_karma[SIDE_COUNT][2] = { { 0, 0 }, { 0, 0 } };
+	// The battle before the last undoable move, and whose move it was.
+	std::shared_ptr<const TacticsSim> undo_state;
+	int undo_leader = NO_UNIT;
 	int battle_karma[SIDE_COUNT][2] = { { 0, 0 }, { 0, 0 } };
 
 	bool check_new_leader(int p_side, const UnitDef &p_leader, const std::vector<UnitDef> &p_squad, std::string *r_error) const;
@@ -201,6 +225,7 @@ private:
 	void finish_leader_action(int p_unit, int p_cause);
 	void run_squad_step(int p_leader, int p_cause);
 	void begin_phase(int p_side);
+	void clear_undo();
 	void close_phase();
 	void run_ai_phase();
 	// Runs AI phases until a player phase begins or the battle ends.

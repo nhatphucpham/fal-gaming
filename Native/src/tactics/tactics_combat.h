@@ -25,6 +25,12 @@ int compute_hit_damage(const TacticsSim &p_sim, int p_attacker, int p_defender, 
 // hit, then passives, buffs and terrain behind the attack and defence
 // stats. For the forecast; the numbers come from compute_hit_damage.
 std::vector<std::string> collect_hit_sources(const TacticsSim &p_sim, int p_attacker, int p_defender, bool p_is_counter);
+// The engagement worked out without changing anything: the same plan as
+// resolve_engagement() (who strikes first, the counter, damage per hit) and
+// the same hit order on the current hp. Hits on a leader that a rescuing
+// soldier guards land on the guard, so that leader is never predicted dead.
+// The soldiers' choices use it; forecast_engagement() stays the exact one.
+EngagementResult predict_engagement(const TacticsSim &p_sim, int p_attacker, int p_defender);
 // Resolves one engagement and emits its events. The caller checked range.
 EngagementResult resolve_engagement(TacticsSim &p_sim, int p_attacker, int p_defender, int p_cause);
 

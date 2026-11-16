@@ -234,6 +234,16 @@ void TacticsSim::handle_death(int p_unit, int p_killer, int p_cause) {
 	check_rout(death_id);
 }
 
+void TacticsSim::place_for_query(int p_unit, const Cell &p_cell, int p_straight_cells) {
+	UnitState &unit = units[p_unit];
+	if (is_on_map(unit.cell) && occupants[get_cell_index(unit.cell)] == p_unit) {
+		occupants[get_cell_index(unit.cell)] = NO_UNIT;
+	}
+	unit.cell = p_cell;
+	unit.straight_cells = p_straight_cells;
+	occupants[get_cell_index(p_cell)] = p_unit;
+}
+
 int TacticsSim::relocate_unit(int p_unit, const std::vector<Cell> &p_path, const std::string &p_kind, int p_cause) {
 	UnitState &unit = units[p_unit];
 	if (finished || p_path.size() < 2) {

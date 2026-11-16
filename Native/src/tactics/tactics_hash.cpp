@@ -121,6 +121,10 @@ void TacticsSim::hash_setup(uint64_t *r_hash) const {
 	hash_value(r_hash, rules.help_radius_cells);
 	hash_value(r_hash, rules.max_leaders_per_side);
 	hash_value(r_hash, rules.max_rounds);
+	for (int value : { rules.leash_follow_cells, rules.leash_vanguard_cells, rules.leash_flank_cells, rules.retreat_hp_pct, rules.shield_leader_hp_pct, rules.free_threat_limit,
+				 rules.role_slot_weight }) {
+		hash_value(r_hash, value);
+	}
 	hash_text(r_hash, map.id);
 	hash_value(r_hash, map.width);
 	hash_value(r_hash, map.height);

@@ -82,6 +82,10 @@ public:
 	Array wait(int64_t p_unit);
 	Array set_order(int64_t p_unit, const StringName &p_order);
 	Array end_phase();
+	// Takes back the leader's last move (TacticsSim::undo_move): true when
+	// the battle is back to the state before it. Sends no event; the screen
+	// reads the units again.
+	bool undo_move(int64_t p_unit);
 
 	// Queries (tactics_battle_queries.cpp); none changes the battle.
 	bool is_started() const { return sim.is_started(); }
@@ -111,6 +115,15 @@ public:
 	Array get_attack_targets(int64_t p_unit) const;
 	Array get_skill_cells(int64_t p_unit) const;
 	Dictionary preview_skill(int64_t p_unit, const Vector2i &p_cell) const;
+	bool can_undo_move(int64_t p_unit) const;
+	// The cell the leader would strike p_target from this phase, (-1, -1)
+	// when it cannot reach it; enemies it could strike this phase.
+	Vector2i get_strike_cell(int64_t p_unit, int64_t p_target) const;
+	Array get_strike_targets(int64_t p_unit) const;
+	// forecast_engagement() after the leader moved to p_cell, its squad
+	// stepped and struck: `target_gone` when the squad would kill p_target
+	// first (is_valid false then), `squad` the soldiers' new cells.
+	Dictionary forecast_move_attack(int64_t p_unit, const Vector2i &p_cell, int64_t p_target) const;
 	// Tests and tools only: the hidden seeds; the screen never shows them.
 	Array get_incident_seeds() const;
 	Dictionary get_karma(int64_t p_side) const;
