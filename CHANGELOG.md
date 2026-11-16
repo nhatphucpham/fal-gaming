@@ -45,6 +45,9 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Fixed
 
+- Chiến Dịch: the objective shows through the fog and the night, and a
+  gold flag on the edge of the map points at it while it is out of view;
+  edge marks no longer tuck their pointer under the top bar.
 - Chiến Dịch: Liễu Mi's wind trail is laid once a phase where she stops;
   moving her in short hops no longer leaves several wind zones that
   stacked into near-total protection from arrows.

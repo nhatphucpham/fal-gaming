@@ -352,7 +352,7 @@ func _apply_camera(offset: Vector2, zoom: float, clamps: bool = true) -> void:
 		_board.scale = Vector2(zoom, zoom)
 	if _board.position != target:
 		_board.position = target
-		if not _edge_cells.is_empty():
+		if not _edge_cells.is_empty() or is_on_map(_objective):
 			_edge_layer.queue_redraw()
 	if _baked_scale > 0.0 and _bake_scale() > _baked_scale + 0.01:
 		_paint_terrain()
@@ -496,6 +496,14 @@ func get_fog() -> PackedByteArray:
 	return _fog_states
 
 
+## The fog and night colour shown over `cell` now (clear without fog).
+func get_fog_color(cell: Vector2i) -> Color:
+	var index := cell.y * map_width + cell.x
+	if not is_on_map(cell) or index >= _fog_colors.size():
+		return Color(0, 0, 0, 0)
+	return _fog_colors[index]
+
+
 func is_fog_blending() -> bool:
 	return _fog_tween != null and _fog_tween.is_valid() and _fog_tween.is_running()
 
@@ -521,20 +529,30 @@ func set_edge_marks(cells: Array) -> void:
 	_edge_layer.queue_redraw()
 
 
-## The marks shown on the view's edge now: [{cell, at}] in view coordinates.
+## The marks shown on the view's edge now: [{cell, at, is_objective}] in
+## view coordinates: our wavering soldiers and the objective outside it.
 func get_edge_marks() -> Array:
 	var marks: Array = []
-	var inner := Rect2(Vector2.ZERO, size).grow(-EDGE_MARK_PX - 4.0)
-	for cell: Vector2i in _edge_cells:
+	# Room for the bubble and its pointer, which reaches 12 px past it.
+	var inner := Rect2(Vector2.ZERO, size).grow(-EDGE_MARK_PX - 16.0)
+	var cells: Array = _edge_cells.duplicate()
+	if is_on_map(_objective):
+		cells.append(_objective)
+	for at_index: int in cells.size():
+		var cell: Vector2i = cells[at_index]
 		var at := board_to_view(cell_to_local(cell))
 		if Rect2(Vector2.ZERO, size).has_point(at) or not inner.has_area():
 			continue
-		marks.append({"cell": cell, "at": Vector2(clampf(at.x, inner.position.x, inner.end.x), clampf(at.y, inner.position.y, inner.end.y))})
+		var is_objective := at_index == _edge_cells.size()
+		marks.append({"cell": cell, "at": Vector2(clampf(at.x, inner.position.x, inner.end.x), clampf(at.y, inner.position.y, inner.end.y)), "is_objective": is_objective})
 	return marks
 
 
 func _fog_color(index: int) -> Color:
 	var state := 2 if _fog_states.is_empty() else int(_fog_states[index])
+	# The objective is known from the map: never darker than a cell seen.
+	if state == 0 and index == _objective.y * map_width + _objective.x and is_on_map(_objective):
+		state = 1
 	if state == 0:
 		return FOG_NEVER_COLOR
 	var night := Color(NIGHT_COLOR, NIGHT_COLOR.a * _darkness)
@@ -803,12 +821,6 @@ func _draw_terrain(canvas: Control) -> void:
 		canvas.draw_line(Vector2(col * CELL_PX, 0), Vector2(col * CELL_PX, map_height * CELL_PX), TacticsPainter.GRID, 1.0)
 	for row: int in map_height + 1:
 		canvas.draw_line(Vector2(0, row * CELL_PX), Vector2(map_width * CELL_PX, row * CELL_PX), TacticsPainter.GRID, 1.0)
-	if is_on_map(_objective):
-		var rect := _cell_rect(_objective).grow(-2.0)
-		canvas.draw_rect(rect, Palette.GOLD, false, 4.0)
-		var pole := rect.position + Vector2(rect.size.x * 0.72, rect.size.y * 0.86)
-		canvas.draw_line(pole, pole + Vector2(0, -40), Palette.INK, 3.0)
-		canvas.draw_colored_polygon(PackedVector2Array([pole + Vector2(0, -40), pole + Vector2(-20, -33), pole + Vector2(0, -26)]), Palette.GOLD)
 	canvas.draw_rect(Rect2(Vector2.ZERO, Vector2(map_width, map_height) * CELL_PX), Palette.INK, false, 3.0)
 
 
@@ -872,8 +884,11 @@ func _draw_marks(canvas: Control) -> void:
 		TacticsPainter.draw_ghost(canvas, cell_to_local(ghost["cell"]) + TacticsPieceView.TOKEN_OFFSET, ghost["side"], ghost["is_leader"])
 
 
-# A remembered enemy: its token dimmed, with a "?".
+# Over the fog: the objective (known from the map, so findable at night
+# too) and each remembered enemy, its token dimmed, with a "?".
 func _draw_last_seen(canvas: Control) -> void:
+	if is_on_map(_objective):
+		TacticsPainter.draw_objective(canvas, _cell_rect(_objective).grow(-2.0))
 	for ghost: Dictionary in _last_seen:
 		var c := cell_to_local(ghost["cell"]) + TacticsPieceView.TOKEN_OFFSET
 		TacticsPainter.draw_last_seen(canvas, c, ghost["is_leader"])
@@ -883,7 +898,10 @@ func _draw_edge_marks(canvas: Control) -> void:
 	for mark: Dictionary in get_edge_marks():
 		var at: Vector2 = mark["at"]
 		var toward := (board_to_view(cell_to_local(mark["cell"])) - at).normalized()
-		TacticsPainter.draw_edge_mark(canvas, at, toward, EDGE_MARK_PX)
+		if mark["is_objective"]:
+			TacticsPainter.draw_objective_edge_mark(canvas, at, toward, EDGE_MARK_PX)
+		else:
+			TacticsPainter.draw_edge_mark(canvas, at, toward, EDGE_MARK_PX)
 
 
 func _draw_intents(canvas: Control) -> void:

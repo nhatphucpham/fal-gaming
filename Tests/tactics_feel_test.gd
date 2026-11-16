@@ -17,6 +17,7 @@ extends SceneTree
 # than the small font.
 
 const SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/river_crossing.tres"
+const NIGHT_SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/night_raid.tres"
 const MAX_FRAMES: int = 3000
 ## On a 360-px-wide phone the 720-px layout is halved.
 const MIN_CELL_LAYOUT_PX: float = 88.0
@@ -60,7 +61,7 @@ func _run() -> bool:
 	if not ClassDB.class_exists("TacticsBattle"):
 		push_error("TacticsBattle is missing: build the GDExtension (scons) before importing")
 		return false
-	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_fog_redraws, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_auto_end, _check_tap_count, _check_text_fits, _check_floats, _check_hidden_steps]
+	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_fog_redraws, _check_night_objective, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_auto_end, _check_tap_count, _check_text_fits, _check_floats, _check_hidden_steps]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Tactics feel test failed in %s" % check.get_method())
@@ -68,12 +69,12 @@ func _run() -> bool:
 	return true
 
 
-func _open(is_instant: bool) -> void:
+func _open(is_instant: bool, path: String = SCENARIO_PATH) -> void:
 	if _screen != null:
 		_screen.queue_free()
 		await process_frame
 	_screen = TacticsScreen.new()
-	_screen.scenario = load(SCENARIO_PATH) as TacticsScenarioData
+	_screen.scenario = load(path) as TacticsScenarioData
 	_screen.is_instant = is_instant
 	_screen.size = Vector2(720, 1280)
 	root.add_child(_screen)
@@ -244,6 +245,46 @@ func _check_fog_redraws() -> bool:
 		push_error("After the reveal the map should be still: %d fog writes, %d frames changed" % [map.fog_write_count - writes, counts[0]])
 		return false
 	print("Fog: %d blend in the walk (%d writes, headless frames), none idle" % [blends, blend_writes])
+	return true
+
+
+# At the night raid's start the objective lies in the dark, out of view: it
+# is never covered as never seen, and a gold mark on the view's edge points
+# at it; the idle map still draws nothing.
+func _check_night_objective() -> bool:
+	await _open(false, NIGHT_SCENARIO_PATH)
+	var map := _map()
+	for frame: int in MAX_FRAMES:
+		if not map.is_fog_blending():
+			break
+		await process_frame
+	var objective: Vector2i = _screen.scenario.map.objective_cell
+	if _battle().get_fog_cells(0)[objective.y * map.map_width + objective.x] != 0:
+		push_error("The night raid's objective should start unseen")
+		return false
+	if map.get_fog_color(objective).is_equal_approx(TacticsMapView.FOG_NEVER_COLOR):
+		push_error("The objective is known from the map: it should not be covered as never seen")
+		return false
+	if map.is_in_view(map.cell_to_local(objective)):
+		push_error("The night raid should open with the objective out of view")
+		return false
+	var pointing := map.get_edge_marks().filter(func(mark: Dictionary) -> bool: return mark["is_objective"])
+	if pointing.size() != 1 or pointing[0]["cell"] != objective:
+		push_error("A mark on the view's edge should point at the objective, got %s" % [map.get_edge_marks()])
+		return false
+	# The bubble's pointer reaches 12 px past it: it stays inside the map,
+	# not under the top bar.
+	var room := Rect2(Vector2.ZERO, map.size).grow(-TacticsMapView.EDGE_MARK_PX - 12.0)
+	if not room.has_point(pointing[0]["at"]):
+		push_error("The objective's edge mark at %s would poke out of the %s map" % [pointing[0]["at"], map.size])
+		return false
+	_screen.select_unit(_our_leaders()[0])
+	await create_timer(0.6).timeout
+	var draws := map.get_layer_draw_count()
+	var counts := await _count_changed_frames(0.5)
+	if counts[0] > 0 or map.get_layer_draw_count() != draws:
+		push_error("An idle night map changed %d frames and redrew %d layers" % [counts[0], map.get_layer_draw_count() - draws])
+		return false
 	return true
 
 

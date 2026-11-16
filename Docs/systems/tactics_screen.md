@@ -234,6 +234,13 @@ Fog, weather and night (see [Tactics vision](tactics_vision.md)):
   they only set its hidden piece. One that defects to us fades in.
 - An ambush: the hidden enemy bursts into sight with a ring and "Phục
   kích!", the walker shakes, sound `ambush`; the camera follows.
+- The objective (gold frame and flag) is drawn over the fog and the
+  night, and its cell is never darker than a cell seen before: it is
+  known from the map. While it is out of view a gold flag mark on the
+  edge of the map view points at it (`get_edge_marks()` entries with
+  `is_objective`), so at the night raid's dark start you know which way
+  to go. Edge marks keep their pointer inside the view, clear of the top
+  bar.
 - A wavering soldier of ours out of view gets a mark on the edge of the
   map view pointing at it; its card says when it is out of its leader's
   sight ("Ngoài tầm mắt tướng: dễ dao động, chưa trấn an được"; never on

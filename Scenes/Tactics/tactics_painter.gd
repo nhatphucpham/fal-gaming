@@ -86,6 +86,27 @@ static func draw_last_seen(canvas: CanvasItem, c: Vector2, is_leader: bool) -> v
 	canvas.draw_string(font, baseline, "?", HORIZONTAL_ALIGNMENT_LEFT, -1, font_px, Palette.CREAM)
 
 
+## The objective: a gold frame round the cell `rect` and a gold flag.
+static func draw_objective(canvas: CanvasItem, rect: Rect2) -> void:
+	canvas.draw_rect(rect, Palette.GOLD, false, 4.0)
+	var pole := rect.position + Vector2(rect.size.x * 0.72, rect.size.y * 0.86)
+	canvas.draw_line(pole, pole + Vector2(0, -40), Palette.INK, 3.0)
+	canvas.draw_colored_polygon(PackedVector2Array([pole + Vector2(0, -40), pole + Vector2(-20, -33), pole + Vector2(0, -26)]), Palette.GOLD)
+
+
+## A mark on the view's edge at `at`, pointing `toward` the objective
+## outside the view: a dark bubble with a gold flag and a gold pointer.
+static func draw_objective_edge_mark(canvas: CanvasItem, at: Vector2, toward: Vector2, r: float) -> void:
+	var tip := at + toward * (r + 12.0)
+	var side := Vector2(-toward.y, toward.x) * r * 0.55
+	canvas.draw_colored_polygon(PackedVector2Array([tip, at + side, at - side]), Palette.GOLD)
+	canvas.draw_circle(at, r - 2.0, OUTLINE)
+	canvas.draw_circle(at, r - 5.0, Palette.PANEL)
+	var pole := at + Vector2(-r * 0.15, r * 0.45)
+	canvas.draw_line(pole, pole + Vector2(0, -r * 0.9), Palette.CREAM, 3.0)
+	canvas.draw_colored_polygon(PackedVector2Array([pole + Vector2(0, -r * 0.9), pole + Vector2(r * 0.5, -r * 0.7), pole + Vector2(0, -r * 0.5)]), Palette.GOLD)
+
+
 ## A mark on the view's edge at `at`, pointing `toward` a wavering soldier
 ## of ours outside the view: a red bubble with "!" and a pointer.
 static func draw_edge_mark(canvas: CanvasItem, at: Vector2, toward: Vector2, r: float) -> void:
