@@ -1208,15 +1208,20 @@ func _are_all_done() -> bool:
 	return true
 
 
-# Every leader of ours is done, or has no strike and no skill left: only
-# walks remain, so "Kết lượt" is the button to press (one tap, not a Chờ
-# per leader). The phase still ends by itself only when all are done.
+# Every leader of ours is done, or acted this phase and has no strike and
+# no skill left: only walks remain, so "Kết lượt" is the button to press
+# (one tap, not a Chờ per leader). A leader that has not acted yet keeps
+# it plain, so a phase with no enemy in reach does not invite skipping it.
+# The phase still ends by itself only when all are done.
 func _are_only_walks_left() -> bool:
 	if _battle.get_active_side() != player_side or _battle.is_finished():
 		return false
 	for state: Dictionary in _units:
 		var unit: int = state["index"]
-		if _is_commandable(unit) and not _is_done(unit) and not (_battle.get_strike_targets(unit).is_empty() and _battle.get_skill_cells(unit).is_empty()):
+		if not _is_commandable(unit) or _is_done(unit):
+			continue
+		var has_acted: bool = state["has_moved"] or state["has_attacked"] or state["has_cast"]
+		if not has_acted or not (_battle.get_strike_targets(unit).is_empty() and _battle.get_skill_cells(unit).is_empty()):
 			return false
 	return true
 

@@ -68,8 +68,9 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Changed
 
-- Chiến Dịch: when no leader has a strike or a skill left, "Kết lượt"
-  lights up and the hint says so, so one tap ends the phase instead of a
+- Chiến Dịch: when every leader has acted and none has a strike or a
+  skill left, "Kết lượt" lights up (not at the start of a turn with no
+  enemy in reach, so it never invites skipping a turn) and the hint says so, so one tap ends the phase instead of a
   "Chờ" for every leader that could only walk. The hints no longer ask
   you to tap a red-ringed enemy when there is none (after the attack, or
   with no enemy in reach).

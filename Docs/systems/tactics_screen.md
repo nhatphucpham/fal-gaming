@@ -159,9 +159,10 @@ Taps (the flow a phone player uses):
   points is not done, even with no enemy near. When all of ours are done, the hint
   says "Tự kết lượt…" and the phase ends after 1 s (1.8 s while the last
   move can be undone); any tap holds it, and "Kết lượt" is always there.
-  Only Chờ closes a leader, but a leader with no strike and no skill
-  left has only walks: once every leader of ours is done or in that
-  state, "Kết lượt" turns primary and the hint says "Hết đòn để đánh: đi
+  Only Chờ closes a leader, but a leader that acted this phase (moved,
+  struck or cast) and has no strike and no skill left has only walks:
+  once every leader of ours is done or in that state (never at the start
+  of a phase, even with no enemy in reach), "Kết lượt" turns primary and the hint says "Hết đòn để đánh: đi
   tiếp, hay Kết lượt.", so one tap ends the phase instead of a Chờ per
   leader. "Kết lượt" asks nothing; the open leaders' squads strike as at
   any end of phase. The phase does not end by itself then: a walk may
@@ -398,8 +399,9 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   cast (the preview's damage checked against the cast), the hint of each
   step, and a scripted policy that wins; it counts close-ups and presses
   the result's button. Before each "Kết lượt" of that policy, the button
-  is primary exactly when every leader is done or has no strike and no
-  skill left, with the hint saying so (some phase must end that way), and
+  is primary exactly when every leader is done or acted and has no strike
+  and no skill left, with the hint saying so (some phase must end that
+  way; not the first phase before any move), and
   a leader that struck with points left says so in the hint. The first select, move and order change each offer
   their tip once, the shown one with its text, and a new tip view never
   shows a saved tip again.

@@ -118,6 +118,11 @@ func _check_start() -> bool:
 		if piece.visible != seen:
 			push_error("Unit %d is seen=%s but its piece visible=%s" % [unit, seen, piece.visible])
 			return false
+	# Nobody has walked yet: even with no enemy in reach the screen does not
+	# invite ending the turn.
+	if not _check_end_turn_look() or _settled_phases != 0:
+		push_error("At the start of the battle Kết lượt should not be the button to press")
+		return false
 	return _screen.get_mode() == TacticsScreen.Mode.IDLE
 
 
@@ -461,8 +466,10 @@ func _check_end_turn_look() -> bool:
 	_screen.cancel()
 	var is_settled := true
 	for leader: int in _our_leaders():
+		var state := _battle().get_unit_state(leader)
+		var has_acted: bool = state["has_moved"] or state["has_attacked"] or state["has_cast"]
 		var is_walk_only := _battle().get_strike_targets(leader).is_empty() and _battle().get_skill_cells(leader).is_empty()
-		is_settled = is_settled and (_battle().is_closed(leader) or is_walk_only)
+		is_settled = is_settled and (_battle().is_closed(leader) or (is_walk_only and has_acted))
 	var is_primary := false
 	for entry: Dictionary in _screen.get_panel().get_buttons():
 		if entry["action"] == &"end_turn":
