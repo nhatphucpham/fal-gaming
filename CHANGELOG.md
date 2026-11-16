@@ -15,15 +15,17 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
   intents are hidden, and a dimmed "?" token marks where you last saw one.
   Enemies in woods are hidden unless you stand next to them or a scout
   sees them. Walking into a hidden enemy stops you short: an ambush. A
-  move that shows an enemy cannot be taken back. The enemy plays by the
-  same sight.
+  move that shows an enemy, or passes one in sight, cannot be taken back.
+  The drag preview and strike forecasts never give away an enemy you do
+  not see. The enemy plays by the same sight.
 - Chiến Dịch: scouts (kite scouts, Liễu Mi) see further, see hidden
   units and read enemy intents nearby even at night.
 - Chiến Dịch: weather (clear, rain, fog, wind) and times of day (day,
   dusk, night) from the scenario, shown on the muster and on the map with
   their icons; a tap says what they do. The weather may turn once, with a
   banner a round ahead. Night darkens the map except around camps,
-  villages and leaders.
+  villages and leaders; a leader's light shows it from afar, in woods
+  too.
 - Chiến Dịch: soldiers out of their leader's sight are likelier to flee
   or betray, more so at night and in fog, and cannot be calmed until the
   leader sees them again; a mark on the edge of the map points at a

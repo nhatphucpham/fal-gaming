@@ -127,13 +127,14 @@ bool TacticsSim::move_leader(int p_unit, const Cell &p_cell, std::string *r_erro
 	if (!finished) {
 		run_squad_moves(p_unit, move_id);
 	}
-	// A move that showed an enemy gained information: it stays.
 	bool is_plain = before != nullptr && !finished;
 	for (size_t index = first_event; index < events.size() && is_plain; index++) {
-		const Event &event = events[index];
-		const bool reveals = event.type == EventType::VISION_CHANGED && !event.units.empty();
-		is_plain = event.type == EventType::UNIT_MOVED || event.type == EventType::SKILL_CHARGE_CHANGED || (event.type == EventType::VISION_CHANGED && !reveals);
+		const EventType type = events[index].type;
+		is_plain = type == EventType::UNIT_MOVED || type == EventType::SKILL_CHARGE_CHANGED || type == EventType::VISION_CHANGED;
 	}
+	// A move that showed an enemy, or passed one in sight, gained
+	// information: it stays.
+	is_plain = is_plain && !knows_more_than(*before, units[p_unit].side);
 	if (!is_plain) {
 		clear_undo();
 		return true;
@@ -197,7 +198,7 @@ int TacticsSim::walk_unit(int p_unit, const std::vector<Cell> &p_path, int p_cos
 	std::vector<Cell> path = p_path;
 	int cost = p_cost;
 	Cell blocked = NO_CELL;
-	const int ambusher = environment.fog_of_war ? cut_path_at_ambush(p_unit, path, &blocked, !is_forecast) : NO_UNIT;
+	const int ambusher = environment.fog_of_war ? cut_path_at_ambush(p_unit, path, &blocked) : NO_UNIT;
 	if (ambusher != NO_UNIT) {
 		cost = 0;
 		for (size_t step = 1; step < path.size(); step++) {
@@ -359,6 +360,7 @@ std::vector<std::pair<int, Cell>> TacticsSim::preview_squad(int p_leader, const 
 		return placements;
 	}
 	TacticsSim copy = *this;
+	copy.lift_unseen_enemies(units[p_leader].side);
 	copy.apply_leader_move(p_leader, p_cell, 0);
 	copy.run_squad_moves(p_leader, 0);
 	for (int soldier : copy.units[p_leader].soldiers) {
@@ -413,15 +415,18 @@ bool TacticsSim::takes_objective(int p_unit, const Cell &p_cell) const {
 bool TacticsSim::simulate_move(int p_unit, const Cell &p_cell, TacticsSim *r_copy, std::string *r_error) const {
 	*r_copy = *this;
 	r_copy->clear_undo();
-	r_copy->is_forecast = true;
 	if (p_cell == units[p_unit].cell) {
 		return check_leader_can_act(p_unit, r_error);
 	}
+	// The move as its side plans it: no enemy it does not see stops or
+	// steers the walk or the squad; they are back for the fight.
+	const std::vector<std::pair<int, Cell>> lifted = r_copy->lift_unseen_enemies(units[p_unit].side);
 	// No undo copy inside the copy.
 	const bool was_ai = r_copy->side_is_ai[active_side];
 	r_copy->side_is_ai[active_side] = true;
 	const bool is_moved = r_copy->move_leader(p_unit, p_cell, r_error);
 	r_copy->side_is_ai[active_side] = was_ai;
+	r_copy->put_back_enemies(lifted);
 	return is_moved;
 }
 

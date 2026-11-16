@@ -248,9 +248,9 @@ void TacticsSim::announce_environment(int p_cause) {
 // Walks are planned around the enemies the side sees; one it does not see
 // stops the walk on the last free cell before it, or where its zone of
 // control is entered (Docs/systems/tactics_vision.md, Ambush).
-int TacticsSim::cut_path_at_ambush(int p_unit, std::vector<Cell> &r_path, Cell *r_blocked, bool p_zones) const {
+int TacticsSim::cut_path_at_ambush(int p_unit, std::vector<Cell> &r_path, Cell *r_blocked) const {
 	const UnitState &unit = units[p_unit];
-	const bool ignores_zoc = !p_zones || build_move_profile(*this, p_unit).ignores_zone_of_control;
+	const bool ignores_zoc = build_move_profile(*this, p_unit).ignores_zone_of_control;
 	int stop = static_cast<int>(r_path.size()) - 1;
 	int ambusher = NO_UNIT;
 	for (int step = 1; step < static_cast<int>(r_path.size()) && ambusher == NO_UNIT; step++) {
@@ -283,6 +283,50 @@ int TacticsSim::cut_path_at_ambush(int p_unit, std::vector<Cell> &r_path, Cell *
 	}
 	r_path.resize(stop + 1);
 	return ambusher;
+}
+
+std::vector<std::pair<int, Cell>> TacticsSim::lift_unseen_enemies(int p_side) {
+	std::vector<std::pair<int, Cell>> lifted;
+	if (!environment.fog_of_war) {
+		return lifted;
+	}
+	for (UnitState &unit : units) {
+		if (!is_fighting(unit) || unit.side == p_side || !is_on_map(unit.cell) || is_unit_seen_by(p_side, unit.index)) {
+			continue;
+		}
+		lifted.push_back({ unit.index, unit.cell });
+		occupants[get_cell_index(unit.cell)] = NO_UNIT;
+		unit.cell = NO_CELL;
+	}
+	return lifted;
+}
+
+void TacticsSim::put_back_enemies(const std::vector<std::pair<int, Cell>> &p_lifted) {
+	for (const std::pair<int, Cell> &entry : p_lifted) {
+		if (get_occupant(entry.second) == NO_UNIT) {
+			units[entry.first].cell = entry.second;
+			occupants[get_cell_index(entry.second)] = entry.first;
+		}
+	}
+}
+
+bool TacticsSim::knows_more_than(const TacticsSim &p_before, int p_side) const {
+	if (!environment.fog_of_war) {
+		return false;
+	}
+	for (const UnitState &unit : units) {
+		if (unit.side == p_side || !is_fighting(unit)) {
+			continue;
+		}
+		if (is_unit_seen_by(p_side, unit.index) && !p_before.is_unit_seen_by(p_side, unit.index)) {
+			return true;
+		}
+		const Cell last = get_last_seen(p_side, unit.index);
+		if (last != NO_CELL && last != p_before.get_last_seen(p_side, unit.index)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 } // namespace tactics

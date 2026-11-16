@@ -70,7 +70,9 @@ rules `leader_light_cells` 1, `intent_read_cells` 3, `reveal_cells` 1,
   union of its fighting units' sight.
 - Lights: when the time `uses_lights`, a lit cell (within `light_cells` of
   a village or fort, within `leader_light_cells` of any leader) is seen as
-  far as by day. Lights are what the night tint leaves bright.
+  far as by day. Lights are what the night tint leaves bright. A leader
+  carries its light, so then it is seen wherever its cell is visible,
+  in a forest too (its glow would give it away anyway).
 - Cells are never seen, seen before (dimmed, remembered) or visible now.
   Cells a walk passes in sight of are remembered too.
 - Units: an enemy on a visible cell is seen, except on a `hides_units`
@@ -83,13 +85,19 @@ rules `leader_light_cells` 1, `intent_read_cells` 3, `reveal_cells` 1,
   seen; in a weather or time that `hides_intents`, only within
   `intent_read_cells` of one of our units, or a scout's keyword amount.
 - Planning: reachable cells, paths, strike targets and forecasts use only
-  the enemies the side sees. A forecast is never stopped by a zone of
-  control the side does not see.
+  the enemies the side sees. The squad preview and the strike forecast
+  run on a copy with the enemies the side does not see taken off the
+  map, so nothing in them (a walk cut short, a soldier stepping round a
+  cell, a zone of control) gives one away; they are put back on their
+  cells for the fight itself, whose numbers stay those of the real
+  fight.
 - Ambush: a walk that meets an unseen enemy (its cell, or its zone of
   control on a cell before the last) stops on the last free cell before it,
   pays only for the cells walked and emits `ambushed`.
-- Undo: a move that shows a new enemy (or is ambushed) cannot be taken
-  back; one that only shows cells can.
+- Undo: a move after which the side knows more of the enemy (an enemy
+  seen that was not, or one remembered at a new cell because the walk
+  passed it in sight) or that is ambushed cannot be taken back; one that
+  only shows cells can.
 - AI: plays by the same sight. It targets enemies it sees; seeing none it
   marches to the nearest last-seen cell, else the objective it must take,
   else never-seen cells; a guard that sees no enemy keeps its posts. It
@@ -132,8 +140,9 @@ Unit state adds `vision`, `is_scout` and `is_out_of_leader_sight`.
 
 `Tests/tactics_vision_test.gd`: line of sight, hills, the union, fog
 states, forest hiding, the attacker shown, the ambush stop, undo after a
-reveal, the vision event, walk sight told, forecasts keeping a hidden zone
-secret, the AI blind to what it does not see, last seen, each weather,
+reveal, the vision event, walk sight told, a walk past an enemy kept,
+forecasts and the squad preview keeping a hidden enemy secret, the AI
+blind to what it does not see, a torch bearer seen in a forest, last seen, each weather,
 night and lights, the daytime cycle, the weather change, intents at night,
 unseen wavering, its odds and calming, no environment, determinism. The
 fuzz test plays every third seed under fog with weathers and times; the

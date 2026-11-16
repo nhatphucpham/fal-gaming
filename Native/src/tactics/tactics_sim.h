@@ -258,10 +258,6 @@ private:
 	bool is_ready = false;
 	bool started = false;
 	bool finished = false;
-	// A copy made by simulate_move(): its walks know only what the side
-	// sees, so a zone of control it cannot see does not stop them (a
-	// forecast must not give a hidden enemy away). Not hashed.
-	bool is_forecast = false;
 	int winner = NO_WINNER;
 	std::string end_reason;
 	int round = 0;
@@ -316,9 +312,18 @@ private:
 	// Weather and time-of-day events at the start of side A's phase.
 	void announce_environment(int p_cause);
 	// Cuts p_path at a hidden enemy in the way (ambush); returns the enemy,
-	// NO_UNIT when the whole path is free. Without p_zones only a cell the
-	// enemy stands on cuts it.
-	int cut_path_at_ambush(int p_unit, std::vector<Cell> &r_path, Cell *r_blocked, bool p_zones = true) const;
+	// NO_UNIT when the whole path is free.
+	int cut_path_at_ambush(int p_unit, std::vector<Cell> &r_path, Cell *r_blocked) const;
+	// In a planning copy (a forecast, the squad preview): takes the enemies
+	// p_side does not see off the map, so no walk, zone of control or squad
+	// step planned there gives them away. Returns them with their cells.
+	std::vector<std::pair<int, Cell>> lift_unseen_enemies(int p_side);
+	// Puts lifted enemies back on their cells that are still free, so a
+	// fight forecast in the copy counts them as the real fight will.
+	void put_back_enemies(const std::vector<std::pair<int, Cell>> &p_lifted);
+	// p_side knows more of the enemy than in p_before: an enemy seen now
+	// that was not, or one remembered at a cell it was not remembered at.
+	bool knows_more_than(const TacticsSim &p_before, int p_side) const;
 };
 
 } // namespace tactics

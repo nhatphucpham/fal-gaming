@@ -143,6 +143,8 @@ void compute_side_vision(const TacticsSim &p_sim, int p_side, const std::vector<
 		}
 		mark_diamond(p_sim, unit.cell, reveal, near);
 	}
+	// At night a leader's own light gives it away, in a forest too.
+	const bool shows_lights = p_sim.get_daytime().uses_lights && p_sim.get_rules().leader_light_cells > 0;
 	for (const UnitState &unit : units) {
 		if (!is_fighting(unit) || !p_sim.is_on_map(unit.cell)) {
 			continue;
@@ -152,7 +154,8 @@ void compute_side_vision(const TacticsSim &p_sim, int p_side, const std::vector<
 			continue;
 		}
 		const int index = p_sim.get_cell_index(unit.cell);
-		const bool is_hidden = p_sim.get_terrain(unit.cell).hides_units && near[index] == 0 && r_vision.scout_visible[index] == 0;
+		const bool is_lit = shows_lights && p_sim.is_leader(unit.index);
+		const bool is_hidden = p_sim.get_terrain(unit.cell).hides_units && near[index] == 0 && r_vision.scout_visible[index] == 0 && !is_lit;
 		r_vision.unit_visible[unit.index] = r_vision.visible[index] != 0 && !is_hidden ? 1 : 0;
 	}
 }

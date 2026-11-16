@@ -16,7 +16,8 @@ extends SceneTree
 # than its move points, its points left only go down, and no soldier
 # strikes twice in a phase. Undo is a stack: it is offered exactly while
 # the leader's plain human moves since its last other command are not all
-# taken back, and each undo gives back the hash from before that move and
+# taken back (a move that shows an enemy, or passes one in sight, cannot
+# be), and each undo gives back the hash from before that move and
 # every query from before it too (units, incident seeds and stages, karma,
 # the report, intents, zones). A second replay leaves out each undone move
 # (and the refused commands between it and its undo): every later command
@@ -466,15 +467,17 @@ func _run_checked(battle: TacticsBattle, command: Array) -> Array:
 			expected = can_act
 	var hash_before := battle.get_state_hash()
 	var snapshot := _snapshot(battle) if command[0] == &"move" else {}
+	var known_before := _known_enemies(battle, unit) if command[0] == &"move" else {}
 	var events := _run(battle, command)
 	if command[0] == &"move" and not events.is_empty():
 		_last_moved = unit
 		var is_plain := not battle.is_finished() and not battle.is_side_ai(state["side"])
-		# Cells coming into sight keep it plain; an enemy coming into sight
-		# (or an ambush) does not.
+		# Cells coming into sight keep it plain; an enemy coming into sight,
+		# one passed in sight (or an ambush) does not.
 		for event: Dictionary in events:
-			var is_quiet_sight: bool = event["type"] == &"vision_changed" and (event["units"] as Array).is_empty()
-			is_plain = is_plain and (event["type"] in [&"unit_moved", &"skill_charge_changed"] or is_quiet_sight)
+			is_plain = is_plain and event["type"] in [&"unit_moved", &"skill_charge_changed", &"vision_changed"]
+		var is_learned := _has_learned(known_before, _known_enemies(battle, unit))
+		is_plain = is_plain and not is_learned
 		if battle.can_undo_move(unit) != is_plain:
 			_fail("after %s can_undo_move is %s, the move was plain=%s" % [command, battle.can_undo_move(unit), is_plain])
 		if is_plain:
@@ -498,10 +501,38 @@ func _run_checked(battle: TacticsBattle, command: Array) -> Array:
 	if events.is_empty():
 		return events
 	if command[0] == &"move":
-		_check_move(battle, events, path, preview)
+		# The path and the squad preview are planned with what the side
+		# knows; a walk that learns more may end otherwise.
+		if not _has_learned(known_before, _known_enemies(battle, unit)):
+			_check_move(battle, events, path, preview)
 	elif command[0] == &"attack":
 		_check_engagement(events, forecast)
 	return events
+
+
+## Where the mover's side knows each enemy: {unit: [is_seen, cell]}, the
+## cell it is seen on, else where it was last seen.
+func _known_enemies(battle: TacticsBattle, mover: int) -> Dictionary:
+	var side: int = battle.get_unit_state(mover)["side"]
+	var known := {}
+	for ghost: Dictionary in battle.get_last_seen(side):
+		known[ghost["unit"]] = [false, ghost["cell"]]
+	for unit: int in battle.get_unit_count():
+		var state := battle.get_unit_state(unit)
+		if state["alive"] and state["side"] != side and battle.is_unit_seen(side, unit):
+			known[unit] = [true, state["cell"]]
+	return known
+
+
+## The side sees an enemy it did not, or remembers one somewhere new.
+func _has_learned(before: Dictionary, after: Dictionary) -> bool:
+	for unit: int in after:
+		var was: Array = before.get(unit, [false, Vector2i(-1, -1)])
+		if after[unit][0] and not was[0]:
+			return true
+		if not after[unit][0] and after[unit][1] != was[1]:
+			return true
+	return false
 
 
 ## An undo: taken exactly when can_undo_move said so, back to the hash

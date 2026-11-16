@@ -43,7 +43,8 @@ func _run() -> bool:
 	var checks: Array[Callable] = [
 		_check_line_of_sight, _check_hill_sees_far, _check_union, _check_fog_states,
 		_check_forest_hides, _check_attacker_shows, _check_ambush, _check_undo_after_reveal,
-		_check_vision_event, _check_walk_sight_told, _check_forecast_keeps_secret, _check_ai_blind, _check_last_seen, _check_rain, _check_wind,
+		_check_vision_event, _check_walk_sight_told, _check_walk_past_stays, _check_forecast_keeps_secret,
+		_check_preview_keeps_secret, _check_ai_blind, _check_torch_in_forest, _check_last_seen, _check_rain, _check_wind,
 		_check_fog_weather, _check_burn_in_rain, _check_night_and_lights, _check_daytime_cycle,
 		_check_weather_change, _check_intents_at_night, _check_unseen_waver, _check_unseen_calm,
 		_check_unseen_odds, _check_no_environment, _check_determinism,
@@ -244,6 +245,20 @@ func _check_walk_sight_told() -> bool:
 		and Kit.expect_true("the events tell the fog", fog == battle.get_fog_cells(A))
 
 
+# A walk that passed an enemy in sight learned where it is (a "?" stays
+# where it was seen): the move cannot be taken back.
+func _check_walk_past_stays() -> bool:
+	var battle := _battle(_kit.plain_rows(), _env())
+	var spear := _kit.add(battle, A, _leader(MOON_SPEAR, {"keywords": _kit.keywords([])}), Vector2i(0, 0))
+	var enemy := _kit.add(battle, B, _leader(THIET_NHA), Vector2i(5, 2))
+	battle.start()
+	var before := [battle.is_unit_seen(A, enemy), battle.get_last_seen(A).size()]
+	battle.move_leader(spear, Vector2i(0, 4))
+	return Kit.expect("unseen at both ends", [before, battle.is_unit_seen(A, enemy)], [[false, 0], false]) \
+		and Kit.expect("remembered where the walk saw it", battle.get_last_seen(A), [{"unit": enemy, "cell": Vector2i(5, 2)}]) \
+		and Kit.expect("no undo", battle.can_undo_move(spear), false)
+
+
 # A zone of control the side cannot see does not show in a strike's
 # forecast: the forecast is the walk as planned; the walk itself stops.
 func _check_forecast_keeps_secret() -> bool:
@@ -260,6 +275,26 @@ func _check_forecast_keeps_secret() -> bool:
 	return Kit.expect("forecast as planned", forecast.get("is_valid", false), true) \
 		and Kit.expect("the walk is ambushed", Kit.of_type(events, &"ambushed").size(), 1) \
 		and Kit.expect_true("short of the cell", Kit.cell_of(battle, spear) != cell)
+
+
+# The drag preview of a squad is the same whether or not an enemy the side
+# cannot see guards the way.
+func _check_preview_keeps_secret() -> bool:
+	var previews: Array = []
+	for has_guard: bool in [false, true]:
+		var battle := _battle(_rows({4: ".....f......"}), _env())
+		var squad: Array = [_kit.troop(SPEARMAN), _kit.troop(SPEARMAN)]
+		var spear := _kit.add(battle, A, _leader(MOON_SPEAR, {"keywords": _kit.keywords([])}), Vector2i(2, 5), squad)
+		_kit.add(battle, B, _leader(THIET_NHA), Vector2i(10, 10))
+		if has_guard:
+			var guard := _kit.add(battle, B, _leader(LIEU_MI, {"keywords": _kit.keywords([])}), Vector2i(5, 4))
+			battle.start()
+			if not Kit.expect("the guard is hidden", battle.is_unit_seen(A, guard), false):
+				return false
+		else:
+			battle.start()
+		previews.append(battle.preview_squad(spear, Vector2i(6, 5)))
+	return Kit.expect("same preview", previews[1], previews[0])
 
 
 # The AI does not plan around a unit it cannot see: with fog off it goes
@@ -379,6 +414,19 @@ func _check_night_and_lights() -> bool:
 		and Kit.expect("lit village seen", _visible(battle, [Vector2i(3, 5), Vector2i(4, 5), Vector2i(7, 5)]), [true, true, false]) \
 		and Kit.expect("village and leader lights", [lit[5 * 12 + 6], lit[9 * 12 + 0], lit[0]], [1, 1, 0]) \
 		and Kit.expect("enemy leader seen by its own torch", battle.is_unit_seen(A, lit_leader), true)
+
+
+# At night a leader's light shows it even in a forest: the lit cells
+# around it never glow over an enemy the side cannot see.
+func _check_torch_in_forest() -> bool:
+	var night: Array[StringName] = [&"daytime.night"]
+	var battle := _battle(_rows({5: "......f....."}), _env(true, &"weather.clear", night))
+	_kit.add(battle, A, _leader(MOON_SPEAR, {"keywords": _kit.keywords([])}), Vector2i(1, 5))
+	_kit.add(battle, B, _leader(THIET_NHA), Vector2i(11, 11))
+	var torch := _kit.add(battle, B, _leader(LIEU_MI, {"keywords": _kit.keywords([])}), Vector2i(6, 5))
+	battle.start()
+	return Kit.expect("its lit cell is seen", battle.is_cell_visible(A, Vector2i(6, 5)), true) \
+		and Kit.expect("and so is the torch bearer", battle.is_unit_seen(A, torch), true)
 
 
 # The time of day steps every daytime_step_rounds rounds from the start
