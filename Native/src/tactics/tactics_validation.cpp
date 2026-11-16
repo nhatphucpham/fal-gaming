@@ -223,7 +223,11 @@ bool validate_rules(const Rules &p_rules, std::string *r_error) {
 			check_range(owner, "retreat_hp_pct", p_rules.retreat_hp_pct, 0, MAX_PERCENT_MODIFIER, r_error) &&
 			check_range(owner, "shield_leader_hp_pct", p_rules.shield_leader_hp_pct, 0, MAX_PERCENT_MODIFIER, r_error) &&
 			check_range(owner, "free_threat_limit", p_rules.free_threat_limit, 1, MAX_MAP_CELLS_PER_AXIS * 2, r_error) &&
-			check_range(owner, "role_slot_weight", p_rules.role_slot_weight, 0, MAX_PERCENT_MODIFIER, r_error);
+			check_range(owner, "role_slot_weight", p_rules.role_slot_weight, 0, MAX_PERCENT_MODIFIER, r_error) &&
+			check_range(owner, "ai_strength_radius_cells", p_rules.ai_strength_radius_cells, 0, MAX_MAP_CELLS_PER_AXIS * 2, r_error) &&
+			check_range(owner, "ai_attack_ratio_pct", p_rules.ai_attack_ratio_pct, 0, MAX_RATIO_PCT, r_error) &&
+			check_range(owner, "ai_advance_ratio_pct", p_rules.ai_advance_ratio_pct, 0, MAX_RATIO_PCT, r_error) &&
+			check_range(owner, "ai_hold_radius_cells", p_rules.ai_hold_radius_cells, 0, MAX_MAP_CELLS_PER_AXIS * 2, r_error);
 }
 
 bool validate_map(const MapDef &p_map, std::string *r_error) {
@@ -254,6 +258,12 @@ bool validate_map(const MapDef &p_map, std::string *r_error) {
 	if (!is_direction(p_map.facing[SIDE_A]) || !is_direction(p_map.facing[SIDE_B])) {
 		*r_error = p_map.id + " has a facing that is not one of (0,-1), (1,0), (0,1), (-1,0)";
 		return false;
+	}
+	for (const Cell &cell : p_map.guard_cells) {
+		if (cell.col < 0 || cell.col >= p_map.width || cell.row < 0 || cell.row >= p_map.height) {
+			*r_error = p_map.id + " has guard cell (" + std::to_string(cell.col) + ", " + std::to_string(cell.row) + ") off the map";
+			return false;
+		}
 	}
 	return check_range(p_map.id, "objective_side", p_map.objective_side, SIDE_A, SIDE_B, r_error);
 }

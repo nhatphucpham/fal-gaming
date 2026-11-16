@@ -17,6 +17,14 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Changed
 
+- Chiến Dịch: the enemy defends the fort. Outnumbered, its leaders hold
+  the fort and the cells before it on good ground and wait; they strike
+  only where they are locally stronger, go for a leader that comes alone
+  or hurt, and use their skills. A player who never gives a command now
+  loses on time instead of winning half the time; a simple march-and-strike
+  player wins about two battles in three. What an enemy leader says it
+  will do now comes true about 85% of the time (57% before).
+
 - Chiến Dịch is quicker to play: tap an empty cell to move a selected
   leader at once (Hoàn tác takes it back), drag a leader to see where its
   squad would stand, and tap an enemy to see the forecast, then tap it

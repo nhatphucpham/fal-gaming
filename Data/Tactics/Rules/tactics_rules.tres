@@ -13,3 +13,7 @@ retreat_hp_pct = 35
 shield_leader_hp_pct = 50
 free_threat_limit = 2
 role_slot_weight = 12
+ai_strength_radius_cells = 4
+ai_attack_ratio_pct = 100
+ai_advance_ratio_pct = 120
+ai_hold_radius_cells = 1

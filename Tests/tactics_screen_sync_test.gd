@@ -1,7 +1,8 @@
 extends SceneTree
 
 # Plays random taps through the tactics screen (instant playback) on several
-# seeds: map cells, our leaders, drags of a leader's ghosts, the enabled
+# seeds: map cells, our leaders (often marched to the blue cell nearest
+# the enemy), drags of a leader's ghosts, the enabled
 # panel buttons (undo among them) and the order row, legal or not; the
 # phase also ends by itself once every leader is done (waited out). After every playback, before the screen syncs, the
 # map must already show what the battle has (tokens, hp, deaths, charge
@@ -139,6 +140,14 @@ func _random_tap() -> String:
 		if not leaders.is_empty():
 			var leader: int = leaders[_rng.randi_range(0, leaders.size() - 1)]
 			_screen.tap_cell(_battle().get_unit_state(leader)["cell"])
+			# Often a march: the blue cell nearest the enemy at once, so
+			# the fights (and the incidents they stir) come even against
+			# an enemy that holds its ground.
+			var reachable: Array = _screen.get_map().get_marks().get("reachable", [])
+			if not reachable.is_empty() and _rng.randf() < 0.5:
+				var cell := _nearest_to_enemy(reachable)
+				_screen.tap_cell(cell)
+				return "march leader %d to %s" % [leader, cell]
 			return "tap leader %d" % leader
 	if roll < 55:
 		var marked := _marked_cells()
@@ -188,6 +197,20 @@ func _living_leaders(side: int) -> Array[int]:
 		if unit["role"] == &"leader" and unit["side"] == side and unit["alive"]:
 			leaders.append(unit["index"])
 	return leaders
+
+
+# The cell of `cells` nearest to any living enemy.
+func _nearest_to_enemy(cells: Array) -> Vector2i:
+	var best: Vector2i = cells[0]
+	var best_distance := 1 << 30
+	for cell: Vector2i in cells:
+		for unit: Dictionary in _battle().get_units():
+			var at: Vector2i = unit["cell"]
+			var distance := absi(at.x - cell.x) + absi(at.y - cell.y)
+			if unit["alive"] and unit["side"] != 0 and distance < best_distance:
+				best = cell
+				best_distance = distance
+	return best
 
 
 # Cells the marks invite a tap on (reachable, attackable, skill cells).

@@ -487,7 +487,7 @@ func _check_seeds_from_seed() -> bool:
 # same seed gives the same events and hash, and soldiers waver.
 func _check_determinism() -> bool:
 	var incident_count := 0
-	for seed_value: int in [3, 11, 19, 27, 35, 43]:
+	for seed_value: int in [3, 11, 19, 27, 35, 43, 7, 22]:
 		var runs: Array = []
 		for run: int in 2:
 			var battle := _scenario_battle(seed_value, true)

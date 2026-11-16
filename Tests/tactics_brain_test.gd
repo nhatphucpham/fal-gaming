@@ -10,6 +10,9 @@ extends SceneTree
 # unless a check says otherwise. Cells are (col, row). Last, river
 # crossings with every formation order on both sides: no archer or kite
 # scout ever steps next to a living enemy (it cannot shoot it there).
+# The guard AI (the side defending the objective): outnumbered, it holds
+# near its post and lets a stack of leaders be, strikes a leader that comes
+# alone, then does what it declared; a guard cell off the map is refused.
 
 const Kit := preload("res://Tests/tactics_test_kit.gd")
 const MOON_SPEAR: StringName = &"leader.moon_spear"
@@ -42,6 +45,7 @@ func _run() -> bool:
 		_check_steps_out_and_returns, _check_leash, _check_ranged_rear, _check_focus_kill, _check_no_deadly_strike,
 		_check_vanguard_risks, _check_falls_back, _check_shields_leader, _check_free_wall, _check_strike_cell,
 		_check_undo, _check_undo_refused, _check_determinism, _check_ranged_keep_clear,
+		_check_guard_holds, _check_guard_strikes_lone, _check_guard_cell_off_map,
 	]
 	for check: Callable in checks:
 		if not check.call():
@@ -314,6 +318,86 @@ func _check_strike_cell() -> bool:
 	battle.attack(leader, enemy)
 	return Kit.expect("squad cells", forecast["squad"], squad) \
 		and Kit.expect("hp after", [Kit.hp_of(battle, leader), Kit.hp_of(battle, enemy)], [forecast["attacker_hp_after"], forecast["defender_hp_after"]])
+
+
+const BA_KHAC: StringName = &"leader.ba_khac"
+const LAC_HONG: StringName = &"leader.lac_hong"
+const GUARD_POST: Vector2i = Vector2i(5, 2)
+const OBJECTIVE: Vector2i = Vector2i(5, 0)
+
+
+# Side B guards the objective (side A's) from GUARD_POST, played by the AI;
+# side A has a leader on each of `our_cells`. Returns [battle, guard].
+func _guard_battle(our_cells: Array[Vector2i]) -> Array:
+	var battle := TacticsBattle.new()
+	_kit._battles.append(battle)
+	battle.set_side_ai(B, true)
+	var map := _kit.make_map(_kit.plain_rows(12), OBJECTIVE)
+	map.objective_side = A
+	map.guard_cells = [GUARD_POST]
+	if not battle.setup(_kit.catalog.rules, map):
+		return []
+	var ids: Array[StringName] = [LAC_HONG, MOON_SPEAR, LIEU_MI]
+	for index: int in our_cells.size():
+		_kit.add(battle, A, _leader(ids[index % ids.size()]), our_cells[index])
+	var guard := _kit.add(battle, B, _leader(BA_KHAC), Vector2i(5, 4))
+	return [battle, guard]
+
+
+# The intent of `guard` declared at the start of our phase.
+func _intent_of(battle: TacticsBattle, guard: int) -> Dictionary:
+	for intent: Dictionary in battle.get_enemy_intents():
+		if intent["unit"] == guard:
+			return intent
+	return {}
+
+
+# After our phase, the guard stands where it said and did what it said.
+func _keeps_intent(battle: TacticsBattle, guard: int, intent: Dictionary) -> bool:
+	var events := battle.end_phase()
+	var attacked := Kit.of_type(events, &"engagement_started").filter(func(event: Dictionary) -> bool: return event["unit"] == guard)
+	return Kit.expect("guard ends where it declared", Kit.cell_of(battle, guard), intent["to"]) and \
+			Kit.expect("guard attacks as it declared", attacked.size() > 0, intent["action"] == &"attack")
+
+
+# A stack of three leaders a walk away: the guard holds within one cell of
+# its post and declares a wait, though it could reach one of them.
+func _check_guard_holds() -> bool:
+	var setup := _guard_battle([Vector2i(4, 8), Vector2i(5, 8), Vector2i(6, 8)])
+	if setup.is_empty():
+		return Kit.expect_true("guard map loads", false)
+	var battle: TacticsBattle = setup[0]
+	var guard: int = setup[1]
+	battle.start()
+	var intent := _intent_of(battle, guard)
+	var to: Vector2i = intent.get("to", Vector2i(-1, -1))
+	if not Kit.expect("guard waits", intent.get("action"), &"wait") or \
+			not Kit.expect_true("guard holds by its post (%s)" % to, absi(to.x - GUARD_POST.x) + absi(to.y - GUARD_POST.y) <= _kit.catalog.rules.ai_hold_radius_cells):
+		return false
+	return _keeps_intent(battle, guard, intent)
+
+
+# One leader alone within reach, the others far: the guard goes for it.
+func _check_guard_strikes_lone() -> bool:
+	var setup := _guard_battle([Vector2i(5, 8), Vector2i(0, 11), Vector2i(11, 11)])
+	var battle: TacticsBattle = setup[0]
+	var guard: int = setup[1]
+	battle.start()
+	var intent := _intent_of(battle, guard)
+	if not Kit.expect("guard strikes the lone leader", [intent.get("action"), intent.get("target")], [&"attack", 0]):
+		return false
+	return _keeps_intent(battle, guard, intent)
+
+
+func _check_guard_cell_off_map() -> bool:
+	var battle := TacticsBattle.new()
+	_kit._battles.append(battle)
+	var map := _kit.make_map(_kit.plain_rows(12), OBJECTIVE)
+	map.guard_cells = [Vector2i(40, 2)]
+	Engine.print_error_messages = false
+	var ok := battle.setup(_kit.catalog.rules, map)
+	Engine.print_error_messages = true
+	return Kit.expect("a guard cell off the map is refused", ok, false)
 
 
 # A plain move is taken back to the exact state hash, cells and charge.

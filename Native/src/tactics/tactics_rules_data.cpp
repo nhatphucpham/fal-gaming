@@ -15,6 +15,10 @@ void TacticsRulesData::_bind_methods() {
 	BATTLE_BIND_ACCESSORS(TacticsRulesData, shield_leader_hp_pct);
 	BATTLE_BIND_ACCESSORS(TacticsRulesData, free_threat_limit);
 	BATTLE_BIND_ACCESSORS(TacticsRulesData, role_slot_weight);
+	BATTLE_BIND_ACCESSORS(TacticsRulesData, ai_strength_radius_cells);
+	BATTLE_BIND_ACCESSORS(TacticsRulesData, ai_attack_ratio_pct);
+	BATTLE_BIND_ACCESSORS(TacticsRulesData, ai_advance_ratio_pct);
+	BATTLE_BIND_ACCESSORS(TacticsRulesData, ai_hold_radius_cells);
 
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "hits_per_engagement", PROPERTY_HINT_RANGE, "1,10,1"), "set_hits_per_engagement", "get_hits_per_engagement");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "anticipation_shift_cells", PROPERTY_HINT_RANGE, "0,20,1"), "set_anticipation_shift_cells", "get_anticipation_shift_cells");
@@ -28,4 +32,8 @@ void TacticsRulesData::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "shield_leader_hp_pct", PROPERTY_HINT_RANGE, "0,100,1"), "set_shield_leader_hp_pct", "get_shield_leader_hp_pct");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "free_threat_limit", PROPERTY_HINT_RANGE, "1,64,1"), "set_free_threat_limit", "get_free_threat_limit");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "role_slot_weight", PROPERTY_HINT_RANGE, "0,100,1"), "set_role_slot_weight", "get_role_slot_weight");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "ai_strength_radius_cells", PROPERTY_HINT_RANGE, "0,64,1"), "set_ai_strength_radius_cells", "get_ai_strength_radius_cells");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "ai_attack_ratio_pct", PROPERTY_HINT_RANGE, "0,1000,1"), "set_ai_attack_ratio_pct", "get_ai_attack_ratio_pct");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "ai_advance_ratio_pct", PROPERTY_HINT_RANGE, "0,1000,1"), "set_ai_advance_ratio_pct", "get_ai_advance_ratio_pct");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "ai_hold_radius_cells", PROPERTY_HINT_RANGE, "0,64,1"), "set_ai_hold_radius_cells", "get_ai_hold_radius_cells");
 }

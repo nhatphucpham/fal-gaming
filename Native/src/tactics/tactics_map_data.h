@@ -33,6 +33,7 @@ class TacticsMapData : public Resource {
 	int objective_side = 0;
 	Vector2i facing_a = Vector2i(0, -1);
 	Vector2i facing_b = Vector2i(0, 1);
+	TypedArray<Vector2i> guard_cells;
 
 protected:
 	static void _bind_methods();
@@ -67,6 +68,8 @@ public:
 	Vector2i get_facing_a() const { return facing_a; }
 	void set_facing_b(const Vector2i &p_value) { facing_b = p_value; }
 	Vector2i get_facing_b() const { return facing_b; }
+	void set_guard_cells(const TypedArray<Vector2i> &p_value) { guard_cells = p_value; }
+	TypedArray<Vector2i> get_guard_cells() const { return guard_cells; }
 	// The spawn cells of a side (0 or 1); empty with an error for another side.
 	TypedArray<Vector2i> get_spawn_cells(int64_t p_side) const {
 		ERR_FAIL_COND_V_MSG(p_side != tactics::SIDE_A && p_side != tactics::SIDE_B, TypedArray<Vector2i>(), vformat("Tactics: get_spawn_cells() got side %d, expected 0 or 1", p_side));

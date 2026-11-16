@@ -69,6 +69,10 @@ reported). Ids:
 | `shield_leader_hp_pct` | 50 | a leader at or below this share of its max hp that an enemy can reach gets a soldier in the way, 0..100 |
 | `free_threat_limit` | 2 | a `free` soldier with no fight worth taking stops short of a cell this many enemies can reach (unless as many allies stand within 2 cells), 1..64 |
 | `role_slot_weight` | 12 | how much a formation slot's depth counts against walking (one cell = 10) when matching soldiers to slots by role, 0..100 |
+| `ai_strength_radius_cells` | 4 | the guard AI (below) sums hp within this many cells of a strike and of its target, 0..64 |
+| `ai_attack_ratio_pct` | 100 | the guard strikes only where its hp near the strike is at least this % of the enemy's near the target (a blow that kills a leader always), 0..1000 |
+| `ai_advance_ratio_pct` | 120 | the guard leaves its posts once its side's whole hp is at least this % of the enemy's, 0..1000 |
+| `ai_hold_radius_cells` | 1 | a holding guard leader stays within this many cells of its post, 0..64 |
 
 `TacticsTerrainData` (`Data/Tactics/Terrains/`): `move_cost` 1..20,
 `is_impassable`, `armor_bonus`, `damage_taken_pct` and
@@ -159,7 +163,8 @@ Keyword `amount` is 0..1000 and `min_cells` 0..20.
 `rows` (one string of symbols per row, row 0 at the top), `legend_symbols`
 (each symbol once) with the matching `legend_terrains`, `spawn_cells_a`/`_b`,
 `objective_cell` ((-1, -1) for none) held by `objective_side` to win,
-`facing_a`/`_b` (initial heading). `TacticsScenarioData`
+`facing_a`/`_b` (initial heading), `guard_cells` (posts the side defending
+the objective holds; on the map, checked on load). `TacticsScenarioData`
 (`Data/Tactics/Scenarios/`): `rules`, `map`, `leaders_a`, `leaders_b`
 placed on the spawn cells in order. Sample: `scenario.river_crossing`.
 
@@ -210,6 +215,24 @@ placed on the spawn cells in order. Sample: `scenario.river_crossing`.
   is human, the AI's intents are declared at the start of the human phase
   (`get_enemy_intents()`) and followed as closely as the board allows; a
   declared skill that is no longer possible becomes an attack or a wait.
+- Guard AI: the side that defends the map's objective (the other side
+  holds `objective_side`) plays the guard. It strikes only with a local
+  edge: its hp within `ai_strength_radius_cells` of the strike cell (the
+  leader's own counted) must be at least `ai_attack_ratio_pct` % of the
+  enemy's hp within that radius of the target, unless the blow kills a
+  leader; among those strikes it prefers, after a leader and a kill, the
+  target with the least enemy hp around it. With no such strike it holds
+  while its side's whole hp is under `ai_advance_ratio_pct` % of the
+  enemy's: each leader takes a post (the map's `guard_cells`, shared out in
+  unit order, nearest first; the objective when none is left) and goes to
+  the reachable cell within `ai_hold_radius_cells` of it (else as near as it
+  gets) that the fewest enemies can reach next phase, then the best
+  terrain; it declares a wait there (or its skill, when the nearest enemy
+  is in cast range). Stronger than that, it advances as above. An enemy
+  that walked within range of a guard leader is struck in its phase only
+  when the fight is favourable. On `river_crossing` the posts are the two
+  cells in front of the fort, so the enemy holds the fort and its
+  approaches and waits for a leader that comes alone.
 - Victory: all enemy leaders dead (`rout`); a leader of `objective_side`
   ending its own move (`move_leader`, or the AI's move) on the objective
   (`objective`); side B after `max_rounds` (`time_limit`). Being pulled or
@@ -277,10 +300,20 @@ use the same rules. All numbers are in `TacticsRulesData` (above).
   except under `vanguard`, which risks its soldiers.
 
 The probe `Tools/tactics_brain_probe.gd` plays seeded river crossings
-(side A scripted with random squads and orders, incidents on, side B the
-AI) and prints soldiers lost and the share of soldier attacks that killed
-or traded well:
-`godot --headless --path . --script res://Tools/tactics_brain_probe.gd -- --battles=200`.
+(side A scripted with random squads and orders: each leader walks to the
+nearest enemy leader and strikes the weakest enemy in reach; incidents
+on; side B the AI) and prints soldiers and leaders lost, the share of
+soldier attacks that killed or traded well, skills cast, how often an
+enemy leader's move and action came out as it declared them, wins and
+how battles ended; `--policy=idle` plays a side A that only ends its
+phases:
+`godot --headless --path . --script res://Tools/tactics_brain_probe.gd -- --battles=200 [--policy=idle]`.
+With the guard AI (200 seeds): the scripted side wins 137 (rout 104,
+objective 33; the enemy wins 55 by the time limit and 8 by rout), the
+idle side loses all 200 by the time limit, and 85% of enemy intents come
+true move and action alike (91% the move; the player's own moves block
+the rest). Before it, the scripted side won 200 and the idle one 101,
+with 57% of intents kept.
 
 ## Incidents
 
@@ -543,9 +576,10 @@ squad, fuzz, query, incident and brain tests). All six are in CI.
 ## Known limits
 
 - The AI is greedy (one leader at a time: the best strike it can make this
-  phase, else the nearest enemy), does not use orders, does not go for the
-  objective, and casts a skill for its own side as soon as it is ready,
-  even with no soldier left to help.
+  phase, else the nearest enemy, or its post for the guard), does not use
+  orders, does not go for the objective, and casts a skill for its own
+  side as soon as it is ready, even with no soldier left to help. Its
+  strength is hp only (not attack, range or terrain).
 - Soldiers judge one fight at a time from the state at their step; they
   do not plan for the enemy's reply beyond the reach count, and a squad's
   later soldiers see what the earlier ones did.

@@ -324,7 +324,8 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   every unit's card shows its first two lines whole (each incident's
   wavering line too), no label is clipped by its panel, no text is under
   the small font size and every button is at least 88 px tall.
-- `Tests/tactics_screen_sync_test.gd`: random taps (cells, leaders, drags,
+- `Tests/tactics_screen_sync_test.gd`: random taps (cells, leaders and
+  marches toward the enemy, drags,
   enabled buttons with undo, the order row) on six seeds in instant mode,
   with the auto end on (waited out); after every
   playback, before the sync, tokens, hp, deaths, pips, zones and the top

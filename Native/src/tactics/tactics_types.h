@@ -93,6 +93,16 @@ struct Rules {
 	// Weight of a soldier's role (ranged rear, sturdy front) against the
 	// walking distance (10 per cell) when slots are shared out.
 	int role_slot_weight = 12;
+	// The AI of the side that defends an objective (Docs/systems/tactics.md,
+	// AI): it strikes where its hp within this radius of the strike is at
+	// least ai_attack_ratio_pct % of the enemy's hp around the target,
+	// leaves its posts once its whole side's hp is at least
+	// ai_advance_ratio_pct % of the enemy's, and holds within
+	// ai_hold_radius_cells of its post until then.
+	int ai_strength_radius_cells = 4;
+	int ai_attack_ratio_pct = 100;
+	int ai_advance_ratio_pct = 120;
+	int ai_hold_radius_cells = 1;
 };
 
 struct KeywordHandler;
@@ -258,6 +268,8 @@ struct MapDef {
 	int objective_side = SIDE_A;
 	// Starting headings, one of DIRECTIONS.
 	Cell facing[SIDE_COUNT] = { { 0, -1 }, { 0, 1 } };
+	// Posts the side that defends the objective holds while it is weaker.
+	std::vector<Cell> guard_cells;
 };
 
 } // namespace tactics

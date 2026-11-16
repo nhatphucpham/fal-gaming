@@ -46,6 +46,14 @@ public:
 	int get_free_threat_limit() const { return rules.free_threat_limit; }
 	void set_role_slot_weight(int64_t p_value) { rules.role_slot_weight = clamp_to_int(p_value); }
 	int get_role_slot_weight() const { return rules.role_slot_weight; }
+	void set_ai_strength_radius_cells(int64_t p_value) { rules.ai_strength_radius_cells = clamp_to_int(p_value); }
+	int get_ai_strength_radius_cells() const { return rules.ai_strength_radius_cells; }
+	void set_ai_attack_ratio_pct(int64_t p_value) { rules.ai_attack_ratio_pct = clamp_to_int(p_value); }
+	int get_ai_attack_ratio_pct() const { return rules.ai_attack_ratio_pct; }
+	void set_ai_advance_ratio_pct(int64_t p_value) { rules.ai_advance_ratio_pct = clamp_to_int(p_value); }
+	int get_ai_advance_ratio_pct() const { return rules.ai_advance_ratio_pct; }
+	void set_ai_hold_radius_cells(int64_t p_value) { rules.ai_hold_radius_cells = clamp_to_int(p_value); }
+	int get_ai_hold_radius_cells() const { return rules.ai_hold_radius_cells; }
 };
 
 } // namespace godot

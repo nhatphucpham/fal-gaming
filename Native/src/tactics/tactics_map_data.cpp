@@ -49,6 +49,11 @@ bool TacticsMapData::to_map_def(tactics::MapDef *r_def, std::string *r_error) co
 	r_def->objective_side = objective_side;
 	r_def->facing[tactics::SIDE_A] = { facing_a.x, facing_a.y };
 	r_def->facing[tactics::SIDE_B] = { facing_b.x, facing_b.y };
+	r_def->guard_cells.clear();
+	for (int64_t index = 0; index < guard_cells.size(); index++) {
+		const Vector2i cell = guard_cells[index];
+		r_def->guard_cells.push_back({ cell.x, cell.y });
+	}
 	return true;
 }
 
@@ -66,6 +71,7 @@ void TacticsMapData::_bind_methods() {
 	BATTLE_BIND_ACCESSORS(TacticsMapData, objective_side);
 	BATTLE_BIND_ACCESSORS(TacticsMapData, facing_a);
 	BATTLE_BIND_ACCESSORS(TacticsMapData, facing_b);
+	BATTLE_BIND_ACCESSORS(TacticsMapData, guard_cells);
 	ClassDB::bind_method(D_METHOD("get_spawn_cells", "side"), &TacticsMapData::get_spawn_cells);
 
 	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "id"), "set_id", "get_id");
@@ -81,4 +87,5 @@ void TacticsMapData::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "objective_side", PROPERTY_HINT_RANGE, "0,1,1"), "set_objective_side", "get_objective_side");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2I, "facing_a"), "set_facing_a", "get_facing_a");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2I, "facing_b"), "set_facing_b", "get_facing_b");
+	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "guard_cells", PROPERTY_HINT_ARRAY_TYPE, "Vector2i"), "set_guard_cells", "get_guard_cells");
 }

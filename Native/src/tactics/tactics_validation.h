@@ -16,6 +16,8 @@ constexpr int MAX_RANGE_CELLS = 12;
 constexpr int MAX_MOVE_POINTS = 20;
 constexpr int MAX_PASSIVES = 3;
 constexpr int MAX_PERCENT_MODIFIER = 100;
+// Ratios between two amounts, such as the AI's strength ratios.
+constexpr int MAX_RATIO_PCT = 1000;
 constexpr int MAX_HITS_PER_ENGAGEMENT = 10;
 constexpr int MAX_ROUNDS = 1000;
 constexpr int MAX_DURATION_ROUNDS = 100;

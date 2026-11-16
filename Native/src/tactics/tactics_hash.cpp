@@ -122,7 +122,7 @@ void TacticsSim::hash_setup(uint64_t *r_hash) const {
 	hash_value(r_hash, rules.max_leaders_per_side);
 	hash_value(r_hash, rules.max_rounds);
 	for (int value : { rules.leash_follow_cells, rules.leash_vanguard_cells, rules.leash_flank_cells, rules.retreat_hp_pct, rules.shield_leader_hp_pct, rules.free_threat_limit,
-				 rules.role_slot_weight }) {
+				 rules.role_slot_weight, rules.ai_strength_radius_cells, rules.ai_attack_ratio_pct, rules.ai_advance_ratio_pct, rules.ai_hold_radius_cells }) {
 		hash_value(r_hash, value);
 	}
 	hash_text(r_hash, map.id);
@@ -136,6 +136,10 @@ void TacticsSim::hash_setup(uint64_t *r_hash) const {
 	hash_value(r_hash, map.objective_side);
 	hash_cell(r_hash, map.facing[SIDE_A]);
 	hash_cell(r_hash, map.facing[SIDE_B]);
+	hash_value(r_hash, static_cast<int64_t>(map.guard_cells.size()));
+	for (const Cell &cell : map.guard_cells) {
+		hash_cell(r_hash, cell);
+	}
 }
 
 uint64_t TacticsSim::get_state_hash() const {
