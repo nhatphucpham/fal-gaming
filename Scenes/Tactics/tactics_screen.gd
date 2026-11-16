@@ -145,7 +145,7 @@ func select_unit(unit: int) -> void:
 		if _battle.can_move(unit):
 			marks["reachable"] = _battle.get_reachable_cells(unit)
 		marks["attackable"] = _cells_of(_battle.get_attack_targets(unit))
-		_set_hint("TACTICS_HINT_SELECTED" if _battle.can_act(unit) else "TACTICS_HINT_DONE")
+		_set_hint(_selected_hint(unit))
 	elif state["role"] == &"leader" and state["side"] != player_side:
 		marks["threat"] = _battle.get_reachable_cells(unit)
 		_set_hint("TACTICS_HINT_IDLE")
@@ -452,6 +452,14 @@ func _end_turn_button(is_primary: bool) -> Array[Dictionary]:
 	return buttons
 
 
+# Blue cells only while the leader may still move; red outlines while it
+# may act.
+func _selected_hint(unit: int) -> String:
+	if _battle.can_move(unit):
+		return "TACTICS_HINT_SELECTED"
+	return "TACTICS_HINT_ACT" if _battle.can_act(unit) else "TACTICS_HINT_DONE"
+
+
 func _unit_buttons(unit: int) -> Array[Dictionary]:
 	if not _is_commandable(unit):
 		return _end_turn_button(false)
@@ -541,7 +549,7 @@ func _show_forecast(target: int) -> void:
 			sides.append(tr("FORECAST_SIDE_FORMAT") % [_text.unit_name(pair[0]), _text.keyword_names(pair[1])])
 	notes.append(tr("FORECAST_MODIFIERS_FORMAT") % " · ".join(sides) if not sides.is_empty() else tr("FORECAST_NO_MODIFIERS"))
 	_panel.show_forecast(left, right, " · ".join(notes))
-	_set_hint("TACTICS_HINT_SELECTED")
+	_set_hint("TACTICS_HINT_ATTACK_CONFIRM")
 	_panel.set_buttons([
 		{"action": &"cancel", "text": "BUTTON_CANCEL"},
 		{"action": &"attack", "text": "BUTTON_ATTACK", "primary": true},

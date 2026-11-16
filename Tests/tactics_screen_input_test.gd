@@ -5,8 +5,9 @@ extends SceneTree
 # runs change nothing but the step, a tap skips a close-up (and a second
 # one does no harm), "Rút" works while the enemy plays, the skill close-up
 # says what a support skill did to allies for our side and for the enemy,
-# and the skill outcome lines read right for every case. No error may be
-# logged, also after the screen is freed in the middle of a playback.
+# the enemy's phase and intents read right, and so do the skill outcome
+# lines and the growth float. No error may be logged, also after the
+# screen is freed in the middle of a playback.
 
 const SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/river_crossing.tres"
 const RALLY_SKILL: StringName = &"tactics_skill.rally_banner"
@@ -124,6 +125,7 @@ func _check_outcome_lines() -> bool:
 		text.skill_outcome(true, 0, 0, &""): "Chiêu không tác động đến ai",
 		text.skill_outcome(true, 0, 0, &"zone.fire"): "Để lại Lửa",
 		text.skill_outcome(false, 5, 0, &"zone.fire"): "Trúng 5 quân ta · Để lại Lửa",
+		tr("TACTICS_FLOAT_SKILL_GREW_FORMAT") % 2: "Chiêu rộng thêm 2 ô",
 	}
 	for got: String in cases:
 		if got != cases[got]:

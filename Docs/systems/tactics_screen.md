@@ -165,7 +165,8 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   public methods: selection and its undo, a move preview (ghosts, no state
   change) and its confirm, the order picker, forecasts checked against the
   battle, skills aimed, previewed and cast (the preview's damage checked
-  against the cast), and a scripted policy that wins (by rout in round 6);
+  against the cast), the hint of each step (a moved leader, the forecast,
+  the skill preview), and a scripted policy that wins (by rout in round 6);
   it counts close-ups and presses the result's button.
 - `Tests/tactics_screen_sync_test.gd`: random taps (cells, leaders,
   enabled buttons, orders) on six seeds in instant mode; after every

@@ -144,6 +144,16 @@ func _check_move() -> bool:
 	if piece.position != _screen.get_map().cell_to_local(target):
 		push_error("The leader's piece should be on its new cell")
 		return false
+	# Moved but not done: the hint speaks of attacking, not of blue cells.
+	if _screen.get_selected() != leader or not _expect_hint("TACTICS_HINT_ACT"):
+		return false
+	return true
+
+
+func _expect_hint(key: String) -> bool:
+	if _screen.get_hint() != tr(key):
+		push_error("The hint should read \"%s\", not \"%s\"" % [tr(key), _screen.get_hint()])
+		return false
 	return true
 
 
@@ -239,6 +249,8 @@ func _cast(leader: int, cell: Vector2i) -> bool:
 	if _screen.get_mode() != TacticsScreen.Mode.SKILL_PREVIEW:
 		push_error("Aiming the skill should preview it")
 		return false
+	if not _expect_hint("TACTICS_HINT_SKILL_CONFIRM"):
+		return false
 	var preview := _battle().preview_skill(leader, _screen.get_map().get_marks()["target"])
 	var hash_before := _battle().get_state_hash()
 	_screen.press_button(&"cast")
@@ -262,6 +274,8 @@ func _attack(leader: int, target: int) -> bool:
 		push_error("A tap on an enemy in range should show the forecast")
 		return false
 	var forecast := _battle().forecast_engagement(leader, target)
+	if not _expect_hint("TACTICS_HINT_ATTACK_CONFIRM"):
+		return false
 	var buttons := _button_actions()
 	if not buttons.has(&"attack") or not buttons.has(&"cancel"):
 		push_error("The forecast should offer attack and cancel")

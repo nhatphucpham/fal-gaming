@@ -39,7 +39,9 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
   answers at any time, also while the enemy plays or a close-up runs; the
   top bar and the panel say "Lượt địch" as soon as the enemy's phase
   begins. An enemy's card reads "Ý đồ: hành quân" when its intent arrow
-  marches and "đứng chờ" only when it stays. The
+  marches and "đứng chờ" only when it stays. The hint says how to confirm
+  a forecast or a skill, and a leader that has moved is no longer told to
+  pick a blue cell. The
   battle ends with a victory or defeat banner and its reason.
 - Voice: an optional `Voice` module can speak dialogue lines with the
   Falevon TTS service and keeps every line in a cache, so it is generated
