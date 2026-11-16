@@ -322,14 +322,7 @@ void TacticsSim::expire_timed_effects(int p_cause) {
 			index++;
 			continue;
 		}
-		Event event;
-		event.type = EventType::ZONE_EXPIRED;
-		event.content_id = zones[index].def.id;
-		event.cells = zones[index].cells;
-		event.unit = zones[index].source;
-		event.cause = p_cause;
-		emit(event);
-		zones.erase(zones.begin() + static_cast<long>(index));
+		remove_zone(static_cast<int>(index), p_cause);
 	}
 	for (size_t index = 0; index < buffs.size();) {
 		if (turn < buffs[index].end_turn) {

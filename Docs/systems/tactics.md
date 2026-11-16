@@ -123,7 +123,7 @@ start of their phase); each handler states which side it affects. Samples: `zone
 | --- | --- | --- |
 | `passive.stat_bonus` | `stat`, `amount`, `condition_terrain_id`, `condition_adjacent_allies` (both must hold when both are set) | `iron_will` (armor +15 on a fort), `pack_fury` (+20% attack with 2 adjacent allies), `forest_ambush` (+20% attack in a forest) |
 | `passive.squad_bonus` | `stat`, `amount`, `keyword`, `extra_capacity` | `drilled_ranks` (soldiers +10% attack, cover, capacity +1) |
-| `passive.trail_zone` | `zone`, `radius_cells`, `duration_rounds` | `wind_trail` (wind, radius 1, 1 round, where the leader stops) |
+| `passive.trail_zone` | `zone`, `radius_cells`, `duration_rounds` | `wind_trail` (wind, radius 1, 1 round, where the leader stops; one a phase: a later move of the same phase takes the zone along, so hops never stack wards) |
 | `passive.pull_strike` | `amount` | `hook_spear` (pulls the target 1 cell after the leader's own attack, not after counters) |
 | `passive.skill_growth` | `amount` | `warlord_growth` (skill area +1 per enemy leader killed) |
 
@@ -603,7 +603,7 @@ commands) and
 `Tests/tactics_squad_test.gd` (orders, anticipation, slots of a dead
 leader, the five charge mechanisms, skills and zones, the AI casting a
 skill on an enemy and on its own side and a focus skill without moving,
-the five passive kinds, the side a zone affects, side B durations and
+the five passive kinds, one trail zone a phase however often the leader moves, the side a zone affects, side B durations and
 event causes) and `Tests/tactics_fuzz_test.gd` (random maps, leaders
 and commands, legal and not, on 24 seeds: queries and refused commands
 leave the hash unchanged, a command is accepted exactly when its query

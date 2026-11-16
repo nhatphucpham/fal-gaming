@@ -183,6 +183,8 @@ public:
 	// side's phase that many rounds later (end_round and end_turn are set here).
 	void add_zone(ZoneState p_zone, int p_duration_rounds, int p_cause);
 	void add_buff(BuffState p_buff, int p_duration_rounds, int p_cause);
+	// Removes zones[p_index] and emits zone_expired.
+	void remove_zone(int p_index, int p_cause);
 	void change_skill_charge(int p_leader, int p_delta, bool p_resets, int p_cause);
 	void emit_passive_triggered(int p_unit, const std::string &p_passive_id, int p_cause);
 	// Puts a unit on a free cell with no event and no other effect, for the

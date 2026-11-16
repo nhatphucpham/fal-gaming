@@ -9,6 +9,9 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Fixed
 
+- Chiến Dịch: Liễu Mi's wind trail is laid once a phase where she stops;
+  moving her in short hops no longer leaves several wind zones that
+  stacked into near-total protection from arrows.
 - Chiến Dịch: a quick double tap on an enemy near the edge of the map now
   strikes it; the map no longer slides away under the second tap.
 - Chiến Dịch: dragging the map with a finger that starts on one of your

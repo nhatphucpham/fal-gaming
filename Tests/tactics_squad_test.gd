@@ -38,7 +38,7 @@ func _run() -> bool:
 		_check_free_helps, _check_soldier_priority, _check_charge_turns, _check_charge_engagements,
 		_check_charge_focus, _check_charge_damage_taken, _check_charge_soldiers_lost,
 		_check_area_skill_and_fire, _check_ai_skill, _check_ai_focus_skill, _check_ai_own_side_skill, _check_stat_passives, _check_squad_passive,
-		_check_environment_passive, _check_pull_passive, _check_growth_passive,
+		_check_environment_passive, _check_trail_once_per_phase, _check_pull_passive, _check_growth_passive,
 		_check_zone_sides, _check_side_b_durations, _check_causes,
 	]
 	for check: Callable in checks:
@@ -478,6 +478,26 @@ func _check_environment_passive() -> bool:
 	return Kit.expect("zone", [zone["zone"], zone["cells"].size(), zone["end_round"]], [&"zone.wind", 5, 2]) \
 		and Kit.expect("passive event", Kit.of_type(events, &"passive_triggered").size(), 1) \
 		and Kit.expect("ranged ward", [before, after], [60, 30]) and Kit.expect("expires next round", expired.size(), 1)
+
+
+# The open turn lets a leader move many times a phase, but its trail is
+# where it stops: a second move takes the phase's zone along (it expires
+# and comes back around the new cell), so hops never stack wards.
+func _check_trail_once_per_phase() -> bool:
+	var battle := _kit.new_battle(_kit.plain_rows())
+	var trail: Array[TacticsPassiveData] = [_kit.catalog.get_passive(&"tactics_passive.wind_trail")]
+	var leader := _kit.add(battle, A, _kit.leader(LIEU_MI, trail), Vector2i(5, 10))
+	var archer := _kit.add(battle, B, _kit.leader(LIEU_MI), Vector2i(5, 6))
+	battle.start()
+	battle.move_leader(leader, Vector2i(5, 9))
+	var second := battle.move_leader(leader, Vector2i(5, 8))
+	var zones := battle.get_zones()
+	var damage: int = battle.forecast_engagement(archer, leader)["attacker_damage_per_hit"]
+	var cells: Array = zones[0]["cells"] if zones.size() == 1 else []
+	return Kit.expect("one wind zone after two moves", zones.size(), 1) \
+		and Kit.expect("the first zone went with the leader", Kit.of_type(second, &"zone_expired").size(), 1) \
+		and Kit.expect("the zone is around the last cell", cells.has(Vector2i(5, 7)) and not cells.has(Vector2i(5, 10)), true) \
+		and Kit.expect("one ward, not two", damage, 30)
 
 
 # Special weapon: hook spear pulls the target it hit one cell closer.

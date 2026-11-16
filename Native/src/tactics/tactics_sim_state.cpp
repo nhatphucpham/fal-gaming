@@ -283,6 +283,17 @@ void TacticsSim::add_zone(ZoneState p_zone, int p_duration_rounds, int p_cause) 
 	emit(event);
 }
 
+void TacticsSim::remove_zone(int p_index, int p_cause) {
+	Event event;
+	event.type = EventType::ZONE_EXPIRED;
+	event.content_id = zones[p_index].def.id;
+	event.cells = zones[p_index].cells;
+	event.unit = zones[p_index].source;
+	event.cause = p_cause;
+	emit(event);
+	zones.erase(zones.begin() + p_index);
+}
+
 void TacticsSim::add_buff(BuffState p_buff, int p_duration_rounds, int p_cause) {
 	p_buff.end_round = round + p_duration_rounds;
 	p_buff.end_turn = turn + SIDE_COUNT * p_duration_rounds;
