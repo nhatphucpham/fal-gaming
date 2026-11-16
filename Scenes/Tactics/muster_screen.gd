@@ -440,6 +440,8 @@ class _Swatch extends Control:
 ## A token as the map draws it (or a roster person's face), with an
 ## optional caption under it and the person's marks over it.
 class _Token extends Control:
+	const CAPTION_PAD_PX: float = 3.0
+
 	var glyph: StringName = &"class.sword"
 	var is_leader: bool = false
 	var caption: String = ""
@@ -448,9 +450,10 @@ class _Token extends Control:
 	var marks: int = 0
 
 	func _draw() -> void:
-		var c := Vector2(size.x / 2.0, size.y * (0.4 if not caption.is_empty() else 0.5))
+		var shape := get_shape()
+		var c: Vector2 = shape["center"]
+		var r: float = shape["radius"]
 		if look >= 0:
-			var r := minf(size.y * (0.33 if not caption.is_empty() else 0.5), size.x / 2.0)
 			TacticsFace.draw_face(self, c, r, look, Palette.GOLD if is_leader else TacticsPainter.PLAYER_FILL)
 			if not is_leader:
 				TacticsPainter.draw_glyph_badge(self, c + Vector2(r * 0.8, r * 0.7), 9.0, glyph)
@@ -467,4 +470,17 @@ class _Token extends Control:
 		var font := get_theme_default_font()
 		var font_px := GameTheme.SMALL_FONT_SIZE
 		var width := font.get_string_size(caption, HORIZONTAL_ALIGNMENT_LEFT, -1, font_px).x
-		draw_string(font, Vector2((size.x - width) / 2.0, size.y - 8.0), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, font_px, Palette.CREAM)
+		draw_string(font, Vector2((size.x - width) / 2.0, shape["baseline"]), caption, HORIZONTAL_ALIGNMENT_LEFT, -1, font_px, Palette.CREAM)
+
+	## Where the face (center, radius) and the caption (baseline, top: its
+	## letters' highest point) are drawn, in layout px.
+	func get_shape() -> Dictionary:
+		var font := get_theme_default_font()
+		var font_px := GameTheme.SMALL_FONT_SIZE
+		if caption.is_empty():
+			return {"center": size / 2.0, "radius": minf(size.y, size.x) / 2.0, "baseline": size.y, "top": size.y}
+		# The face fills what the caption's line leaves above it.
+		var baseline := size.y - CAPTION_PAD_PX - font.get_descent(font_px)
+		var top := baseline - font.get_ascent(font_px)
+		var r := minf((top - 2.0 * CAPTION_PAD_PX) / 2.0, size.x / 2.0)
+		return {"center": Vector2(size.x / 2.0, CAPTION_PAD_PX + r), "radius": r, "baseline": baseline, "top": top}

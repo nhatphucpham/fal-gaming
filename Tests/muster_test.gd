@@ -302,4 +302,11 @@ func _texts_fit(screen: Control, where: String) -> bool:
 		if button != null and button.size.y < 88.0:
 			push_error("%s: the button \"%s\" is %.0f px tall, under 88" % [where, tr(button.text), button.size.y])
 			return false
+		# A chip's caption ("Giáo") sits under the face, not over it.
+		if control.has_method(&"get_shape") and control.get(&"caption") != "":
+			var shape: Dictionary = control.call(&"get_shape")
+			var face_bottom: float = shape["center"].y + shape["radius"]
+			if face_bottom > shape["top"] + 0.5 or shape["center"].y - shape["radius"] < -0.5:
+				push_error("%s: the face of \"%s\" (%.0f..%.0f px) runs into its caption (from %.0f px) or off its chip" % [where, control.get(&"caption"), shape["center"].y - shape["radius"], face_bottom, shape["top"]])
+				return false
 	return true

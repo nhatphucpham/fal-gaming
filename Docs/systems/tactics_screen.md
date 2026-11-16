@@ -192,7 +192,8 @@ bool` (false when full), `start_battle()`; signals `battle_requested(squads)`
 and `back_requested`. With `campaign` set it takes the campaign's
 scenario and squads and moves the person ids with the soldiers
 (`get_people()`); chips show the soldier's face, troop glyph, short troop
-name (`TROOP_<X>_SHORT`: "Giáo", "Cung") and marks; a
+name (`TROOP_<X>_SHORT`: "Giáo", "Cung") on its own line under the face
+and marks; a
 named leader's card shows its face and name; the enemy panel lists
 returning traitors; "Sổ quân" opens the roster (`open_roster()`).
 
