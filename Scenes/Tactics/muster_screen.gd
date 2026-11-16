@@ -1,7 +1,9 @@
 class_name MusterScreen
 extends Control
-## "Điểm binh", before a tactics battle: the objective, a legend of the
-## map's terrains, our leaders with their squads and the enemy's leaders.
+## "Điểm binh", before a tactics battle: the objective, the weather, the
+## time of day and our scouts (Docs/systems/tactics_vision.md), a legend of
+## the map's terrains, our leaders with their squads (scouts marked with an
+## eye) and the enemy's leaders.
 ## Tapping a soldier and then another leader moves it there when that
 ## leader has room (capacities come from a TacticsBattle loaded with the
 ## scenario, so the rules stay in C++). With a TacticsCampaign every
@@ -172,6 +174,8 @@ func _build() -> void:
 	_forces = VBoxContainer.new()
 	_forces.add_theme_constant_override(&"separation", 10)
 	body.add_child(_forces)
+	# Under the forces, so the squads stay on the first screen.
+	body.add_child(_environment_panel())
 	body.add_child(_enemy_panel())
 	_hint = _label("MUSTER_HINT", 22, Palette.CREAM)
 	_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -206,6 +210,75 @@ func _objective_panel() -> Control:
 	objective.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	rows.add_child(objective)
 	return box
+
+
+# The weather (and the one it turns into), the time of day, fog of war and
+# which of our troops scout.
+func _environment_panel() -> Control:
+	var box := _panel()
+	box.name = "EnvironmentPanel"
+	var rows := VBoxContainer.new()
+	rows.add_theme_constant_override(&"separation", 4)
+	box.add_child(rows)
+	rows.add_child(_label("MUSTER_ENVIRONMENT", 28, Palette.GOLD))
+	var weather := scenario.weather if scenario.weather != null else catalog.get_weather(&"weather.clear")
+	if weather != null:
+		rows.add_child(_icon_row(weather.icon, tr(weather.description_key)))
+	if scenario.weather_change_round > 0 and scenario.weather_after != null:
+		rows.add_child(_wrapped(tr("MUSTER_WEATHER_CHANGE_FORMAT") % [scenario.weather_change_round, tr(scenario.weather_after.name_key)], Palette.TEXT))
+	var daytimes := scenario.daytimes
+	var first: TacticsDaytimeData = daytimes[clampi(scenario.daytime_start_index, 0, daytimes.size() - 1)] if not daytimes.is_empty() else catalog.get_daytime(&"daytime.day")
+	if first != null:
+		rows.add_child(_icon_row(first.icon, tr(first.description_key)))
+	if daytimes.size() > 1:
+		rows.add_child(_wrapped(tr("MUSTER_DAYTIME_CYCLE_FORMAT") % [tr(first.name_key), scenario.daytime_step_rounds], Palette.TEXT))
+	if scenario.fog_of_war:
+		rows.add_child(_wrapped(tr("MUSTER_FOG"), Palette.TEXT))
+		var scouts := _scout_names()
+		rows.add_child(_wrapped(tr("MUSTER_SCOUTS_FORMAT") % ", ".join(scouts) if not scouts.is_empty() else tr("MUSTER_NO_SCOUTS"), Palette.JADE_LIGHT))
+	return box
+
+
+func _icon_row(icon: Texture2D, line: String) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 10)
+	var image := TextureRect.new()
+	image.texture = icon
+	image.custom_minimum_size = Vector2(48, 48)
+	image.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	image.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	image.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(image)
+	var label := _wrapped(line, Palette.CREAM)
+	label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	row.add_child(label)
+	return row
+
+
+func _wrapped(line: String, color: Color) -> Label:
+	var label := _label(line, 22, color)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	return label
+
+
+# Our leaders and troops with the scout keyword, each name once with a count.
+func _scout_names() -> PackedStringArray:
+	var counts: Dictionary[String, int] = {}
+	for slot: int in scenario.leaders_a.size():
+		var units: Array = [scenario.leaders_a[slot]]
+		units.append_array(_squads[slot])
+		for unit: TacticsUnitData in units:
+			if _is_scout(unit):
+				var name := tr(unit.name_key)
+				counts[name] = counts.get(name, 0) + 1
+	var names: PackedStringArray = []
+	for name: String in counts:
+		names.append(name if counts[name] == 1 else "%s ×%d" % [name, counts[name]])
+	return names
+
+
+func _is_scout(unit: TacticsUnitData) -> bool:
+	return _keyword_ids(unit).has(&"keyword.scout")
 
 
 # One swatch per terrain the map uses, drawn like the map draws it.
@@ -321,6 +394,7 @@ func _leader_card(slot: int) -> Control:
 	token.is_leader = true
 	token.glyph = TacticsPainter.glyph_for(leader.base_class.id, _keyword_ids(leader))
 	token.look = person.get("look", -1)
+	token.is_scout = _is_scout(leader) and scenario.fog_of_war
 	token.custom_minimum_size = Vector2(52, 52)
 	head.add_child(token)
 	var texts := VBoxContainer.new()
@@ -370,6 +444,7 @@ func _chip(leader_slot: int, soldier_slot: int) -> PressButton:
 	face.caption = tr(troop.name_key + "_SHORT")
 	face.look = person.get("look", -1)
 	face.marks = (person["marks"] as Array).size() if not person.is_empty() else 0
+	face.is_scout = _is_scout(troop) and scenario.fog_of_war
 	face.set_anchors_preset(Control.PRESET_FULL_RECT)
 	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	chip.add_child(face)
@@ -448,6 +523,8 @@ class _Token extends Control:
 	## A face seed; -1 draws the token.
 	var look: int = -1
 	var marks: int = 0
+	## An eye at the top right: it scouts.
+	var is_scout: bool = false
 
 	func _draw() -> void:
 		var shape := get_shape()
@@ -465,6 +542,8 @@ class _Token extends Control:
 			draw_colored_polygon(diamond, Palette.GOLD)
 			diamond.append(diamond[0])
 			draw_polyline(diamond, Palette.INK, 1.5)
+		if is_scout:
+			TacticsPainter.draw_scout_badge(self, c + Vector2(r * 0.78, -r * 0.7), 10.0)
 		if caption.is_empty():
 			return
 		var font := get_theme_default_font()

@@ -9,9 +9,13 @@ extends Node
 ## intents and incidents (a soldier wavering, the incident firing with its
 ## name over the soldier, calming, fleeing, defecting, a mark earned). The
 ## close-up opens only for a skill and for a blow that kills a leader. The
-## camera follows what plays. A tap skips the step that plays now. It
-## never changes the battle; the screen syncs the map from the battle once
-## it is done.
+## camera follows what plays. Under fog of war it shows only what our side
+## sees: an enemy out of sight moves unseen, one that comes into sight fades
+## in, one that leaves it fades out and leaves a "?" where it was last seen;
+## new cells clear with a soft sound; an ambush bursts over the hidden enemy.
+## Weather and time-of-day changes get a banner. A tap skips the step that
+## plays now. It never changes the battle; the screen syncs the map from
+## the battle once it is done.
 ## See Docs/systems/tactics_screen.md.
 ## [codeblock]
 ## playback.reset(battle.get_zones())
@@ -24,6 +28,9 @@ signal step_started(type: StringName)
 signal played()
 ## A phase_started step began: whose phase, and the round.
 signal phase_shown(side: int, round_number: int)
+## The weather or the time of day turned (`kind` is &"weather" or
+## &"daytime"); the screen updates its icons and the night.
+signal environment_changed(kind: StringName, id: StringName)
 
 const MOVE_SEC_PER_CELL: float = 0.1
 const SQUAD_MOVE_MAX_SEC: float = 0.55
@@ -41,6 +48,10 @@ const BURN_COLOR := Color("ff8a3a")
 const MARK_COLOR := Color("7fd1b0")
 const INCIDENT_SEC: float = 0.8
 const WAVER_SEC: float = 0.55
+const AMBUSH_SEC: float = 0.75
+const FADE_SEC: float = 0.2
+## The beat after an enemy comes into sight, so the eye finds it.
+const SPOTTED_SEC: float = 0.25
 ## The close-up backdrop for the terrain the fight is on.
 const BACKDROPS: Dictionary[StringName, StringName] = {
 	&"terrain.forest": &"backdrop.mountain", &"terrain.hill": &"backdrop.mountain",
@@ -61,12 +72,17 @@ var is_instant: bool = false
 var is_playing: bool = false
 ## How many close-ups were played (or skipped) so far, for tests.
 var close_up_count: int = 0
+## Whether our side reads an enemy leader's intent (fog of war, night);
+## unset reads them all.
+var intent_filter: Callable
 
 var _units: Array[Dictionary] = []
 var _zones: Array[Dictionary] = []
 var _tween: Tween
 var _handlers: Dictionary[StringName, Callable] = {}
 var _is_stopped: bool = false
+## Enemies that walked out of sight this play: where they were last seen.
+var _vanished: Dictionary[int, Vector2i] = {}
 
 
 func _init() -> void:
@@ -78,6 +94,7 @@ func _init() -> void:
 		&"passive_triggered": _play_passive, &"order_changed": _play_order, &"leader_waited": _play_wait,
 		&"intent_declared": _play_intents, &"soldier_wavered": _play_wavered, &"incident_calmed": _play_calmed,
 		&"incident_fired": _play_incident, &"mark_earned": _play_mark, &"unit_fled": _play_fled, &"unit_defected": _play_defected,
+		&"vision_changed": _play_vision, &"ambushed": _play_ambush, &"weather_changed": _play_environment, &"daytime_changed": _play_environment,
 	}
 
 
@@ -86,6 +103,7 @@ func _init() -> void:
 func reset(units: Array, zones: Array) -> void:
 	_units.assign(units)
 	_zones.assign(zones)
+	_vanished.clear()
 
 
 ## Plays `events` in order; returns when the last step is done.
@@ -172,9 +190,13 @@ func _play_move(events: Array, index: int) -> int:
 	if event["kind"] == &"squad":
 		return await _play_squad_moves(events, index)
 	var piece := _piece(event["unit"])
+	if piece != null and _is_unseen_move(event, piece):
+		piece.position = map.cell_to_local(event["to"])
+		return index + 1
 	var tween := _new_step()
 	var path: Array = event["path"]
 	map.follow(map.cell_to_local(event["to"]))
+	_fade_with_sight(tween, piece, event, maxf(MOVE_SEC_PER_CELL * (path.size() - 1), FADE_SEC))
 	if event["kind"] == &"pull":
 		Sound.play(&"block")
 		tween.tween_property(piece, ^"position", map.cell_to_local(event["to"]), 0.22).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
@@ -202,9 +224,17 @@ func _play_move(events: Array, index: int) -> int:
 
 # Consecutive squad steps move together, each soldier along its own path.
 func _play_squad_moves(events: Array, index: int) -> int:
+	var end := index
+	var is_any_shown := false
+	while end < events.size() and events[end]["type"] == &"unit_moved" and events[end]["kind"] == &"squad":
+		var piece := _piece(events[end]["unit"])
+		is_any_shown = is_any_shown or (piece != null and not _is_unseen_move(events[end], piece))
+		end += 1
+	if not is_any_shown:
+		return _add_squad_moves(null, events, index, 0.0)
 	var tween := _new_step()
 	tween.set_parallel()
-	var end := _add_squad_moves(tween, events, index, 0.0)
+	end = _add_squad_moves(tween, events, index, 0.0)
 	Sound.play(&"card_flip")
 	await _finish(tween)
 	return end
@@ -224,10 +254,16 @@ func _add_squad_moves(tween: Tween, events: Array, index: int, delay: float) -> 
 		var piece := _piece(event["unit"])
 		if piece == null:
 			continue
+		# A soldier our side does not see moves unseen.
+		if tween == null or _is_unseen_move(event, piece):
+			piece.position = map.cell_to_local(event["to"])
+			continue
+		_fade_with_sight(tween, piece, event, delay + per_cell * maxf((event["path"] as Array).size() - 1, 1))
 		var path: Array = event["path"]
 		for step: int in range(1, path.size()):
 			tween.tween_property(piece, ^"position", map.cell_to_local(path[step]), per_cell).set_delay(delay + per_cell * (step - 1))
-	tween.tween_interval(delay + per_cell * longest)
+	if tween != null:
+		tween.tween_interval(delay + per_cell * longest)
 	return end
 
 
@@ -335,8 +371,8 @@ func _hit(unit: int, amount: int, hp_after: int, color: Color) -> void:
 	piece.flash = 1.0
 	var tween := piece.create_tween()
 	tween.tween_property(piece, ^"flash", 0.0, 0.2)
-	if amount > 0:
-		map.float_text(_above(unit), "-%d" % amount, color, 26 if _is_leader(unit) else 22)
+	if amount > 0 and piece.visible:
+		_float_at(unit, _above(unit), "-%d" % amount, color, 26 if _is_leader(unit) else 22)
 
 
 # Applies what a span left behind once its fight was shown: hp, deaths,
@@ -373,6 +409,7 @@ func _fall(unit: int) -> void:
 		return
 	piece.is_dead = true
 	piece.hp = 0
+	_forget(unit)
 	var tween := piece.create_tween()
 	tween.tween_property(piece, ^"scale", Vector2(1.25, 0.4), 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
 	tween.parallel().tween_property(piece, ^"modulate:a", 0.0, 0.25)
@@ -412,9 +449,9 @@ func _play_leader_engagement(events: Array, index: int, span_end: int) -> void:
 	var dealt: int = hits.filter(func(hit: Dictionary) -> bool: return hit["source"] == started["unit"]).reduce(func(sum: int, hit: Dictionary) -> int: return sum + int(hit["amount"]), 0)
 	var taken: int = hits.filter(func(hit: Dictionary) -> bool: return hit["source"] != started["unit"]).reduce(func(sum: int, hit: Dictionary) -> int: return sum + int(hit["amount"]), 0)
 	if dealt > 0:
-		map.float_text(_above(started["target"]), "-%d" % dealt, HIT_COLOR, 26)
+		_float_at(started["target"], _above(started["target"]), "-%d" % dealt, HIT_COLOR, 26)
 	if taken > 0:
-		map.float_text(_above(started["unit"]), "-%d" % taken, COUNTER_COLOR, 26)
+		_float_at(started["unit"], _above(started["unit"]), "-%d" % taken, COUNTER_COLOR, 26)
 	await _apply_span(events, index + 1, span_end, true)
 
 
@@ -506,7 +543,7 @@ func _play_charge(events: Array, index: int) -> int:
 	piece.set_charge(event["value"], event["threshold"])
 	if event["value"] >= event["threshold"] and int(event["value"]) > 0:
 		Sound.play(&"level_up")
-		map.float_text(_above(event["unit"]), tr("TACTICS_SKILL_READY"), Palette.GOLD, 22)
+		_float_at(event["unit"], _above(event["unit"]), tr("TACTICS_SKILL_READY"), Palette.GOLD, 22)
 	elif after != before:
 		Sound.play(&"coin" if after > before else &"formation_break")
 	return index + 1
@@ -515,7 +552,7 @@ func _play_charge(events: Array, index: int) -> int:
 func _play_growth(events: Array, index: int) -> int:
 	var event: Dictionary = events[index]
 	Sound.play(&"level_up")
-	map.float_text(_above(event["unit"]), tr("TACTICS_FLOAT_SKILL_GREW_FORMAT") % event["area_bonus"], Palette.GOLD, 22)
+	_float_at(event["unit"], _above(event["unit"]), tr("TACTICS_FLOAT_SKILL_GREW_FORMAT") % event["area_bonus"], Palette.GOLD, 22)
 	return await _pause(index, 0.35)
 
 
@@ -524,7 +561,7 @@ func _play_buffs(events: Array, index: int) -> int:
 	while end < events.size() and events[end]["type"] == &"buff_applied":
 		var is_armor: bool = events[end].get("stat", &"") == &"stat.armor"
 		var format := "TACTICS_FLOAT_ARMOR_FORMAT" if is_armor else "TACTICS_FLOAT_ATTACK_FORMAT"
-		map.float_text(_above(events[end]["unit"]), tr(format) % events[end]["amount"], MARK_COLOR, 20)
+		_float_at(events[end]["unit"], _above(events[end]["unit"]), tr(format) % events[end]["amount"], MARK_COLOR, 20)
 		end += 1
 	Sound.play(&"level_up")
 	await _pause(index, 0.4)
@@ -534,7 +571,7 @@ func _play_buffs(events: Array, index: int) -> int:
 func _play_buffs_ended(events: Array, index: int) -> int:
 	var end := index
 	while end < events.size() and events[end]["type"] == &"buff_ended":
-		map.float_text(_above(events[end]["unit"]), tr("TACTICS_FLOAT_BUFF_ENDED"), Palette.TEXT_DIM, 18)
+		_float_at(events[end]["unit"], _above(events[end]["unit"]), tr("TACTICS_FLOAT_BUFF_ENDED"), Palette.TEXT_DIM, 18)
 		end += 1
 	Sound.play(&"formation_break")
 	await _pause(index, 0.35)
@@ -572,20 +609,20 @@ func _play_zone_expired(events: Array, index: int) -> int:
 func _play_passive(events: Array, index: int) -> int:
 	var event: Dictionary = events[index]
 	Sound.play(&"merge")
-	map.float_text(_above(event["unit"]) + Vector2(0, -16), text.passive_name(event["passive"]), Palette.GOLD, 20)
+	_float_at(event["unit"], _above(event["unit"]) + Vector2(0, -16), text.passive_name(event["passive"]), Palette.GOLD, 20)
 	return await _pause(index, 0.35)
 
 
 func _play_order(events: Array, index: int) -> int:
 	var event: Dictionary = events[index]
 	Sound.play(&"formation_on")
-	map.float_text(_above(event["unit"]), tr("TACTICS_FLOAT_ORDER_FORMAT") % text.order_name(event["order"]), Palette.CREAM, 20)
+	_float_at(event["unit"], _above(event["unit"]), tr("TACTICS_FLOAT_ORDER_FORMAT") % text.order_name(event["order"]), Palette.CREAM, 20)
 	return await _pause(index, 0.3)
 
 
 func _play_wait(events: Array, index: int) -> int:
 	Sound.play(&"timer_tick")
-	map.float_text(_above(events[index]["unit"]), tr("TACTICS_FLOAT_WAIT"), Palette.TEXT_DIM, 20)
+	_float_at(events[index]["unit"], _above(events[index]["unit"]), tr("TACTICS_FLOAT_WAIT"), Palette.TEXT_DIM, 20)
 	return await _pause(index, 0.25)
 
 
@@ -596,8 +633,10 @@ func _play_intents(events: Array, index: int) -> int:
 		var event: Dictionary = events[end]
 		var piece := _piece(event["unit"])
 		var from: Vector2i = map.local_to_cell(piece.position) if piece != null else event["to"]
-		intents.append({"unit": event["unit"], "from": from, "to": event["to"], "action": event["action"], "target": event["target"], "target_cell": event["target_cell"]})
 		end += 1
+		if intent_filter.is_valid() and not intent_filter.call(int(event["unit"])):
+			continue
+		intents.append({"unit": event["unit"], "from": from, "to": event["to"], "action": event["action"], "target": event["target"], "target_cell": event["target_cell"]})
 	map.set_intents(intents)
 	Sound.play(&"text_blip")
 	await _pause(index, 0.3)
@@ -620,7 +659,7 @@ func _play_wavered(events: Array, index: int) -> int:
 			tween.chain().tween_property(piece, ^"wavering_scale", 1.0, 0.12)
 			tween.set_parallel()
 			var line: String = tr("TACTICS_FLOAT_WAVERING_FORMAT") % text.incident_name(event["incident"])
-			map.float_text(_above(event["unit"]) + Vector2(0, -14 - 22 * ((end - index) % 2)), line, Palette.GOLD if is_good else Palette.VERMILION.lightened(0.25), 20, 30.0, 1.3)
+			_float_at(event["unit"], _above(event["unit"]) + Vector2(0, -14 - 22 * ((end - index) % 2)), line, Palette.GOLD if is_good else Palette.VERMILION.lightened(0.25), 20, 30.0, 1.3)
 		end += 1
 	tween.chain().tween_interval(WAVER_SEC)
 	Sound.play(&"timer_tick")
@@ -636,7 +675,7 @@ func _play_calmed(events: Array, index: int) -> int:
 		tween.tween_property(piece, ^"wavering_scale", 0.0, 0.2)
 		tween.tween_callback(func() -> void: piece.wavering = TacticsPieceView.Wavering.NONE)
 	var key := "TACTICS_FLOAT_CALMED_LEADER" if event["reason"] == &"leader" else "TACTICS_FLOAT_CALMED"
-	map.float_text(_above(event["unit"]), tr(key), Palette.CREAM, 20)
+	_float_at(event["unit"], _above(event["unit"]), tr(key), Palette.CREAM, 20)
 	Sound.play(&"formation_on")
 	tween.tween_interval(0.3)
 	await _finish(tween)
@@ -665,7 +704,7 @@ func _play_incident(events: Array, index: int) -> int:
 			grow.custom_step(1000.0)
 		piece.flash = 1.0
 		tween.tween_property(piece, ^"flash", 0.0, 0.3)
-	map.float_text(_above(event["unit"]) + Vector2(0, -20), text.incident_name(event["incident"]), color, 30, 44.0, 1.4)
+	_float_at(event["unit"], _above(event["unit"]) + Vector2(0, -20), text.incident_name(event["incident"]), color, 30, 44.0, 1.4)
 	Sound.play(&"epiphany" if is_good else &"formation_break")
 	tween.tween_interval(INCIDENT_SEC)
 	await _finish(tween)
@@ -687,7 +726,7 @@ func _play_mark(events: Array, index: int) -> int:
 		rise.tween_callback(medal.queue_free)
 		if is_instant:
 			rise.custom_step(1000.0)
-	map.float_text(_above(event["unit"]) + Vector2(0, 8), tr("TACTICS_FLOAT_MARK_FORMAT") % text.incident_name(event["incident"]), Palette.GOLD, 18)
+	_float_at(event["unit"], _above(event["unit"]) + Vector2(0, 8), tr("TACTICS_FLOAT_MARK_FORMAT") % text.incident_name(event["incident"]), Palette.GOLD, 18)
 	Sound.play(&"coin")
 	return await _pause(index, 0.45)
 
@@ -697,8 +736,10 @@ func _play_fled(events: Array, index: int) -> int:
 	var event: Dictionary = events[index]
 	var piece := _piece(event["unit"])
 	var tween := _new_step()
-	map.float_text(_above(event["unit"]), tr("TACTICS_FLOAT_FLED"), Palette.VERMILION.lightened(0.25), 22)
-	Sound.play(&"charge")
+	_float_at(event["unit"], _above(event["unit"]), tr("TACTICS_FLOAT_FLED"), Palette.VERMILION.lightened(0.25), 22)
+	if piece == null or piece.visible:
+		Sound.play(&"charge")
+	_forget(event["unit"])
 	if piece != null:
 		piece.is_dead = true
 		tween.tween_property(piece, ^"position", map.cell_to_local(event["to"]), 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
@@ -722,11 +763,138 @@ func _play_defected(events: Array, index: int) -> int:
 		tween.tween_property(piece, ^"scale", Vector2(0.15, 1.1), 0.18)
 		tween.tween_callback(piece.set_side.bind(new_side))
 		tween.tween_property(piece, ^"scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	map.float_text(_above(unit) + Vector2(0, -12), tr("TACTICS_FLOAT_JOINED_US" if is_to_us else "TACTICS_FLOAT_DEFECTED"), Palette.JADE_LIGHT if is_to_us else Palette.VERMILION.lightened(0.25), 24)
+	_float_at(unit, _above(unit) + Vector2(0, -12), tr("TACTICS_FLOAT_JOINED_US" if is_to_us else "TACTICS_FLOAT_DEFECTED"), Palette.JADE_LIGHT if is_to_us else Palette.VERMILION.lightened(0.25), 24)
 	Sound.play(&"formation_on" if is_to_us else &"petrify")
 	tween.tween_interval(0.35)
 	await _finish(tween)
 	return index + 1
+
+
+# Text rising over a unit, unless our side does not see it.
+func _float_at(unit: int, at: Vector2, line: String, color: Color, font_px: int = 26, rise_px: float = 36.0, seconds: float = 0.9) -> void:
+	var piece := _piece(unit)
+	if piece == null or piece.visible:
+		map.float_text(at, line, color, font_px, rise_px, seconds)
+
+
+# A move of the other side that our side sees neither where it set off nor
+# where it stopped.
+func _is_unseen_move(event: Dictionary, piece: TacticsPieceView) -> bool:
+	return int(_units[event["unit"]]["side"]) != player_side and not piece.visible and not event.get("seen_to", true)
+
+
+# An enemy coming into sight fades in as it sets off; one leaving it fades
+# out at the end of its walk, remembered where it was last seen.
+func _fade_with_sight(tween: Tween, piece: TacticsPieceView, event: Dictionary, end_sec: float) -> void:
+	if piece == null or int(_units[event["unit"]]["side"]) == player_side:
+		return
+	var is_shown: bool = event.get("seen_to", true)
+	if not piece.visible and is_shown:
+		piece.modulate.a = 0.0
+		piece.visible = true
+		tween.parallel().tween_property(piece, ^"modulate:a", 1.0, FADE_SEC)
+	elif piece.visible and not is_shown:
+		if event.get("seen_from", true):
+			_vanished[int(event["unit"])] = event["from"]
+		tween.parallel().tween_property(piece, ^"modulate:a", 0.0, FADE_SEC).set_delay(maxf(end_sec - FADE_SEC, 0.0))
+
+
+# What our side sees changed: cells clear (or dim) with a short blend and
+# a soft sound, enemies come into sight or leave it ("?" where last seen).
+func _play_vision(events: Array, index: int) -> int:
+	var event: Dictionary = events[index]
+	var states := map.get_fog().duplicate()
+	if int(event["side"]) != player_side or states.is_empty():
+		return index + 1
+	for cell: Vector2i in event["cells"]:
+		states[cell.y * map.map_width + cell.x] = 2
+	for cell: Vector2i in event["lost_cells"]:
+		states[cell.y * map.map_width + cell.x] = 1
+	var ghosts: Array = map.get_last_seen().duplicate(true)
+	var spotted: Array = event["units"]
+	for unit: int in spotted:
+		var piece := _piece(unit)
+		if piece != null and not piece.is_dead:
+			piece.visible = true
+			if piece.modulate.a < 1.0:
+				piece.create_tween().tween_property(piece, ^"modulate:a", 1.0, FADE_SEC)
+	for unit: int in event["lost_units"]:
+		var piece := _piece(unit)
+		if piece == null or piece.is_dead:
+			continue
+		ghosts.append({"unit": unit, "cell": _vanished.get(unit, map.local_to_cell(piece.position)), "is_leader": _is_leader(unit)})
+		piece.visible = false
+		piece.modulate.a = 1.0
+	# A ghost goes when its enemy is seen again, or its cell is seen empty.
+	ghosts = ghosts.filter(func(ghost: Dictionary) -> bool:
+		var piece := _piece(ghost["unit"])
+		var is_seen := piece != null and piece.visible
+		return not is_seen and states[(ghost["cell"] as Vector2i).y * map.map_width + (ghost["cell"] as Vector2i).x] != 2)
+	map.set_last_seen(ghosts)
+	map.update_fog_states(states, not is_instant)
+	if not (event["cells"] as Array).is_empty():
+		Sound.play(&"fog_reveal")
+	if spotted.is_empty():
+		return index + 1
+	map.follow(_piece(spotted[0]).position)
+	return await _pause(index, SPOTTED_SEC)
+
+
+# A walk stopped by an enemy hidden in the way: the ambusher bursts into
+# sight with a ring and the word, and the walker shakes.
+func _play_ambush(events: Array, index: int) -> int:
+	var event: Dictionary = events[index]
+	var ambusher := _piece(event["by"])
+	var walker := _piece(event["unit"])
+	var tween := _new_step()
+	if ambusher != null:
+		ambusher.visible = true
+		ambusher.modulate.a = 1.0
+		map.follow(ambusher.position)
+		var ring := _Ring.new()
+		ring.color = Palette.VERMILION
+		ring.position = ambusher.position + ambusher.get_token_center()
+		map.get_fx_layer().add_child(ring)
+		var grow := ring.create_tween()
+		grow.tween_property(ring, ^"radius", 54.0, 0.4).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		grow.parallel().tween_property(ring, ^"modulate:a", 0.0, 0.4)
+		grow.tween_callback(ring.queue_free)
+		if is_instant:
+			grow.custom_step(1000.0)
+		ambusher.flash = 1.0
+		tween.tween_property(ambusher, ^"flash", 0.0, 0.3)
+		_float_at(event["by"], _above(event["by"]) + Vector2(0, -18), tr("TACTICS_FLOAT_AMBUSH"), Palette.VERMILION.lightened(0.3), 30, 44.0, 1.3)
+	if walker != null:
+		var home := walker.position
+		for shake: int in 4:
+			tween.tween_property(walker, ^"position", home + Vector2(5.0 if shake % 2 == 0 else -5.0, 0.0), 0.05)
+		tween.tween_property(walker, ^"position", home, 0.05)
+	Sound.play(&"ambush")
+	tween.tween_interval(AMBUSH_SEC)
+	await _finish(tween)
+	return index + 1
+
+
+# The weather or the time of day turned: a banner with its name.
+func _play_environment(events: Array, index: int) -> int:
+	var event: Dictionary = events[index]
+	var kind: StringName = &"weather" if event["type"] == &"weather_changed" else &"daytime"
+	environment_changed.emit(kind, event["now"])
+	Sound.play(&"weather_turn")
+	var tween := _new_step()
+	banner.present(text.environment_name(kind, event["now"]), text.environment_description(kind, event["now"]), true)
+	tween.tween_interval(BANNER_SEC)
+	tween.tween_callback(banner.dismiss)
+	await _finish(tween)
+	banner.dismiss()
+	return index + 1
+
+
+# A unit that is gone (dead, fled) is not remembered.
+func _forget(unit: int) -> void:
+	var ghosts := map.get_last_seen().filter(func(ghost: Dictionary) -> bool: return ghost["unit"] != unit)
+	if ghosts.size() != map.get_last_seen().size():
+		map.set_last_seen(ghosts)
 
 
 func _pause(index: int, seconds: float) -> int:

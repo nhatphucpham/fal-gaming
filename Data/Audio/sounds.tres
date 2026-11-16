@@ -211,6 +211,27 @@ stream = ExtResource("wav_music_battle")
 volume_db = -8.0
 is_music = true
 
+[sub_resource type="Resource" id="sound_fog_reveal"]
+script = ExtResource("2_sound")
+id = &"fog_reveal"
+stream = ExtResource("wav_spell")
+volume_db = -18.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_ambush"]
+script = ExtResource("2_sound")
+id = &"ambush"
+stream = ExtResource("wav_petrify")
+volume_db = -3.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_weather_turn"]
+script = ExtResource("2_sound")
+id = &"weather_turn"
+stream = ExtResource("wav_epiphany")
+volume_db = -10.0
+is_music = false
+
 [resource]
 script = ExtResource("1_bank")
-sounds = Array[ExtResource("2_sound")]([SubResource("sound_ui_tap"), SubResource("sound_coin"), SubResource("sound_card_flip"), SubResource("sound_buy"), SubResource("sound_sell"), SubResource("sound_merge"), SubResource("sound_level_up"), SubResource("sound_timer_tick"), SubResource("sound_battle_drum"), SubResource("sound_hit_light"), SubResource("sound_hit_heavy"), SubResource("sound_arrow"), SubResource("sound_spell"), SubResource("sound_skill_cast"), SubResource("sound_block"), SubResource("sound_charge"), SubResource("sound_death"), SubResource("sound_formation_on"), SubResource("sound_formation_break"), SubResource("sound_petrify"), SubResource("sound_win"), SubResource("sound_lose"), SubResource("sound_epiphany"), SubResource("sound_text_blip"), SubResource("sound_music_prep"), SubResource("sound_music_battle")])
+sounds = Array[ExtResource("2_sound")]([SubResource("sound_ui_tap"), SubResource("sound_coin"), SubResource("sound_card_flip"), SubResource("sound_buy"), SubResource("sound_sell"), SubResource("sound_merge"), SubResource("sound_level_up"), SubResource("sound_timer_tick"), SubResource("sound_battle_drum"), SubResource("sound_hit_light"), SubResource("sound_hit_heavy"), SubResource("sound_arrow"), SubResource("sound_spell"), SubResource("sound_skill_cast"), SubResource("sound_block"), SubResource("sound_charge"), SubResource("sound_death"), SubResource("sound_formation_on"), SubResource("sound_formation_break"), SubResource("sound_petrify"), SubResource("sound_win"), SubResource("sound_lose"), SubResource("sound_epiphany"), SubResource("sound_text_blip"), SubResource("sound_music_prep"), SubResource("sound_music_battle"), SubResource("sound_fog_reveal"), SubResource("sound_ambush"), SubResource("sound_weather_turn")])

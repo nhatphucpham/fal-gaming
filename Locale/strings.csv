@@ -430,6 +430,12 @@ CHARGE_DAMAGE_TAKEN,Chịu đòn,Damage taken
 CHARGE_SOLDIERS_LOST,Binh ngã,Soldiers lost
 MUSTER_TITLE,Điểm binh,Muster
 MUSTER_OBJECTIVE_FORMAT,Đưa một tướng tới %s (ô cờ vàng) hoặc hạ hết tướng địch. Quá %d vòng là thua.,Bring a leader to the %s (gold flag) or defeat every enemy leader. After %d rounds you lose.
+MUSTER_ENVIRONMENT,Trời đất,Weather and time
+MUSTER_WEATHER_CHANGE_FORMAT,"Từ vòng %d: %s.","From round %d: %s."
+MUSTER_DAYTIME_CYCLE_FORMAT,"Bắt đầu lúc %s, đổi sau mỗi %d vòng.","Starts at %s, changes every %d rounds."
+MUSTER_FOG,"Sương chiến: chỉ thấy quanh quân ta.","Fog of war: we see only around our troops."
+MUSTER_SCOUTS_FORMAT,"Trinh sát (nhìn xa, thấy quân nấp): %s.","Scouts (see far, spot hidden units): %s."
+MUSTER_NO_SCOUTS,"Chưa có trinh sát: quân nấp trong rừng chỉ lộ khi đứng sát.","No scouts: units hidden in forest show only up close."
 MUSTER_TERRAIN,Địa hình,Terrain
 MUSTER_FORCES,Quân ta,Our forces
 MUSTER_ENEMY_FORMAT,Quân địch: %s,Enemy: %s
@@ -592,6 +598,7 @@ TACTICS_FLOAT_CALMED,Đã yên,Settled
 TACTICS_FLOAT_CALMED_LEADER,Tướng trấn an,Leader calms them
 TACTICS_FLOAT_MARK_FORMAT,Dấu: %s,Mark: %s
 TACTICS_FLOAT_FLED,Bỏ chạy!,Fled!
+TACTICS_FLOAT_AMBUSH,Phục kích!,Ambush!
 TACTICS_FLOAT_DEFECTED,Phản!,Defected!
 TACTICS_FLOAT_JOINED_US,Về phe ta!,Joins us!
 TACTICS_HINT_WAVERING,Binh dao động: kéo tướng lại gần nó.,A soldier wavers: bring its leader close.
@@ -647,6 +654,11 @@ TACTICS_HINT_MOVE_ON_STRUCK,"Đã đánh: đi tiếp ô xanh, hoặc Chờ.","St
 TACTICS_HINT_SKILL_LEFT,Còn Kỹ năng: bấm Kỹ năng hoặc Chờ.,Skill left: tap Skill or Wait.
 TACTICS_HINT_ONLY_WALKS,"Hết đòn để đánh: đi tiếp, hay Kết lượt.","No strike left: move on, or End turn."
 TACTICS_HINT_WALK_ONLY,"Chưa với tới địch: chạm ô xanh, xong thì Chờ.","No enemy in reach: tap blue, then Wait."
+TACTICS_OUT_OF_SIGHT,"Ngoài tầm mắt tướng: dễ dao động, chưa trấn an được.","Out of its leader's sight: may waver, cannot be calmed yet."
+TACTICS_ENVIRONMENT_TITLE,Trời đất,Weather and time
+TACTICS_WEATHER_LATER_FORMAT,"Từ vòng %d: %s.","From round %d: %s."
+TACTICS_WEATHER_SOON_FORMAT,Vòng tới: %s,Next round: %s
+TACTICS_FOG_LINE,"Sương chiến: chỉ thấy quanh quân ta; ? là chỗ thấy địch lần cuối.","Fog of war: we see only around our troops; ? marks where an enemy was last seen."
 TACTICS_TIP_SELECT,"Tướng đi đâu, toán binh dàn quanh đó.","Where the leader goes, its squad forms up."
 TACTICS_TIP_MOVE,Còn điểm thì đi tiếp. Xong thì bấm Chờ.,Points left? Keep moving. Tap Wait when done.
 TACTICS_TIP_UNDO,Đi nhầm? Hoàn tác lùi từng bước tới khi đánh hay đổi lệnh.,Wrong cell? Undo steps back until you attack or change orders.
@@ -656,6 +668,7 @@ TACTICS_TURN_ATTACK_READY,còn đòn đánh,can strike
 TACTICS_TURN_ATTACK_USED,đã đánh,struck
 TACTICS_TURN_WAITED,Đã Chờ: xong lượt.,Waited: turn over.
 TACTICS_TIP_WAVER,"Dấu ! đỏ: binh sắp làm loạn, đưa tướng lại sát nó.","A red !: a soldier will act up, bring its leader close."
+TACTICS_TIP_FOG,"Ô tối: chưa thấy. Địch có thể nấp trong rừng, đi dò từng bước.","Dark cells are unseen. Enemies may hide in forest: scout ahead."
 TACTICS_NAMED_DESC_FORMAT,%s: %s,%s: %s
 FORECAST_WALK_FORMAT,Đi %d ô rồi đánh,Walks %d cells then attacks
 FORECAST_STAY,Đánh tại chỗ,Attacks from here

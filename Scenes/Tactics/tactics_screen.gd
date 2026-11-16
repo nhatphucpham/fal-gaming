@@ -17,7 +17,11 @@ extends Control
 ## TacticsPlayback, then brings the map in line with the battle. It holds
 ## no rules: every list of cells, target, strike cell and forecast comes
 ## from the battle. With a TacticsCampaign the battle has incidents and
-## roster records, and the end shows the after-battle summary.
+## roster records, and the end shows the after-battle summary. Under fog of
+## war the map shows only what our side sees (Docs/systems/tactics_vision.md):
+## enemies out of sight are not drawn or offered, those remembered show as
+## "?" where last seen, and a chip over the map's top-left shows the weather
+## and the time of day (a tap says what they do).
 ## See Docs/systems/tactics_screen.md.
 ## [codeblock]
 ## var screen := TacticsScreen.new()
@@ -94,6 +98,11 @@ var _is_retreat_armed: bool = false
 var _hint_key: String = "TACTICS_HINT_IDLE"
 var _retreat_arm_count: int = 0
 var _summary: TacticsSummaryView
+var _environment_chip: PressButton
+var _weather_icon: TextureRect
+var _daytime_icon: TextureRect
+## Fog and night were drawn once; later changes blend in.
+var _is_fog_shown: bool = false
 ## Unit index -> marks its roster person carried in.
 var _carried_marks: Dictionary = {}
 
@@ -118,6 +127,7 @@ func _ready() -> void:
 		if not campaign.prepare_battle(_battle, _people()):
 			push_error("TacticsScreen: the campaign could not set up %s" % scenario.id)
 	_build()
+	_playback.intent_filter = func(unit: int) -> bool: return _battle.is_intent_known(player_side, unit)
 	_map.setup(_battle, scenario.map.objective_cell if scenario.map.objective_side == player_side else NO_CELL)
 	_banner.max_rounds = scenario.rules.max_rounds
 	_units = _battle.get_units()
@@ -411,7 +421,9 @@ func _build() -> void:
 	_playback.player_side = player_side
 	_playback.is_instant = is_instant
 	_playback.phase_shown.connect(_on_phase_shown)
+	_playback.environment_changed.connect(_on_environment_changed)
 	add_child(_playback)
+	_build_environment_chip()
 
 
 func _build_top_bar() -> void:
@@ -447,6 +459,93 @@ func _build_top_bar() -> void:
 		Sound.play(&"ui_tap")
 		retreat())
 	row.add_child(_retreat_button)
+
+
+# The weather and the time of day over the map's top-right corner, one tap
+# target (the top bar keeps its room for the hint); a tap says what both do.
+func _build_environment_chip() -> void:
+	_environment_chip = PressButton.new()
+	_environment_chip.focus_mode = Control.FOCUS_NONE
+	_environment_chip.custom_minimum_size = Vector2(132, 88)
+	_environment_chip.anchor_left = 1.0
+	_environment_chip.anchor_right = 1.0
+	_environment_chip.offset_left = -8 - _environment_chip.custom_minimum_size.x
+	_environment_chip.offset_right = -8
+	_environment_chip.offset_top = TOP_BAR_PX + 8
+	_environment_chip.offset_bottom = TOP_BAR_PX + 8 + _environment_chip.custom_minimum_size.y
+	_environment_chip.pressed.connect(func() -> void:
+		Sound.play(&"ui_tap")
+		show_environment())
+	var icons := HBoxContainer.new()
+	icons.set_anchors_preset(Control.PRESET_FULL_RECT)
+	icons.alignment = BoxContainer.ALIGNMENT_CENTER
+	icons.add_theme_constant_override(&"separation", 4)
+	icons.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_environment_chip.add_child(icons)
+	_weather_icon = _chip_icon()
+	icons.add_child(_weather_icon)
+	_daytime_icon = _chip_icon()
+	icons.add_child(_daytime_icon)
+	# Under the skip catcher and the close-up: it cannot be pressed while a
+	# playback runs.
+	add_child(_environment_chip)
+	move_child(_environment_chip, _map.get_index() + 1)
+
+
+func _chip_icon() -> TextureRect:
+	var icon := TextureRect.new()
+	icon.custom_minimum_size = Vector2(56, 56)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	return icon
+
+
+## The weather and the time of day in words on the panel (the chip's tap).
+func show_environment() -> void:
+	if _mode == Mode.BUSY or _mode == Mode.ENDED:
+		return
+	_go_idle()
+	var round_number := _battle.get_round()
+	var weather := _battle.get_weather_id(round_number)
+	var daytime := _battle.get_daytime_id(round_number)
+	var lines: Array[String] = [
+		_environment_line(&"weather", weather),
+		_environment_line(&"daytime", daytime),
+	]
+	var change := _battle.get_weather_change_round()
+	if change > round_number:
+		lines.append(tr("TACTICS_WEATHER_LATER_FORMAT") % [change, _text.environment_name(&"weather", _battle.get_weather_id(change))])
+	if _battle.has_fog_of_war():
+		lines.append(tr("TACTICS_FOG_LINE"))
+	_panel.show_card(tr("TACTICS_ENVIRONMENT_TITLE"), Palette.CREAM, "", lines)
+	_set_hint(_text.environment_description(&"weather", weather))
+
+
+func _environment_line(kind: StringName, id: StringName) -> String:
+	return _text.environment_description(kind, id) if id != &"" else ""
+
+
+func get_environment_chip() -> PressButton:
+	return _environment_chip
+
+
+func _on_environment_changed(_kind: StringName, _id: StringName) -> void:
+	_show_environment_icons()
+	var daytime := _text.environment_data(&"daytime", _battle.get_daytime_id(_battle.get_round())) as TacticsDaytimeData
+	_map.update_night(_battle.get_lit_cells(), daytime.darkness_pct / 100.0 if daytime != null else 0.0, not is_instant)
+
+
+func _show_environment_icons() -> void:
+	var round_number := maxi(_battle.get_round(), 1)
+	var weather := _text.environment_data(&"weather", _battle.get_weather_id(round_number)) as TacticsWeatherData
+	var daytime := _text.environment_data(&"daytime", _battle.get_daytime_id(round_number)) as TacticsDaytimeData
+	_weather_icon.texture = weather.icon if weather != null else null
+	_daytime_icon.texture = daytime.icon if daytime != null else null
+	_weather_icon.visible = weather != null
+	_daytime_icon.visible = daytime != null
+	_environment_chip.visible = weather != null or daytime != null
 
 
 func _bar_label(font_px: int, color: Color) -> Label:
@@ -508,7 +607,8 @@ func _sync() -> void:
 			continue
 		var is_alive: bool = state["alive"]
 		piece.is_dead = not is_alive
-		piece.visible = is_alive
+		piece.visible = is_alive and _is_seen(state["index"])
+		piece.modulate.a = 1.0
 		piece.hp = state["hp"]
 		piece.position = _map.cell_to_local(state["cell"])
 		piece.set_side(state["side"])
@@ -521,6 +621,7 @@ func _sync() -> void:
 			var charge := _battle.get_skill_charge(state["index"])
 			piece.set_charge(charge.get("value", 0), charge.get("threshold", 0))
 	_map.set_zones(_zones)
+	_sync_vision()
 	_intents.clear()
 	if _battle.get_active_side() == player_side and not _battle.is_finished():
 		for intent: Dictionary in _battle.get_enemy_intents():
@@ -529,6 +630,31 @@ func _sync() -> void:
 			_intents.append(entry)
 	_map.set_intents(_intents)
 	_show_round(_battle.get_round(), _battle.get_active_side())
+
+
+# Fog, night, lights, remembered enemies and the edge marks of our
+# wavering soldiers, as the battle has them now.
+func _sync_vision() -> void:
+	var daytime := _text.environment_data(&"daytime", _battle.get_daytime_id(maxi(_battle.get_round(), 1))) as TacticsDaytimeData
+	var darkness := daytime.darkness_pct / 100.0 if daytime != null else 0.0
+	var fog := _battle.get_fog_cells(player_side) if _battle.has_fog_of_war() else PackedByteArray()
+	_map.set_fog(fog, _battle.get_lit_cells() if darkness > 0.0 else PackedByteArray(), darkness, _is_fog_shown and not is_instant)
+	_is_fog_shown = true
+	var ghosts: Array = []
+	for ghost: Dictionary in _battle.get_last_seen(player_side):
+		ghosts.append({"unit": ghost["unit"], "cell": ghost["cell"], "is_leader": _units[ghost["unit"]]["role"] == &"leader"})
+	_map.set_last_seen(ghosts)
+	var wavering: Array = []
+	for state: Dictionary in _units:
+		if state["alive"] and state["side"] == player_side and state["wavering"] != &"" and not state["is_wavering_good"]:
+			wavering.append(state["cell"])
+	_map.set_edge_marks(wavering)
+	_show_environment_icons()
+
+
+# Our side sees the unit now (always its own).
+func _is_seen(unit: int) -> bool:
+	return _units[unit]["side"] == player_side or _battle.is_unit_seen(player_side, unit)
 
 
 func _show_round(round_number: int, side: int) -> void:
@@ -543,10 +669,23 @@ func _on_phase_shown(side: int, round_number: int) -> void:
 		_set_hint("TACTICS_HINT_IDLE")
 		_show_our_phase_card(round_number)
 		_bring_ours_into_view()
+		_warn_weather(round_number)
+		if _battle.has_fog_of_war():
+			_tips.offer(&"fog")
 		return
 	_set_hint("TACTICS_HINT_ENEMY_PHASE")
 	var lines: Array[String] = [tr("TACTICS_HINT_ENEMY_PHASE"), "", ""]
 	_panel.show_card(tr("TACTICS_PHASE_ENEMY"), TacticsPainter.ENEMY_FILL.lightened(0.35), tr("TACTICS_ROUND_FORMAT") % [round_number, scenario.rules.max_rounds], lines)
+
+
+# The round before the weather turns, a banner says so.
+func _warn_weather(round_number: int) -> void:
+	var change := _battle.get_weather_change_round()
+	if change <= 0 or round_number != change - 1:
+		return
+	Sound.play(&"weather_turn")
+	_banner.present(tr("TACTICS_WEATHER_SOON_FORMAT") % _text.environment_name(&"weather", _battle.get_weather_id(change)), _text.environment_description(&"weather", _battle.get_weather_id(change)), true)
+	get_tree().create_timer(0.01 if is_instant else TacticsPlayback.BANNER_SEC * 1.6).timeout.connect(_banner.dismiss)
 
 
 # Our phase asks to tap a leader of ours: if the enemy's moves or a drag
@@ -911,6 +1050,8 @@ func _show_unit_card(unit: int) -> void:
 	else:
 		var leader: int = state["leader"]
 		lines.append(tr("TACTICS_SOLDIER_OF_FORMAT") % _text.unit_name(_units[leader]) if leader >= 0 and _units[leader]["alive"] else tr("TACTICS_NO_LEADER"))
+		if state.get("is_out_of_leader_sight", false):
+			lines.append(tr("TACTICS_OUT_OF_SIGHT"))
 		var wavering: StringName = state["wavering"]
 		if wavering != &"":
 			var incident := catalog.get_incident(wavering)
@@ -1112,7 +1253,7 @@ func _is_commandable(unit: int) -> bool:
 func _unit_at(cell: Vector2i) -> int:
 	var found := -1
 	for state: Dictionary in _units:
-		if state["alive"] and state["cell"] == cell:
+		if state["alive"] and state["cell"] == cell and _is_seen(state["index"]):
 			if state["role"] == &"leader":
 				return state["index"]
 			found = state["index"]

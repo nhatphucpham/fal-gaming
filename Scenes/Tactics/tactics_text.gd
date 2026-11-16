@@ -80,6 +80,23 @@ func terrain_effects(id: StringName) -> String:
 	return " · ".join(parts)
 
 
+## The weather (`kind` &"weather") or time of day (&"daytime") data by id;
+## null when the catalog has none.
+func environment_data(kind: StringName, id: StringName) -> Resource:
+	return catalog.get_weather(id) if kind == &"weather" else catalog.get_daytime(id)
+
+
+func environment_name(kind: StringName, id: StringName) -> String:
+	var data := environment_data(kind, id)
+	return tr(data.get("name_key")) if data != null else String(id)
+
+
+## One line on what the weather or time of day does.
+func environment_description(kind: StringName, id: StringName) -> String:
+	var data := environment_data(kind, id)
+	return tr(data.get("description_key")) if data != null else ""
+
+
 func skill_name(id: StringName) -> String:
 	var skill := catalog.get_skill(id)
 	return tr(skill.name_key) if skill != null else String(id)

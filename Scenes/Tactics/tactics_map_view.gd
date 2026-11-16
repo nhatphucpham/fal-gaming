@@ -5,7 +5,10 @@ extends Control
 ## one draw call), zones, selection marks, enemy intents, unit tokens and
 ## floating text, each its own layer that redraws only when its content
 ## changes; moving the camera only moves the board, so an idle map draws
-## nothing new. One finger drags to pan, two pinch to zoom; a tap (press
+## nothing new. Under fog of war one small texture (a pixel per cell,
+## smoothly filtered) darkens what is not seen and tints the night; it is
+## rewritten only when what is seen changes, with a short blend. Enemies
+## remembered where they were last seen show as dim "?" tokens. One finger drags to pan, two pinch to zoom; a tap (press
 ## and release on one cell) emits cell_tapped; a press on a cell listed in
 ## `hold_cells` follows the finger instead (cell_held while it moves,
 ## hold_released where it lifts). It shows what it is told; it never reads
@@ -47,6 +50,15 @@ const ATTACK_COLOR := Color("ff4a3a")
 const SKILL_COLOR := Color(1.0, 0.82, 0.3, 0.45)
 const AREA_COLOR := Color(1.0, 0.5, 0.2, 0.5)
 const INTENT_COLOR := Color("ffb347")
+## Fog of war: never seen, seen before, the night over what is seen (its
+## alpha scaled by the time of day's darkness) and the warm light of a lit
+## cell at night.
+const FOG_NEVER_COLOR := Color(0.04, 0.05, 0.08, 0.88)
+const FOG_SEEN_COLOR := Color(0.07, 0.08, 0.12, 0.55)
+const NIGHT_COLOR := Color(0.02, 0.04, 0.16, 0.62)
+const LIGHT_COLOR := Color(1.0, 0.7, 0.32, 0.1)
+const FOG_BLEND_SEC: float = 0.35
+const EDGE_MARK_PX: float = 30.0
 
 var map_width: int = 0
 var map_height: int = 0
@@ -64,6 +76,25 @@ var _board: Control
 var _terrain_viewport: SubViewport
 var _terrain_layer: _Layer
 var _terrain_image: TextureRect
+var _fog_rect: TextureRect
+var _fog_image: Image
+var _fog_texture: ImageTexture
+## The fog colour of each cell now and the blend toward new ones.
+var _fog_colors := PackedColorArray()
+var _fog_from := PackedColorArray()
+var _fog_to := PackedColorArray()
+var _fog_tween: Tween
+var _fog_states := PackedByteArray()
+var _lit_cells := PackedByteArray()
+var _darkness: float = 0.0
+## How many times the fog texture was rewritten, for tests.
+var fog_write_count: int = 0
+## Fog changes begun (a blend, or one write when instant), for tests.
+var fog_change_count: int = 0
+var _memory_layer: _Layer
+var _last_seen: Array = []
+var _edge_layer: _Layer
+var _edge_cells: Array = []
 var _zone_layer: _Layer
 var _mark_layer: _Layer
 var _intent_layer: _Layer
@@ -114,8 +145,17 @@ func _init() -> void:
 	_terrain_image.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_terrain_image.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_board.add_child(_terrain_image)
+	_fog_rect = TextureRect.new()
+	_fog_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_fog_rect.stretch_mode = TextureRect.STRETCH_SCALE
+	_fog_rect.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	_fog_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fog_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_fog_rect.visible = false
+	_board.add_child(_fog_rect)
 	_zone_layer = _add_layer(_draw_zones)
 	_mark_layer = _add_layer(_draw_marks)
+	_memory_layer = _add_layer(_draw_last_seen)
 	_piece_layer = Node2D.new()
 	_piece_layer.y_sort_enabled = true
 	_board.add_child(_piece_layer)
@@ -123,6 +163,13 @@ func _init() -> void:
 	_fx_layer = Control.new()
 	_fx_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_board.add_child(_fx_layer)
+	# Marks pointing at our wavering soldiers outside the view, in view
+	# coordinates over the board.
+	_edge_layer = _Layer.new()
+	_edge_layer.drawer = _draw_edge_marks
+	_edge_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_edge_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	add_child(_edge_layer)
 	_whole_button = PressButton.new()
 	_whole_button.text = "TACTICS_WHOLE_MAP"
 	_whole_button.focus_mode = Control.FOCUS_NONE
@@ -301,6 +348,8 @@ func _apply_camera(offset: Vector2, zoom: float, clamps: bool = true) -> void:
 		_board.scale = Vector2(zoom, zoom)
 	if _board.position != target:
 		_board.position = target
+		if not _edge_cells.is_empty():
+			_edge_layer.queue_redraw()
 	if _baked_scale > 0.0 and _bake_scale() > _baked_scale + 0.01:
 		_paint_terrain()
 
@@ -377,9 +426,127 @@ func get_whole_map_button() -> PressButton:
 	return _whole_button
 
 
-## Redraws of the mark, zone and intent layers so far, for tests.
+## Redraws of the mark, zone, intent and memory layers so far, for tests.
 func get_layer_draw_count() -> int:
-	return _zone_layer.draw_count + _mark_layer.draw_count + _intent_layer.draw_count
+	return _zone_layer.draw_count + _mark_layer.draw_count + _intent_layer.draw_count + _memory_layer.draw_count
+
+
+## Fog of war and the time of day: one state per cell (0 never seen, 1 seen
+## before, 2 visible), the lit cells (1) and the night's darkness (0..1).
+## An empty `states` shows everything. The texture is rewritten only when
+## a colour changes, blending over a moment when `smooth`.
+func set_fog(states: PackedByteArray, lit: PackedByteArray, darkness: float, smooth: bool) -> void:
+	if states == _fog_states and lit == _lit_cells and is_equal_approx(darkness, _darkness) and _fog_image != null:
+		return
+	_fog_states = states
+	_lit_cells = lit
+	_darkness = darkness
+	var count := map_width * map_height
+	var target := PackedColorArray()
+	target.resize(count)
+	var is_clear := true
+	for index: int in count:
+		target[index] = _fog_color(index)
+		is_clear = is_clear and target[index].a <= 0.0
+	if _fog_image == null or _fog_colors.size() != count:
+		_fog_image = Image.create_empty(maxi(map_width, 1), maxi(map_height, 1), false, Image.FORMAT_RGBA8)
+		_fog_texture = null
+		_fog_colors = target.duplicate()
+		_fog_colors.fill(Color(0, 0, 0, 0))
+	if target == _fog_colors:
+		_fog_rect.visible = not is_clear
+		return
+	if _fog_tween != null and _fog_tween.is_valid():
+		_fog_tween.kill()
+	fog_change_count += 1
+	_fog_from = _fog_colors.duplicate()
+	_fog_to = target
+	_fog_rect.visible = true
+	if not smooth or is_instant or not is_inside_tree():
+		_blend_fog(1.0)
+		_fog_rect.visible = not is_clear
+		return
+	_fog_tween = create_tween()
+	_fog_tween.tween_method(_blend_fog, 0.0, 1.0, FOG_BLEND_SEC).set_trans(Tween.TRANS_SINE)
+	_fog_tween.tween_callback(func() -> void: _fog_rect.visible = not is_clear)
+
+
+## New fog states, the lights and the night kept.
+func update_fog_states(states: PackedByteArray, smooth: bool) -> void:
+	set_fog(states, _lit_cells, _darkness, smooth)
+
+
+## New lights and darkness (a new time of day, a leader that moved), the
+## fog states kept.
+func update_night(lit: PackedByteArray, darkness: float, smooth: bool) -> void:
+	set_fog(_fog_states, lit, darkness, smooth)
+
+
+## The fog states shown now (empty without fog of war).
+func get_fog() -> PackedByteArray:
+	return _fog_states
+
+
+func is_fog_blending() -> bool:
+	return _fog_tween != null and _fog_tween.is_valid() and _fog_tween.is_running()
+
+
+## Enemies remembered where they were last seen: [{unit, cell, is_leader}].
+func set_last_seen(ghosts: Array) -> void:
+	if ghosts == _last_seen:
+		return
+	_last_seen = ghosts
+	_memory_layer.queue_redraw()
+
+
+func get_last_seen() -> Array:
+	return _last_seen
+
+
+## Cells of our wavering soldiers: those outside the view show a mark on
+## its edge, pointing at them.
+func set_edge_marks(cells: Array) -> void:
+	if cells == _edge_cells:
+		return
+	_edge_cells = cells
+	_edge_layer.queue_redraw()
+
+
+## The marks shown on the view's edge now: [{cell, at}] in view coordinates.
+func get_edge_marks() -> Array:
+	var marks: Array = []
+	var inner := Rect2(Vector2.ZERO, size).grow(-EDGE_MARK_PX - 4.0)
+	for cell: Vector2i in _edge_cells:
+		var at := board_to_view(cell_to_local(cell))
+		if Rect2(Vector2.ZERO, size).has_point(at) or not inner.has_area():
+			continue
+		marks.append({"cell": cell, "at": Vector2(clampf(at.x, inner.position.x, inner.end.x), clampf(at.y, inner.position.y, inner.end.y))})
+	return marks
+
+
+func _fog_color(index: int) -> Color:
+	var state := 2 if _fog_states.is_empty() else int(_fog_states[index])
+	if state == 0:
+		return FOG_NEVER_COLOR
+	var night := Color(NIGHT_COLOR, NIGHT_COLOR.a * _darkness)
+	if state == 1:
+		return FOG_SEEN_COLOR if FOG_SEEN_COLOR.a >= night.a else Color(FOG_SEEN_COLOR, night.a)
+	if _darkness <= 0.0:
+		return Color(0, 0, 0, 0)
+	return LIGHT_COLOR if index < _lit_cells.size() and _lit_cells[index] != 0 else night
+
+
+func _blend_fog(weight: float) -> void:
+	for index: int in _fog_to.size():
+		var color := _fog_from[index].lerp(_fog_to[index], weight)
+		_fog_colors[index] = color
+		_fog_image.set_pixel(index % map_width, index / map_width, color)
+	if _fog_texture == null:
+		_fog_texture = ImageTexture.create_from_image(_fog_image)
+		_fog_rect.texture = _fog_texture
+	else:
+		_fog_texture.update(_fog_image)
+	fog_write_count += 1
 
 
 func add_piece(piece: TacticsPieceView, cell: Vector2i) -> void:
@@ -694,6 +861,20 @@ func _draw_marks(canvas: Control) -> void:
 		if from != ghost["cell"]:
 			_draw_dashes(canvas, cell_to_local(from), cell_to_local(ghost["cell"]), Color(Palette.CREAM, 0.7), 2.0)
 		TacticsPainter.draw_ghost(canvas, cell_to_local(ghost["cell"]) + TacticsPieceView.TOKEN_OFFSET, ghost["side"], ghost["is_leader"])
+
+
+# A remembered enemy: its token dimmed, with a "?".
+func _draw_last_seen(canvas: Control) -> void:
+	for ghost: Dictionary in _last_seen:
+		var c := cell_to_local(ghost["cell"]) + TacticsPieceView.TOKEN_OFFSET
+		TacticsPainter.draw_last_seen(canvas, c, ghost["is_leader"])
+
+
+func _draw_edge_marks(canvas: Control) -> void:
+	for mark: Dictionary in get_edge_marks():
+		var at: Vector2 = mark["at"]
+		var toward := (board_to_view(cell_to_local(mark["cell"])) - at).normalized()
+		TacticsPainter.draw_edge_mark(canvas, at, toward, EDGE_MARK_PX)
 
 
 func _draw_intents(canvas: Control) -> void:
