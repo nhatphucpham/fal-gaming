@@ -7,6 +7,7 @@
 [ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/spearman.tres" id="troop_spearman"]
 [ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/archer.tres" id="troop_archer"]
 [ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/kite_scout.tres" id="troop_kite_scout"]
+[ext_resource type="TacticsTraitData" path="res://Data/Tactics/Traits/strict.tres" id="trait_strict"]
 
 [resource]
 id = &"leader.thiet_nha"
@@ -24,3 +25,4 @@ passives = Array[TacticsPassiveData]([ExtResource("passive_forest_ambush")])
 skill = ExtResource("skill")
 default_order = &"order.flank"
 squad = Array[TacticsTroopData]([ExtResource("troop_spearman"), ExtResource("troop_archer"), ExtResource("troop_kite_scout")])
+traits = Array[TacticsTraitData]([ExtResource("trait_strict")])

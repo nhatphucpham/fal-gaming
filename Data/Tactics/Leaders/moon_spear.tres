@@ -8,6 +8,7 @@
 [ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/spearman.tres" id="troop_spearman"]
 [ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/swordsman.tres" id="troop_swordsman"]
 [ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/rider.tres" id="troop_rider"]
+[ext_resource type="TacticsTraitData" path="res://Data/Tactics/Traits/strict.tres" id="trait_strict"]
 
 [resource]
 id = &"leader.moon_spear"
@@ -25,3 +26,4 @@ passives = Array[TacticsPassiveData]([ExtResource("passive_hook_spear")])
 skill = ExtResource("skill")
 default_order = &"order.vanguard"
 squad = Array[TacticsTroopData]([ExtResource("troop_spearman"), ExtResource("troop_swordsman"), ExtResource("troop_rider")])
+traits = Array[TacticsTraitData]([ExtResource("trait_strict")])

@@ -7,6 +7,23 @@
 
 namespace tactics {
 
+// Where a soldier's seed stands: hidden, shown as wavering, or spent.
+enum class IncidentStage {
+	NONE = 0,
+	DORMANT,
+	WAVERING,
+	FIRED,
+};
+
+// A mark (Dấu) left by an incident: what, under which leader, where, when.
+struct MarkState {
+	int incident = NO_INDEX;
+	std::string leader_id;
+	std::string terrain_id;
+	Cell cell;
+	int round = 0;
+};
+
 struct UnitState {
 	int index = 0;
 	int side = SIDE_A;
@@ -34,6 +51,27 @@ struct UnitState {
 	// Soldiers: attacked since the soldier last took its squad step.
 	bool was_attacked_since_move = false;
 	int last_attacker = NO_UNIT;
+	// Incidents (tactics_incidents.h). The roster person behind a soldier
+	// (NO_INDEX for none) and the marks it brought from earlier battles.
+	int record_id = NO_INDEX;
+	int good_marks = 0;
+	int bad_marks = 0;
+	int start_side = SIDE_A;
+	// Index into IncidentRules::incidents, NO_INDEX without a seed.
+	int seed = NO_INDEX;
+	IncidentStage stage = IncidentStage::NONE;
+	bool has_fled = false;
+	// Phases in which it was hit while its leader stood far (bait).
+	int bait_count = 0;
+	int last_baited_turn = 0;
+	// The turn an allied soldier last died next to it (0: never).
+	int ally_fell_turn = 0;
+	// Timed incident effects, active while turn < the end turn.
+	int guard_leader = NO_UNIT;
+	int guard_end_turn = 0;
+	int hold_end_turn = 0;
+	int free_end_turn = 0;
+	std::vector<MarkState> marks;
 };
 
 struct ZoneState {
@@ -96,6 +134,13 @@ enum class EventType {
 	ZONE_EXPIRED,
 	PASSIVE_TRIGGERED,
 	INTENT_DECLARED,
+	SOLDIER_WAVERED,
+	INCIDENT_CALMED,
+	INCIDENT_FIRED,
+	MARK_EARNED,
+	UNIT_FLED,
+	UNIT_DEFECTED,
+	KARMA_CHANGED,
 	BATTLE_ENDED,
 };
 
@@ -125,14 +170,19 @@ struct Event {
 	int winner = NO_WINNER;
 	bool is_counter = false;
 	bool is_first_strike = false;
+	// damage_dealt: the leader a guard took the hit for, else NO_UNIT.
+	int guarded = NO_UNIT;
 	Cell from;
 	Cell to;
 	std::vector<Cell> cells;
 	std::vector<int> units;
 	// A content or handler id: skill, passive, zone, order or buff stat.
 	std::string content_id;
-	// A small name: move kind, attack kind, intent action, end reason.
+	// A small name: move kind, attack kind, intent action, end reason,
+	// calm reason, karma kind; mark_earned: the leader id.
 	std::string kind;
+	// A second content id (mark_earned: the terrain id).
+	std::string detail_id;
 	std::vector<SkillTargetResult> results;
 };
 

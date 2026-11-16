@@ -80,6 +80,7 @@ struct Rules {
 };
 
 struct KeywordHandler;
+struct IncidentHandler;
 struct ZoneHandler;
 struct PassiveHandler;
 struct ChargeHandler;
@@ -162,6 +163,48 @@ struct SkillDef {
 	std::vector<SkillEffectDef> effects;
 };
 
+// A leader trait (`trait.strict`): percent changes to the odds of the
+// incidents seeded in its soldiers, one per incident id.
+struct TraitDef {
+	std::string id;
+	std::vector<std::string> incident_ids;
+	std::vector<int> weight_pcts;
+};
+
+// One incident (Biến cố) a seed can grow into; the handler gives the rules
+// and polarity, these numbers tune it (Docs/systems/tactics.md, Incidents).
+struct IncidentDef {
+	std::string id;
+	const IncidentHandler *handler = nullptr;
+	int base_weight = 0;
+	// The AI side's soldiers may carry it.
+	bool seeds_ai_side = false;
+	int threshold_pct = 0;
+	int threshold_count = 0;
+	int radius_cells = 0;
+	// A living leader this close at the end of the phase calms it; 0 never.
+	int calm_radius_cells = 0;
+	int amount = 0;
+	int secondary_amount = 0;
+	int duration_rounds = 0;
+};
+
+// Seeds, odds and karma; `enabled` is false for a battle without incidents.
+struct IncidentRules {
+	bool enabled = false;
+	int min_seeds = 1;
+	int max_seeds = 3;
+	int ai_min_seeds = 0;
+	int ai_max_seeds = 2;
+	int marked_soldier_weight = 3;
+	int mark_polarity_weight = 10;
+	int karma_weight_per_point = 5;
+	int karma_weight_cap = 60;
+	int bait_distance_cells = 4;
+	int rescue_hp_pct = 50;
+	std::vector<IncidentDef> incidents;
+};
+
 // One leader or soldier type, stats already derived from its base class.
 struct UnitDef {
 	std::string id;
@@ -183,6 +226,7 @@ struct UnitDef {
 	std::vector<PassiveDef> passives;
 	bool has_skill = false;
 	SkillDef skill;
+	std::vector<TraitDef> traits;
 };
 
 struct MapDef {

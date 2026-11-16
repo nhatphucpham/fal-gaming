@@ -1,0 +1,18 @@
+[gd_resource type="TacticsIncidentData" format=3]
+
+[ext_resource type="TacticsPassiveData" path="res://Data/Tactics/Passives/mark_flee.tres" id="mark_passive"]
+
+[resource]
+id = &"incident.flee"
+name_key = "INCIDENT_FLEE"
+description_key = "INCIDENT_FLEE_DESC"
+base_weight = 25
+seeds_ai_side = true
+threshold_pct = 0
+threshold_count = 1
+radius_cells = 5
+calm_radius_cells = 0
+amount = 0
+secondary_amount = 2
+duration_rounds = 0
+mark_passive = ExtResource("mark_passive")

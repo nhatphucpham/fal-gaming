@@ -1,0 +1,30 @@
+[gd_resource type="TacticsIncidentRulesData" format=3]
+
+[ext_resource type="TacticsIncidentData" path="res://Data/Tactics/Incidents/rescue.tres" id="incident_rescue"]
+[ext_resource type="TacticsIncidentData" path="res://Data/Tactics/Incidents/stand.tres" id="incident_stand"]
+[ext_resource type="TacticsIncidentData" path="res://Data/Tactics/Incidents/surge.tres" id="incident_surge"]
+[ext_resource type="TacticsIncidentData" path="res://Data/Tactics/Incidents/discontent.tres" id="incident_discontent"]
+[ext_resource type="TacticsIncidentData" path="res://Data/Tactics/Incidents/riot.tres" id="incident_riot"]
+[ext_resource type="TacticsIncidentData" path="res://Data/Tactics/Incidents/flee.tres" id="incident_flee"]
+[ext_resource type="TacticsIncidentData" path="res://Data/Tactics/Incidents/betray.tres" id="incident_betray"]
+[ext_resource type="TacticsSkillData" path="res://Data/Tactics/Skills/named_rally.tres" id="named_skill"]
+
+[resource]
+min_seeds = 1
+max_seeds = 3
+ai_min_seeds = 0
+ai_max_seeds = 2
+marked_soldier_weight = 3
+mark_polarity_weight = 10
+karma_weight_per_point = 5
+karma_weight_cap = 60
+bait_distance_cells = 4
+rescue_hp_pct = 50
+incidents = Array[TacticsIncidentData]([ExtResource("incident_rescue"), ExtResource("incident_stand"), ExtResource("incident_surge"), ExtResource("incident_discontent"), ExtResource("incident_riot"), ExtResource("incident_flee"), ExtResource("incident_betray")])
+marks_to_name = 3
+traitor_marks_to_return = 2
+karma_keep_pct = 50
+named_lead_capacity = 2
+named_hp_pct = 90
+named_attack_pct = 110
+named_skill = ExtResource("named_skill")

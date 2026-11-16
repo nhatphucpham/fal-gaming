@@ -28,6 +28,8 @@ class TacticsCatalog : public Resource {
 	TypedArray<TacticsLeaderData> leaders;
 	TypedArray<TacticsMapData> maps;
 	TypedArray<TacticsScenarioData> scenarios;
+	TypedArray<TacticsTraitData> traits;
+	Ref<TacticsIncidentRulesData> incident_rules;
 
 	void validate_ids(const Array &p_entries, const String &p_prefix, bool p_needs_description, PackedStringArray &r_problems) const;
 	void validate_units(PackedStringArray &r_problems) const;
@@ -36,6 +38,7 @@ class TacticsCatalog : public Resource {
 	void validate_terrain_ids(PackedStringArray &r_problems) const;
 	void validate_maps(PackedStringArray &r_problems) const;
 	void validate_scenarios(PackedStringArray &r_problems) const;
+	void validate_incidents(PackedStringArray &r_problems) const;
 	bool try_load_scenario(const Ref<TacticsScenarioData> &p_scenario, std::string *r_error) const;
 
 protected:
@@ -53,6 +56,9 @@ public:
 	Ref<TacticsLeaderData> get_leader(const StringName &p_id) const;
 	Ref<TacticsMapData> get_map(const StringName &p_id) const;
 	Ref<TacticsScenarioData> get_scenario(const StringName &p_id) const;
+	Ref<TacticsTraitData> get_trait(const StringName &p_id) const;
+	// The incident with this id from incident_rules, or null.
+	Ref<TacticsIncidentData> get_incident(const StringName &p_id) const;
 
 	void set_rules(const Ref<TacticsRulesData> &p_value) { rules = p_value; }
 	Ref<TacticsRulesData> get_rules() const { return rules; }
@@ -74,6 +80,10 @@ public:
 	TypedArray<TacticsMapData> get_maps() const { return maps; }
 	void set_scenarios(const TypedArray<TacticsScenarioData> &p_value) { scenarios = p_value; }
 	TypedArray<TacticsScenarioData> get_scenarios() const { return scenarios; }
+	void set_traits(const TypedArray<TacticsTraitData> &p_value) { traits = p_value; }
+	TypedArray<TacticsTraitData> get_traits() const { return traits; }
+	void set_incident_rules(const Ref<TacticsIncidentRulesData> &p_value) { incident_rules = p_value; }
+	Ref<TacticsIncidentRulesData> get_incident_rules() const { return incident_rules; }
 };
 
 } // namespace godot

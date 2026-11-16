@@ -1,5 +1,6 @@
 #include "tactics_combat.h"
 
+#include "tactics_incidents.h"
 #include "tactics_keywords.h"
 #include "tactics_sim.h"
 #include "tactics_skills.h"
@@ -164,6 +165,7 @@ void close_engagement(TacticsSim &p_sim, const EngagementResult &p_result) {
 		UnitState &soldier = p_sim.edit_unit(p_result.defender);
 		soldier.was_attacked_since_move = true;
 		soldier.last_attacker = p_result.attacker;
+		note_soldier_hit(p_sim, p_result.defender, p_result.event_id);
 	}
 	for (int unit : { p_result.attacker, p_result.defender }) {
 		if (p_sim.is_leader(unit) && p_sim.get_units()[unit].is_alive) {

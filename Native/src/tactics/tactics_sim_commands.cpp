@@ -115,6 +115,7 @@ int TacticsSim::apply_leader_move(int p_unit, const Cell &p_cell, int p_cause) {
 			passive.handler->on_leader_moved(*this, p_unit, passive, move_id);
 		}
 	}
+	note_leader_moved(*this, p_unit, move_id);
 	return move_id;
 }
 

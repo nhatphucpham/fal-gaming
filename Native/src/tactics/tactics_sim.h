@@ -1,5 +1,6 @@
 #pragma once
 
+#include "tactics_incidents.h"
 #include "tactics_state.h"
 
 #include <cstdint>
@@ -53,6 +54,16 @@ public:
 	int add_leader(int p_side, const UnitDef &p_leader, const Cell &p_cell, const std::vector<UnitDef> &p_squad, std::string *r_error);
 	void set_side_ai(int p_side, bool p_is_ai) { side_is_ai[p_side] = p_is_ai; }
 	bool is_side_ai(int p_side) const { return side_is_ai[p_side]; }
+	// Incidents (tactics_sim_incidents.cpp): all of these are setup and
+	// refused once started. Rules with `enabled` false turn incidents off.
+	bool set_incident_rules(const IncidentRules &p_rules, uint64_t p_seed, std::string *r_error);
+	// Karma carried in from earlier battles; it shifts the seeds' odds.
+	void set_carried_karma(int p_side, int p_bait, int p_rescue);
+	// The roster person behind a soldier and its marks from earlier battles.
+	bool set_unit_record(int p_unit, int p_record_id, int p_good_marks, int p_bad_marks, std::string *r_error);
+	// Forces a seed (tests, scripted battles): when any is set, no seed is
+	// drawn at random.
+	bool set_forced_seed(int p_unit, int p_incident, std::string *r_error);
 	// Begins round 1 with side A's phase (AI phases run on their own).
 	bool start(std::string *r_error);
 
@@ -82,6 +93,16 @@ public:
 	const std::vector<ZoneState> &get_zones() const { return zones; }
 	const std::vector<BuffState> &get_buffs() const { return buffs; }
 	const std::vector<Intent> &get_intents() const { return intents; }
+	const IncidentRules &get_incident_rules() const { return incident_rules; }
+	// The incident index for an id, or NO_INDEX.
+	int find_incident(const std::string &p_id) const;
+	const std::vector<std::pair<int, int>> &get_forced_seeds() const { return forced_seeds; }
+	int get_carried_karma(int p_side, KarmaKind p_kind) const { return carried_karma[p_side][static_cast<int>(p_kind)]; }
+	// Karma this battle has added so far.
+	int get_battle_karma(int p_side, KarmaKind p_kind) const { return battle_karma[p_side][static_cast<int>(p_kind)]; }
+	// Incident effects that change how a soldier moves.
+	bool is_holding_ground(int p_unit) const { return turn < units[p_unit].hold_end_turn; }
+	bool is_acting_free(int p_unit) const { return turn < units[p_unit].free_end_turn; }
 	bool is_on_map(const Cell &p_cell) const;
 	int get_cell_index(const Cell &p_cell) const { return p_cell.row * map.width + p_cell.col; }
 	Cell get_cell_at(int p_index) const { return { p_index % map.width, p_index / map.width }; }
@@ -118,7 +139,8 @@ public:
 	UnitState &edit_unit(int p_unit) { return units[p_unit]; }
 	int emit(Event &r_event);
 	// Lowers hp, emits damage_dealt and, at 0, unit_died; returns the damage
-	// event id. Nothing happens to a unit that is already dead.
+	// event id. Nothing happens to a unit that is already dead. A soldier
+	// guarding the target (incident.rescue) takes the hit instead.
 	int deal_damage(int p_source, int p_target, int p_amount, const std::string &p_content_id, bool p_is_counter, int p_cause);
 	// Moves a unit and emits unit_moved; p_path includes both ends. Returns
 	// the event id, 0 when nothing moved. Never takes the objective: only a
@@ -132,6 +154,14 @@ public:
 	void emit_passive_triggered(int p_unit, const std::string &p_passive_id, int p_cause);
 	// Runs the soldiers' moves only (orders.h); the preview uses it alone.
 	void run_squad_moves(int p_leader, int p_cause);
+	// Incident helpers (tactics_incidents.cpp).
+	IncidentRandom &edit_random() { return random; }
+	void add_karma(int p_side, KarmaKind p_kind, int p_cause);
+	// The soldier leaves the battle by p_edge: unit_fled, off the map.
+	void remove_fled_unit(int p_unit, const Cell &p_edge, int p_cause);
+	// The soldier joins p_new_leader's squad on the other side; false (and
+	// no change) when that squad has no room.
+	bool defect_unit(int p_unit, int p_new_leader, int p_cause);
 
 private:
 	Rules rules;
@@ -153,6 +183,12 @@ private:
 	int turn = 0;
 	int active_side = SIDE_A;
 	int next_event_id = 1;
+	IncidentRules incident_rules;
+	uint64_t incident_seed = 0;
+	IncidentRandom random;
+	std::vector<std::pair<int, int>> forced_seeds;
+	int carried_karma[SIDE_COUNT][2] = { { 0, 0 }, { 0, 0 } };
+	int battle_karma[SIDE_COUNT][2] = { { 0, 0 }, { 0, 0 } };
 
 	bool check_new_leader(int p_side, const UnitDef &p_leader, const std::vector<UnitDef> &p_squad, std::string *r_error) const;
 	bool check_command(int p_unit, std::string *r_error) const;
@@ -181,6 +217,7 @@ private:
 	void declare_intents(int p_cause);
 	void hash_setup(uint64_t *r_hash) const;
 	void hash_unit(uint64_t *r_hash, const UnitState &p_unit) const;
+	void hash_incidents(uint64_t *r_hash) const;
 };
 
 } // namespace tactics

@@ -1,5 +1,6 @@
 #include "tactics_validation.h"
 
+#include "tactics_incidents.h"
 #include "tactics_orders.h"
 #include "tactics_passives.h"
 #include "tactics_skills.h"
@@ -115,6 +116,38 @@ bool validate_passive(const UnitDef &p_unit, const PassiveDef &p_passive, std::s
 			check_range(p_passive.id, "duration_rounds", p_passive.duration_rounds, 0, MAX_DURATION_ROUNDS, r_error);
 }
 
+bool validate_trait(const UnitDef &p_unit, const TraitDef &p_trait, std::string *r_error) {
+	if (p_trait.incident_ids.size() != p_trait.weight_pcts.size()) {
+		*r_error = p_trait.id + " of " + p_unit.id + " needs one weight_pct per incident id";
+		return false;
+	}
+	for (size_t index = 0; index < p_trait.incident_ids.size(); index++) {
+		if (find_incident_handler(p_trait.incident_ids[index]) == nullptr) {
+			*r_error = p_trait.id + " of " + p_unit.id + " names unknown incident " + p_trait.incident_ids[index];
+			return false;
+		}
+		if (!check_range(p_trait.id, "weight_pct", p_trait.weight_pcts[index], -MAX_PERCENT_MODIFIER, MAX_INCIDENT_WEIGHT, r_error)) {
+			return false;
+		}
+	}
+	return true;
+}
+
+bool validate_incident(const IncidentDef &p_def, std::string *r_error) {
+	if (p_def.handler == nullptr) {
+		*r_error = "incident rules list unknown incident " + p_def.id;
+		return false;
+	}
+	return check_range(p_def.id, "base_weight", p_def.base_weight, 0, MAX_INCIDENT_WEIGHT, r_error) &&
+			check_range(p_def.id, "threshold_pct", p_def.threshold_pct, 0, MAX_PERCENT_MODIFIER, r_error) &&
+			check_range(p_def.id, "threshold_count", p_def.threshold_count, 0, MAX_SQUAD_SIZE, r_error) &&
+			check_range(p_def.id, "radius_cells", p_def.radius_cells, 0, MAX_MAP_CELLS_PER_AXIS * 2, r_error) &&
+			check_range(p_def.id, "calm_radius_cells", p_def.calm_radius_cells, 0, MAX_MAP_CELLS_PER_AXIS * 2, r_error) &&
+			check_range(p_def.id, "amount", p_def.amount, -MAX_PASSIVE_AMOUNT, MAX_PASSIVE_AMOUNT, r_error) &&
+			check_range(p_def.id, "secondary_amount", p_def.secondary_amount, -MAX_PASSIVE_AMOUNT, MAX_PASSIVE_AMOUNT, r_error) &&
+			check_range(p_def.id, "duration_rounds", p_def.duration_rounds, 0, MAX_DURATION_ROUNDS, r_error);
+}
+
 bool validate_leader_parts(const UnitDef &p_unit, std::string *r_error) {
 	if (!check_range(p_unit.id, "passive count", static_cast<int>(p_unit.passives.size()), 0, MAX_PASSIVES, r_error) ||
 			!check_range(p_unit.id, "lead_capacity", p_unit.lead_capacity, 0, MAX_SQUAD_SIZE, r_error)) {
@@ -135,10 +168,47 @@ bool validate_leader_parts(const UnitDef &p_unit, std::string *r_error) {
 		*r_error = p_unit.id + " has an unknown default_order";
 		return false;
 	}
+	if (!check_range(p_unit.id, "trait count", static_cast<int>(p_unit.traits.size()), 0, MAX_TRAITS, r_error)) {
+		return false;
+	}
+	for (const TraitDef &trait : p_unit.traits) {
+		if (!validate_trait(p_unit, trait, r_error)) {
+			return false;
+		}
+	}
 	return !p_unit.has_skill || validate_skill(p_unit, r_error);
 }
 
 } // namespace
+
+bool validate_incident_rules(const IncidentRules &p_rules, std::string *r_error) {
+	const std::string owner = "incident rules";
+	const bool are_numbers_valid = check_range(owner, "min_seeds", p_rules.min_seeds, 0, MAX_SQUAD_SIZE, r_error) &&
+			check_range(owner, "max_seeds", p_rules.max_seeds, p_rules.min_seeds, MAX_SQUAD_SIZE, r_error) &&
+			check_range(owner, "ai_min_seeds", p_rules.ai_min_seeds, 0, MAX_SQUAD_SIZE, r_error) &&
+			check_range(owner, "ai_max_seeds", p_rules.ai_max_seeds, p_rules.ai_min_seeds, MAX_SQUAD_SIZE, r_error) &&
+			check_range(owner, "marked_soldier_weight", p_rules.marked_soldier_weight, 0, MAX_INCIDENT_WEIGHT, r_error) &&
+			check_range(owner, "mark_polarity_weight", p_rules.mark_polarity_weight, 0, MAX_INCIDENT_WEIGHT, r_error) &&
+			check_range(owner, "karma_weight_per_point", p_rules.karma_weight_per_point, 0, MAX_INCIDENT_WEIGHT, r_error) &&
+			check_range(owner, "karma_weight_cap", p_rules.karma_weight_cap, 0, MAX_INCIDENT_WEIGHT, r_error) &&
+			check_range(owner, "bait_distance_cells", p_rules.bait_distance_cells, 1, MAX_MAP_CELLS_PER_AXIS * 2, r_error) &&
+			check_range(owner, "rescue_hp_pct", p_rules.rescue_hp_pct, 0, MAX_PERCENT_MODIFIER, r_error);
+	if (!are_numbers_valid) {
+		return false;
+	}
+	for (size_t index = 0; index < p_rules.incidents.size(); index++) {
+		if (!validate_incident(p_rules.incidents[index], r_error)) {
+			return false;
+		}
+		for (size_t other = 0; other < index; other++) {
+			if (p_rules.incidents[other].id == p_rules.incidents[index].id) {
+				*r_error = "incident rules list " + p_rules.incidents[index].id + " twice";
+				return false;
+			}
+		}
+	}
+	return true;
+}
 
 bool validate_rules(const Rules &p_rules, std::string *r_error) {
 	const std::string owner = "rules";

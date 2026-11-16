@@ -490,3 +490,37 @@ CLOSEUP_FALLEN,Ngã!,Down!
 FORECAST_SIDE_FORMAT,%s: %s,%s: %s
 SKILL_PREVIEW_HIT_FORMAT,%s −%d → %d,%s −%d → %d
 TACTICS_TERRAIN_FORMAT,Đứng trên: %s,Standing on: %s
+INCIDENT_RESCUE,Cứu trợ,Rescue
+INCIDENT_RESCUE_DESC,Tướng còn dưới 40% máu và ở gần: lao tới đỡ mọi đòn nhắm vào tướng đến hết lượt địch.,Leader under 40% hp and near: dashes in and takes every hit aimed at the leader until the enemy phase ends.
+INCIDENT_STAND,Đương đầu,Stand
+INCIDENT_STAND_DESC,"Hai địch kề bên, không đồng đội nào bên cạnh: thêm 30 giáp, đứng chặn, không lùi, không bị kéo.","Two enemies beside it, no ally: +30 armor, holds its ground and cannot be moved."
+INCIDENT_SURGE,Bộc phát,Surge
+INCIDENT_SURGE_DESC,Đồng đội kề bên vừa gục: thêm 60% công và 15 giáp đến hết trận.,An ally beside it fell: +60% attack and +15 armor for the rest of the battle.
+INCIDENT_DISCONTENT,Bất bình,Discontent
+INCIDENT_DISCONTENT_DESC,"Bị dùng làm mồi hai lượt (trúng đòn khi tướng ở xa): một lượt không theo Lệnh, tự đánh.",Used as bait twice (hit while the leader was far): ignores the order for one phase.
+INCIDENT_RIOT,Làm loạn,Riot
+INCIDENT_RIOT_DESC,"Toán mất nửa quân hoặc mất tướng: xô binh quanh mình lệch một ô, mỗi binh mất 40 máu.","The squad lost half its soldiers or its leader: shoves the soldiers beside it one cell, 40 damage each."
+INCIDENT_FLEE,Tẩu thoát,Flee
+INCIDENT_FLEE_DESC,"Tướng cách từ 5 ô, địch trong 2 ô: bỏ chạy khỏi bản đồ.","Leader 5+ cells away, an enemy within 2: runs off the map."
+INCIDENT_BETRAY,Phản,Betray
+INCIDENT_BETRAY_DESC,"Tướng dưới 35% máu hoặc đã gục, tướng địch còn khỏe đứng trong 3 ô: đổi sang phe địch.","Leader under 35% hp or fallen, a healthy enemy leader within 3: goes over to the enemy."
+TRAIT_STRICT,Nghiêm,Strict
+TRAIT_STRICT_DESC,Binh ít bỏ trốn và ít bất bình hơn.,Soldiers flee and grumble less.
+TRAIT_KIND,Nhân hậu,Kind
+TRAIT_KIND_DESC,"Binh hay liều mình cứu tướng, ít phản hơn.",Soldiers rescue more often and betray less.
+TACTICS_PASSIVE_MARK_RESCUE,Dấu Cứu trợ,Rescue mark
+TACTICS_PASSIVE_MARK_RESCUE_DESC,Có đồng đội kề bên thì thêm 15 giáp.,+15 armor with an ally beside it.
+TACTICS_PASSIVE_MARK_STAND,Dấu Đương đầu,Stand mark
+TACTICS_PASSIVE_MARK_STAND_DESC,Thêm 20 giáp.,+20 armor.
+TACTICS_PASSIVE_MARK_SURGE,Dấu Bộc phát,Surge mark
+TACTICS_PASSIVE_MARK_SURGE_DESC,Thêm 20% công.,+20% attack.
+TACTICS_PASSIVE_MARK_DISCONTENT,Dấu Bất bình,Discontent mark
+TACTICS_PASSIVE_MARK_DISCONTENT_DESC,Đi thêm 1 ô.,+1 move.
+TACTICS_PASSIVE_MARK_RIOT,Dấu Làm loạn,Riot mark
+TACTICS_PASSIVE_MARK_RIOT_DESC,Có hai đồng đội kề bên thì thêm 15% công.,+15% attack with two allies beside it.
+TACTICS_PASSIVE_MARK_FLEE,Dấu Tẩu thoát,Flee mark
+TACTICS_PASSIVE_MARK_FLEE_DESC,Đi thêm 1 ô.,+1 move.
+TACTICS_PASSIVE_MARK_BETRAY,Dấu Phản,Betray mark
+TACTICS_PASSIVE_MARK_BETRAY_DESC,Thêm 15% công.,+15% attack.
+TACTICS_SKILL_NAMED_RALLY,Hô quân,Rally
+TACTICS_SKILL_NAMED_RALLY_DESC,Sau 3 lần giao chiến: cả toán thêm 20% công trong 2 vòng.,After 3 engagements: the squad gets +20% attack for 2 rounds.

@@ -54,6 +54,63 @@ void TacticsSim::hash_unit(uint64_t *r_hash, const UnitState &p_unit) const {
 	hash_value(r_hash, p_unit.skill_area_bonus);
 	hash_value(r_hash, p_unit.was_attacked_since_move ? 1 : 0);
 	hash_value(r_hash, p_unit.last_attacker);
+	hash_value(r_hash, p_unit.record_id);
+	hash_value(r_hash, p_unit.good_marks);
+	hash_value(r_hash, p_unit.bad_marks);
+	hash_value(r_hash, p_unit.start_side);
+	hash_value(r_hash, p_unit.seed);
+	hash_value(r_hash, static_cast<int64_t>(p_unit.stage));
+	hash_value(r_hash, p_unit.has_fled ? 1 : 0);
+	hash_value(r_hash, p_unit.bait_count);
+	hash_value(r_hash, p_unit.last_baited_turn);
+	hash_value(r_hash, p_unit.ally_fell_turn);
+	hash_value(r_hash, p_unit.guard_leader);
+	hash_value(r_hash, p_unit.guard_end_turn);
+	hash_value(r_hash, p_unit.hold_end_turn);
+	hash_value(r_hash, p_unit.free_end_turn);
+	hash_value(r_hash, static_cast<int64_t>(p_unit.soldiers.size()));
+	for (int soldier : p_unit.soldiers) {
+		hash_value(r_hash, soldier);
+	}
+	hash_value(r_hash, static_cast<int64_t>(p_unit.marks.size()));
+	for (const MarkState &mark : p_unit.marks) {
+		hash_value(r_hash, mark.incident);
+		hash_text(r_hash, mark.leader_id);
+		hash_text(r_hash, mark.terrain_id);
+		hash_cell(r_hash, mark.cell);
+		hash_value(r_hash, mark.round);
+	}
+}
+
+// Incident rules, the generator and karma: the same units with other odds
+// or another seed play differently.
+void TacticsSim::hash_incidents(uint64_t *r_hash) const {
+	hash_value(r_hash, incident_rules.enabled ? 1 : 0);
+	hash_value(r_hash, static_cast<int64_t>(incident_seed));
+	hash_value(r_hash, static_cast<int64_t>(random.state));
+	for (const IncidentDef &incident : incident_rules.incidents) {
+		hash_text(r_hash, incident.id);
+		for (int value : { incident.base_weight, incident.seeds_ai_side ? 1 : 0, incident.threshold_pct, incident.threshold_count, incident.radius_cells,
+					 incident.calm_radius_cells, incident.amount, incident.secondary_amount, incident.duration_rounds }) {
+			hash_value(r_hash, value);
+		}
+	}
+	for (int value : { incident_rules.min_seeds, incident_rules.max_seeds, incident_rules.ai_min_seeds, incident_rules.ai_max_seeds, incident_rules.marked_soldier_weight,
+				 incident_rules.mark_polarity_weight, incident_rules.karma_weight_per_point, incident_rules.karma_weight_cap, incident_rules.bait_distance_cells,
+				 incident_rules.rescue_hp_pct }) {
+		hash_value(r_hash, value);
+	}
+	for (int side = 0; side < SIDE_COUNT; side++) {
+		for (int kind = 0; kind < 2; kind++) {
+			hash_value(r_hash, carried_karma[side][kind]);
+			hash_value(r_hash, battle_karma[side][kind]);
+		}
+	}
+	hash_value(r_hash, static_cast<int64_t>(forced_seeds.size()));
+	for (const std::pair<int, int> &forced : forced_seeds) {
+		hash_value(r_hash, forced.first);
+		hash_value(r_hash, forced.second);
+	}
 }
 
 // Rules and map: other rules or terrain play differently from the same
@@ -90,6 +147,7 @@ uint64_t TacticsSim::get_state_hash() const {
 	hash_value(&hash, side_is_ai[SIDE_B] ? 1 : 0);
 	// The next event's id: it numbers every later event and cause.
 	hash_value(&hash, next_event_id);
+	hash_incidents(&hash);
 	hash_value(&hash, static_cast<int64_t>(units.size()));
 	for (const UnitState &unit : units) {
 		hash_unit(&hash, unit);

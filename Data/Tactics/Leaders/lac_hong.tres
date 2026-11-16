@@ -8,6 +8,7 @@
 [ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/spearman.tres" id="troop_spearman"]
 [ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/archer.tres" id="troop_archer"]
 [ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/shieldman.tres" id="troop_shieldman"]
+[ext_resource type="TacticsTraitData" path="res://Data/Tactics/Traits/kind.tres" id="trait_kind"]
 
 [resource]
 id = &"leader.lac_hong"
@@ -25,3 +26,4 @@ passives = Array[TacticsPassiveData]([ExtResource("passive_drilled_ranks"), ExtR
 skill = ExtResource("skill")
 default_order = &"order.follow"
 squad = Array[TacticsTroopData]([ExtResource("troop_spearman"), ExtResource("troop_spearman"), ExtResource("troop_archer"), ExtResource("troop_shieldman")])
+traits = Array[TacticsTraitData]([ExtResource("trait_kind")])

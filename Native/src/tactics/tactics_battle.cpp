@@ -246,6 +246,15 @@ void TacticsBattle::log_event(const tactics::Event &p_event) const {
 		case tactics::EventType::SKILL_USED:
 			UtilityFunctions::print(prefix + vformat("skill_used unit=%d skill=%s targets=%d", p_event.unit, to_godot_string(p_event.content_id), static_cast<int64_t>(p_event.units.size())));
 			break;
+		case tactics::EventType::INCIDENT_FIRED:
+			UtilityFunctions::print(prefix + vformat("incident_fired unit=%d incident=%s cause=e%d", p_event.unit, to_godot_string(p_event.content_id), p_event.cause));
+			break;
+		case tactics::EventType::UNIT_FLED:
+			UtilityFunctions::print(prefix + vformat("unit_fled unit=%d cause=e%d", p_event.unit, p_event.cause));
+			break;
+		case tactics::EventType::UNIT_DEFECTED:
+			UtilityFunctions::print(prefix + vformat("unit_defected unit=%d side=%d leader=%d cause=e%d", p_event.unit, p_event.side, p_event.target, p_event.cause));
+			break;
 		case tactics::EventType::BATTLE_ENDED:
 			UtilityFunctions::print(prefix + vformat("battle_ended winner=%d reason=%s", p_event.winner, to_godot_string(p_event.kind)));
 			break;
@@ -299,6 +308,13 @@ void TacticsBattle::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_attack_targets", "unit"), &TacticsBattle::get_attack_targets);
 	ClassDB::bind_method(D_METHOD("get_skill_cells", "unit"), &TacticsBattle::get_skill_cells);
 	ClassDB::bind_method(D_METHOD("preview_skill", "unit", "cell"), &TacticsBattle::preview_skill);
+	ClassDB::bind_method(D_METHOD("set_incident_rules", "rules", "seed"), &TacticsBattle::set_incident_rules);
+	ClassDB::bind_method(D_METHOD("set_karma", "side", "bait", "rescue"), &TacticsBattle::set_karma);
+	ClassDB::bind_method(D_METHOD("set_unit_record", "unit", "record_id", "good_marks", "bad_marks"), &TacticsBattle::set_unit_record);
+	ClassDB::bind_method(D_METHOD("set_incident_seed", "unit", "incident"), &TacticsBattle::set_incident_seed);
+	ClassDB::bind_method(D_METHOD("get_incident_seeds"), &TacticsBattle::get_incident_seeds);
+	ClassDB::bind_method(D_METHOD("get_karma", "side"), &TacticsBattle::get_karma);
+	ClassDB::bind_method(D_METHOD("get_battle_report"), &TacticsBattle::get_battle_report);
 	ClassDB::bind_method(D_METHOD("set_log_enabled", "enabled"), &TacticsBattle::set_log_enabled);
 	ClassDB::bind_method(D_METHOD("is_log_enabled"), &TacticsBattle::is_log_enabled);
 

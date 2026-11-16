@@ -26,10 +26,14 @@ constexpr int MAX_PASSIVE_AMOUNT = 1000;
 constexpr int MAX_COEFFICIENT_PCT = 1000;
 constexpr int MAX_BUFF_PCT = 1000;
 constexpr int MAX_ADJACENT_CELLS = 4;
+constexpr int MAX_TRAITS = 2;
+constexpr int MAX_INCIDENT_WEIGHT = 1000;
 
 bool validate_rules(const Rules &p_rules, std::string *r_error);
 bool validate_map(const MapDef &p_map, std::string *r_error);
 // Also checks the unit's keywords, passives and skill.
 bool validate_unit_def(const UnitDef &p_unit, std::string *r_error);
+// Seed counts, odds and every incident's numbers; each incident once.
+bool validate_incident_rules(const IncidentRules &p_rules, std::string *r_error);
 
 } // namespace tactics

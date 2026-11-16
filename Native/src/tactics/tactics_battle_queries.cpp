@@ -105,6 +105,18 @@ Dictionary TacticsBattle::get_unit_state(int64_t p_unit) const {
 	state["has_moved"] = unit.has_moved;
 	state["has_acted"] = unit.has_acted;
 	state["has_squad_acted"] = unit.has_squad_acted;
+	// Incidents: only what the player may see (a wavering soldier shows its
+	// incident; a dormant seed stays hidden).
+	const bool is_wavering = unit.stage == tactics::IncidentStage::WAVERING;
+	state["start_side"] = unit.start_side;
+	state["record_id"] = unit.record_id;
+	state["has_fled"] = unit.has_fled;
+	state["wavering"] = is_wavering ? StringName(to_godot_string(sim.get_incident_rules().incidents[unit.seed].id)) : StringName();
+	state["is_wavering_good"] = is_wavering && sim.get_incident_rules().incidents[unit.seed].handler->is_good;
+	state["marks"] = static_cast<int>(unit.marks.size());
+	state["is_guarding"] = unit.guard_leader != tactics::NO_UNIT && sim.get_turn() < unit.guard_end_turn;
+	state["holds_ground"] = sim.is_holding_ground(index);
+	state["acts_free"] = sim.is_acting_free(index);
 	if (is_leader) {
 		state["order"] = StringName(tactics::get_order_handler(unit.order).id);
 		state["heading"] = to_vector2i(unit.heading);

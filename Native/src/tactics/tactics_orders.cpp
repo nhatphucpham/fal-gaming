@@ -156,10 +156,18 @@ void move_squad(TacticsSim &p_sim, int p_leader, int p_cause) {
 		if (!p_sim.get_units()[soldier].is_alive) {
 			continue;
 		}
-		if (mode == SquadMode::FORMATION) {
-			move_to_slot(p_sim, soldier, slots[index], p_cause);
-		} else if (mode == SquadMode::FREE) {
+		// Incidents: a wavering soldier hesitates (no step, no strike), one
+		// standing its ground stays, a discontented one acts on its own
+		// (Docs/systems/tactics.md, Incidents).
+		if (p_sim.get_units()[soldier].stage == IncidentStage::WAVERING) {
+			continue;
+		}
+		if (p_sim.is_holding_ground(soldier)) {
+			stay(p_sim, soldier);
+		} else if (mode == SquadMode::FREE || p_sim.is_acting_free(soldier)) {
 			move_free(p_sim, soldier, p_cause);
+		} else if (mode == SquadMode::FORMATION) {
+			move_to_slot(p_sim, soldier, slots[index], p_cause);
 		} else {
 			stay(p_sim, soldier);
 		}
