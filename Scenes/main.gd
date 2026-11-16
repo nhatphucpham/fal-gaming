@@ -8,7 +8,6 @@ extends Node2D
 const LOCALE: String = "vi"
 const CATALOG_PATH: String = "res://Data/catalog.tres"
 const SANDBOX_SCENE: PackedScene = preload("res://Scenes/Sandbox/sandbox_screen.tscn")
-const TACTICS_SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/river_crossing.tres"
 const TACTICS_CATALOG_PATH: String = "res://Data/Tactics/tactics_catalog.tres"
 const SLIDE_SEC: float = 0.32
 
@@ -77,11 +76,13 @@ func open_sandbox() -> SandboxScreen:
 	return sandbox
 
 
-## "Chiến Dịch": the muster screen of the tactics scenario with the roster
-## (Sổ quân), then its battle; the after-battle summary comes back here.
+## "Chiến Dịch": the muster screen of the next tactics scenario (the
+## catalog's in turn) with the roster (Sổ quân), then its battle; the
+## after-battle summary comes back here.
 func open_campaign() -> MusterScreen:
 	var catalog := load(TACTICS_CATALOG_PATH) as TacticsCatalog
-	var campaign := TacticsCampaign.new(TacticsRoster.load_roster(), catalog, load(TACTICS_SCENARIO_PATH) as TacticsScenarioData)
+	var roster := TacticsRoster.load_roster()
+	var campaign := TacticsCampaign.new(roster, catalog, TacticsCampaign.next_scenario(roster, catalog))
 	var muster := MusterScreen.new()
 	muster.catalog = catalog
 	muster.campaign = campaign

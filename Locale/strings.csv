@@ -329,6 +329,7 @@ LEADER_MOON_SPEAR,Nguyệt Thương,Moon Spear
 LEADER_LIEU_MI,Liễu Mi,Lieu Mi
 LEADER_BA_KHAC,Ba Khắc,Ba Khac
 LEADER_THIET_NHA,Thiết Nha,Thiet Nha
+LEADER_LANG_VUONG,Lang Vương,Lang Vuong
 TROOP_ARCHER,Binh cung,Archer
 TROOP_KITE_SCOUT,Diều trinh sát,Kite scout
 TROOP_RIDER,Kỵ binh,Rider
@@ -413,6 +414,8 @@ ZONE_WIND,Gió,Wind
 ZONE_WIND_DESC,Quân ta trong gió chịu đòn tầm xa ít hơn 50%.,Allies inside take 50% less ranged damage.
 MAP_RIVER_CROSSING,Bến sông,River crossing
 SCENARIO_RIVER_CROSSING,Qua sông,Crossing the river
+MAP_NIGHT_RAID,Trại địch trong rừng,Camp in the woods
+SCENARIO_NIGHT_RAID,Đột kích đêm,Night raid
 ORDER_FOLLOW,Bám sát,Follow
 ORDER_FOLLOW_DESC,Binh đi sau lưng tướng.,Soldiers walk behind the leader.
 ORDER_VANGUARD,Tiên phong,Vanguard

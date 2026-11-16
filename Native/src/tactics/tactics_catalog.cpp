@@ -241,6 +241,23 @@ void TacticsCatalog::validate_scenarios(PackedStringArray &r_problems) const {
 		if (is_weather_unlisted || is_daytime_unlisted) {
 			r_problems.push_back(vformat("TacticsCatalog: %s uses a weather or daytime not listed in the catalog", where(scenario)));
 		}
+		// Supplied soldiers: one size per side A leader, adding up to the
+		// troops, each a troop the catalog lists.
+		const PackedInt32Array sizes = scenario->get_supplied_sizes();
+		const TypedArray<TacticsTroopData> supplied = scenario->get_supplied_troops();
+		if (!sizes.is_empty() || !supplied.is_empty()) {
+			int64_t total = 0;
+			for (int64_t slot = 0; slot < sizes.size(); slot++) {
+				total += sizes[slot] < 0 ? 1 << 20 : sizes[slot];
+			}
+			bool is_unlisted = false;
+			for (int64_t troop = 0; troop < supplied.size(); troop++) {
+				is_unlisted = is_unlisted || !contains(troops, supplied[troop]);
+			}
+			if (sizes.size() != scenario->get_leaders_a().size() || total != supplied.size() || is_unlisted) {
+				r_problems.push_back(vformat("TacticsCatalog: %s supplies %d troops in %d squads for %d leaders (each listed in troops)", where(scenario), supplied.size(), sizes.size(), scenario->get_leaders_a().size()));
+			}
+		}
 		std::string error;
 		if (!try_load_scenario(scenario, &error)) {
 			r_problems.push_back(vformat("TacticsCatalog: %s does not load: %s", where(scenario), to_godot_string(error)));
@@ -269,7 +286,7 @@ bool TacticsCatalog::try_load_scenario(const Ref<TacticsScenarioData> &p_scenari
 				return false;
 			}
 			const Vector2i cell = spawns[index];
-			if (!leader->to_unit_def(&def, r_error) || !tactics_squad_to_unit_defs(def.id, leader->get_squad(), &squad, r_error) ||
+			if (!leader->to_unit_def(&def, r_error) || !tactics_squad_to_unit_defs(def.id, p_scenario->get_squad(side, index), &squad, r_error) ||
 					sim.add_leader(side, def, { cell.x, cell.y }, squad, r_error) == tactics::NO_UNIT) {
 				return false;
 			}

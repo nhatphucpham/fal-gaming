@@ -58,7 +58,7 @@ func _ready() -> void:
 			squad.assign(campaign.squads[slot])
 			ids.assign(campaign.people[slot])
 		else:
-			squad.assign(scenario.leaders_a[slot].squad)
+			squad.assign(scenario.get_squad(0, slot))
 			ids.resize(squad.size())
 			ids.fill(-1)
 		_squads.append(squad)

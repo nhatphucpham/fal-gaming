@@ -78,7 +78,7 @@ bool TacticsBattle::load_scenario_with_squads(const Ref<TacticsScenarioData> &p_
 				clear_setup();
 				ERR_FAIL_V_MSG(false, vformat("Tactics: %s side %d leader %d has no leader data or a squad that is not an Array", p_scenario->get_id(), side, index));
 			}
-			const Array squad = is_overridden ? Array(p_squads[index]) : Array(leader->get_squad());
+			const Array squad = is_overridden ? Array(p_squads[index]) : Array(p_scenario->get_squad(side, index));
 			if (add_leader_with_squad(side, leader, spawns[index], squad) < 0) {
 				clear_setup();
 				return false;

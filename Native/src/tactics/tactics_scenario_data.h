@@ -34,6 +34,11 @@ class TacticsScenarioData : public Resource {
 	TypedArray<TacticsDaytimeData> daytimes;
 	int daytime_step_rounds = 1;
 	int daytime_start_index = 0;
+	// The soldiers the scenario supplies to side A's leaders, in their
+	// order: supplied_sizes[i] troops of supplied_troops for leader i. Empty
+	// keeps each leader's own squad.
+	PackedInt32Array supplied_sizes;
+	TypedArray<TacticsTroopData> supplied_troops;
 
 protected:
 	static void _bind_methods();
@@ -67,6 +72,13 @@ public:
 	int get_daytime_step_rounds() const { return daytime_step_rounds; }
 	void set_daytime_start_index(int64_t p_value) { daytime_start_index = clamp_to_int(p_value); }
 	int get_daytime_start_index() const { return daytime_start_index; }
+	void set_supplied_sizes(const PackedInt32Array &p_value) { supplied_sizes = p_value; }
+	PackedInt32Array get_supplied_sizes() const { return supplied_sizes; }
+	void set_supplied_troops(const TypedArray<TacticsTroopData> &p_value) { supplied_troops = p_value; }
+	TypedArray<TacticsTroopData> get_supplied_troops() const { return supplied_troops; }
+	// The squad the leader at p_index of a side starts with: the supplied
+	// soldiers on side A when the scenario supplies them, else its own.
+	TypedArray<TacticsTroopData> get_squad(int64_t p_side, int64_t p_index) const;
 	// The leaders of a side (0 or 1); empty with an error for another side.
 	TypedArray<TacticsLeaderData> get_leaders(int64_t p_side) const {
 		ERR_FAIL_COND_V_MSG(p_side != tactics::SIDE_A && p_side != tactics::SIDE_B, TypedArray<TacticsLeaderData>(), vformat("Tactics: get_leaders() got side %d, expected 0 or 1", p_side));
