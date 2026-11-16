@@ -5,6 +5,7 @@
 #include "tactics_keywords.h"
 #include "tactics_paths.h"
 #include "tactics_sim.h"
+#include "tactics_vision.h"
 
 #include <algorithm>
 #include <functional>
@@ -49,11 +50,16 @@ constexpr int ALLY_SUPPORT_CELLS = 2;
 // Role scores: ranged troops go to the rear, sturdy ones to the front.
 constexpr int RANGED_FRONT_SCORE = -2;
 constexpr int STURDY_FRONT_SCORE = 1;
+// Under fog of war a scout leans to the outer slots, keeping the squad's
+// sight wide (Docs/systems/tactics_vision.md, Scouts).
+constexpr int SCOUT_SPREAD_SCORE = 1;
 
 struct SlotPlace {
 	Cell cell;
 	// Cells ahead of the leader along its heading (negative: behind).
 	int depth = 0;
+	// Cells from the leader, forward and sideways together.
+	int spread = 0;
 };
 
 // What one squad step knows about the squad, worked out before anyone moves.
@@ -106,6 +112,7 @@ std::vector<SlotPlace> build_slots(const TacticsSim &p_sim, int p_leader) {
 		SlotPlace place;
 		place.cell = { leader.cell.col + forward.col * ahead + right.col * offset.right, leader.cell.row + forward.row * ahead + right.row * offset.right };
 		place.depth = offset.forward;
+		place.spread = abs_int(offset.forward) + abs_int(offset.right);
 		slots.push_back(place);
 	}
 	return slots;
@@ -170,8 +177,9 @@ std::vector<int> assign_slots(const TacticsSim &p_sim, const std::vector<int> &p
 	for (int mover = 0; mover < mover_count; mover++) {
 		const Cell cell = p_sim.get_units()[p_movers[mover]].cell;
 		const int front = get_front_score(p_sim, p_movers[mover], average_armor);
+		const int spread = p_sim.has_fog_of_war() && is_scout(p_sim, p_movers[mover]) ? SCOUT_SPREAD_SCORE : 0;
 		for (int slot = 0; slot < slot_count; slot++) {
-			cost[mover][slot] = get_manhattan(cell, p_slots[slot].cell) * CELL_WEIGHT - weight * front * p_slots[slot].depth;
+			cost[mover][slot] = get_manhattan(cell, p_slots[slot].cell) * CELL_WEIGHT - weight * (front * p_slots[slot].depth + spread * p_slots[slot].spread);
 		}
 	}
 	const unsigned full = 1u << slot_count;

@@ -260,6 +260,17 @@ void betray_fire(TacticsSim &p_sim, int p_unit, const IncidentDef &p_def, int p_
 	}
 }
 
+// Fog of war: a soldier out of its leader's sight may waver though its own
+// trigger does not hold, at unseen_waver_pct % plus the night's and the
+// weather's waver_pct (Docs/systems/tactics_vision.md, Incidents).
+bool rolls_unseen_waver(TacticsSim &p_sim, int p_unit, const IncidentDef &p_def) {
+	if (p_def.unseen_waver_pct <= 0 || !p_sim.is_out_of_leader_sight(p_unit)) {
+		return false;
+	}
+	const int pct = p_def.unseen_waver_pct + p_sim.get_daytime().waver_pct + p_sim.get_weather().waver_pct;
+	return pct > 0 && p_sim.edit_random().next(PERCENT) < pct;
+}
+
 const IncidentHandler INCIDENT_HANDLERS[] = {
 	{ "incident.rescue", true, rescue_triggered, rescue_fire },
 	{ "incident.stand", true, stand_triggered, stand_fire },
@@ -457,10 +468,15 @@ void begin_incident_phase(TacticsSim &p_sim, int p_side, int p_cause) {
 			continue;
 		}
 		const IncidentDef &def = rules.incidents[unit.seed];
+		bool is_unseen = false;
 		if (!def.handler->is_triggered(p_sim, unit.index, def)) {
-			continue;
+			if (!rolls_unseen_waver(p_sim, unit.index, def)) {
+				continue;
+			}
+			is_unseen = true;
 		}
 		p_sim.edit_unit(unit.index).stage = IncidentStage::WAVERING;
+		p_sim.edit_unit(unit.index).is_unseen_waver = is_unseen;
 		Event event;
 		event.type = EventType::SOLDIER_WAVERED;
 		event.unit = unit.index;
@@ -480,9 +496,13 @@ void resolve_incident_phase(TacticsSim &p_sim, int p_side) {
 		}
 		const IncidentDef &def = p_sim.get_incident_rules().incidents[unit.seed];
 		const UnitState *leader = find_living_leader(p_sim, index);
-		if (!def.handler->is_triggered(p_sim, index, def)) {
-			calm_incident(p_sim, index, "faded");
-		} else if (def.calm_radius_cells > 0 && leader != nullptr && get_manhattan(leader->cell, unit.cell) <= def.calm_radius_cells) {
+		// Out of its leader's sight nobody can calm it (Docs/systems/tactics_vision.md).
+		const bool is_out_of_sight = p_sim.is_out_of_leader_sight(index);
+		const bool is_unseen = unit.is_unseen_waver;
+		p_sim.edit_unit(index).is_unseen_waver = false;
+		if (!def.handler->is_triggered(p_sim, index, def) && !(is_unseen && is_out_of_sight)) {
+			calm_incident(p_sim, index, is_unseen ? "leader" : "faded");
+		} else if (def.calm_radius_cells > 0 && leader != nullptr && !is_out_of_sight && get_manhattan(leader->cell, unit.cell) <= def.calm_radius_cells) {
 			p_sim.edit_unit(index).bait_count = 0;
 			calm_incident(p_sim, index, "leader");
 		} else {
