@@ -941,6 +941,8 @@ func _show_summary() -> void:
 	if _summary != null:
 		return
 	_mode = Mode.ENDED
+	# Nothing plays on behind the summary.
+	_playback.stop()
 	_summary = TacticsSummaryView.new()
 	_summary.campaign = campaign
 	_summary.summary = campaign.finish_battle(_battle, _people())

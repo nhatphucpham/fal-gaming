@@ -269,6 +269,8 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Fixed
 
+- Chiến Dịch: retreating while the enemy moves no longer lets its moves,
+  hits and sounds go on behind the after-battle summary.
 - Chiến Dịch menus on a phone: the muster, the roster, the character sheet
   and the summary no longer use text smaller than the rest of the game; a
   terrain's effects wrap instead of being cut, soldier chips show a short

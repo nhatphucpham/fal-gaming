@@ -6,8 +6,9 @@ extends SceneTree
 # one does no harm), "Rút" works while the enemy plays, the skill close-up
 # says what a support skill did to allies for our side and for the enemy,
 # the enemy's phase and intents read right, and so do the skill outcome
-# lines and the growth float. No error may be logged, also after the
-# screen is freed in the middle of a playback.
+# lines and the growth float. With a campaign, "Rút" during the enemy's
+# phase shows the summary and nothing plays on behind it. No error may be
+# logged, also after the screen is freed in the middle of a playback.
 
 const SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/river_crossing.tres"
 const RALLY_SKILL: StringName = &"tactics_skill.rally_banner"
@@ -52,7 +53,7 @@ func _run() -> bool:
 	if not ClassDB.class_exists("TacticsBattle"):
 		push_error("TacticsBattle is missing: build the GDExtension (scons) before importing")
 		return false
-	var checks: Array[Callable] = [_check_outcome_lines, _check_enemy_phase_texts, _check_busy_taps, _check_our_rally, _check_enemy_rally, _check_retreat_while_busy]
+	var checks: Array[Callable] = [_check_outcome_lines, _check_enemy_phase_texts, _check_busy_taps, _check_our_rally, _check_enemy_rally, _check_retreat_while_busy, _check_campaign_retreat_stops_playback]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Tactics screen input test failed in %s" % check.get_method())
@@ -302,3 +303,38 @@ func _check_retreat_while_busy() -> bool:
 	_screen = null
 	await process_frame
 	return true
+
+
+# With a campaign, a double "Rút" while the enemy plays opens the summary
+# and stops the playback: no step starts behind the summary.
+func _check_campaign_retreat_stops_playback() -> bool:
+	TacticsRoster.path = "user://tactics_roster_input_test.json"
+	var catalog := load("res://Data/Tactics/tactics_catalog.tres") as TacticsCatalog
+	var campaign := TacticsCampaign.new(TacticsRoster.create(5), catalog, load(SCENARIO_PATH) as TacticsScenarioData)
+	_screen = TacticsScreen.new()
+	_screen.scenario = campaign.scenario
+	_screen.squads = campaign.squads
+	_screen.campaign = campaign
+	_screen.size = Vector2(720, 1280)
+	root.add_child(_screen)
+	await process_frame
+	if not await _wait_idle():
+		return false
+	_screen.press_button(&"end_turn")
+	await create_timer(0.3).timeout
+	var steps := [0]
+	_screen.get_playback().step_started.connect(func(_type: StringName) -> void: steps[0] += 1)
+	_tap(_screen.get_retreat_button())
+	_tap(_screen.get_retreat_button())
+	await process_frame
+	var ok := _screen.get_summary() != null
+	var at: int = steps[0]
+	await create_timer(2.0).timeout
+	if not ok or steps[0] != at or _screen.get_playback().is_playing:
+		push_error("After Rút the summary should show and the playback stop (summary %s, %d steps after it, playing %s)" % [ok, steps[0] - at, _screen.get_playback().is_playing])
+		ok = false
+	_screen.queue_free()
+	_screen = null
+	await process_frame
+	TacticsRoster.delete()
+	return ok

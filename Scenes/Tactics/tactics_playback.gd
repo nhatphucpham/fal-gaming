@@ -66,6 +66,7 @@ var _units: Array[Dictionary] = []
 var _zones: Array[Dictionary] = []
 var _tween: Tween
 var _handlers: Dictionary[StringName, Callable] = {}
+var _is_stopped: bool = false
 
 
 func _init() -> void:
@@ -90,8 +91,9 @@ func reset(units: Array, zones: Array) -> void:
 ## Plays `events` in order; returns when the last step is done.
 func play(events: Array) -> void:
 	is_playing = true
+	_is_stopped = false
 	var index := 0
-	while index < events.size():
+	while index < events.size() and not _is_stopped:
 		var event: Dictionary = events[index]
 		var handler: Callable = _handlers.get(event["type"], Callable())
 		if handler.is_valid():
@@ -101,6 +103,15 @@ func play(events: Array) -> void:
 			index += 1
 	is_playing = false
 	played.emit()
+
+
+## Ends the playback now: the step that plays ends at once and no other
+## starts (the battle is left for the summary). play() returns as usual.
+func stop() -> void:
+	if not is_playing:
+		return
+	_is_stopped = true
+	skip_step()
 
 
 ## A tap during playback: the step that plays now ends at once.

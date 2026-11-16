@@ -244,7 +244,8 @@ on the screen is under `GameTheme.SMALL_FONT_SIZE` (22 layout px, 11 px on
 that phone).
 
 `TacticsPlayback` (Node): `reset(units, zones)`, `await play(events)`,
-`skip_step()`, `close_up_count`; signal `played` when the last step is
+`skip_step()`, `stop()` (no further step starts; the summary uses it),
+`close_up_count`; signal `played` when the last step is
 done, before the screen syncs the map (the map must already agree with the
 battle then), and `phase_shown(side, round_number)` when a phase banner
 starts, so the top bar and the panel say whose phase it is while the enemy
@@ -331,8 +332,9 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   moves, "đứng chờ" when it stays), the top bar and panel during the
   enemy's phase, the rally's close-up line for our side and the enemy's,
   every skill outcome line, "Rút" during the enemy's phase (and its hint
-  coming back after 3 s), and no error after the screen is freed
-  mid-playback.
+  coming back after 3 s), with a campaign a double "Rút" while the enemy
+  plays opening the summary with nothing playing on behind it, and no
+  error after the screen is freed mid-playback.
 - `Tests/muster_test.gd`: Main's title "Chiến Dịch" to the muster screen,
   squads and capacities, a soldier moved and one refused, "Xuất quân" to the
   tactics screen with those squads, a double "Rút" to the summary (the
