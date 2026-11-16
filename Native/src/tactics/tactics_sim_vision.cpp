@@ -133,8 +133,9 @@ void TacticsSim::note_walk_sight(int p_unit, const std::vector<Cell> &p_path) {
 	for (size_t step = 1; step + 1 < p_path.size(); step++) {
 		mark_unit_sight(*this, p_unit, p_path[step], lit, cells);
 	}
+	memory.walk_seen.resize(cells.size(), 0);
 	for (size_t index = 0; index < cells.size(); index++) {
-		memory.seen[index] = memory.seen[index] | cells[index];
+		memory.walk_seen[index] = memory.walk_seen[index] | cells[index];
 	}
 	// Enemies it passed in sight are remembered where it saw them; hidden
 	// ones still need someone next to them.
@@ -166,16 +167,21 @@ void TacticsSim::refresh_vision(int p_cause) {
 		memory.seen.resize(cell_count, 0);
 		memory.last_seen.resize(units.size(), NO_CELL);
 		Event event;
+		// A cell passed in sight on a walk and out of sight now is told
+		// with the cells lost from sight: it is remembered, dimmed.
+		memory.walk_seen.resize(cell_count, 0);
 		for (int index = 0; index < cell_count; index++) {
 			const bool was = !was_visible.empty() && was_visible[index] != 0;
 			const bool is = memory.visible[index] != 0;
-			memory.seen[index] = memory.seen[index] | memory.visible[index];
+			const bool is_walk_seen = !is && memory.seen[index] == 0 && memory.walk_seen[index] != 0;
+			memory.seen[index] = memory.seen[index] | memory.visible[index] | memory.walk_seen[index];
 			if (is && !was) {
 				event.cells.push_back(get_cell_at(index));
-			} else if (was && !is) {
+			} else if ((was && !is) || is_walk_seen) {
 				event.other_cells.push_back(get_cell_at(index));
 			}
 		}
+		memory.walk_seen.clear();
 		for (const UnitState &unit : units) {
 			const bool was = unit.index < static_cast<int>(was_unit_visible.size()) && was_unit_visible[unit.index] != 0;
 			const bool is = memory.unit_visible[unit.index] != 0;
@@ -233,9 +239,9 @@ void TacticsSim::announce_environment(int p_cause) {
 // Walks are planned around the enemies the side sees; one it does not see
 // stops the walk on the last free cell before it, or where its zone of
 // control is entered (Docs/systems/tactics_vision.md, Ambush).
-int TacticsSim::cut_path_at_ambush(int p_unit, std::vector<Cell> &r_path, Cell *r_blocked) const {
+int TacticsSim::cut_path_at_ambush(int p_unit, std::vector<Cell> &r_path, Cell *r_blocked, bool p_zones) const {
 	const UnitState &unit = units[p_unit];
-	const bool ignores_zoc = build_move_profile(*this, p_unit).ignores_zone_of_control;
+	const bool ignores_zoc = !p_zones || build_move_profile(*this, p_unit).ignores_zone_of_control;
 	int stop = static_cast<int>(r_path.size()) - 1;
 	int ambusher = NO_UNIT;
 	for (int step = 1; step < static_cast<int>(r_path.size()) && ambusher == NO_UNIT; step++) {

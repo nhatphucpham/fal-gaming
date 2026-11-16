@@ -258,6 +258,10 @@ private:
 	bool is_ready = false;
 	bool started = false;
 	bool finished = false;
+	// A copy made by simulate_move(): its walks know only what the side
+	// sees, so a zone of control it cannot see does not stop them (a
+	// forecast must not give a hidden enemy away). Not hashed.
+	bool is_forecast = false;
 	int winner = NO_WINNER;
 	std::string end_reason;
 	int round = 0;
@@ -312,8 +316,9 @@ private:
 	// Weather and time-of-day events at the start of side A's phase.
 	void announce_environment(int p_cause);
 	// Cuts p_path at a hidden enemy in the way (ambush); returns the enemy,
-	// NO_UNIT when the whole path is free.
-	int cut_path_at_ambush(int p_unit, std::vector<Cell> &r_path, Cell *r_blocked) const;
+	// NO_UNIT when the whole path is free. Without p_zones only a cell the
+	// enemy stands on cuts it.
+	int cut_path_at_ambush(int p_unit, std::vector<Cell> &r_path, Cell *r_blocked, bool p_zones = true) const;
 };
 
 } // namespace tactics

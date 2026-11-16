@@ -197,7 +197,7 @@ int TacticsSim::walk_unit(int p_unit, const std::vector<Cell> &p_path, int p_cos
 	std::vector<Cell> path = p_path;
 	int cost = p_cost;
 	Cell blocked = NO_CELL;
-	const int ambusher = environment.fog_of_war ? cut_path_at_ambush(p_unit, path, &blocked) : NO_UNIT;
+	const int ambusher = environment.fog_of_war ? cut_path_at_ambush(p_unit, path, &blocked, !is_forecast) : NO_UNIT;
 	if (ambusher != NO_UNIT) {
 		cost = 0;
 		for (size_t step = 1; step < path.size(); step++) {
@@ -413,6 +413,7 @@ bool TacticsSim::takes_objective(int p_unit, const Cell &p_cell) const {
 bool TacticsSim::simulate_move(int p_unit, const Cell &p_cell, TacticsSim *r_copy, std::string *r_error) const {
 	*r_copy = *this;
 	r_copy->clear_undo();
+	r_copy->is_forecast = true;
 	if (p_cell == units[p_unit].cell) {
 		return check_leader_can_act(p_unit, r_error);
 	}

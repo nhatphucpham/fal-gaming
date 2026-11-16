@@ -111,6 +111,9 @@ struct SideVision {
 	std::vector<uint8_t> scout_visible;
 	std::vector<uint8_t> unit_visible;
 	std::vector<Cell> last_seen;
+	// Cells a walk passed in sight of, merged into seen (and told) by the
+	// next refresh_vision; empty between commands.
+	std::vector<uint8_t> walk_seen;
 };
 
 struct ZoneState {
