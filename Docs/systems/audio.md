@@ -49,6 +49,11 @@ write it, so the loops are WAV. The files are tracked with Git LFS.
 - With no sound device (headless runs, CI) nothing is started.
 - Mute mutes the Master bus, stops what plays and is saved; the title and
   the run's top bar have the switch.
+- While the app is hidden, `AppLifecycle` calls `set_suspended(true)`: the
+  Master bus goes silent, every player pauses where it is and nothing new
+  starts. `set_suspended(false)` resumes them and gives the bus back the
+  player's own mute. This autoload always processes, so the tree's pause
+  alone would not silence it (see [App lifecycle](app_lifecycle.md)).
 
 ## Hooks
 
@@ -100,7 +105,13 @@ export preset's `html/head_include` holds a small script that:
 - on older iPhones without that API, loops a silent `<audio>` element from
   the first tap, which moves the page to the playback category too;
 - resumes every audio context that is not running on each `touchend`,
-  `click` and `keydown` (also after an interruption such as a phone call).
+  `click` and `keydown` (also after an interruption such as a phone call),
+  and plays the silent `<audio>` again if it is paused while the page is
+  visible;
+- on `visibilitychange` to hidden suspends every audio context it tracks
+  and pauses the silent `<audio>`, and resumes both when the page shows
+  again; a resume the browser refuses there is retried by the next tap,
+  for the contexts and the silent `<audio>` alike.
 
 The in-game speaker button is the mute. None of this has been checked on a
 real iPhone from the build machine; it was checked that Chromium still

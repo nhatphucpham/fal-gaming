@@ -6,6 +6,7 @@ config_version=5
 
 config/name="Falemag"
 run/main_scene="res://Scenes/main.tscn"
+run/low_processor_mode=true
 config/features=PackedStringArray("4.7", "GL Compatibility")
 
 [audio]
@@ -16,6 +17,7 @@ general/default_playback_type.web=1
 
 Audio="*res://Systems/Audio/audio.gd"
 Voice="*res://Systems/Voice/voice_service.gd"
+AppLifecycle="*res://Systems/App/app_lifecycle.gd"
 
 [display]
 

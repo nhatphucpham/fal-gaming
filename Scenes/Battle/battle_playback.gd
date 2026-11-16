@@ -70,6 +70,12 @@ func _ready() -> void:
 	}
 	_handlers.merge(_skills.get_handlers())
 	_handlers.merge(_synergies.get_handlers())
+	battle_finished.connect(func(_winner: int, _reason: StringName) -> void:
+		AppLifecycleService.hold_full_frame_rate(self, false))
+
+
+func _exit_tree() -> void:
+	AppLifecycleService.hold_full_frame_rate(self, false)
 
 
 ## Starts playing `battle` (already started) on `board`. `views` maps each
@@ -95,6 +101,9 @@ func begin(battle: Battle, board: BoardView, views: Dictionary[int, UnitView], c
 	if not clock.ticked.is_connected(_on_ticked):
 		clock.ticked.connect(_on_ticked)
 	_is_running = true
+	# Every frame is drawn while a battle plays, closing cheer included:
+	# power saving would sleep part of each frame (AppLifecycle).
+	AppLifecycleService.hold_full_frame_rate(self, true)
 
 
 ## Stops playing; pending animations finish on their own.
@@ -108,6 +117,7 @@ func stop() -> void:
 ## before its animations are done.
 func abort() -> void:
 	stop()
+	AppLifecycleService.hold_full_frame_rate(self, false)
 	_generation += 1
 	# The views belong to the screen and are freed after this; forget them.
 	_views = {}

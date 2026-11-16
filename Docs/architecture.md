@@ -22,7 +22,10 @@
   `encounter_test.gd` (road encounters, streak bonus, loot), the formation
   and synergy tests, `epiphany_test.gd` (Kỳ Ngộ), `boss_test.gd` (Cự Nham
   and Hóa Đá), `cutscene_test.gd` (the cutscene screen),
-  `audio_test.gd` (the Audio autoload), and `unit_pose_test.gd`,
+  `audio_test.gd` (the Audio autoload), `app_lifecycle_test.gd` (the
+  AppLifecycle autoload), `perf_budget_test.gd` (the performance budget)
+  and `idle_frames_test.gd` (idle screens leave frames undrawn), and
+  `unit_pose_test.gd`,
   `pose_animator_test.gd`, `pose_cast_test.gd` and `pose_stone_test.gd`
   (the unit figures' rig, mesh cache, animator, casts and stone, sharing
   `pose_test_kit.gd`). `voice_test.gd` tests the Voice autoload against a
@@ -33,8 +36,10 @@
   `muster_test.gd` (the muster screen from the title) test its screens.
 - `Tools/` holds developer scripts that are not tests and not exported:
   `run_bot.gd`, the balance bot that plays whole runs (see
-  [Run](systems/run.md)), and `make_sfx.gd`, which writes the sound files
-  under `Assets/Sfx/` (see [Audio](systems/audio.md)).
+  [Run](systems/run.md)), `make_sfx.gd`, which writes the sound files
+  under `Assets/Sfx/` (see [Audio](systems/audio.md)), and `perf_probe.gd`
+  with `perf_budget.gd`, the performance probe and its budget check (see
+  [Performance](systems/performance.md)).
 - `Assets/Sfx/` holds the 24 sound effects and 2 music loops as 16-bit
   mono WAV files, stored with Git LFS. `Assets/Voice/` is for voice lines
   baked into the build, named by `Voice.cache_key()` (none yet; see
@@ -74,7 +79,9 @@
   `Voice` autoload (`VoiceService`), `VoiceLine`, `VoiceStyle`,
   `VoiceTags` and `VoiceWav`, the optional spoken dialogue from the TTS
   service (see [Voice](systems/voice.md));
-  `Scenes/Dev/voice_demo.tscn` tries it by hand. `Scenes/Dev/` holds
+  `Scenes/Dev/voice_demo.tscn` tries it by hand. `Systems/App/` has the
+  `AppLifecycle` autoload (`AppLifecycleService`, see
+  [App lifecycle](systems/app_lifecycle.md)). `Scenes/Dev/` holds
   developer pages only and is not exported.
 - `Scenes/Board/` holds the reusable battlefield: `BoardView`, `UnitView`,
   `UnitPainter` (the bone-rig figures: `UnitPose`, `RigSolver`, the
@@ -97,7 +104,9 @@
   the battle status bars, the drag ghost and the pointer gesture helper, and
   for the run the shop, bench, sell zone, cost buttons, resource chips,
   icons drawn in code, the timer, reward cards and confetti, the Kỳ Ngộ
-  seal, the boss badge, bar and card, and the mute button.
+  seal, the boss badge, bar and card, and the mute button. `IdleTicks`
+  is the shared clock of idle animation (see
+  [Performance](systems/performance.md)).
 - `Locale/strings.csv` holds every player-facing text (columns `keys,vi,en`),
   imported into `strings.vi.translation` and `strings.en.translation` and
   registered in `project.godot`. The fallback locale is `vi`, and `Main`
@@ -131,7 +140,7 @@ stage. "Cách chơi" on the title screen opens four tips.
 
 ## Autoloads
 
-There are two autoloads. An autoload's name is not known when a script
+There are three autoloads. An autoload's name is not known when a script
 runs with `--script` (the tests), while its node exists at runtime.
 
 - `Audio` (`Systems/Audio/audio.gd`, class `AudioService`) owns the sound
@@ -144,6 +153,12 @@ runs with `--script` (the tests), while its node exists at runtime.
   online/offline state must serve every scene that speaks. Scenes call
   `Voice` directly; `--script` runs cannot use the `Voice` name, so the
   test creates its own `VoiceService`. See [Voice](systems/voice.md).
+- `AppLifecycle` (`Systems/App/app_lifecycle.gd`, class
+  `AppLifecycleService`) is global because whether the app is hidden, and
+  whether it may save power, concern the whole game, not one screen: while
+  the page or app is hidden it pauses the tree and holds the sound, and it
+  owns the one switch for low processor mode. Scripts call its static
+  `hold_full_frame_rate()`. See [App lifecycle](systems/app_lifecycle.md).
 
 The run's rules are GDScript, not C++: they decide only what to buy, place
 and pay between battles, never how a battle goes, so they need no fixed

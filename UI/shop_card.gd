@@ -6,7 +6,8 @@ extends Control
 ## or complete a formation a jade link badge; an empty (bought) slot is a
 ## faint outline. Input is handled by the ShopBar; the card only draws and
 ## animates. The pulsing glow and stars are drawn by two child layers, so
-## the card itself (with its bust) redraws only when its offer changes.
+## the card itself (with its bust) redraws only when its offer changes; the
+## layers pulse on the shared IdleTicks steps.
 
 const CARD_SIZE := Vector2(128, 156)
 const PORTRAIT_PX := Vector2(116, 100)
@@ -26,6 +27,7 @@ var _is_affordable: bool = true
 var _merge_hint: bool = false
 var _synergy_hint: bool = false
 var _time: float = 0.0
+var _pulse_step: int = -1
 var _tween: Tween
 # Behind the card: the cost 4-5 glow. Above it: merge stars, synergy badge.
 var _glow_layer: Control
@@ -107,8 +109,15 @@ func _process(delta: float) -> void:
 	if unit == null:
 		return
 	var is_glowing := unit.cost >= GLOW_FROM_COST
-	if is_glowing or _merge_hint:
-		_time += delta
+	if not (is_glowing or _merge_hint):
+		return
+	_time += delta
+	# The pulses redraw on the shared IdleTicks steps, the frames the idle
+	# figures redraw on, so the frames between can be skipped.
+	var step := IdleTicks.current_step()
+	if step == _pulse_step:
+		return
+	_pulse_step = step
 	if is_glowing:
 		_glow_layer.queue_redraw()
 	if _merge_hint:

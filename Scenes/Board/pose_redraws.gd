@@ -1,23 +1,26 @@
 class_name PoseRedraws
 extends RefCounted
 ## When a PoseAnimator's figure redraws and blinks, by its own clock of
-## real seconds (`now`, the engine's ticks unless a test replaces it):
-## about IDLE_PER_SEC while idle, at a phase per figure so units do not
-## redraw on the same frame; at most ACTION_PER_SEC while a clip, the run
-## or a trail plays, and once more when it stops; blinks of BLINK_SEC every
+## real seconds (`now`, IdleTicks.engine_seconds, read once per process
+## frame, unless a test replaces it):
+## IDLE_PER_SEC while idle, on one of the IdleTicks phases, so figures
+## spread over a few shared frames instead of redrawing on every frame; at
+## most ACTION_PER_SEC while a clip, the run or a trail plays (on the
+## shared steps), and once more when it stops; blinks of BLINK_SEC every
 ## BLINK_PERIOD_SEC. Real time keeps all of them the same at any battle
 ## speed.
 
-const IDLE_PER_SEC: float = 10.0
+const IDLE_PER_SEC: float = IdleTicks.PER_SEC
 ## A 60 fps screen skips every other frame.
-const ACTION_PER_SEC: float = 30.0
+const ACTION_PER_SEC: float = IdleTicks.STEPS_PER_SEC
 const BLINK_PERIOD_SEC: float = 3.4
 const BLINK_SEC: float = 0.12
 
 ## func() -> float: seconds of real time.
 var now: Callable = Callable(PoseRedraws, &"engine_seconds")
 
-var _idle_offset: float = randf()
+## The figure's IdleTicks phase (0..IdleTicks.IDLE_PHASES-1).
+var idle_phase: int = IdleTicks.random_phase()
 var _blink_offset: float = randf() * BLINK_PERIOD_SEC
 var _idle_slot: int = -1
 var _action_slot: int = -1
@@ -26,12 +29,12 @@ var _was_active: bool = false
 
 ## The engine's real time in seconds, the default clock.
 static func engine_seconds() -> float:
-	return Time.get_ticks_msec() * 0.001
+	return IdleTicks.engine_seconds()
 
 
 ## True on the frame an idle figure should breathe again.
 func is_idle_due() -> bool:
-	var slot := floori(now.call() * IDLE_PER_SEC + _idle_offset)
+	var slot := IdleTicks.idle_tick_at(now.call(), idle_phase)
 	if slot == _idle_slot:
 		return false
 	_idle_slot = slot
@@ -43,7 +46,7 @@ func is_idle_due() -> bool:
 func is_action_due(is_active: bool) -> bool:
 	var due := false
 	if is_active:
-		var slot := floori(now.call() * ACTION_PER_SEC)
+		var slot := IdleTicks.step_at(now.call())
 		due = slot != _action_slot or not _was_active
 		if due:
 			_action_slot = slot

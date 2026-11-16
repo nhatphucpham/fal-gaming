@@ -86,7 +86,12 @@ rule itself.
 
 A new scene is a `CutsceneData` file with its lines in
 `Locale/strings.csv`; a new backdrop is a name in `CutsceneData.BACKDROPS`
-and its drawing in `CutsceneBackdrop`.
+and its drawing in `CutsceneBackdrop`. The backdrop paints in layers (its
+own sky, sun and far ridges, then child canvas items back to front: far
+mist, near ridge, near mist, ground and scenery, camp fire, ink edges).
+Only the two mist layers and the camp fire redraw each frame; the rest is
+drawn once (again on a resize or a new `kind`). Anything new that does not
+move goes in a static layer.
 
 ## Tests
 

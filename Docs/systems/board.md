@@ -143,7 +143,12 @@ blink: `set_dim()` sets it for the waiting enemy line-up and `PieceViews`
 for units on the bench. Side 0 faces up and right with a blue ring, side 1 faces down and
 left with a red ring. Rigged figures breathe and blink in their pose; the
 boss and the sage bob their scale (3.5%, phase per unit). `get_pose()`,
-`get_animator()` and `get_flip()` are for tests and tools.
+`get_animator()` and `get_flip()` are for tests and tools. Each frame the
+view works out its figure's scale, position and rotation but writes only
+the ones that changed: any write to a transform makes the renderer draw a
+frame, so an idle board would never let low processor mode skip one (see
+[Performance](performance.md)). `UnitBar` processes only while a full Khí
+bar pulses, and `SkillOverlay` only while its cast glow shows.
 
 Each view owns a `PoseAnimator` that plays the class's key-pose clips;
 the view's existing methods drive it, so callers need nothing new. Player
@@ -182,13 +187,20 @@ so an archer turns only when it shoots. Whole-body squashes, lunges and
 hops stay for the boss and the sage only.
 
 Redraws: a figure redraws only when its pose changed. While idle it
-breathes about 10 times a second of real time (so also at x4),
-at a phase offset per unit, so 16 units do not redraw on the same frame; a
-calm figure (bench, dimmed line-up) only redraws when it blinks, and a
+breathes 10 times a second of real time (so also at x4), on one of the
+three phases of the shared idle tick (`IdleTicks`, `UI/idle_ticks.gd`:
+every 100 ms tick is split into three 33 ms steps and each figure takes
+one). `IdleTicks` reads the clock once per process frame, so every node
+sees the same step in a frame and a step boundary costs one frame: a
+board of idle figures redraws on at most 30 distinct frames a second (one
+per step) and low processor mode can skip the others; a
+calm figure (bench, dimmed line-up) only redraws when it blinks (checked on
+its idle ticks too), and a
 held wind-up does not breathe at all. Blinks last 0.12 s of real time
 every 3.4 s, so the idle sampling sees them at any battle speed. While a
 clip, the run or a weapon trail plays it redraws at most 30 times a second
-of real time, and once more when it ends. The weapon trail holds a fixed
+of real time, on the same shared steps, and once more when it ends. The
+shop cards' glow and merge stars pulse on those steps too. The weapon trail holds a fixed
 number of samples (`WeaponTrail.SAMPLES`, 14), one taken every frame,
 so its length is in frames, as in the sketch. Each frame steps the clips by
 its time times the battle speed, so the poses keep up with the board's

@@ -7,8 +7,8 @@ extends Node
 ## pose: the class's stance in a fight, its idle pose otherwise. It owns the
 ## current UnitPose and the WeaponTrail, and asks the figure to redraw only
 ## when the pose changes, as PoseRedraws times it (by real time): at most 30
-## times a second while a clip runs, about 10 (staggered per unit) while
-## idling, on blinks only while calm, never while frozen (stone) or after
+## times a second while a clip runs, 10 (on one of the shared IdleTicks
+## phases) while idling, on blinks only while calm, never while frozen (stone) or after
 ## death. Each frame steps the clips by its time times the battle speed, at
 ## most MAX_BATTLE_STEP_SEC (as far as the battle itself steps in a frame).
 ## UnitView owns one; see the call table in Docs/systems/board.md.
@@ -143,7 +143,9 @@ func _process(delta: float) -> void:
 		if redraws.is_idle_due():
 			_breathe()
 			_figure.queue_redraw()
-	elif redraws.get_blink() != _eyes_shown:
+	elif redraws.is_idle_due() and redraws.get_blink() != _eyes_shown:
+		# Blinks are seen on the figure's idle ticks, like the breathing,
+		# so a calm figure redraws on the shared frames too.
 		_breathe()
 		_figure.queue_redraw()
 
