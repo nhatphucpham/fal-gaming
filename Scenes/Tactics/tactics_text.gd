@@ -161,6 +161,27 @@ func leader_passive_names(id: StringName) -> String:
 	return ", ".join(names)
 
 
+## "Name: what it does" for each keyword id that has data, in order.
+func keyword_lines(ids: Array) -> Array[String]:
+	var lines: Array[String] = []
+	for id: StringName in ids:
+		var keyword := catalog.get_keyword(id)
+		if keyword != null:
+			lines.append(tr("TACTICS_NAMED_DESC_FORMAT") % [tr(keyword.name_key), tr(keyword.description_key)])
+	return lines
+
+
+## "Name: what it does" for each passive of a leader id; empty for a troop.
+func passive_lines(id: StringName) -> Array[String]:
+	var lines: Array[String] = []
+	var leader := unit_data(id) as TacticsLeaderData
+	if leader == null:
+		return lines
+	for passive: TacticsPassiveData in leader.passives:
+		lines.append(tr("TACTICS_NAMED_DESC_FORMAT") % [tr(passive.name_key), tr(passive.description_key)])
+	return lines
+
+
 ## `order.follow` -> `ORDER_FOLLOW`.
 static func id_to_key(id: StringName) -> String:
 	return String(id).replace(".", "_").to_upper()

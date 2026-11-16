@@ -1,8 +1,9 @@
 extends SceneTree
 
 # Plays random taps through the tactics screen (instant playback) on several
-# seeds: map cells, our leaders, the enabled panel buttons and the order
-# picker, legal or not. After every playback, before the screen syncs, the
+# seeds: map cells, our leaders, drags of a leader's ghosts, the enabled
+# panel buttons (undo among them) and the order row, legal or not; the
+# phase also ends by itself once every leader is done (waited out). After every playback, before the screen syncs, the
 # map must already show what the battle has (tokens, hp, deaths, charge
 # pips, zones), so nothing jumps silently; after every tap the synced screen
 # must agree with the battle's queries (marks, buttons, intents, the done
@@ -109,6 +110,10 @@ func _play_seed(seed_value: int) -> bool:
 			break
 		var what := _random_tap()
 		await process_frame
+		# An auto end (a short timer, then a playback) is waited out.
+		var deadline := Time.get_ticks_msec() + 3000
+		while (_screen.is_busy() or _screen.is_auto_end_pending()) and Time.get_ticks_msec() < deadline:
+			await process_frame
 		_check_synced(what)
 		if not _problems.is_empty() or not _errors.lines.is_empty():
 			printerr("Seed %d, tap %d: %s" % [seed_value, tap, what])
@@ -141,7 +146,26 @@ func _random_tap() -> String:
 			var cell: Vector2i = marked[_rng.randi_range(0, marked.size() - 1)]
 			_screen.tap_cell(cell)
 			return "tap marked %s" % cell
-	if _screen.get_mode() == TacticsScreen.Mode.ORDER_PICK and _rng.randf() < 0.7:
+	if roll < 62:
+		var leaders := _living_leaders(0)
+		if not leaders.is_empty():
+			var leader: int = leaders[_rng.randi_range(0, leaders.size() - 1)]
+			var from: Vector2i = _battle().get_unit_state(leader)["cell"]
+			var map := _screen.get_map()
+			if not map.hold_cells.has(from):
+				return "no drag from %s" % from
+			var to := Vector2i(_rng.randi_range(0, _battle().get_map_width() - 1), _rng.randi_range(0, _battle().get_map_height() - 1))
+			var marked := _marked_cells()
+			if not marked.is_empty() and _rng.randf() < 0.6:
+				to = marked[_rng.randi_range(0, marked.size() - 1)]
+			map.cell_held.emit(from)
+			map.cell_held.emit(to)
+			if _rng.randf() < 0.15:
+				map.hold_cancelled.emit()
+				return "drag %d to %s, cancelled" % [leader, to]
+			map.hold_released.emit(to)
+			return "drag %d to %s" % [leader, to]
+	if _screen.get_panel().is_order_row_shown() and _rng.randf() < 0.25:
 		var orders := _screen.get_panel().get_order_buttons().keys()
 		var order: StringName = orders[_rng.randi_range(0, orders.size() - 1)]
 		_screen.get_panel().get_order_buttons()[order].pressed.emit()
@@ -234,7 +258,8 @@ func _check_pieces(what: String, is_synced: bool) -> void:
 			if piece.charge_value != int(charge.get("value", 0)) or piece.charge_threshold != int(charge.get("threshold", 0)):
 				_problems.append("%s: leader %d charge %s/%s, pips %d/%d" % [what, unit, charge.get("value"), charge.get("threshold"), piece.charge_value, piece.charge_threshold])
 			if is_synced:
-				var is_done: bool = state["side"] == 0 and _battle().get_active_side() == 0 and not _battle().can_act(unit) and not _battle().can_move(unit)
+				var has_nothing: bool = not _battle().can_move(unit) and _battle().get_attack_targets(unit).is_empty() and _battle().get_skill_cells(unit).is_empty()
+				var is_done: bool = state["side"] == 0 and _battle().get_active_side() == 0 and (not _battle().can_act(unit) or has_nothing)
 				if piece.is_done != is_done:
 					_problems.append("%s: leader %d done=%s, piece done=%s" % [what, unit, is_done, piece.is_done])
 
@@ -284,10 +309,14 @@ func _check_marks(what: String) -> void:
 	if Array(marks.get("reachable", [])) != reachable:
 		_problems.append("%s: leader %d reachable marks differ from the battle" % [what, leader])
 	var attackable: Array = []
-	for target: int in _battle().get_attack_targets(leader):
+	for target: int in _battle().get_strike_targets(leader):
 		attackable.append(_battle().get_unit_state(target)["cell"])
 	if Array(marks.get("attackable", [])) != attackable:
 		_problems.append("%s: leader %d attack marks %s, battle %s" % [what, leader, marks.get("attackable"), attackable])
+	if Array(marks.get("slots", [])) != _battle().get_formation_slots(leader):
+		_problems.append("%s: leader %d slot marks %s, battle %s" % [what, leader, marks.get("slots"), _battle().get_formation_slots(leader)])
+	if not _screen.get_panel().is_order_row_shown() or _screen.get_panel().get_current_order() != state["order"]:
+		_problems.append("%s: leader %d order row missing or not on %s" % [what, leader, state["order"]])
 
 
 # Buttons that would send a command are enabled only when the battle takes it.
@@ -296,7 +325,9 @@ func _check_buttons(what: String) -> void:
 	for entry: Dictionary in _screen.get_panel().get_buttons():
 		var action: StringName = entry["action"]
 		var enabled: bool = entry["enabled"]
-		if action in [&"wait", &"skill"] and leader < 0:
+		if action == &"undo" and (leader < 0 or not _battle().can_undo_move(leader)):
+			_problems.append("%s: undo offered with no move to take back" % what)
+		if action in [&"wait", &"skill", &"undo"] and leader < 0:
 			_problems.append("%s: %s offered with nothing selected" % [what, action])
 			continue
 		if action == &"end_turn" and enabled and (_battle().get_active_side() != 0 or _battle().is_finished()):

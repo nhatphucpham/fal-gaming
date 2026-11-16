@@ -1,14 +1,16 @@
 extends SceneTree
 
 # Headless test of the tactics screen on the river crossing, through its
-# public methods only (the same ones its taps call): a tap off the map
-# selection undoes it, a move is previewed with ghosts and confirmed, an
-# enemy in range shows the forecast before the attack, the order picker
-# changes an order, a charged skill is aimed, previewed and cast, and the
-# battle is then played to victory by a simple scripted policy (skill when
-# ready, else attack a leader, else a soldier, else march on the nearest
-# enemy leader). Playback runs in instant mode; every close-up is still
-# counted. The result banner's button asks for the title.
+# public methods and the map's signals (the same ones its taps call): a tap
+# off the map selection undoes it, dragging a leader shows ghosts without
+# changing the battle, a tap on a blue cell moves at once and "Hoàn tác"
+# brings back the exact state, one tap on the order row changes an order,
+# a tap on an enemy shows the forecast from the cell the battle picks and a
+# second tap walks there and attacks, a charged skill is aimed, previewed
+# and cast, and the battle is then played to victory by a simple scripted
+# policy (skill when ready, else strike a leader, else a soldier, else
+# march on the nearest enemy leader). Playback runs in instant mode; every
+# close-up is still counted. The result banner's button asks for the title.
 
 const SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/river_crossing.tres"
 const MAX_PHASES: int = 40
@@ -40,6 +42,8 @@ func _run() -> bool:
 	_screen = TacticsScreen.new()
 	_screen.scenario = load(SCENARIO_PATH) as TacticsScenarioData
 	_screen.is_instant = true
+	# The scripted policy ends each phase itself.
+	_screen.auto_end = false
 	_screen.size = Vector2(720, 1280)
 	_screen.home_requested.connect(func() -> void: _went_home = true)
 	root.add_child(_screen)
@@ -103,8 +107,14 @@ func _check_undo() -> bool:
 		push_error("A selected leader should show where it can go")
 		return false
 	var labels := _button_actions()
-	if not (labels.has(&"skill") and labels.has(&"order") and labels.has(&"wait") and labels.has(&"end_turn")):
-		push_error("A selected leader should offer skill, order, wait and end turn, got %s" % [labels])
+	if not (labels.has(&"skill") and labels.has(&"wait") and labels.has(&"end_turn")) or labels.has(&"undo"):
+		push_error("A selected leader should offer skill, wait and end turn (no undo yet), got %s" % [labels])
+		return false
+	if not _screen.get_panel().is_order_row_shown() or _screen.get_panel().get_order_buttons().size() != 5:
+		push_error("A selected leader should show the row of five orders")
+		return false
+	if _screen.get_panel().get_current_order() != _battle().get_unit_state(leader)["order"]:
+		push_error("The order row should outline the current order")
 		return false
 	# A plain cell it cannot reach: the selection goes away.
 	var far := Vector2i(11, 0)
@@ -118,11 +128,13 @@ func _check_undo() -> bool:
 func _check_move() -> bool:
 	var leader := _our_leaders()[0]
 	var hash_before := _battle().get_state_hash()
-	_screen.tap_cell(_cell(leader))
+	var home := _cell(leader)
 	var target := _closest_reachable(leader, _nearest_enemy_leader(leader))
-	_screen.tap_cell(target)
+	# Press on the leader and drag: ghosts follow the finger, nothing moves.
+	_screen.get_map().cell_held.emit(home)
+	_screen.get_map().cell_held.emit(target)
 	if _screen.get_mode() != TacticsScreen.Mode.MOVE_PREVIEW:
-		push_error("A tap on a reachable cell should preview the move")
+		push_error("Dragging a leader should preview the move")
 		return false
 	var ghosts: Array = _screen.get_map().get_marks().get("ghosts", [])
 	if ghosts.size() != 1 + (_battle().get_unit_state(leader)["soldiers"] as Array).size():
@@ -131,10 +143,12 @@ func _check_move() -> bool:
 	if _battle().get_state_hash() != hash_before:
 		push_error("A preview must not change the battle")
 		return false
-	if not _button_actions().has(&"confirm_move"):
-		push_error("The preview should offer a confirm button")
+	_screen.get_map().hold_released.emit(home)
+	if _screen.get_mode() != TacticsScreen.Mode.SELECTED or _battle().get_state_hash() != hash_before:
+		push_error("Lifting the finger on the leader should keep it selected and still")
 		return false
-	_screen.press_button(&"confirm_move")
+	# A tap on a blue cell moves at once.
+	_screen.tap_cell(target)
 	if not await _idle():
 		return false
 	if _cell(leader) != target:
@@ -144,8 +158,30 @@ func _check_move() -> bool:
 	if piece.position != _screen.get_map().cell_to_local(target):
 		push_error("The leader's piece should be on its new cell")
 		return false
-	# Moved but not done: the hint speaks of attacking, not of blue cells.
-	if _screen.get_selected() != leader or not _expect_hint("TACTICS_HINT_ACT"):
+	if _screen.get_selected() != leader or not _expect_hint("TACTICS_HINT_MOVED") or not _button_actions().has(&"undo"):
+		push_error("A moved leader should stay selected and offer undo")
+		return false
+	# Undo: the exact state before, the pieces home.
+	_screen.press_button(&"undo")
+	if not await _idle():
+		return false
+	if _battle().get_state_hash() != hash_before or _cell(leader) != home:
+		push_error("Undo should give back the state before the move")
+		return false
+	if piece.position != _screen.get_map().cell_to_local(home) or not _battle().can_move(leader):
+		push_error("After undo the leader's piece should be home and free to move")
+		return false
+	# A drag released on the cell moves there.
+	_screen.get_map().cell_held.emit(home)
+	_screen.get_map().cell_held.emit(target)
+	_screen.get_map().hold_released.emit(target)
+	if not await _idle():
+		return false
+	if _cell(leader) != target:
+		push_error("Releasing a drag on a blue cell should move there")
+		return false
+	# Moved but not done: the hint speaks of attacking or undoing.
+	if _screen.get_selected() != leader or not _expect_hint("TACTICS_HINT_MOVED"):
 		return false
 	return true
 
@@ -157,20 +193,26 @@ func _expect_hint(key: String) -> bool:
 	return true
 
 
-# The order picker sets an order; an enemy in range of anyone shows a
-# forecast that matches the battle's (checked when one comes up below).
+# One tap on the order row sets an order: no picker in between, the
+# leader stays selected and the map shows the new slots.
 func _check_forecast_and_order() -> bool:
 	var leader := _our_leaders()[0]
 	_screen.select_unit(leader)
-	_screen.press_button(&"order")
-	if _screen.get_mode() != TacticsScreen.Mode.ORDER_PICK or _screen.get_panel().get_order_buttons().size() != 5:
-		push_error("The order button should show the five orders")
-		return false
-	_screen.choose_order(&"order.flank")
+	_screen.get_panel().get_order_buttons()[&"order.flank"].pressed.emit()
 	if not await _idle():
 		return false
 	if _battle().get_unit_state(leader)["order"] != &"order.flank":
 		push_error("The order should now be flank")
+		return false
+	if _screen.get_selected() != leader or _screen.get_panel().get_current_order() != &"order.flank":
+		push_error("The leader should stay selected with flank outlined")
+		return false
+	if _screen.get_panel().get_order_note() != tr("ORDER_FLANK_DESC"):
+		push_error("The order row should describe flank, not \"%s\"" % _screen.get_panel().get_order_note())
+		return false
+	var slots: Array = _screen.get_map().get_marks().get("slots", [])
+	if slots != _battle().get_formation_slots(leader):
+		push_error("The map should show the flank slots %s, not %s" % [_battle().get_formation_slots(leader), slots])
 		return false
 	return true
 
@@ -199,7 +241,7 @@ func _check_battle_to_victory() -> bool:
 		push_error("The battle should have used a skill and an attack (%d, %d)" % [_skills_cast, _attacks])
 		return false
 	if _screen.get_playback().close_up_count == 0:
-		push_error("A leader's attack or skill should open the close-up")
+		push_error("A skill should open the close-up")
 		return false
 	print("Won by %s in round %d with %d skills, %d attacks, %d close-ups" % [_battle().get_end_reason(), _battle().get_round(), _skills_cast, _attacks, _screen.get_playback().close_up_count])
 	_screen.get_result_banner().button_pressed.emit()
@@ -225,7 +267,6 @@ func _command(leader: int) -> bool:
 		var goal := _closest_reachable(leader, _nearest_enemy_leader(leader))
 		if goal != _cell(leader):
 			_screen.select_unit(leader)
-			_screen.tap_cell(goal)
 			_screen.tap_cell(goal)
 			if not await _idle():
 				return false
@@ -267,33 +308,45 @@ func _cast(leader: int, cell: Vector2i) -> bool:
 	return true
 
 
+# Tap the enemy, then tap it again (every other strike presses "Đánh").
 func _attack(leader: int, target: int) -> bool:
 	_screen.select_unit(leader)
 	_screen.tap_cell(_cell(target))
 	if _screen.get_mode() != TacticsScreen.Mode.FORECAST:
-		push_error("A tap on an enemy in range should show the forecast")
+		push_error("A tap on an enemy within a walk and a strike should show the forecast")
 		return false
-	var forecast := _battle().forecast_engagement(leader, target)
+	var cell := _battle().get_strike_cell(leader, target)
+	var forecast := _battle().forecast_move_attack(leader, cell, target)
 	if not _expect_hint("TACTICS_HINT_ATTACK_CONFIRM"):
 		return false
 	var buttons := _button_actions()
-	if not buttons.has(&"attack") or not buttons.has(&"cancel"):
-		push_error("The forecast should offer attack and cancel")
+	if not buttons.has(&"attack") or not buttons.has(&"cancel") or not buttons.has(&"end_turn"):
+		push_error("The forecast should offer attack, cancel and end turn")
 		return false
-	_screen.press_button(&"attack")
+	if cell != _cell(leader) and (_screen.get_map().get_marks().get("ghosts", []) as Array).is_empty():
+		push_error("A strike after a walk should show the ghosts")
+		return false
+	if _attacks % 2 == 0:
+		_screen.tap_cell(_cell(target))
+	else:
+		_screen.press_button(&"attack")
 	if not await _idle():
+		return false
+	if _cell(leader) != cell and _battle().get_unit_state(leader)["alive"]:
+		push_error("The leader should strike from %s, it stands on %s" % [cell, _cell(leader)])
 		return false
 	var hp_after: int = _battle().get_unit_state(target)["hp"]
 	# The squad may fight on after the leader, so the target can only be lower.
-	if hp_after > int(forecast["defender_hp_after"]):
+	if not forecast.get("target_gone", false) and hp_after > int(forecast["defender_hp_after"]):
 		push_error("The forecast said hp %d after, the battle has %d" % [forecast["defender_hp_after"], hp_after])
 		return false
 	_attacks += 1
 	return true
 
 
+# A leader if one can be struck (after a walk too), else the first enemy.
 func _attack_target(leader: int) -> int:
-	var targets := _battle().get_attack_targets(leader)
+	var targets := _battle().get_strike_targets(leader)
 	var best := -1
 	for target: int in targets:
 		var state := _battle().get_unit_state(target)

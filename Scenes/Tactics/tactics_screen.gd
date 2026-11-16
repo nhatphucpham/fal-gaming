@@ -1,13 +1,20 @@
 class_name TacticsScreen
 extends Control
 ## The tactics battle screen: a top bar (round, phase, hint, "Rút"), the
-## map, and the bottom panel with a card or forecast over one row of
-## buttons. Taps on the map select, preview and confirm; the screen sends
-## commands to its TacticsBattle and plays the events back through
+## map (zoomed so cells are big, dragged to pan, pinched to zoom), and the
+## bottom panel with a card or forecast, the selected leader's row of
+## orders and one row of buttons ("Kết lượt" always among them). A tap on
+## one of our leaders selects it; a tap on a blue cell moves it at once
+## ("Hoàn tác" takes the move back); a tap on a red-ringed enemy shows the
+## forecast from the safest cell that can strike it, and a second tap (or
+## "Đánh") walks there and attacks. Pressing on a leader and dragging shows
+## the ghosts under the finger and moves where it lifts. Once every leader
+## of ours is done, the phase ends by itself after a short beat. The screen
+## sends commands to its TacticsBattle and plays the events back through
 ## TacticsPlayback, then brings the map in line with the battle. It holds
-## no rules: every list of cells, target and forecast comes from the
-## battle. With a TacticsCampaign the battle has incidents and roster
-## records, and the end shows the after-battle summary.
+## no rules: every list of cells, target, strike cell and forecast comes
+## from the battle. With a TacticsCampaign the battle has incidents and
+## roster records, and the end shows the after-battle summary.
 ## See Docs/systems/tactics_screen.md.
 ## [codeblock]
 ## var screen := TacticsScreen.new()
@@ -21,13 +28,19 @@ signal campaign_continue_requested()
 ## Every time the screen is ready for the next tap (after a playback).
 signal became_idle()
 
-enum Mode {IDLE, SELECTED, MOVE_PREVIEW, FORECAST, ORDER_PICK, SKILL_TARGET, SKILL_PREVIEW, BUSY, ENDED}
+## MOVE_PREVIEW: a finger is dragging a leader's ghosts.
+enum Mode {IDLE, SELECTED, MOVE_PREVIEW, FORECAST, SKILL_TARGET, SKILL_PREVIEW, BUSY, ENDED}
 
 const CATALOG_PATH: String = "res://Data/Tactics/tactics_catalog.tres"
 const LOOKS_PATH: String = "res://Data/Tactics/Looks/skill_looks.tres"
 const TOP_BAR_PX: float = 92.0
-const PANEL_PX: float = 256.0
+const PANEL_PX: float = 400.0
 const RETREAT_ARM_SEC: float = 3.0
+## The beat between the last leader being done and the phase ending.
+const AUTO_END_SEC: float = 1.0
+## The beat is longer while the last move can still be taken back.
+const AUTO_END_UNDO_SEC: float = 1.8
+const UNDO_SEC: float = 0.25
 const NO_CELL := Vector2i(-1, -1)
 
 var scenario: TacticsScenarioData
@@ -42,6 +55,8 @@ var campaign: TacticsCampaign
 var squad_people: Array = []
 ## Tests: playback steps end at once and close-ups are skipped.
 var is_instant: bool = false
+## Ends our phase by itself once every leader of ours is done.
+var auto_end: bool = true
 var player_side: int = 0
 
 var _battle: TacticsBattle
@@ -60,6 +75,14 @@ var _mode: Mode = Mode.IDLE
 var _selected: int = -1
 var _pending_cell := NO_CELL
 var _pending_target: int = -1
+## The finger's cell while dragging a leader, and whether the leader was
+## selected before the press.
+var _drag_cell := NO_CELL
+var _was_selected_before_drag: bool = false
+## Bumped by every tap; a pending auto end goes ahead only if unchanged.
+var _auto_end_ticket: int = 0
+var _is_auto_end_pending: bool = false
+var _is_order_change: bool = false
 var _units: Array = []
 var _zones: Array = []
 var _intents: Array = []
@@ -101,6 +124,7 @@ func _ready() -> void:
 		var person := campaign.get_person(state["record_id"]) if campaign != null else {}
 		_carried_marks[state["index"]] = (person["marks"] as Array).size() if not person.is_empty() else 0
 		_map.add_piece(piece, state["cell"])
+	_map.center_on(_map.cell_to_local(_first_leader_cell()))
 	_sync()
 	Sound.play_music(&"music_battle")
 	_run(_battle.start())
@@ -112,12 +136,9 @@ func tap_cell(cell: Vector2i) -> void:
 	if _mode == Mode.BUSY or _mode == Mode.ENDED or not _map.is_on_map(cell):
 		return
 	_disarm_retreat()
+	_cancel_auto_end()
 	var unit := _unit_at(cell)
 	match _mode:
-		Mode.MOVE_PREVIEW:
-			if cell == _pending_cell:
-				confirm()
-				return
 		Mode.FORECAST:
 			if unit == _pending_target:
 				confirm()
@@ -131,16 +152,16 @@ func tap_cell(cell: Vector2i) -> void:
 				select_unit(_selected)
 			return
 	if _is_commandable(_selected) and _mode != Mode.IDLE:
-		if unit >= 0 and _battle.get_attack_targets(_selected).has(unit):
+		if unit >= 0 and _battle.get_strike_targets(_selected).has(unit):
 			_show_forecast(unit)
 			return
 		if unit < 0 and _battle.can_move(_selected) and _battle.get_reachable_cells(_selected).has(cell):
-			_preview_move(cell)
+			move_to(cell)
 			return
 	# Anything else: another unit is selected; a tap elsewhere steps back.
 	if unit >= 0 and unit != _selected:
 		select_unit(unit)
-	elif _mode in [Mode.MOVE_PREVIEW, Mode.FORECAST, Mode.ORDER_PICK]:
+	elif _mode in [Mode.MOVE_PREVIEW, Mode.FORECAST]:
 		select_unit(_selected)
 	elif unit < 0 and _mode == Mode.IDLE:
 		_show_terrain(cell)
@@ -153,39 +174,71 @@ func tap_cell(cell: Vector2i) -> void:
 func select_unit(unit: int) -> void:
 	if _mode == Mode.BUSY or _mode == Mode.ENDED or unit < 0 or not _units[unit]["alive"]:
 		return
+	_cancel_auto_end()
 	_selected = unit
 	_pending_cell = NO_CELL
 	_pending_target = -1
 	_mode = Mode.SELECTED
+	_map.set_marks(_selection_marks(unit))
 	var state: Dictionary = _units[unit]
-	var marks := {"selected": state["cell"]}
 	if _is_commandable(unit):
-		if _battle.can_move(unit):
-			marks["reachable"] = _battle.get_reachable_cells(unit)
-		marks["attackable"] = _cells_of(_battle.get_attack_targets(unit))
 		_set_hint(_selected_hint(unit))
-	elif state["role"] == &"leader" and state["side"] != player_side:
-		marks["threat"] = _battle.get_reachable_cells(unit)
-		_set_hint("TACTICS_HINT_IDLE")
-	_map.set_marks(marks)
+		_panel.show_order_row(state["order"], _text)
+	else:
+		_panel.hide_order_row()
+		if state["role"] == &"leader" and state["side"] != player_side:
+			_set_hint("TACTICS_HINT_IDLE")
+	_map.follow(_map.cell_to_local(state["cell"]))
+	_update_hold_cells()
 	_show_unit_card(unit)
 	_panel.set_buttons(_unit_buttons(unit))
+
+
+## Moves the selected leader to a reachable cell at once (its squad steps
+## with it); "Hoàn tác" can take it back while nothing else happened.
+func move_to(cell: Vector2i) -> void:
+	if not _is_commandable(_selected) or not _battle.can_move(_selected) or not _battle.get_reachable_cells(_selected).has(cell):
+		return
+	_run(_battle.move_leader(_selected, cell))
+
+
+## Takes the selected leader's last move back: the battle returns to the
+## exact state before it, and the pieces slide home.
+func undo() -> void:
+	if _mode == Mode.BUSY or _mode == Mode.ENDED or not _can_undo(_selected):
+		return
+	_cancel_auto_end()
+	if not _battle.undo_move(_selected):
+		return
+	Sound.play(&"card_flip")
+	_mode = Mode.BUSY
+	_map.set_marks({})
+	var tween := create_tween().set_parallel()
+	for state: Dictionary in _battle.get_units():
+		var piece := _map.get_piece(state["index"])
+		if piece != null and state["alive"]:
+			tween.tween_property(piece, ^"position", _map.cell_to_local(state["cell"]), UNDO_SEC).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_interval(0.01)
+	if is_instant:
+		tween.custom_step(1000.0)
+	if tween.is_running():
+		await tween.finished
+	_after_playback()
+	_set_hint("TACTICS_HINT_UNDONE")
 
 
 ## Confirms what is previewed: the move, the attack or the skill.
 func confirm() -> void:
 	match _mode:
-		Mode.MOVE_PREVIEW:
-			_run(_battle.move_leader(_selected, _pending_cell))
 		Mode.FORECAST:
-			_run(_battle.attack(_selected, _pending_target))
+			_strike()
 		Mode.SKILL_PREVIEW:
 			_run(_battle.use_skill(_selected, _pending_cell))
 
 
 ## Back one step: a preview to its leader, a selection to nothing.
 func cancel() -> void:
-	if _mode in [Mode.MOVE_PREVIEW, Mode.FORECAST, Mode.ORDER_PICK, Mode.SKILL_TARGET, Mode.SKILL_PREVIEW]:
+	if _mode in [Mode.MOVE_PREVIEW, Mode.FORECAST, Mode.SKILL_TARGET, Mode.SKILL_PREVIEW]:
 		select_unit(_selected)
 	elif _mode == Mode.SELECTED:
 		_go_idle()
@@ -196,12 +249,16 @@ func press_button(action: StringName) -> void:
 	_on_action(action)
 
 
+## One tap on the order row: the squad takes the order at once (the slots
+## on the map follow it).
 func choose_order(order: StringName) -> void:
-	if _mode != Mode.ORDER_PICK:
+	if _mode == Mode.BUSY or _mode == Mode.ENDED or not _is_commandable(_selected):
 		return
+	_cancel_auto_end()
 	if order == _units[_selected]["order"]:
 		select_unit(_selected)
 		return
+	_is_order_change = true
 	_run(_battle.set_order(_selected, order))
 
 
@@ -230,6 +287,11 @@ func retreat() -> void:
 
 func is_busy() -> bool:
 	return _mode == Mode.BUSY
+
+
+## True while the phase is about to end by itself.
+func is_auto_end_pending() -> bool:
+	return _is_auto_end_pending
 
 
 func get_mode() -> Mode:
@@ -289,15 +351,16 @@ func _build() -> void:
 	background.set_anchors_preset(Control.PRESET_FULL_RECT)
 	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(background)
-	var map_area := CenterContainer.new()
-	map_area.set_anchors_preset(Control.PRESET_FULL_RECT)
-	map_area.offset_top = TOP_BAR_PX
-	map_area.offset_bottom = -PANEL_PX
-	map_area.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(map_area)
 	_map = TacticsMapView.new()
+	_map.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_map.offset_top = TOP_BAR_PX
+	_map.offset_bottom = -PANEL_PX
+	_map.is_instant = is_instant
 	_map.cell_tapped.connect(tap_cell)
-	map_area.add_child(_map)
+	_map.cell_held.connect(_on_cell_held)
+	_map.hold_released.connect(_on_hold_released)
+	_map.hold_cancelled.connect(_on_hold_cancelled)
+	add_child(_map)
 	_panel = TacticsPanel.new()
 	_panel.anchor_top = 1.0
 	_panel.anchor_right = 1.0
@@ -388,6 +451,7 @@ func _run(events: Array) -> void:
 	_mode = Mode.BUSY
 	_skip_catcher.visible = true
 	_map.set_marks({})
+	_map.hold_cells = []
 	_panel.set_buttons([{"action": &"end_turn", "text": "BUTTON_END_TURN", "enabled": false}])
 	_playback.reset(_units, _zones)
 	await _playback.play(events)
@@ -404,10 +468,16 @@ func _after_playback() -> void:
 		return
 	var keep := _selected
 	_mode = Mode.IDLE
-	if _is_commandable(keep) and (_battle.can_act(keep) or _battle.can_move(keep)):
+	# A leader that is done goes back to the phase card, unless its move
+	# can still be taken back or its order just changed.
+	var was_order := _is_order_change
+	_is_order_change = false
+	if _is_commandable(keep) and (not _is_done(keep) or _can_undo(keep) or was_order):
 		select_unit(keep)
 	else:
 		_go_idle()
+	_update_hold_cells()
+	_maybe_auto_end()
 	became_idle.emit()
 
 
@@ -429,7 +499,7 @@ func _sync() -> void:
 		var is_wavering: bool = is_alive and state["wavering"] != &""
 		piece.wavering = (TacticsPieceView.Wavering.GOOD if state["is_wavering_good"] else TacticsPieceView.Wavering.BAD) if is_wavering else TacticsPieceView.Wavering.NONE
 		piece.wavering_scale = 1.0
-		piece.is_done = state["role"] == &"leader" and state["side"] == player_side and _battle.get_active_side() == player_side and not _battle.can_act(state["index"]) and not _battle.can_move(state["index"])
+		piece.is_done = state["role"] == &"leader" and state["side"] == player_side and _battle.get_active_side() == player_side and is_alive and _is_done(state["index"])
 		if state["role"] == &"leader":
 			var charge := _battle.get_skill_charge(state["index"])
 			piece.set_charge(charge.get("value", 0), charge.get("threshold", 0))
@@ -467,18 +537,17 @@ func _go_idle() -> void:
 	_pending_cell = NO_CELL
 	_pending_target = -1
 	_map.set_marks({})
-	var is_all_done := true
-	for state: Dictionary in _units:
-		if _is_commandable(state["index"]) and _battle.can_act(state["index"]):
-			is_all_done = false
+	_panel.hide_order_row()
+	var is_all_done := _are_all_done()
 	_set_hint("TACTICS_HINT_WAVERING" if _has_wavering() else "TACTICS_HINT_ALL_DONE" if is_all_done else "TACTICS_HINT_IDLE")
 	_show_our_phase_card(_battle.get_round())
 	_panel.set_buttons(_end_turn_button(is_all_done))
+	_update_hold_cells()
 
 
 func _show_our_phase_card(round_number: int) -> void:
 	var objective := _text.terrain_name(_map.get_terrain_at(scenario.map.objective_cell))
-	var lines: Array[String] = [tr("TACTICS_OBJECTIVE_SHORT_FORMAT") % objective, tr(scenario.name_key), ""]
+	var lines: Array[String] = [tr("TACTICS_OBJECTIVE_SHORT_FORMAT") % objective, tr(scenario.name_key), "", ""]
 	_panel.show_card(tr("TACTICS_PHASE_PLAYER"), Palette.GOLD, tr("TACTICS_ROUND_FORMAT") % [round_number, scenario.rules.max_rounds], lines)
 
 
@@ -492,7 +561,9 @@ func _end_turn_button(is_primary: bool) -> Array[Dictionary]:
 func _selected_hint(unit: int) -> String:
 	if _battle.can_move(unit):
 		return "TACTICS_HINT_SELECTED"
-	return "TACTICS_HINT_ACT" if _battle.can_act(unit) else "TACTICS_HINT_DONE"
+	if _can_undo(unit):
+		return "TACTICS_HINT_MOVED"
+	return "TACTICS_HINT_ACT" if not _is_done(unit) else "TACTICS_HINT_DONE"
 
 
 func _unit_buttons(unit: int) -> Array[Dictionary]:
@@ -501,10 +572,11 @@ func _unit_buttons(unit: int) -> Array[Dictionary]:
 	var can_act := _battle.can_act(unit)
 	var buttons: Array[Dictionary] = [
 		{"action": &"skill", "text": "BUTTON_SKILL", "enabled": can_act and not _battle.get_skill_cells(unit).is_empty(), "primary": can_act and bool(_battle.get_skill_charge(unit).get("is_ready", false))},
-		{"action": &"order", "text": "BUTTON_ORDER"},
 		{"action": &"wait", "text": "BUTTON_WAIT", "enabled": can_act},
-		{"action": &"end_turn", "text": "BUTTON_END_TURN", "primary": not can_act},
 	]
+	if _can_undo(unit):
+		buttons.append({"action": &"undo", "text": "BUTTON_UNDO"})
+	buttons.append({"action": &"end_turn", "text": "BUTTON_END_TURN", "primary": _are_all_done()})
 	return buttons
 
 
@@ -512,20 +584,17 @@ func _on_action(action: StringName) -> void:
 	if _mode == Mode.BUSY or _mode == Mode.ENDED:
 		return
 	_disarm_retreat()
+	_cancel_auto_end()
 	match action:
 		&"end_turn":
-			_selected = -1
-			_run(_battle.end_phase())
+			_end_phase()
 		&"wait":
 			_run(_battle.wait(_selected))
 		&"skill":
 			_aim_skill()
-		&"order":
-			_mode = Mode.ORDER_PICK
-			_set_hint("TACTICS_HINT_ORDER")
-			_panel.show_orders(_units[_selected]["order"], _text)
-			_panel.set_buttons([{"action": &"cancel", "text": "BUTTON_CANCEL"}])
-		&"confirm_move", &"attack", &"cast":
+		&"undo":
+			undo()
+		&"attack", &"cast":
 			confirm()
 		&"cancel":
 			cancel()
@@ -537,58 +606,173 @@ func _on_skip_input(event: InputEvent) -> void:
 		_playback.skip_step()
 
 
+func _end_phase() -> void:
+	_selected = -1
+	_panel.hide_order_row()
+	_run(_battle.end_phase())
+
+
+# A finger pressed on one of our leaders: it is selected and its ghosts
+# follow the finger until it lifts.
+func _on_cell_held(cell: Vector2i) -> void:
+	if _mode == Mode.BUSY or _mode == Mode.ENDED:
+		return
+	if _mode != Mode.MOVE_PREVIEW:
+		var unit := _unit_at(cell)
+		if not _is_commandable(unit) or not _battle.can_move(unit):
+			return
+		_disarm_retreat()
+		_cancel_auto_end()
+		_was_selected_before_drag = unit == _selected and _mode == Mode.SELECTED
+		if unit != _selected or _mode != Mode.SELECTED:
+			select_unit(unit)
+		_mode = Mode.MOVE_PREVIEW
+		_drag_cell = cell
+		_set_hint("TACTICS_HINT_PREVIEW")
+		return
+	_drag_cell = cell
+	_preview_move(cell)
+
+
+func _on_hold_released(cell: Vector2i) -> void:
+	if _mode != Mode.MOVE_PREVIEW:
+		return
+	var leader_cell: Vector2i = _units[_selected]["cell"]
+	_mode = Mode.SELECTED
+	_drag_cell = NO_CELL
+	if cell == leader_cell:
+		# Pressed and lifted on the leader: a tap on it.
+		if _was_selected_before_drag:
+			tap_cell(cell)
+		else:
+			select_unit(_selected)
+		return
+	if _battle.get_reachable_cells(_selected).has(cell) and _unit_at(cell) < 0:
+		move_to(cell)
+		return
+	select_unit(_selected)
+
+
+func _on_hold_cancelled() -> void:
+	if _mode == Mode.MOVE_PREVIEW:
+		_drag_cell = NO_CELL
+		select_unit(_selected)
+
+
+# Only a leader of ours that can still move starts a drag.
+func _update_hold_cells() -> void:
+	var cells: Array = []
+	if _mode != Mode.BUSY and _mode != Mode.ENDED and _battle.get_active_side() == player_side:
+		for state: Dictionary in _units:
+			if _is_commandable(state["index"]) and _battle.can_move(state["index"]):
+				cells.append(state["cell"])
+	_map.hold_cells = cells
+
+
+# The ghosts of the leader and its squad if it stopped on `cell`.
 func _preview_move(cell: Vector2i) -> void:
-	_mode = Mode.MOVE_PREVIEW
-	_pending_cell = cell
 	var leader: Dictionary = _units[_selected]
-	var ghosts: Array = [{"cell": cell, "from": leader["cell"], "side": player_side, "is_leader": true}]
-	for placement: Dictionary in _battle.preview_squad(_selected, cell):
-		ghosts.append({"cell": placement["cell"], "from": _units[placement["unit"]]["cell"], "side": player_side, "is_leader": false})
-	_map.set_marks({
-		"selected": leader["cell"], "reachable": _battle.get_reachable_cells(_selected),
-		"path": _battle.get_path_to(_selected, cell), "ghosts": ghosts, "target": NO_CELL,
-	})
-	_set_hint("TACTICS_HINT_PREVIEW")
-	_show_unit_card(_selected)
-	_panel.set_buttons([
-		{"action": &"cancel", "text": "BUTTON_CANCEL"},
-		{"action": &"confirm_move", "text": "BUTTON_CONFIRM_MOVE", "primary": true},
-	])
+	var marks := _selection_marks(_selected)
+	if cell != leader["cell"] and _battle.get_reachable_cells(_selected).has(cell) and _unit_at(cell) < 0:
+		var ghosts: Array = [{"cell": cell, "from": leader["cell"], "side": player_side, "is_leader": true}]
+		for placement: Dictionary in _battle.preview_squad(_selected, cell):
+			ghosts.append({"cell": placement["cell"], "from": _units[placement["unit"]]["cell"], "side": player_side, "is_leader": false})
+		marks["path"] = _battle.get_path_to(_selected, cell)
+		marks["ghosts"] = ghosts
+		marks.erase("slots")
+	_map.set_marks(marks)
 
 
+# The marks of a selected unit: where ours can go, what it can strike
+# (after a walk too) and its squad's slots; an enemy leader's reach.
+func _selection_marks(unit: int) -> Dictionary:
+	var state: Dictionary = _units[unit]
+	var marks := {"selected": state["cell"]}
+	if _is_commandable(unit):
+		if _battle.can_move(unit):
+			marks["reachable"] = _battle.get_reachable_cells(unit)
+		marks["attackable"] = _cells_of(_battle.get_strike_targets(unit))
+		marks["slots"] = _battle.get_formation_slots(unit)
+	elif state["role"] == &"leader" and state["side"] != player_side:
+		marks["threat"] = _battle.get_reachable_cells(unit)
+	return marks
+
+
+# The forecast against `target` from the cell the battle picks (the safest
+# one the leader can strike it from), with the walk and the ghosts.
 func _show_forecast(target: int) -> void:
-	var forecast := _battle.forecast_engagement(_selected, target)
-	if not forecast.get("is_valid", false):
+	var cell := _battle.get_strike_cell(_selected, target)
+	if cell == NO_CELL:
+		return
+	var forecast := _battle.forecast_move_attack(_selected, cell, target)
+	if not forecast.get("is_valid", false) and not forecast.get("target_gone", false):
 		return
 	_mode = Mode.FORECAST
 	_pending_target = target
+	_pending_cell = cell
 	var attacker: Dictionary = _units[_selected]
 	var defender: Dictionary = _units[target]
-	_map.set_marks({"selected": attacker["cell"], "attackable": _cells_of(_battle.get_attack_targets(_selected)), "target": defender["cell"]})
-	var left: Array[String] = [
-		_text.unit_name(attacker),
-		tr("FORECAST_HITS_FORMAT") % [forecast["attacker_hits"], forecast["attacker_damage_per_hit"]],
-		_hp_line(attacker["hp"], forecast["attacker_hp_after"], forecast["is_attacker_dead"]),
-	]
-	var right: Array[String] = [
-		_text.unit_name(defender),
-		tr("FORECAST_HITS_FORMAT") % [forecast["defender_hits"], forecast["defender_damage_per_hit"]] if forecast["can_counter"] else tr("FORECAST_NO_COUNTER"),
-		_hp_line(defender["hp"], forecast["defender_hp_after"], forecast["is_defender_dead"]),
-	]
-	var notes: PackedStringArray = []
-	if forecast["is_first_strike"]:
-		notes.append(tr("FORECAST_FIRST_STRIKE_FORMAT") % _text.unit_name(defender))
-	var sides: PackedStringArray = []
-	for pair: Array in [[attacker, forecast["attacker_modifiers"]], [defender, forecast["defender_modifiers"]]]:
-		if not (pair[1] as Array).is_empty():
-			sides.append(tr("FORECAST_SIDE_FORMAT") % [_text.unit_name(pair[0]), _text.keyword_names(pair[1])])
-	notes.append(tr("FORECAST_MODIFIERS_FORMAT") % " · ".join(sides) if not sides.is_empty() else tr("FORECAST_NO_MODIFIERS"))
-	_panel.show_forecast(left, right, " · ".join(notes))
+	var marks := _selection_marks(_selected)
+	marks.erase("slots")
+	marks["target"] = defender["cell"]
+	var walk := 0
+	if cell != attacker["cell"]:
+		var path: Array = _battle.get_path_to(_selected, cell)
+		walk = path.size() - 1
+		marks["path"] = path
+		var ghosts: Array = [{"cell": cell, "from": attacker["cell"], "side": player_side, "is_leader": true}]
+		for placement: Dictionary in forecast.get("squad", []):
+			if placement["cell"] != _units[placement["unit"]]["cell"]:
+				ghosts.append({"cell": placement["cell"], "from": _units[placement["unit"]]["cell"], "side": player_side, "is_leader": false})
+		marks["ghosts"] = ghosts
+	_map.set_marks(marks)
+	_map.follow(_map.cell_to_local(defender["cell"]))
+	var notes: PackedStringArray = [tr("FORECAST_WALK_FORMAT") % walk if walk > 0 else tr("FORECAST_STAY")]
+	if forecast.get("target_gone", false):
+		var gone_left: Array[String] = [_text.unit_name(attacker), notes[0], ""]
+		var gone_right: Array[String] = [_text.unit_name(defender), tr("FORECAST_DIES"), ""]
+		_panel.show_forecast(gone_left, gone_right, tr("FORECAST_TARGET_GONE"))
+	else:
+		var left: Array[String] = [
+			_text.unit_name(attacker),
+			tr("FORECAST_HITS_FORMAT") % [forecast["attacker_hits"], forecast["attacker_damage_per_hit"]],
+			_hp_line(attacker["hp"], forecast["attacker_hp_after"], forecast["is_attacker_dead"]),
+		]
+		var right: Array[String] = [
+			_text.unit_name(defender),
+			tr("FORECAST_HITS_FORMAT") % [forecast["defender_hits"], forecast["defender_damage_per_hit"]] if forecast["can_counter"] else tr("FORECAST_NO_COUNTER"),
+			_hp_line(defender["hp"], forecast["defender_hp_after"], forecast["is_defender_dead"]),
+		]
+		if forecast["is_first_strike"]:
+			notes.append(tr("FORECAST_FIRST_STRIKE_FORMAT") % _text.unit_name(defender))
+		var sides: PackedStringArray = []
+		for pair: Array in [[attacker, forecast["attacker_modifiers"]], [defender, forecast["defender_modifiers"]]]:
+			if not (pair[1] as Array).is_empty():
+				sides.append(tr("FORECAST_SIDE_FORMAT") % [_text.unit_name(pair[0]), _text.keyword_names(pair[1])])
+		notes.append(tr("FORECAST_MODIFIERS_FORMAT") % " · ".join(sides) if not sides.is_empty() else tr("FORECAST_NO_MODIFIERS"))
+		_panel.show_forecast(left, right, " · ".join(notes))
 	_set_hint("TACTICS_HINT_ATTACK_CONFIRM")
 	_panel.set_buttons([
 		{"action": &"cancel", "text": "BUTTON_CANCEL"},
 		{"action": &"attack", "text": "BUTTON_ATTACK", "primary": true},
+		{"action": &"end_turn", "text": "BUTTON_END_TURN"},
 	])
+
+
+# Walks to the forecast's cell (if it is not the leader's own) and
+# attacks, played back as one; if the squad fells the target on the way,
+# the walk is all.
+func _strike() -> void:
+	var leader := _selected
+	var target := _pending_target
+	var events: Array = []
+	if _pending_cell != _units[leader]["cell"]:
+		events = _battle.move_leader(leader, _pending_cell).duplicate()
+		if events.is_empty():
+			return
+	if not _battle.is_finished() and _battle.get_unit_state(target)["alive"] and _battle.get_attack_targets(leader).has(target):
+		events.append_array(_battle.attack(leader, target))
+	_run(events)
 
 
 func _hp_line(hp: int, hp_after: int, is_dead: bool) -> String:
@@ -610,7 +794,7 @@ func _aim_skill() -> void:
 	_map.set_marks({"selected": _units[_selected]["cell"], "skill_cells": cells})
 	_set_hint("TACTICS_HINT_SKILL")
 	_show_unit_card(_selected)
-	_panel.set_buttons([{"action": &"cancel", "text": "BUTTON_CANCEL"}])
+	_panel.set_buttons([{"action": &"cancel", "text": "BUTTON_CANCEL"}, {"action": &"end_turn", "text": "BUTTON_END_TURN"}])
 
 
 func _preview_skill(cell: Vector2i) -> void:
@@ -644,6 +828,7 @@ func _preview_skill(cell: Vector2i) -> void:
 	_panel.set_buttons([
 		{"action": &"cancel", "text": "BUTTON_CANCEL"},
 		{"action": &"cast", "text": "BUTTON_CAST", "primary": true},
+		{"action": &"end_turn", "text": "BUTTON_END_TURN"},
 	])
 
 
@@ -657,11 +842,16 @@ func _skill_zone_name(skill_id: StringName) -> String:
 	return ""
 
 
+# A unit's card: hp and marks on the right; for a leader its skill, its
+# order (an enemy's declared intent instead), then its passives and
+# keywords in words; for a soldier its leader (or what makes it waver),
+# its keywords in words and the ground it stands on.
 func _show_unit_card(unit: int) -> void:
 	var state: Dictionary = _units[unit]
 	var lines: Array[String] = []
 	var title_color := TacticsPainter.PLAYER_FILL.lightened(0.45) if state["side"] == player_side else TacticsPainter.ENEMY_FILL.lightened(0.35)
 	var side_note: String = tr("TACTICS_HP_FORMAT") % [state["hp"], state["max_hp"]]
+	var details: Array[String] = []
 	if state["role"] == &"leader":
 		var charge := _battle.get_skill_charge(unit)
 		if charge.get("is_ready", false):
@@ -672,35 +862,29 @@ func _show_unit_card(unit: int) -> void:
 		if state["side"] != player_side:
 			squad_line = _intent_text(unit) + " · " + tr("TACTICS_SQUAD_FORMAT") % [_alive_soldiers(state), state["capacity"]]
 		lines.append(squad_line)
-		var passives := _text.leader_passive_names(state["id"])
-		var keywords := _text.keyword_names(state["keywords"])
-		var extra: PackedStringArray = []
-		if not passives.is_empty():
-			extra.append(tr("TACTICS_PASSIVES_FORMAT") % passives)
-		if not keywords.is_empty():
-			extra.append(tr("TACTICS_KEYWORDS_FORMAT") % keywords)
-		lines.append(" · ".join(extra) if not extra.is_empty() else _terrain_line(state["cell"]))
+		details.append_array(_text.passive_lines(state["id"]))
 	else:
 		var leader: int = state["leader"]
 		lines.append(tr("TACTICS_SOLDIER_OF_FORMAT") % _text.unit_name(_units[leader]) if leader >= 0 and _units[leader]["alive"] else tr("TACTICS_NO_LEADER"))
-		var keywords := _text.keyword_names(state["keywords"])
 		var wavering: StringName = state["wavering"]
 		if wavering != &"":
 			var incident := catalog.get_incident(wavering)
 			lines.append(tr("TACTICS_WAVERING_LINE_FORMAT") % [_text.incident_name(wavering), tr(incident.name_key + "_HINT") if incident != null else ""])
-		else:
-			lines.append(tr("TACTICS_KEYWORDS_FORMAT") % keywords if not keywords.is_empty() else "")
-		lines.append(_terrain_line(state["cell"]))
 		var marks := int(_carried_marks.get(unit, 0)) + int(state["marks"])
 		if marks > 0:
 			side_note += " · " + tr("TACTICS_MARKS_FORMAT") % marks
+	details.append_array(_text.keyword_lines(state["keywords"]))
+	for line: String in details:
+		if lines.size() < TacticsPanel.CARD_LINES - 1:
+			lines.append(line)
+	lines.append(_terrain_line(state["cell"]))
 	_panel.show_card(_text.unit_name(state), title_color, side_note, lines)
 
 
 func _show_terrain(cell: Vector2i) -> void:
 	var terrain := _map.get_terrain_at(cell)
 	_map.set_marks({"selected": cell})
-	var lines: Array[String] = [_text.terrain_effects(terrain), "", ""]
+	var lines: Array[String] = [_text.terrain_effects(terrain), "", "", ""]
 	if cell == scenario.map.objective_cell:
 		lines[1] = tr("TACTICS_OBJECTIVE_SHORT_FORMAT") % _text.terrain_name(terrain)
 	_panel.show_card(_text.terrain_name(terrain), Palette.CREAM, "", lines)
@@ -777,6 +961,59 @@ func _has_wavering() -> bool:
 		if state["alive"] and state["side"] == player_side and state["wavering"] != &"":
 			return true
 	return false
+
+
+# A leader of ours with nothing left to do: it acted, or it moved and has
+# no one to strike and no skill to cast.
+func _is_done(unit: int) -> bool:
+	if not _battle.can_act(unit):
+		return true
+	return not _battle.can_move(unit) and _battle.get_attack_targets(unit).is_empty() and _battle.get_skill_cells(unit).is_empty()
+
+
+func _are_all_done() -> bool:
+	if _battle.get_active_side() != player_side or _battle.is_finished():
+		return false
+	for state: Dictionary in _units:
+		if _is_commandable(state["index"]) and not _is_done(state["index"]):
+			return false
+	return true
+
+
+# Every leader of ours is done: after a short beat the phase ends, unless
+# a tap came in between.
+func _maybe_auto_end() -> void:
+	if not auto_end or _mode == Mode.ENDED or not _are_all_done():
+		return
+	_auto_end_ticket += 1
+	var ticket := _auto_end_ticket
+	_is_auto_end_pending = true
+	_set_hint("TACTICS_HINT_AUTO_END")
+	Sound.play(&"timer_tick")
+	var beat := AUTO_END_UNDO_SEC if _can_undo(_selected) else AUTO_END_SEC
+	await get_tree().create_timer(0.05 if is_instant else beat).timeout
+	if ticket != _auto_end_ticket or _mode == Mode.BUSY or _mode == Mode.ENDED or not _are_all_done():
+		return
+	_is_auto_end_pending = false
+	_end_phase()
+
+
+func _cancel_auto_end() -> void:
+	_auto_end_ticket += 1
+	if _is_auto_end_pending:
+		_is_auto_end_pending = false
+		_set_hint("TACTICS_HINT_ALL_DONE")
+
+
+func _can_undo(unit: int) -> bool:
+	return unit >= 0 and unit < _units.size() and _battle.can_undo_move(unit)
+
+
+func _first_leader_cell() -> Vector2i:
+	for state: Dictionary in _units:
+		if state["alive"] and state["role"] == &"leader" and state["side"] == player_side:
+			return state["cell"]
+	return Vector2i(_map.map_width / 2, _map.map_height / 2)
 
 
 func _is_commandable(unit: int) -> bool:
