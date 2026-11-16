@@ -371,17 +371,21 @@ KEYWORD_SCOUT_DESC,"Nhìn xa, thấy quân nấp trong rừng, đọc ý địch
 WEATHER_CLEAR,Trời quang,Clear
 WEATHER_CLEAR_DESC,Trời quang: nhìn rõ như thường.,Clear: normal sight.
 WEATHER_RAIN,Mưa,Rain
-WEATHER_RAIN_DESC,"Mưa: tầm nhìn và tầm bắn -1, lửa cháy yếu, lội sông khó hơn.","Rain: sight and range -1, fire weaker, river crossings cost more."
+WEATHER_RAIN_DESC,"Mưa: tầm nhìn {vision}, tầm bắn {range}, lửa cháy còn {burn}%, lội sông tốn thêm {cost} bước.","Rain: sight {vision}, range {range}, fire burns at {burn}%, river crossings cost {cost} more."
 WEATHER_FOG,Sương mù,Fog
-WEATHER_FOG_DESC,"Sương mù: tầm nhìn -1, chỉ đọc được ý địch ở gần.","Fog: sight -1, enemy intents read only up close."
+WEATHER_FOG_DESC,"Sương mù: tầm nhìn {vision}, chỉ đọc được ý địch ở gần.","Fog: sight {vision}, enemy intents read only up close."
 WEATHER_WIND,Gió,Wind
-WEATHER_WIND_DESC,"Gió đông: bắn xuôi gió xa thêm 1, ngược gió kém 1.","East wind: shots with the wind reach 1 further, against it 1 less."
+WEATHER_WIND_DESC,"Gió thổi {toward}: bắn {toward} xa thêm {wind}, bắn {against} kém {wind}.","Wind blowing {toward}: shots {toward} reach {wind} further, {against} {wind} less."
+TACTICS_TOWARD_RIGHT,sang phải,right
+TACTICS_TOWARD_LEFT,sang trái,left
+TACTICS_TOWARD_UP,lên trên,up
+TACTICS_TOWARD_DOWN,xuống dưới,down
 DAYTIME_DAY,Ngày,Day
 DAYTIME_DAY_DESC,Ban ngày: nhìn rõ như thường.,Day: normal sight.
 DAYTIME_DUSK,Hoàng hôn,Dusk
-DAYTIME_DUSK_DESC,"Hoàng hôn: tầm nhìn -1, ô có đèn vẫn thấy rõ.","Dusk: sight -1, lit cells still seen clearly."
+DAYTIME_DUSK_DESC,"Hoàng hôn: tầm nhìn {vision}, ô có đèn vẫn thấy rõ.","Dusk: sight {vision}, lit cells still seen clearly."
 DAYTIME_NIGHT,Đêm,Night
-DAYTIME_NIGHT_DESC,"Đêm: tầm nhìn -2, chỉ ô có đèn (trại, làng, tướng) thấy rõ; ý địch chỉ đọc được ở gần.","Night: sight -2, only lit cells (camps, villages, leaders) are seen clearly; enemy intents read only up close."
+DAYTIME_NIGHT_DESC,"Đêm: tầm nhìn {vision}, chỉ ô có đèn (trại, làng, tướng) thấy rõ; ý địch chỉ đọc được ở gần.","Night: sight {vision}, only lit cells (camps, villages, leaders) are seen clearly; enemy intents read only up close."
 KEYWORD_HEAVY,Nặng,Heavy
 KEYWORD_HEAVY_DESC,Vào rừng và chỗ cạn tốn thêm 1 bước.,Forests and fords cost 1 more.
 TACTICS_PASSIVE_DRILLED_RANKS,Luyện binh,Drilled ranks

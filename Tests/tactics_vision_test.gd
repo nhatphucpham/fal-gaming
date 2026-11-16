@@ -47,7 +47,7 @@ func _run() -> bool:
 		_check_preview_keeps_secret, _check_ai_blind, _check_torch_in_forest, _check_last_seen, _check_rain, _check_wind,
 		_check_fog_weather, _check_burn_in_rain, _check_night_and_lights, _check_daytime_cycle,
 		_check_weather_change, _check_intents_at_night, _check_unseen_waver, _check_unseen_calm,
-		_check_unseen_odds, _check_no_environment, _check_determinism,
+		_check_unseen_odds, _check_no_environment, _check_determinism, _check_descriptions,
 	]
 	for check: Callable in checks:
 		if not check.call():
@@ -601,3 +601,26 @@ func _check_determinism() -> bool:
 	var first := _play_scenario(scenario)
 	var second := _play_scenario(scenario)
 	return Kit.expect("finished", first[2], true) and Kit.expect("same hash and events", second, first)
+
+
+# Weather and time descriptions read their numbers from the data: every
+# placeholder is filled, and a changed number shows in the text.
+func _check_descriptions() -> bool:
+	TranslationServer.set_locale("vi")
+	var entries: Array[Resource] = []
+	entries.append_array(_kit.catalog.weathers)
+	entries.append_array(_kit.catalog.daytimes)
+	for data: Resource in entries:
+		var text := TacticsText.describe_environment(data)
+		if text.contains("{") or text == String(data.get("description_key")):
+			return Kit.expect_true("%s described: %s" % [data.get("id"), text], false)
+		var delta: int = data.get("vision_delta")
+		if delta != 0 and not text.contains("%+d" % delta):
+			return Kit.expect_true("%s says its sight %+d: %s" % [data.get("id"), delta, text], false)
+	var rain := (_kit.catalog.get_weather(&"weather.rain") as TacticsWeatherData).duplicate() as TacticsWeatherData
+	rain.vision_delta = -3
+	rain.ranged_range_delta = -2
+	var night := (_kit.catalog.get_daytime(&"daytime.night") as TacticsDaytimeData).duplicate() as TacticsDaytimeData
+	night.vision_delta = -4
+	return Kit.expect_true("rain text follows its data", TacticsText.describe_environment(rain).contains("-3") and TacticsText.describe_environment(rain).contains("-2")) \
+		and Kit.expect_true("night text follows its data", TacticsText.describe_environment(night).contains("-4"))

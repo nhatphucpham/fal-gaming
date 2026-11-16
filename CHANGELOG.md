@@ -23,7 +23,8 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
   units and read enemy intents nearby even at night.
 - Chiến Dịch: weather (clear, rain, fog, wind) and times of day (day,
   dusk, night) from the scenario, shown on the muster and on the map with
-  their icons; a tap says what they do. The weather may turn once, with a
+  their icons; a tap says what they do, with the numbers (sight -1, range
+  -1...) and which way the wind blows on the map. The weather may turn once, with a
   banner a round ahead. Night darkens the map except around camps,
   villages and leaders; a leader's light shows it from afar, in woods
   too.

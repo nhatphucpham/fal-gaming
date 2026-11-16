@@ -136,6 +136,10 @@ its incident's own trigger does not hold).
 - A weather or time of day: a new `.tres` in `Data/Tactics/Weathers/` or
   `Daytimes/` with an icon in `Assets/Tactics/Icons/` and its two strings,
   listed in the catalog's `weathers` or `daytimes`; scenarios name it.
+  The description takes its numbers from the data
+  (`TacticsText.describe_environment`): `{vision}` (signed), and for a
+  weather `{range}` (signed), `{burn}`, `{cost}`, `{wind}`, `{toward}` and
+  `{against}` (the wind's way on the map, "sang phải"...).
 - A scout: add `keyword.scout` to a troop or leader.
 
 ## Tests
@@ -146,7 +150,8 @@ reveal, the vision event, walk sight told, a walk past an enemy kept,
 forecasts and the squad preview keeping a hidden enemy secret, the AI
 blind to what it does not see, a torch bearer seen in a forest, last seen, each weather,
 night and lights, the daytime cycle, the weather change, intents at night,
-unseen wavering, its odds and calming, no environment, determinism. The
+unseen wavering, its odds and calming, no environment, determinism, and
+descriptions whose numbers follow the data. The
 fuzz test plays every third seed under fog with weathers and times; the
 screen tests play the river crossing with fog on (the sync test checks fog,
 ghosts and hidden pieces after every playback; the feel test checks that
@@ -165,7 +170,5 @@ time limit.
 
 ## Known limits
 
-- The descriptions in `Locale/strings.csv` state the sight numbers in
-  words; a change to the data needs the text changed too.
 - The scripted probe player does not use scouts on purpose; it only walks
   with them.

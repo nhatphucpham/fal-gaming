@@ -223,13 +223,13 @@ func _environment_panel() -> Control:
 	rows.add_child(_label("MUSTER_ENVIRONMENT", 28, Palette.GOLD))
 	var weather := scenario.weather if scenario.weather != null else catalog.get_weather(&"weather.clear")
 	if weather != null:
-		rows.add_child(_icon_row(weather.icon, tr(weather.description_key)))
+		rows.add_child(_icon_row(weather.icon, TacticsText.describe_environment(weather)))
 	if scenario.weather_change_round > 0 and scenario.weather_after != null:
 		rows.add_child(_wrapped(tr("MUSTER_WEATHER_CHANGE_FORMAT") % [scenario.weather_change_round, tr(scenario.weather_after.name_key)], Palette.TEXT))
 	var daytimes := scenario.daytimes
 	var first: TacticsDaytimeData = daytimes[clampi(scenario.daytime_start_index, 0, daytimes.size() - 1)] if not daytimes.is_empty() else catalog.get_daytime(&"daytime.day")
 	if first != null:
-		rows.add_child(_icon_row(first.icon, tr(first.description_key)))
+		rows.add_child(_icon_row(first.icon, TacticsText.describe_environment(first)))
 	if daytimes.size() > 1:
 		rows.add_child(_wrapped(tr("MUSTER_DAYTIME_CYCLE_FORMAT") % [tr(first.name_key), scenario.daytime_step_rounds], Palette.TEXT))
 	if scenario.fog_of_war:
