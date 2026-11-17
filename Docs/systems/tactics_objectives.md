@@ -90,7 +90,7 @@ camp).
 that plays for the objective (to the pass, around the keep, beside the
 road ahead of the cart, out by the exits, after the general), keeps its
 leaders together, casts skills and takes site offers. Over 200 seeds:
-river crossing 58%, night raid 58.5%, city defense 63.5%, supply road
+river crossing 58.5%, night raid 58.5%, city defense 63.5%, supply road
 59.5% (109 of its 119 wins by getting the cart out, 10 by a rout),
 broken ring 54%. The idle player (`--policy=idle`) loses every one.
 
