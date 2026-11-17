@@ -26,6 +26,11 @@
 [ext_resource type="AudioStream" path="res://Assets/Sfx/lose.wav" id="wav_lose"]
 [ext_resource type="AudioStream" path="res://Assets/Sfx/epiphany.wav" id="wav_epiphany"]
 [ext_resource type="AudioStream" path="res://Assets/Sfx/text_blip.wav" id="wav_text_blip"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/site_heal.wav" id="wav_site_heal"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/site_fire.wav" id="wav_site_fire"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/capture.wav" id="wav_capture"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/war_horn.wav" id="wav_war_horn"]
+[ext_resource type="AudioStream" path="res://Assets/Sfx/cart.wav" id="wav_cart"]
 [ext_resource type="AudioStream" path="res://Assets/Sfx/music_prep.wav" id="wav_music_prep"]
 [ext_resource type="AudioStream" path="res://Assets/Sfx/music_battle.wav" id="wav_music_battle"]
 
@@ -197,6 +202,41 @@ stream = ExtResource("wav_text_blip")
 volume_db = -12.0
 is_music = false
 
+[sub_resource type="Resource" id="sound_site_heal"]
+script = ExtResource("2_sound")
+id = &"site_heal"
+stream = ExtResource("wav_site_heal")
+volume_db = -6.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_site_fire"]
+script = ExtResource("2_sound")
+id = &"site_fire"
+stream = ExtResource("wav_site_fire")
+volume_db = -6.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_capture"]
+script = ExtResource("2_sound")
+id = &"capture"
+stream = ExtResource("wav_capture")
+volume_db = -4.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_war_horn"]
+script = ExtResource("2_sound")
+id = &"war_horn"
+stream = ExtResource("wav_war_horn")
+volume_db = -5.0
+is_music = false
+
+[sub_resource type="Resource" id="sound_cart"]
+script = ExtResource("2_sound")
+id = &"cart"
+stream = ExtResource("wav_cart")
+volume_db = -8.0
+is_music = false
+
 [sub_resource type="Resource" id="sound_music_prep"]
 script = ExtResource("2_sound")
 id = &"music_prep"
@@ -234,4 +274,4 @@ is_music = false
 
 [resource]
 script = ExtResource("1_bank")
-sounds = Array[ExtResource("2_sound")]([SubResource("sound_ui_tap"), SubResource("sound_coin"), SubResource("sound_card_flip"), SubResource("sound_buy"), SubResource("sound_sell"), SubResource("sound_merge"), SubResource("sound_level_up"), SubResource("sound_timer_tick"), SubResource("sound_battle_drum"), SubResource("sound_hit_light"), SubResource("sound_hit_heavy"), SubResource("sound_arrow"), SubResource("sound_spell"), SubResource("sound_skill_cast"), SubResource("sound_block"), SubResource("sound_charge"), SubResource("sound_death"), SubResource("sound_formation_on"), SubResource("sound_formation_break"), SubResource("sound_petrify"), SubResource("sound_win"), SubResource("sound_lose"), SubResource("sound_epiphany"), SubResource("sound_text_blip"), SubResource("sound_music_prep"), SubResource("sound_music_battle"), SubResource("sound_fog_reveal"), SubResource("sound_ambush"), SubResource("sound_weather_turn")])
+sounds = Array[ExtResource("2_sound")]([SubResource("sound_ui_tap"), SubResource("sound_coin"), SubResource("sound_card_flip"), SubResource("sound_buy"), SubResource("sound_sell"), SubResource("sound_merge"), SubResource("sound_level_up"), SubResource("sound_timer_tick"), SubResource("sound_battle_drum"), SubResource("sound_hit_light"), SubResource("sound_hit_heavy"), SubResource("sound_arrow"), SubResource("sound_spell"), SubResource("sound_skill_cast"), SubResource("sound_block"), SubResource("sound_charge"), SubResource("sound_death"), SubResource("sound_formation_on"), SubResource("sound_formation_break"), SubResource("sound_petrify"), SubResource("sound_win"), SubResource("sound_lose"), SubResource("sound_epiphany"), SubResource("sound_text_blip"), SubResource("sound_site_heal"), SubResource("sound_site_fire"), SubResource("sound_capture"), SubResource("sound_war_horn"), SubResource("sound_cart"), SubResource("sound_music_prep"), SubResource("sound_music_battle"), SubResource("sound_fog_reveal"), SubResource("sound_ambush"), SubResource("sound_weather_turn")])

@@ -43,6 +43,18 @@ const EFFECTS: Dictionary = {
 	&"lose": [&"_lose", 0.95, -2.0],
 	&"epiphany": [&"_epiphany", 1.2, -2.0],
 	&"text_blip": [&"_text_blip", 0.03, -12.0],
+	&"site_heal": [&"_site_heal", 0.6, -6.0],
+	&"site_fire": [&"_site_fire", 0.55, -6.0],
+	&"capture": [&"_capture", 0.6, -4.0],
+	&"war_horn": [&"_war_horn", 1.0, -5.0],
+	&"cart": [&"_cart", 0.45, -8.0],
+}
+## Alias id -> [effect id it plays, volume_db]: the same file at another
+## level (the tactics fog and weather reuse effects).
+const ALIASES: Dictionary = {
+	&"fog_reveal": [&"spell", -18.0],
+	&"ambush": [&"petrify", -3.0],
+	&"weather_turn": [&"epiphany", -10.0],
 }
 ## Loop id -> [builder, seconds, volume_db]; lengths hold whole cycles of
 ## every drone, so the loop is seamless.
@@ -73,6 +85,8 @@ func _initialize() -> void:
 			total += bytes
 			entries.append([id, is_music, spec[2]])
 			print("%s %d bytes" % [id, bytes])
+	for id: StringName in ALIASES:
+		entries.append([id, false, ALIASES[id][1], ALIASES[id][0]])
 	_write_bank(entries)
 	print("total %d bytes" % total)
 	quit(0)
@@ -248,6 +262,40 @@ func _formation_break(b: PackedFloat32Array) -> void:
 	_tone(b, 0.0, 0.3, 700.0, 0.5, 10.0, 260.0, [[1.41, 0.4]])
 
 
+# A village heals, a shrine answers: a soft rising chime.
+func _site_heal(b: PackedFloat32Array) -> void:
+	for pair: Array in [[587.33, 0.0], [739.99, 0.08], [880.0, 0.16]]:
+		_tone(b, pair[1], 0.44, pair[0], 0.5, 6.0, -1.0, [[2.0, 0.3], [3.0, 0.08]], 0.02)
+
+
+# A village burns: a crackling rush of flame.
+func _site_fire(b: PackedFloat32Array) -> void:
+	_hiss(b, 0.0, 0.55, 0.9, 5.0, 0.55)
+	for pop: int in 6:
+		_hiss(b, 0.05 + pop * 0.07, 0.03, 0.7, 90.0, 0.1)
+	_tone(b, 0.0, 0.5, 140.0, 0.4, 5.0, 90.0)
+
+
+# A site taken: a drum hit, then a bright fifth.
+func _capture(b: PackedFloat32Array) -> void:
+	_tone(b, 0.0, 0.3, 95.0, 1.0, 10.0, 55.0, [[1.5, 0.3]])
+	_hiss(b, 0.0, 0.1, 0.4, 30.0, 0.6)
+	_tone(b, 0.14, 0.42, 392.0, 0.5, 6.0, -1.0, [[1.5, 0.45], [2.0, 0.2]])
+
+
+# The enemy's horn: a low brassy call, rising at the end.
+func _war_horn(b: PackedFloat32Array) -> void:
+	_tone(b, 0.0, 0.62, 146.83, 0.8, 1.6, 150.0, [[2.0, 0.6], [3.0, 0.4], [4.0, 0.2]], 0.08)
+	_tone(b, 0.55, 0.45, 196.0, 0.8, 3.0, 200.0, [[2.0, 0.6], [3.0, 0.35]], 0.05)
+
+
+# The supply cart: wooden wheels knocking.
+func _cart(b: PackedFloat32Array) -> void:
+	for knock: int in 4:
+		_tone(b, knock * 0.1, 0.07, 240.0 - knock * 15.0, 0.7, 45.0, 180.0)
+		_hiss(b, knock * 0.1, 0.04, 0.3, 70.0, 0.5)
+
+
 func _petrify(b: PackedFloat32Array) -> void:
 	_hiss(b, 0.0, 0.6, 1.0, 4.0, 0.85)
 	_tone(b, 0.0, 0.6, 60.0, 0.8, 4.0, 40.0, [[2.0, 0.4], [3.1, 0.2]])
@@ -342,14 +390,15 @@ func _write_bank(entries: Array) -> void:
 	lines.append('[ext_resource type="Script" path="res://Systems/Audio/sound_bank.gd" id="1_bank"]')
 	lines.append('[ext_resource type="Script" path="res://Systems/Audio/sound_data.gd" id="2_sound"]')
 	for entry: Array in entries:
-		lines.append('[ext_resource type="AudioStream" path="%s%s.wav" id="wav_%s"]' % [OUT_DIR, entry[0], entry[0]])
+		if entry.size() < 4:
+			lines.append('[ext_resource type="AudioStream" path="%s%s.wav" id="wav_%s"]' % [OUT_DIR, entry[0], entry[0]])
 	lines.append("")
 	var refs: PackedStringArray = []
 	for entry: Array in entries:
 		lines.append('[sub_resource type="Resource" id="sound_%s"]' % entry[0])
 		lines.append('script = ExtResource("2_sound")')
 		lines.append('id = &"%s"' % entry[0])
-		lines.append('stream = ExtResource("wav_%s")' % entry[0])
+		lines.append('stream = ExtResource("wav_%s")' % (entry[3] if entry.size() >= 4 else entry[0]))
 		lines.append("volume_db = %s" % String.num(entry[2], 1))
 		lines.append("is_music = %s" % ("true" if entry[1] else "false"))
 		lines.append("")

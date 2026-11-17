@@ -1,14 +1,14 @@
 extends SceneTree
 
 # Headless test of the Audio service (the autoload, reached through Sound):
-# every id of the bank has a stream (27 effects, 2 looping music tracks),
+# every id of the bank has a stream (32 effects, 2 looping music tracks),
 # an unknown id warns once and plays nothing, the 40 ms cooldown and the
 # four-voice limit hold, nothing plays before the web unlock, and mute is
 # saved to the settings file and read back. Settings go to
 # TEST_SETTINGS_PATH, never the player's file.
 
 const TEST_SETTINGS_PATH: String = "user://settings_test.json"
-const EFFECT_COUNT: int = 27
+const EFFECT_COUNT: int = 32
 const MUSIC_COUNT: int = 2
 
 
