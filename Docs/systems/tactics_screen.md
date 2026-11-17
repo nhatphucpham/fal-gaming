@@ -188,16 +188,22 @@ tới khi đánh, đổi lệnh hay thấy địch.", "Đổi lệnh không mấ
 for a soldier out of its leader's sight "Binh khuất mắt tướng chỉ yên
 khi tướng thấy nó: đưa tướng tới."; the `TACTICS_TIP_*` rows). A tip that comes while another shows waits for it
 (after a tap let one go, the next follows 0.35 s later).
-The box sits just above the panel, unless that strip holds a unit of
-ours on screen; then it sits under the top bar (clear of the map's
-corner chip and button), or wherever it covers fewer of ours. It looks
+The box sits just above the panel, unless that strip holds a unit on
+screen; then under the top bar (clear of the map's corner chip and
+button), else at the height between them that covers the fewest units,
+ours weighing a hundred times the enemy's. It looks
 again after each playback and whenever the camera comes to rest
 (`TacticsMapView.camera_settled`), and glides to its new place.
 Each is saved as shown (`RunSettings.save_seen_tip("tactics.<id>")`) and
 never offered again. Tips never catch taps.
 
 Map camera: it opens at the zoom that fits eight columns across (90 layout
-px a cell, 45 px on a 360-px-wide phone), centred on our leaders; one
+px a cell, 45 px on a 360-px-wide phone), centred on the middle of our
+leaders; a programmatic glide or jump at such a zoom lands on a line
+between columns, so the view's edges never cut a column of tokens in
+half (a finger's pan or pinch is left where it stops). Where the board
+leaves a gap in the view the map draws the backdrop itself; under a board
+that fills the view nothing is drawn behind it. One
 finger drags it (a press that slides more than 24 px is a drag, not a
 tap), two fingers pinch it between the whole board and 1.4x that zoom
 (the mouse wheel too), and "Toàn cảnh" / "Phóng to" switches to the whole
@@ -251,8 +257,9 @@ Fog, weather and night (see [Tactics vision](tactics_vision.md)):
   known from the map. While it is out of view a gold flag mark on the
   edge of the map view points at it (`get_edge_marks()` entries with
   `is_objective`), so at the night raid's dark start you know which way
-  to go. Edge marks keep their pointer inside the view, clear of the top
-  bar.
+  to go. Each edge of the map holding our exits (the broken ring) gets
+  the same mark while none of its exits is in view. Edge marks keep their
+  pointer inside the view, clear of the top bar.
 - A wavering soldier of ours out of view gets a mark on the edge of the
   map view pointing at it; its card says when it is out of its leader's
   sight ("Ngoài tầm mắt tướng: dễ dao động, chưa trấn an được"; never on

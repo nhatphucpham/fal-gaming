@@ -116,6 +116,9 @@ var _zoom: float = 1.0
 var _is_whole_map: bool = false
 var _camera_tween: Tween
 var _baked_scale: float = 0.0
+## Whether the board fills the whole view: then the view draws no backdrop
+## under it (one full-screen fill less a frame).
+var _is_view_covered: bool = false
 ## Until the view first has a size, the default zoom waits, with the board
 ## point it should centre.
 var _is_laid_out: bool = false
@@ -232,7 +235,7 @@ func _lay_out() -> bool:
 	_is_laid_out = true
 	var point := _first_focus if _first_focus.x >= 0.0 else get_board_size() / 2.0
 	_zoom = get_default_zoom()
-	_apply_camera(size / 2.0 - point * _zoom, _zoom)
+	_apply_camera(size / 2.0 - _snap_to_columns(point) * _zoom, _zoom)
 	return true
 
 
@@ -241,7 +244,18 @@ func center_on(board_point: Vector2) -> void:
 	if not _is_laid_out:
 		_first_focus = board_point
 		return
-	_move_camera(size / 2.0 - board_point * _zoom, _zoom, false)
+	_move_camera(size / 2.0 - _snap_to_columns(board_point) * _zoom, _zoom, false)
+
+
+# At a zoom that fits a whole number of columns across the view, a point
+# to centre moves across to the nearest line between columns, so the
+# view's edges cut no column (and no token) in half.
+func _snap_to_columns(board_point: Vector2) -> Vector2:
+	var columns := size.x / (CELL_PX * _zoom)
+	if absf(columns - roundf(columns)) > 0.01:
+		return board_point
+	var shift := 0.0 if int(roundf(columns)) % 2 == 0 else 0.5
+	return Vector2((roundf(board_point.x / CELL_PX - shift) + shift) * CELL_PX, board_point.y)
 
 
 func get_board_size() -> Vector2:
@@ -307,7 +321,7 @@ func follow(board_point: Vector2) -> void:
 	var inner := Rect2(Vector2.ZERO, size).grow(-FOLLOW_MARGIN_PX)
 	if inner.has_point(at) or _is_whole_map:
 		return
-	_move_camera(size / 2.0 - board_point * _zoom, _zoom, true)
+	_move_camera(size / 2.0 - _snap_to_columns(board_point) * _zoom, _zoom, true)
 
 
 ## Brings a board point into view only when it is outside the view now.
@@ -362,10 +376,21 @@ func _apply_camera(offset: Vector2, zoom: float, clamps: bool = true) -> void:
 		_board.scale = Vector2(zoom, zoom)
 	if _board.position != target:
 		_board.position = target
-		if not _edge_cells.is_empty() or is_on_map(_objective):
+		if not _edge_cells.is_empty() or is_on_map(_objective) or _objective_marks.has("exits"):
 			_edge_layer.queue_redraw()
 	if _baked_scale > 0.0 and _bake_scale() > _baked_scale + 0.01:
 		_paint_terrain()
+	var is_covered := Rect2(target, get_board_size() * zoom).encloses(Rect2(Vector2.ZERO, size).grow(-0.5))
+	if is_covered != _is_view_covered:
+		_is_view_covered = is_covered
+		queue_redraw()
+
+
+# The backdrop around a board smaller than the view; none under a board
+# that covers it.
+func _draw() -> void:
+	if not _is_view_covered:
+		draw_rect(Rect2(Vector2.ZERO, size), Palette.BACKDROP)
 
 
 # A board smaller than the view is centred; a larger one cannot leave a gap
@@ -539,6 +564,7 @@ func set_objective_marks(marks: Dictionary) -> void:
 		return
 	_objective_marks = marks
 	_site_layer.queue_redraw()
+	_edge_layer.queue_redraw()
 
 
 func get_objective_marks() -> Dictionary:
@@ -567,7 +593,8 @@ func set_edge_marks(cells: Array) -> void:
 
 
 ## The marks shown on the view's edge now: [{cell, at, is_objective}] in
-## view coordinates: our wavering soldiers and the objective outside it.
+## view coordinates: our wavering soldiers and the objective outside it,
+## and each edge of our exits with none of its cells in view.
 func get_edge_marks() -> Array:
 	var marks: Array = []
 	# Room for the bubble and its pointer, which reaches 12 px past it.
@@ -575,14 +602,31 @@ func get_edge_marks() -> Array:
 	var cells: Array = _edge_cells.duplicate()
 	if is_on_map(_objective):
 		cells.append(_objective)
+	cells.append_array(_exits_out_of_view())
 	for at_index: int in cells.size():
 		var cell: Vector2i = cells[at_index]
 		var at := board_to_view(cell_to_local(cell))
 		if Rect2(Vector2.ZERO, size).has_point(at) or not inner.has_area():
 			continue
-		var is_objective := at_index == _edge_cells.size()
+		var is_objective := at_index >= _edge_cells.size()
 		marks.append({"cell": cell, "at": Vector2(clampf(at.x, inner.position.x, inner.end.x), clampf(at.y, inner.position.y, inner.end.y)), "is_objective": is_objective})
 	return marks
+
+
+# Per edge of the map holding our exits, the exit nearest the view's
+# centre when no exit of that edge is in view.
+func _exits_out_of_view() -> Array:
+	var nearest: Dictionary = {}
+	var center := view_to_board(size / 2.0)
+	for cell: Vector2i in _objective_marks.get("exits", []):
+		var edge := _outward(cell)
+		if is_in_view(cell_to_local(cell)):
+			nearest[edge] = null
+			continue
+		if nearest.has(edge) and (nearest[edge] == null or cell_to_local(nearest[edge]).distance_to(center) <= cell_to_local(cell).distance_to(center)):
+			continue
+		nearest[edge] = cell
+	return nearest.values().filter(func(cell: Variant) -> bool: return cell != null)
 
 
 func _fog_color(index: int) -> Color:

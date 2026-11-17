@@ -42,14 +42,17 @@ const DISMISS_SEC: float = 0.15
 const NEXT_GAP_SEC: float = 0.35
 const MOVE_SEC: float = 0.2
 const MARGIN_PX: float = 16.0
+## The heights tried between the top and the bottom place, this far apart.
+const SCAN_STEP_PX: float = 24.0
 
 ## Space kept free under the tip (the bottom panel).
 var bottom_px: float = 430.0
 ## Space kept free over the tip when it sits at the top (the top bar and
 ## the map's corner buttons).
 var top_px: float = 0.0
-## Returns the rects (this control's coordinates) the tip must not cover,
-## such as our units on the map; unset, the tip sits above the panel.
+## Returns what the tip should not cover, [{rect, weight}] in this
+## control's coordinates (our units weigh more than the enemy's); unset,
+## the tip sits above the panel.
 var avoid_rects: Callable
 
 var _box: PanelContainer
@@ -114,7 +117,7 @@ func get_box_rect() -> Rect2:
 	return Rect2(_box.position + position, _box.size) if _box != null else Rect2()
 
 
-## Whether the tip sits under the top bar (else above the panel).
+## Whether the tip sits higher than its place above the panel.
 func is_at_top() -> bool:
 	return _is_at_top
 
@@ -134,8 +137,9 @@ func refresh_place() -> void:
 	_move_tween.tween_property(_box, ^"position:y", _box_top, MOVE_SEC).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
 
 
-# Above the panel unless that covers a rect to keep clear, else under the
-# top bar; when both cover some, the one that covers fewer.
+# Above the panel unless that covers something to keep clear; else under
+# the top bar, else the height between them that covers least (ties keep
+# the earlier place).
 func _choose_place() -> void:
 	# The wrapped line's height at the box's width (before the box has
 	# laid it out at that width).
@@ -145,20 +149,32 @@ func _choose_place() -> void:
 	var height := _label.get_minimum_size().y + frame.y
 	var bottom_top := size.y - bottom_px - MARGIN_PX - height
 	var top_top := top_px + MARGIN_PX
-	var rects: Array = avoid_rects.call() if avoid_rects.is_valid() else []
-	var covered_bottom := _covered(rects, bottom_top, height)
-	var covered_top := _covered(rects, top_top, height)
-	_is_at_top = covered_bottom > 0 and covered_top < covered_bottom
-	_box_top = top_top if _is_at_top else bottom_top
+	var tops: Array[float] = [bottom_top, top_top]
+	var step := top_top + SCAN_STEP_PX
+	while step < bottom_top:
+		tops.append(step)
+		step += SCAN_STEP_PX
+	var items: Array = avoid_rects.call() if avoid_rects.is_valid() else []
+	var best_top := bottom_top
+	var best_cost := -1
+	for top: float in tops:
+		var cost := _covered(items, top, height)
+		if best_cost < 0 or cost < best_cost:
+			best_cost = cost
+			best_top = top
+		if cost == 0:
+			break
+	_box_top = best_top
+	_is_at_top = best_top < bottom_top
 	_box.size.y = height
 
 
-func _covered(rects: Array, top: float, height: float) -> int:
+func _covered(items: Array, top: float, height: float) -> int:
 	var box := Rect2(Vector2(_box.offset_left, top), Vector2(size.x - _box.offset_left + _box.offset_right, height))
-	var count := 0
-	for rect: Rect2 in rects:
-		count += 1 if box.intersects(rect) else 0
-	return count
+	var cost := 0
+	for item: Dictionary in items:
+		cost += int(item["weight"]) if box.intersects(item["rect"]) else 0
+	return cost
 
 
 # A tap anywhere (it is not caught) lets the tip go at once.

@@ -67,7 +67,11 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 - Chiến Dịch: a first-time tip no longer sits over your own units: it
   moves under the top bar when your squads stand on the map's bottom
   rows, glides away when the camera brings them under it, and the next
-  tap anywhere lets it go.
+  tap anywhere lets it go. It keeps off the enemy's units too when it
+  can.
+- Chiến Dịch: a map opens on the middle of your leaders and never with a
+  column of tokens cut in half at the screen's edge (the broken ring
+  did); the broken ring points at its exits out of view.
 - Chiến Dịch: the supply cart can now be got through: it rolls past
   your own troops and past enemies beside the road, and only an enemy
   standing on the road stops it (it has more hp to take the hits). A tap

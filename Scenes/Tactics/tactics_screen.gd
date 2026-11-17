@@ -58,6 +58,9 @@ const AUTO_END_UNDO_SEC: float = 1.8
 const UNDO_SEC: float = 0.25
 ## Room the map's corner chip and "Toàn cảnh" take under the top bar.
 const TIP_TOP_CLEAR_PX: float = 96.0
+## A tip covering one unit of ours costs as much as covering this many of
+## the enemy's.
+const TIP_OUR_UNIT_WEIGHT: int = 100
 const NO_CELL := Vector2i(-1, -1)
 
 var scenario: TacticsScenarioData
@@ -155,7 +158,7 @@ func _ready() -> void:
 	_units = _battle.get_units()
 	for state: Dictionary in _units:
 		_add_piece(state)
-	_map.center_on(_map.cell_to_local(_first_leader_cell()))
+	_map.center_on(_start_focus())
 	_sync()
 	Sound.play_music(&"music_battle")
 	_run(_battle.start())
@@ -416,9 +419,13 @@ func get_round_text() -> String:
 
 
 func _build() -> void:
+	# Behind the panel's rounded corners only: the top bar is square and
+	# the map draws its own backdrop where the board leaves a gap, so no
+	# full-screen fill sits under the board every frame.
 	var background := ColorRect.new()
 	background.color = Palette.BACKDROP
-	background.set_anchors_preset(Control.PRESET_FULL_RECT)
+	background.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	background.offset_top = -PANEL_PX
 	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(background)
 	_map = TacticsMapView.new()
@@ -1705,19 +1712,19 @@ func _is_beyond_calm(state: Dictionary) -> bool:
 	return state.get("is_wavering_unseen", false) or state.get("is_out_of_leader_sight", false)
 
 
-# Our units on the map as shown now (screen rects, one cell each): a tip
-# never sits over them.
+# The units on the map as shown now (screen rects, one cell each): a tip
+# never sits over ours if it can help it, and keeps off the enemy's too.
 func _tip_avoid_rects() -> Array:
-	var rects: Array = []
+	var items: Array = []
 	var view := Rect2(_map.position, _map.size)
 	var cell := Vector2.ONE * _map.get_cell_px()
 	for piece: TacticsPieceView in _map.get_pieces():
-		if not piece.visible or piece.side != player_side:
+		if not piece.visible:
 			continue
 		var rect := Rect2(_map.position + _map.board_to_view(piece.position) - cell / 2.0, cell)
 		if view.intersects(rect):
-			rects.append(rect.intersection(view))
-	return rects
+			items.append({"rect": rect.intersection(view), "weight": TIP_OUR_UNIT_WEIGHT if piece.side == player_side else 1})
+	return items
 
 
 # First-time tips after our command played: the first move that can be
@@ -1817,11 +1824,20 @@ func _can_undo(unit: int) -> bool:
 	return unit >= 0 and unit < _units.size() and _battle.can_undo_move(unit)
 
 
-func _first_leader_cell() -> Vector2i:
+# Where the map opens: the middle of our leaders, across on a line between
+# columns, so the view (a whole number of columns wide) cuts no column of
+# tokens in half at its edges.
+func _start_focus() -> Vector2:
+	var sum := Vector2.ZERO
+	var count := 0
 	for state: Dictionary in _units:
 		if state["alive"] and state["role"] == &"leader" and state["side"] == player_side:
-			return state["cell"]
-	return Vector2i(_map.map_width / 2, _map.map_height / 2)
+			sum += Vector2(state["cell"]) + Vector2(0.5, 0.5)
+			count += 1
+	if count == 0:
+		return _map.get_board_size() / 2.0
+	var middle := sum / count
+	return Vector2(floorf(middle.x), middle.y) * TacticsMapView.CELL_PX
 
 
 func _is_commandable(unit: int) -> bool:

@@ -63,7 +63,7 @@ func _run() -> bool:
 	if not ClassDB.class_exists("TacticsBattle"):
 		push_error("TacticsBattle is missing: build the GDExtension (scons) before importing")
 		return false
-	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_fog_redraws, _check_night_objective, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_corner_buttons, _check_auto_end, _check_tap_count, _check_text_fits, _check_site_text, _check_banner_titles, _check_floats, _check_hidden_steps, _check_tip_place, _check_convoy_tap]
+	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_fog_redraws, _check_night_objective, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_corner_buttons, _check_auto_end, _check_tap_count, _check_text_fits, _check_site_text, _check_banner_titles, _check_floats, _check_hidden_steps, _check_tip_place, _check_convoy_tap, _check_framing]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Tactics feel test failed in %s" % check.get_method())
@@ -199,6 +199,29 @@ func _check_convoy_tap() -> bool:
 		return _fail("a held cart should offer \"Xe đi\"")
 	if not (tr("TACTICS_CONVOY_HELD") in _screen.get_panel().get_shown_card_lines()):
 		return _fail("a held cart's card should say it waits")
+	return true
+
+
+# Every map opens on a line between columns (the broken ring used to cut
+# its left column of tokens in half) with our leaders in view, and the
+# broken ring points at its exits out of view.
+func _check_framing() -> bool:
+	for path: String in [SCENARIO_PATH, NIGHT_SCENARIO_PATH, ROAD_SCENARIO_PATH, RING_SCENARIO_PATH]:
+		await _open(true, path)
+		var map := _map()
+		var cell_px := map.get_cell_px()
+		var offset := map.get_camera_offset().x
+		if absf(offset / cell_px - roundf(offset / cell_px)) > 0.01:
+			return _fail("%s opens with a column cut in half (offset %.1f, cell %.1f)" % [path, offset, cell_px])
+		for leader: int in _our_leaders():
+			if not map.is_in_view(map.cell_to_local(_cell(leader))):
+				return _fail("%s opens with leader %d out of view" % [path, leader])
+		if path == RING_SCENARIO_PATH:
+			var exits: Array = _battle().get_objective_state()["exit_cells"]
+			var pointed := map.get_edge_marks().filter(func(mark: Dictionary) -> bool: return exits.has(mark["cell"]))
+			var out_of_view := exits.filter(func(cell: Vector2i) -> bool: return not map.is_in_view(map.cell_to_local(cell)))
+			if not out_of_view.is_empty() and pointed.is_empty():
+				return _fail("the broken ring's exits out of view should get an edge mark")
 	return true
 
 
