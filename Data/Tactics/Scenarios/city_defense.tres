@@ -1,0 +1,71 @@
+[gd_resource type="TacticsScenarioData" format=3]
+
+[ext_resource type="TacticsRulesData" path="res://Data/Tactics/Rules/tactics_rules.tres" id="rules"]
+[ext_resource type="TacticsMapData" path="res://Data/Tactics/Maps/city_defense.tres" id="map"]
+[ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/lac_hong.tres" id="leader_lac_hong"]
+[ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/moon_spear.tres" id="leader_moon_spear"]
+[ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/lieu_mi.tres" id="leader_lieu_mi"]
+[ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/ba_khac.tres" id="leader_ba_khac"]
+[ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/thiet_nha.tres" id="leader_thiet_nha"]
+[ext_resource type="TacticsWeatherData" path="res://Data/Tactics/Weathers/clear.tres" id="weather_clear"]
+[ext_resource type="TacticsWeatherData" path="res://Data/Tactics/Weathers/rain.tres" id="weather_rain"]
+[ext_resource type="TacticsDaytimeData" path="res://Data/Tactics/Daytimes/day.tres" id="daytime_day"]
+[ext_resource type="TacticsDaytimeData" path="res://Data/Tactics/Daytimes/dusk.tres" id="daytime_dusk"]
+[ext_resource type="TacticsDaytimeData" path="res://Data/Tactics/Daytimes/night.tres" id="daytime_night"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/shieldman.tres" id="troop_shieldman"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/archer.tres" id="troop_archer"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/spearman.tres" id="troop_spearman"]
+[ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/ho_bao.tres" id="leader_ho_bao"]
+[ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/lang_vuong.tres" id="leader_lang_vuong"]
+[ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/do_uy.tres" id="leader_do_uy"]
+
+[sub_resource type="TacticsWaveData" id="wave_0"]
+round = 2
+leaders = Array[TacticsLeaderData]([ExtResource("leader_ho_bao")])
+entry_cells = Array[Vector2i]([Vector2i(0, 7)])
+
+[sub_resource type="TacticsWaveData" id="wave_1"]
+round = 4
+leaders = Array[TacticsLeaderData]([ExtResource("leader_lang_vuong")])
+entry_cells = Array[Vector2i]([Vector2i(11, 7)])
+
+[sub_resource type="TacticsWaveData" id="wave_2"]
+round = 6
+leaders = Array[TacticsLeaderData]([ExtResource("leader_do_uy")])
+entry_cells = Array[Vector2i]([Vector2i(5, 0)])
+
+[sub_resource type="TacticsGoalData" id="goal_0"]
+kind = &"goal.villages_safe"
+value = 0
+supplies = 2
+
+[sub_resource type="TacticsGoalData" id="goal_1"]
+kind = &"goal.no_losses"
+value = 0
+supplies = 2
+
+[sub_resource type="TacticsObjectiveData" id="objective"]
+id = &"objective.city_defense"
+kind = &"objective_kind.hold_city"
+site = 0
+rounds = 8
+waves = Array[TacticsWaveData]([SubResource("wave_0"), SubResource("wave_1"), SubResource("wave_2")])
+goals = Array[TacticsGoalData]([SubResource("goal_0"), SubResource("goal_1")])
+
+[resource]
+id = &"scenario.city_defense"
+name_key = "SCENARIO_CITY_DEFENSE"
+rules = ExtResource("rules")
+map = ExtResource("map")
+leaders_a = Array[TacticsLeaderData]([ExtResource("leader_lac_hong"), ExtResource("leader_moon_spear"), ExtResource("leader_lieu_mi")])
+leaders_b = Array[TacticsLeaderData]([ExtResource("leader_ba_khac"), ExtResource("leader_thiet_nha")])
+fog_of_war = true
+weather = ExtResource("weather_clear")
+weather_change_round = 4
+weather_after = ExtResource("weather_rain")
+daytimes = Array[TacticsDaytimeData]([ExtResource("daytime_day"), ExtResource("daytime_dusk"), ExtResource("daytime_night")])
+daytime_step_rounds = 3
+supplied_sizes = PackedInt32Array(4, 3, 3)
+supplied_troops = Array[TacticsTroopData]([ExtResource("troop_shieldman"), ExtResource("troop_shieldman"), ExtResource("troop_archer"), ExtResource("troop_archer"), ExtResource("troop_shieldman"), ExtResource("troop_archer"), ExtResource("troop_spearman"), ExtResource("troop_archer"), ExtResource("troop_archer"), ExtResource("troop_shieldman")])
+objective = SubResource("objective")
+reserve_troop = ExtResource("troop_archer")

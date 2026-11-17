@@ -73,6 +73,10 @@ void initialize_falemag_module(ModuleInitializationLevel p_level) {
 	GDREGISTER_CLASS(TacticsUnitData);
 	GDREGISTER_CLASS(TacticsTroopData);
 	GDREGISTER_CLASS(TacticsLeaderData);
+	GDREGISTER_CLASS(TacticsSiteData);
+	GDREGISTER_CLASS(TacticsWaveData);
+	GDREGISTER_CLASS(TacticsGoalData);
+	GDREGISTER_CLASS(TacticsObjectiveData);
 	GDREGISTER_CLASS(TacticsScenarioData);
 	GDREGISTER_CLASS(TacticsCatalog);
 	GDREGISTER_CLASS(TacticsBattle);

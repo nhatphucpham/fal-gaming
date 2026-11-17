@@ -128,7 +128,7 @@ func _ready() -> void:
 			push_error("TacticsScreen: the campaign could not set up %s" % scenario.id)
 	_build()
 	_playback.intent_filter = func(unit: int) -> bool: return _battle.is_intent_known(player_side, unit)
-	_map.setup(_battle, scenario.map.objective_cell if scenario.map.objective_side == player_side else NO_CELL)
+	_map.setup(_battle, _objective_cell())
 	_banner.max_rounds = scenario.rules.max_rounds
 	_units = _battle.get_units()
 	for state: Dictionary in _units:
@@ -717,8 +717,17 @@ func _go_idle() -> void:
 	_update_hold_cells()
 
 
+# The cell the objective points at: the stronghold or the general's post;
+# a plain objective cell only for the side that must take it.
+func _objective_cell() -> Vector2i:
+	var state := _battle.get_objective_state()
+	if state.get("kind", &"") == &"objective_kind.cell" and int(state.get("side", -1)) != player_side:
+		return NO_CELL
+	return state.get("cell", NO_CELL)
+
+
 func _show_our_phase_card(round_number: int) -> void:
-	var objective := _text.terrain_name(_map.get_terrain_at(scenario.map.objective_cell))
+	var objective := _text.terrain_name(_map.get_terrain_at(_objective_cell()))
 	var lines: Array[String] = [tr("TACTICS_OBJECTIVE_SHORT_FORMAT") % objective, tr(scenario.name_key), "", ""]
 	_panel.show_card(tr("TACTICS_PHASE_PLAYER"), Palette.GOLD, tr("TACTICS_ROUND_FORMAT") % [round_number, scenario.rules.max_rounds], lines)
 
@@ -1084,7 +1093,7 @@ func _show_terrain(cell: Vector2i) -> void:
 	var terrain := _map.get_terrain_at(cell)
 	_map.set_marks({"selected": cell})
 	var lines: Array[String] = [_text.terrain_effects(terrain), "", "", ""]
-	if cell == scenario.map.objective_cell:
+	if cell == _objective_cell():
 		lines[1] = tr("TACTICS_OBJECTIVE_SHORT_FORMAT") % _text.terrain_name(terrain)
 	_panel.show_card(_text.terrain_name(terrain), Palette.CREAM, "", lines)
 

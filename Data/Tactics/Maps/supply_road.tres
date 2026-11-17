@@ -1,0 +1,27 @@
+[gd_resource type="TacticsMapData" format=3]
+
+[ext_resource type="TacticsTerrainData" path="res://Data/Tactics/Terrains/plain.tres" id="terrain_plain"]
+[ext_resource type="TacticsTerrainData" path="res://Data/Tactics/Terrains/forest.tres" id="terrain_forest"]
+[ext_resource type="TacticsTerrainData" path="res://Data/Tactics/Terrains/hill.tres" id="terrain_hill"]
+[ext_resource type="TacticsTerrainData" path="res://Data/Tactics/Terrains/fort.tres" id="terrain_fort"]
+[ext_resource type="TacticsTerrainData" path="res://Data/Tactics/Terrains/village.tres" id="terrain_village"]
+[ext_resource type="TacticsSiteData" path="res://Data/Tactics/Sites/village.tres" id="site_village"]
+[ext_resource type="TacticsSiteData" path="res://Data/Tactics/Sites/camp.tres" id="site_camp"]
+[ext_resource type="TacticsSiteData" path="res://Data/Tactics/Sites/watchtower.tres" id="site_watchtower"]
+
+[resource]
+id = &"map.supply_road"
+name_key = "MAP_SUPPLY_ROAD"
+width = 12
+height = 16
+rows = PackedStringArray("ff..hh..f..f", "f.....ff...f", "..ff.......f", ".......t...f", "..h.........", "f...........", "..ff..v.ff..", ".f..f.......", "......f.....", "..f......f..", "......ff....", "...f......h.", "..v...f..f..", "....f.......", "............", "..f......f..")
+legend_symbols = ".fhtv"
+legend_terrains = Array[TacticsTerrainData]([ExtResource("terrain_plain"), ExtResource("terrain_forest"), ExtResource("terrain_hill"), ExtResource("terrain_fort"), ExtResource("terrain_village")])
+spawn_cells_a = Array[Vector2i]([Vector2i(2, 13), Vector2i(3, 14), Vector2i(0, 12)])
+spawn_cells_b = Array[Vector2i]([Vector2i(3, 7), Vector2i(8, 2), Vector2i(9, 9)])
+facing_a = Vector2i(0, -1)
+facing_b = Vector2i(0, 1)
+guard_cells = Array[Vector2i]([])
+sites = Array[TacticsSiteData]([ExtResource("site_village"), ExtResource("site_village"), ExtResource("site_camp"), ExtResource("site_watchtower")])
+site_cells = Array[Vector2i]([Vector2i(2, 12), Vector2i(6, 6), Vector2i(9, 10), Vector2i(7, 3)])
+site_owners = PackedInt32Array(-1, -1, 1, 1)

@@ -10,6 +10,23 @@
 [ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/lang_vuong.tres" id="leader_lang_vuong"]
 [ext_resource type="TacticsWeatherData" path="res://Data/Tactics/Weathers/clear.tres" id="weather_clear"]
 [ext_resource type="TacticsDaytimeData" path="res://Data/Tactics/Daytimes/day.tres" id="daytime_day"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/militia.tres" id="troop_militia"]
+
+[sub_resource type="TacticsGoalData" id="goal_0"]
+kind = &"goal.villages_safe"
+value = 0
+supplies = 2
+
+[sub_resource type="TacticsGoalData" id="goal_1"]
+kind = &"goal.by_round"
+value = 10
+supplies = 2
+
+[sub_resource type="TacticsObjectiveData" id="objective"]
+id = &"objective.river_crossing"
+kind = &"objective_kind.take_pass"
+site = 0
+goals = Array[TacticsGoalData]([SubResource("goal_0"), SubResource("goal_1")])
 
 [resource]
 id = &"scenario.river_crossing"
@@ -21,3 +38,5 @@ leaders_b = Array[TacticsLeaderData]([ExtResource("leader_ba_khac"), ExtResource
 fog_of_war = true
 weather = ExtResource("weather_clear")
 daytimes = Array[TacticsDaytimeData]([ExtResource("daytime_day")])
+objective = SubResource("objective")
+reserve_troop = ExtResource("troop_militia")

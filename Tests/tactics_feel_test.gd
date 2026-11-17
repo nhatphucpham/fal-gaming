@@ -258,7 +258,7 @@ func _check_night_objective() -> bool:
 		if not map.is_fog_blending():
 			break
 		await process_frame
-	var objective: Vector2i = _screen.scenario.map.objective_cell
+	var objective: Vector2i = _battle().get_objective_state()["cell"]
 	if _battle().get_fog_cells(0)[objective.y * map.map_width + objective.x] != 0:
 		push_error("The night raid's objective should start unseen")
 		return false

@@ -1,0 +1,25 @@
+[gd_resource type="TacticsMapData" format=3]
+
+[ext_resource type="TacticsTerrainData" path="res://Data/Tactics/Terrains/plain.tres" id="terrain_plain"]
+[ext_resource type="TacticsTerrainData" path="res://Data/Tactics/Terrains/forest.tres" id="terrain_forest"]
+[ext_resource type="TacticsTerrainData" path="res://Data/Tactics/Terrains/hill.tres" id="terrain_hill"]
+[ext_resource type="TacticsSiteData" path="res://Data/Tactics/Sites/shrine.tres" id="site_shrine"]
+[ext_resource type="TacticsSiteData" path="res://Data/Tactics/Sites/camp.tres" id="site_camp"]
+[ext_resource type="TacticsSiteData" path="res://Data/Tactics/Sites/village.tres" id="site_village"]
+
+[resource]
+id = &"map.broken_ring"
+name_key = "MAP_BROKEN_RING"
+width = 12
+height = 16
+rows = PackedStringArray("ff........ff", "f..f....f..f", "...h....h...", "..f..ff..f..", "............", ".ff......ff.", "....h..h....", "............", "..f......f..", "............", ".ff..ff..ff.", "............", "..h......h..", "f..f....f..f", "............", "ff........ff")
+legend_symbols = ".fh"
+legend_terrains = Array[TacticsTerrainData]([ExtResource("terrain_plain"), ExtResource("terrain_forest"), ExtResource("terrain_hill")])
+spawn_cells_a = Array[Vector2i]([Vector2i(5, 8), Vector2i(7, 8), Vector2i(6, 6)])
+spawn_cells_b = Array[Vector2i]([Vector2i(2, 4), Vector2i(9, 4), Vector2i(2, 11), Vector2i(9, 11)])
+facing_a = Vector2i(0, -1)
+facing_b = Vector2i(0, 1)
+guard_cells = Array[Vector2i]([Vector2i(5, 2), Vector2i(6, 2), Vector2i(10, 9), Vector2i(10, 10)])
+sites = Array[TacticsSiteData]([ExtResource("site_shrine"), ExtResource("site_camp"), ExtResource("site_village")])
+site_cells = Array[Vector2i]([Vector2i(6, 9), Vector2i(1, 7), Vector2i(4, 13)])
+site_owners = PackedInt32Array(-1, 1, -1)

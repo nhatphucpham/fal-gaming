@@ -1,5 +1,6 @@
 #pragma once
 
+#include "tactics_site_data.h"
 #include "tactics_terrain_data.h"
 
 #include <godot_cpp/classes/resource.hpp>
@@ -34,6 +35,12 @@ class TacticsMapData : public Resource {
 	Vector2i facing_a = Vector2i(0, -1);
 	Vector2i facing_b = Vector2i(0, 1);
 	TypedArray<Vector2i> guard_cells;
+	// Sites placed on the map (Docs/systems/tactics_sites.md): sites[i] on
+	// site_cells[i], held at the start by site_owners[i] (-1 nobody; an
+	// empty array: nobody holds any).
+	TypedArray<TacticsSiteData> sites;
+	TypedArray<Vector2i> site_cells;
+	PackedInt32Array site_owners;
 
 protected:
 	static void _bind_methods();
@@ -70,6 +77,12 @@ public:
 	Vector2i get_facing_b() const { return facing_b; }
 	void set_guard_cells(const TypedArray<Vector2i> &p_value) { guard_cells = p_value; }
 	TypedArray<Vector2i> get_guard_cells() const { return guard_cells; }
+	void set_sites(const TypedArray<TacticsSiteData> &p_value) { sites = p_value; }
+	TypedArray<TacticsSiteData> get_sites() const { return sites; }
+	void set_site_cells(const TypedArray<Vector2i> &p_value) { site_cells = p_value; }
+	TypedArray<Vector2i> get_site_cells() const { return site_cells; }
+	void set_site_owners(const PackedInt32Array &p_value) { site_owners = p_value; }
+	PackedInt32Array get_site_owners() const { return site_owners; }
 	// The spawn cells of a side (0 or 1); empty with an error for another side.
 	TypedArray<Vector2i> get_spawn_cells(int64_t p_side) const {
 		ERR_FAIL_COND_V_MSG(p_side != tactics::SIDE_A && p_side != tactics::SIDE_B, TypedArray<Vector2i>(), vformat("Tactics: get_spawn_cells() got side %d, expected 0 or 1", p_side));

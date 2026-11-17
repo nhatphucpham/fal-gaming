@@ -3,6 +3,7 @@
 #include "tactics_paths.h"
 #include "tactics_sim.h"
 #include "tactics_sites.h"
+#include "tactics_validation.h"
 
 // The five objective kinds and the secondary goals
 // (Docs/systems/tactics_objectives.md).
@@ -12,7 +13,6 @@ namespace tactics {
 namespace {
 
 constexpr int PERCENT = 100;
-constexpr int MAX_ROUNDS = 1000;
 
 bool fail(std::string *r_error, const std::string &p_message) {
 	*r_error = p_message;
@@ -441,6 +441,24 @@ const GoalHandler *find_goal_handler(const std::string &p_id) {
 bool validate_objective(const ObjectiveDef &p_def, const MapDef &p_map, std::string *r_error) {
 	if (p_def.handler == nullptr) {
 		return fail(r_error, p_def.id + " has no known kind");
+	}
+	if (p_def.has_convoy && !validate_unit_def(p_def.convoy, r_error)) {
+		return false;
+	}
+	for (const WaveDef &wave : p_def.waves) {
+		if (wave.squads.size() != wave.leaders.size()) {
+			return fail(r_error, p_def.id + " has a wave with a squad count other than its leaders'");
+		}
+		for (size_t index = 0; index < wave.leaders.size(); index++) {
+			if (wave.leaders[index].role != UnitRole::LEADER || !validate_unit_def(wave.leaders[index], r_error)) {
+				return wave.leaders[index].role != UnitRole::LEADER ? fail(r_error, p_def.id + " has a wave leader that is not a leader") : false;
+			}
+			for (const UnitDef &soldier : wave.squads[index]) {
+				if (!validate_unit_def(soldier, r_error)) {
+					return false;
+				}
+			}
+		}
 	}
 	for (const GoalDef &goal : p_def.goals) {
 		if (goal.handler == nullptr || goal.supplies < 0 || goal.supplies > 100 || goal.value < 0 || goal.value > MAX_ROUNDS) {

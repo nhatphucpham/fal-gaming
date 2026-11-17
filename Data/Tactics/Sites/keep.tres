@@ -1,0 +1,11 @@
+[gd_resource type="TacticsSiteData" format=3]
+
+[resource]
+id = &"site.keep"
+kind = &"site_kind.stronghold"
+name_key = "SITE_KEEP"
+description_key = "SITE_KEEP_DESC"
+reach_cells = 0
+capture_phases = 1
+vision_cells = 3
+armor_bonus = 5

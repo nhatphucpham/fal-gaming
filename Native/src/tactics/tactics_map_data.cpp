@@ -54,6 +54,23 @@ bool TacticsMapData::to_map_def(tactics::MapDef *r_def, std::string *r_error) co
 		const Vector2i cell = guard_cells[index];
 		r_def->guard_cells.push_back({ cell.x, cell.y });
 	}
+	r_def->sites.clear();
+	if (site_cells.size() != sites.size() || (!site_owners.is_empty() && site_owners.size() != sites.size())) {
+		*r_error = r_def->id + " needs one site cell (and owner, if any) per site";
+		return false;
+	}
+	for (int64_t index = 0; index < sites.size(); index++) {
+		const Ref<TacticsSiteData> site = sites[index];
+		tactics::SitePlacement placement;
+		if (site.is_null() || !site->to_site_def(&placement.def, r_error)) {
+			*r_error = r_def->id + ": " + (site.is_null() ? "empty site entry " + std::to_string(index) : *r_error);
+			return false;
+		}
+		const Vector2i cell = site_cells[index];
+		placement.cell = { cell.x, cell.y };
+		placement.owner = site_owners.is_empty() ? tactics::NO_INDEX : site_owners[index];
+		r_def->sites.push_back(placement);
+	}
 	return true;
 }
 
@@ -72,6 +89,9 @@ void TacticsMapData::_bind_methods() {
 	BATTLE_BIND_ACCESSORS(TacticsMapData, facing_a);
 	BATTLE_BIND_ACCESSORS(TacticsMapData, facing_b);
 	BATTLE_BIND_ACCESSORS(TacticsMapData, guard_cells);
+	BATTLE_BIND_ACCESSORS(TacticsMapData, sites);
+	BATTLE_BIND_ACCESSORS(TacticsMapData, site_cells);
+	BATTLE_BIND_ACCESSORS(TacticsMapData, site_owners);
 	ClassDB::bind_method(D_METHOD("get_spawn_cells", "side"), &TacticsMapData::get_spawn_cells);
 
 	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "id"), "set_id", "get_id");
@@ -88,4 +108,7 @@ void TacticsMapData::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2I, "facing_a"), "set_facing_a", "get_facing_a");
 	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2I, "facing_b"), "set_facing_b", "get_facing_b");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "guard_cells", PROPERTY_HINT_ARRAY_TYPE, "Vector2i"), "set_guard_cells", "get_guard_cells");
+	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "sites", PROPERTY_HINT_ARRAY_TYPE, "TacticsSiteData"), "set_sites", "get_sites");
+	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "site_cells", PROPERTY_HINT_ARRAY_TYPE, "Vector2i"), "set_site_cells", "get_site_cells");
+	ADD_PROPERTY(PropertyInfo(Variant::PACKED_INT32_ARRAY, "site_owners"), "set_site_owners", "get_site_owners");
 }

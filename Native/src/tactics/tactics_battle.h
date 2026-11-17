@@ -77,6 +77,10 @@ public:
 	// load_scenario() applies the scenario's; this applies another
 	// scenario's environment after setup(), before start().
 	bool set_environment(const Ref<TacticsScenarioData> &p_scenario);
+	// Sites and objectives (tactics_battle_sites.cpp): load_scenario()
+	// applies the scenario's objective; this sets one after the leaders,
+	// before start().
+	bool set_objective(const Ref<TacticsObjectiveData> &p_objective);
 	Array start();
 
 	// Commands of the active side: each returns its events (empty with an
@@ -91,6 +95,11 @@ public:
 	// the battle is back to the state before it. Sends no event; the screen
 	// reads the units again.
 	bool undo_move(int64_t p_unit);
+	// The leader uses a site next to it (TacticsSim::use_site): p_choice is
+	// one of the site's choices, p_option which recruit. Never undone.
+	Array use_site(int64_t p_unit, int64_t p_site, const StringName &p_choice, int64_t p_option);
+	// Escort: the convoy holds (true) or walks on at the end of the phase.
+	Array set_convoy_hold(bool p_holds);
 
 	// Queries (tactics_battle_queries.cpp); none changes the battle.
 	bool is_started() const { return sim.is_started(); }
@@ -162,6 +171,17 @@ public:
 	// Survivors, deaths, flights, defections and marks so far, for the
 	// roster after the battle.
 	Dictionary get_battle_report() const;
+	// Sites and objectives (tactics_battle_sites.cpp).
+	bool can_use_site(int64_t p_unit, int64_t p_site, const StringName &p_choice, int64_t p_option) const;
+	// {site, site_id, cell, choices: [{choice, options, can, reason}]} for
+	// each site within the leader's reach that has choices.
+	Array get_site_actions(int64_t p_unit) const;
+	// Every site as p_side knows it (fog of war).
+	Array get_sites(int64_t p_side) const;
+	Dictionary get_objective_state() const;
+	// The convoy's walk at the end of side A's phase, as side A plans it.
+	Array get_convoy_path() const;
+	int get_supplies(int64_t p_side) const;
 
 	void set_log_enabled(bool p_enabled) { log_enabled = p_enabled; }
 	bool is_log_enabled() const { return log_enabled; }

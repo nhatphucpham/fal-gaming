@@ -184,6 +184,18 @@ void TacticsCatalog::validate_maps(PackedStringArray &r_problems) const {
 			r_problems.push_back("TacticsCatalog: " + to_godot_string(error));
 			continue;
 		}
+		const TypedArray<TacticsSiteData> placed = map->get_sites();
+		for (int64_t site = 0; site < placed.size(); site++) {
+			const Ref<TacticsSiteData> data = placed[site];
+			bool is_unlisted = !contains(sites, placed[site]);
+			const TypedArray<TacticsTroopData> recruits = data.is_valid() ? data->get_recruits() : TypedArray<TacticsTroopData>();
+			for (int64_t troop = 0; troop < recruits.size(); troop++) {
+				is_unlisted = is_unlisted || !contains(troops, recruits[troop]);
+			}
+			if (is_unlisted) {
+				r_problems.push_back(vformat("TacticsCatalog: %s places a site (or offers a recruit) not listed in the catalog", where(map)));
+			}
+		}
 		const TypedArray<TacticsTerrainData> legend = map->get_legend_terrains();
 		for (int64_t terrain = 0; terrain < legend.size(); terrain++) {
 			if (!contains(terrains, legend[terrain])) {
@@ -258,6 +270,9 @@ void TacticsCatalog::validate_scenarios(PackedStringArray &r_problems) const {
 				r_problems.push_back(vformat("TacticsCatalog: %s supplies %d troops in %d squads for %d leaders (each listed in troops)", where(scenario), supplied.size(), sizes.size(), scenario->get_leaders_a().size()));
 			}
 		}
+		if (scenario->get_reserve_troop().is_valid() && !contains(troops, scenario->get_reserve_troop())) {
+			r_problems.push_back(vformat("TacticsCatalog: %s has a reserve troop not listed in troops", where(scenario)));
+		}
 		std::string error;
 		if (!try_load_scenario(scenario, &error)) {
 			r_problems.push_back(vformat("TacticsCatalog: %s does not load: %s", where(scenario), to_godot_string(error)));
@@ -290,6 +305,13 @@ bool TacticsCatalog::try_load_scenario(const Ref<TacticsScenarioData> &p_scenari
 					sim.add_leader(side, def, { cell.x, cell.y }, squad, r_error) == tactics::NO_UNIT) {
 				return false;
 			}
+		}
+	}
+	const Ref<TacticsObjectiveData> objective = p_scenario->get_objective();
+	if (objective.is_valid()) {
+		tactics::ObjectiveDef def;
+		if (!objective->to_objective_def(&def, r_error) || !sim.set_objective(def, r_error)) {
+			return false;
 		}
 	}
 	return true;
@@ -343,6 +365,7 @@ PackedStringArray TacticsCatalog::validate() const {
 	validate_ids(traits, "trait.", true, problems);
 	validate_ids(weathers, "weather.", true, problems);
 	validate_ids(daytimes, "daytime.", true, problems);
+	validate_ids(sites, "site.", true, problems);
 	validate_units(problems);
 	validate_references(problems);
 	validate_maps(problems);
@@ -362,6 +385,7 @@ Ref<TacticsMapData> TacticsCatalog::get_map(const StringName &p_id) const { retu
 Ref<TacticsScenarioData> TacticsCatalog::get_scenario(const StringName &p_id) const { return find_by_id(scenarios, p_id); }
 Ref<TacticsTraitData> TacticsCatalog::get_trait(const StringName &p_id) const { return find_by_id(traits, p_id); }
 Ref<TacticsWeatherData> TacticsCatalog::get_weather(const StringName &p_id) const { return find_by_id(weathers, p_id); }
+Ref<TacticsSiteData> TacticsCatalog::get_site(const StringName &p_id) const { return find_by_id(sites, p_id); }
 Ref<TacticsDaytimeData> TacticsCatalog::get_daytime(const StringName &p_id) const { return find_by_id(daytimes, p_id); }
 
 Ref<TacticsIncidentData> TacticsCatalog::get_incident(const StringName &p_id) const {
@@ -381,6 +405,7 @@ void TacticsCatalog::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_scenario", "id"), &TacticsCatalog::get_scenario);
 	ClassDB::bind_method(D_METHOD("get_trait", "id"), &TacticsCatalog::get_trait);
 	ClassDB::bind_method(D_METHOD("get_weather", "id"), &TacticsCatalog::get_weather);
+	ClassDB::bind_method(D_METHOD("get_site", "id"), &TacticsCatalog::get_site);
 	ClassDB::bind_method(D_METHOD("get_daytime", "id"), &TacticsCatalog::get_daytime);
 	ClassDB::bind_method(D_METHOD("get_incident", "id"), &TacticsCatalog::get_incident);
 	BATTLE_BIND_ACCESSORS(TacticsCatalog, rules);
@@ -395,6 +420,7 @@ void TacticsCatalog::_bind_methods() {
 	BATTLE_BIND_ACCESSORS(TacticsCatalog, scenarios);
 	BATTLE_BIND_ACCESSORS(TacticsCatalog, traits);
 	BATTLE_BIND_ACCESSORS(TacticsCatalog, weathers);
+	BATTLE_BIND_ACCESSORS(TacticsCatalog, sites);
 	BATTLE_BIND_ACCESSORS(TacticsCatalog, daytimes);
 	BATTLE_BIND_ACCESSORS(TacticsCatalog, incident_rules);
 
@@ -410,6 +436,7 @@ void TacticsCatalog::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "scenarios", PROPERTY_HINT_ARRAY_TYPE, "TacticsScenarioData"), "set_scenarios", "get_scenarios");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "traits", PROPERTY_HINT_ARRAY_TYPE, "TacticsTraitData"), "set_traits", "get_traits");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "weathers", PROPERTY_HINT_ARRAY_TYPE, "TacticsWeatherData"), "set_weathers", "get_weathers");
+	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "sites", PROPERTY_HINT_ARRAY_TYPE, "TacticsSiteData"), "set_sites", "get_sites");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "daytimes", PROPERTY_HINT_ARRAY_TYPE, "TacticsDaytimeData"), "set_daytimes", "get_daytimes");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "incident_rules", PROPERTY_HINT_RESOURCE_TYPE, "TacticsIncidentRulesData"), "set_incident_rules", "get_incident_rules");
 }

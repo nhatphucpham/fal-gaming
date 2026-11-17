@@ -459,11 +459,11 @@ func _check_long_campaign() -> bool:
 
 # The campaign takes the catalog's scenarios in turn, one per battle fought:
 # the river crossing, then the night raid with the soldiers it supplies
-# (scouts among them), then the river again.
+# (scouts among them), the three objective maps, then the river again.
 func _check_next_scenario() -> bool:
 	var roster := TacticsRoster.create(41)
 	var ids: Array[StringName] = []
-	for battles: int in 3:
+	for battles: int in 6:
 		roster.battles = battles
 		ids.append(TacticsCampaign.next_scenario(roster, _catalog).id)
 	roster.battles = 1
@@ -481,7 +481,7 @@ func _check_next_scenario() -> bool:
 	if not night.prepare_battle(battle, night.people):
 		return false
 	battle.start()
-	return _expect("in turn", ids, [&"scenario.river_crossing", &"scenario.night_raid", &"scenario.river_crossing"]) \
+	return _expect("in turn", ids, [&"scenario.river_crossing", &"scenario.night_raid", &"scenario.city_defense", &"scenario.supply_road", &"scenario.broken_ring", &"scenario.river_crossing"]) \
 		and _expect("the supplied soldiers fill the squads", supplied, expected) \
 		and _expect("scouts are supplied", supplied.count(&"troop.kite_scout"), 3) \
 		and _expect("the night raid has fog, night and fog weather", [battle.has_fog_of_war(), battle.get_daytime_id(1), battle.get_weather_id(1), battle.get_weather_id(base.weather_change_round)], [true, &"daytime.night", &"weather.fog", &"weather.rain"])

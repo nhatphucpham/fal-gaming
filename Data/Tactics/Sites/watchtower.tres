@@ -1,0 +1,19 @@
+[gd_resource type="TacticsSiteData" format=3]
+
+[ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/do_uy.tres" id="leader_do_uy"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/spearman.tres" id="troop_spearman"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/shieldman.tres" id="troop_shieldman"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/archer.tres" id="troop_archer"]
+
+[resource]
+id = &"site.watchtower"
+kind = &"site_kind.stronghold"
+name_key = "SITE_WATCHTOWER"
+description_key = "SITE_WATCHTOWER_DESC"
+reach_cells = 0
+capture_phases = 2
+vision_cells = 4
+armor_bonus = 5
+reinforce_round = 6
+reinforce_leader = ExtResource("leader_do_uy")
+reinforce_squad = Array[TacticsTroopData]([ExtResource("troop_spearman"), ExtResource("troop_shieldman"), ExtResource("troop_archer")])

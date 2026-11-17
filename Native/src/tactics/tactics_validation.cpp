@@ -3,6 +3,7 @@
 #include "tactics_incidents.h"
 #include "tactics_orders.h"
 #include "tactics_passives.h"
+#include "tactics_sites.h"
 #include "tactics_skills.h"
 
 namespace tactics {
@@ -310,6 +311,33 @@ bool validate_map(const MapDef &p_map, std::string *r_error) {
 		if (cell.col < 0 || cell.col >= p_map.width || cell.row < 0 || cell.row >= p_map.height) {
 			*r_error = p_map.id + " has guard cell (" + std::to_string(cell.col) + ", " + std::to_string(cell.row) + ") off the map";
 			return false;
+		}
+	}
+	for (size_t index = 0; index < p_map.sites.size(); index++) {
+		const SitePlacement &site = p_map.sites[index];
+		if (!validate_site(site, p_map.width, p_map.height, r_error)) {
+			return false;
+		}
+		for (size_t other = 0; other < index; other++) {
+			if (p_map.sites[other].cell == site.cell) {
+				*r_error = p_map.id + " has two sites on one cell";
+				return false;
+			}
+		}
+		for (const UnitDef &recruit : site.def.recruits) {
+			if (recruit.role != UnitRole::SOLDIER || !validate_unit_def(recruit, r_error)) {
+				*r_error = recruit.role != UnitRole::SOLDIER ? site.def.id + " offers a recruit that is not a soldier" : *r_error;
+				return false;
+			}
+		}
+		const bool is_leader_valid = !site.def.has_reinforcement || (site.def.reinforce_leader.role == UnitRole::LEADER && validate_unit_def(site.def.reinforce_leader, r_error));
+		if (!is_leader_valid) {
+			return false;
+		}
+		for (const UnitDef &soldier : site.def.reinforce_squad) {
+			if (!validate_unit_def(soldier, r_error)) {
+				return false;
+			}
 		}
 	}
 	return check_range(p_map.id, "objective_side", p_map.objective_side, SIDE_A, SIDE_B, r_error);

@@ -1,0 +1,12 @@
+[gd_resource type="TacticsSiteData" format=3]
+
+[resource]
+id = &"site.shrine"
+kind = &"site_kind.shrine"
+name_key = "SITE_SHRINE"
+description_key = "SITE_SHRINE_DESC"
+reach_cells = 1
+uses = 1
+calm_radius_cells = 2
+bless_stat = &"stat.attack_pct"
+bless_amount = 10
