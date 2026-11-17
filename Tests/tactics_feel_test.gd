@@ -204,7 +204,8 @@ func _check_convoy_tap() -> bool:
 
 # Every map opens on a line between columns (the broken ring used to cut
 # its left column of tokens in half) with our leaders in view, and the
-# broken ring points at its exits out of view.
+# broken ring points at its exits out of view without a mark on a leader
+# (its south exits' mark sat on Lạc Hồng).
 func _check_framing() -> bool:
 	for path: String in [SCENARIO_PATH, NIGHT_SCENARIO_PATH, ROAD_SCENARIO_PATH, RING_SCENARIO_PATH]:
 		await _open(true, path)
@@ -222,6 +223,12 @@ func _check_framing() -> bool:
 			var out_of_view := exits.filter(func(cell: Vector2i) -> bool: return not map.is_in_view(map.cell_to_local(cell)))
 			if not out_of_view.is_empty() and pointed.is_empty():
 				return _fail("the broken ring's exits out of view should get an edge mark")
+		# A mark on the view's edge never sits on one of our leaders.
+		for mark: Dictionary in map.get_edge_marks():
+			for leader: int in _our_leaders():
+				var at := map.board_to_view(map.get_piece(leader).position)
+				if at.distance_to(mark["at"]) < TacticsMapView.EDGE_MARK_PX + cell_px * 0.3:
+					return _fail("%s opens with an edge mark at %s on leader %d at %s" % [path, mark["at"], leader, at])
 	return true
 
 

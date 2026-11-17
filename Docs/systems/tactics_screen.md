@@ -260,7 +260,9 @@ Fog, weather and night (see [Tactics vision](tactics_vision.md)):
   `is_objective`), so at the night raid's dark start you know which way
   to go. Each edge of the map holding our exits (the broken ring) gets
   the same mark while none of its exits is in view. Edge marks keep their
-  pointer inside the view, clear of the top bar.
+  pointer inside the view, clear of the top bar, and slide along their
+  edge off the pieces in view (our leaders above all, then our soldiers,
+  then enemies and other marks), moving again after each step played.
 - A wavering soldier of ours out of view gets a mark on the edge of the
   map view pointing at it; its card says when it is out of its leader's
   sight ("Ngoài tầm mắt tướng: dễ dao động, chưa trấn an được"; never on

@@ -438,6 +438,7 @@ func _build() -> void:
 	_map.offset_top = TOP_BAR_PX
 	_map.offset_bottom = -PANEL_PX
 	_map.is_instant = is_instant
+	_map.our_side = player_side
 	_map.cell_tapped.connect(tap_cell)
 	_map.cell_held.connect(_on_cell_held)
 	_map.hold_released.connect(_on_hold_released)

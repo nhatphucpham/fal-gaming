@@ -63,6 +63,14 @@ const LIGHT_COLOR := Color(1.0, 0.7, 0.32, 0.1)
 ## over its own frames).
 const FOG_BLEND_SEC: float = 0.25
 const EDGE_MARK_PX: float = 30.0
+# An edge mark slides along its edge off the pieces under it: how much
+# each px of overlap costs (our leaders most), against each px it slides.
+const EDGE_LEADER_WEIGHT: float = 20.0
+const EDGE_SOLDIER_WEIGHT: float = 4.0
+const EDGE_ENEMY_WEIGHT: float = 1.0
+const EDGE_MARK_WEIGHT: float = 20.0
+const EDGE_SHIFT_COST: float = 0.5
+const EDGE_SCAN_STEP_PX: float = 10.0
 
 var map_width: int = 0
 var map_height: int = 0
@@ -106,6 +114,9 @@ var _sites: Array = []
 var _objective_marks: Dictionary = {}
 var _edge_layer: _Layer
 var _edge_cells: Array = []
+var _drawn_edge_marks: Array = []
+## The side whose pieces the edge marks keep clearest of.
+var our_side: int = 0
 var _zone_layer: _Layer
 var _mark_layer: _Layer
 var _intent_layer: _Layer
@@ -586,15 +597,21 @@ func get_last_seen() -> Array:
 ## Cells of our wavering soldiers: those outside the view show a mark on
 ## its edge, pointing at them.
 func set_edge_marks(cells: Array) -> void:
-	if cells == _edge_cells:
-		return
 	_edge_cells = cells
-	_edge_layer.queue_redraw()
+	refresh_edge_marks()
+
+
+## Redraws the edge marks only if where they go changed (the pieces they
+## stay clear of may have moved).
+func refresh_edge_marks() -> void:
+	if get_edge_marks() != _drawn_edge_marks:
+		_edge_layer.queue_redraw()
 
 
 ## The marks shown on the view's edge now: [{cell, at, is_objective}] in
 ## view coordinates: our wavering soldiers and the objective outside it,
-## and each edge of our exits with none of its cells in view.
+## and each edge of our exits with none of its cells in view; each slides
+## along its edge off the pieces in view (our leaders above all).
 func get_edge_marks() -> Array:
 	var marks: Array = []
 	# Room for the bubble and its pointer, which reaches 12 px past it.
@@ -603,14 +620,58 @@ func get_edge_marks() -> Array:
 	if is_on_map(_objective):
 		cells.append(_objective)
 	cells.append_array(_exits_out_of_view())
+	var blockers := _edge_blockers()
 	for at_index: int in cells.size():
 		var cell: Vector2i = cells[at_index]
 		var at := board_to_view(cell_to_local(cell))
 		if Rect2(Vector2.ZERO, size).has_point(at) or not inner.has_area():
 			continue
 		var is_objective := at_index >= _edge_cells.size()
-		marks.append({"cell": cell, "at": Vector2(clampf(at.x, inner.position.x, inner.end.x), clampf(at.y, inner.position.y, inner.end.y)), "is_objective": is_objective})
+		var clamped := Vector2(clampf(at.x, inner.position.x, inner.end.x), clampf(at.y, inner.position.y, inner.end.y))
+		var spot := _free_edge_spot(clamped, at.x != clamped.x, inner, blockers)
+		blockers.append({"at": spot, "reach": EDGE_MARK_PX * 2.0, "weight": EDGE_MARK_WEIGHT})
+		marks.append({"cell": cell, "at": spot, "is_objective": is_objective})
 	return marks
+
+
+# What an edge mark keeps off: each piece in view ({at, reach, weight}),
+# ours weighed most and our leaders more.
+func _edge_blockers() -> Array:
+	var blockers: Array = []
+	var reach := EDGE_MARK_PX + get_cell_px() * 0.45
+	for piece: TacticsPieceView in _pieces.values():
+		if not piece.visible:
+			continue
+		var weight := EDGE_ENEMY_WEIGHT
+		if piece.side == our_side:
+			weight = EDGE_LEADER_WEIGHT if piece.is_leader else EDGE_SOLDIER_WEIGHT
+		blockers.append({"at": board_to_view(piece.position), "reach": reach, "weight": weight})
+	return blockers
+
+
+# Along its edge (up and down for a mark on the left or right, else
+# across), the spot nearest `at` that covers the least of `blockers`.
+func _free_edge_spot(at: Vector2, is_side_edge: bool, inner: Rect2, blockers: Array) -> Vector2:
+	var best := at
+	var best_cost := INF
+	var low := inner.position.y if is_side_edge else inner.position.x
+	var high := inner.end.y if is_side_edge else inner.end.x
+	var start := at.y if is_side_edge else at.x
+	var steps := int((high - low) / EDGE_SCAN_STEP_PX) + 1
+	for index: int in steps:
+		var along := low + index * EDGE_SCAN_STEP_PX
+		var spot := Vector2(at.x, along) if is_side_edge else Vector2(along, at.y)
+		var cost := absf(along - start) * EDGE_SHIFT_COST
+		for blocker: Dictionary in blockers:
+			cost += maxf(blocker["reach"] - spot.distance_to(blocker["at"]), 0.0) * float(blocker["weight"])
+		if cost < best_cost:
+			best_cost = cost
+			best = spot
+	# Where it would go first, if nothing is in the way there.
+	var cost_at := 0.0
+	for blocker: Dictionary in blockers:
+		cost_at += maxf(blocker["reach"] - at.distance_to(blocker["at"]), 0.0) * float(blocker["weight"])
+	return at if cost_at <= best_cost else best
 
 
 # Per edge of the map holding our exits, the exit nearest the view's
@@ -1030,7 +1091,8 @@ func _draw_last_seen(canvas: Control) -> void:
 
 
 func _draw_edge_marks(canvas: Control) -> void:
-	for mark: Dictionary in get_edge_marks():
+	_drawn_edge_marks = get_edge_marks()
+	for mark: Dictionary in _drawn_edge_marks:
 		var at: Vector2 = mark["at"]
 		var toward := (board_to_view(cell_to_local(mark["cell"])) - at).normalized()
 		if mark["is_objective"]:
