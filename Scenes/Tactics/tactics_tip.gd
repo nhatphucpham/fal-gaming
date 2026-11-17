@@ -166,7 +166,9 @@ func _choose_place() -> void:
 			break
 	_box_top = best_top
 	_is_at_top = best_top < bottom_top
-	_box.size.y = height
+	# Its height by the offsets: the box is anchored across, and a size set
+	# before it is ready would warn.
+	_box.offset_bottom = _box.offset_top + height
 
 
 func _covered(items: Array, top: float, height: float) -> int:
