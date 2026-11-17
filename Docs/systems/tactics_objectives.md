@@ -52,9 +52,10 @@ soldier the muster hires for supplies.
   their round, next to their entry cells; the enemy is not routed while a
   wave is still to come. The enemy marches on the keep.
 - Escort: the cart starts on the first free cell of its road and, at the
-  end of each of our phases, walks on it with its move points; it does
-  not set out with an enemy next to it, does not step next to an enemy we
-  see and does not pass a unit on the road. "Xe dừng" holds it for our
+  end of each of our phases, walks on it with its move points; an enemy
+  we see standing on the road stops it before that cell (an unseen one
+  is an ambush), it passes our own units but never stops on one, and
+  enemies beside the road do not stop it. "Xe dừng" holds it for our
   phases until "Xe đi" (no step back after either). At the road's end
   it leaves the map: win. The cart dies: we lose. The enemy strikes the
   cart before anything else, and goes where it saw it last (else the
@@ -78,7 +79,7 @@ The numbers in use (Data/Tactics/Scenarios): river crossing, take the pass
 at 15%, exits on the west and east edges at row 6, hold 2; goals: every
 camp, win by round 9); city defense, hold the keep 8 rounds, waves on
 rounds 2, 5 and 7 (goals: no village burned, no losses); supply road,
-escort the cart (260% hp, 3 moves) along 24 cells (goals: no village
+escort the cart (340% hp, 3 moves) along 24 cells (goals: no village
 burned, win by round 12); broken ring, 2 leaders out of a walled camp,
 Lạc Hồng among them, within 10 rounds (goals: win by round 7, every
 camp).
@@ -90,7 +91,8 @@ that plays for the objective (to the pass, around the keep, beside the
 road ahead of the cart, out by the exits, after the general), keeps its
 leaders together, casts skills and takes site offers. Over 200 seeds:
 river crossing 58%, night raid 58.5%, city defense 63.5%, supply road
-59.5%, broken ring 54%. The idle player (`--policy=idle`) loses every one.
+59.5% (109 of its 119 wins by getting the cart out, 10 by a rout),
+broken ring 54%. The idle player (`--policy=idle`) loses every one.
 
 ## Public API
 
@@ -107,7 +109,7 @@ river crossing 58%, night raid 58.5%, city defense 63.5%, supply road
 | Level | Event | Fields |
 | --- | --- | --- |
 | info | `unit_escaped` | `unit`, `side`, `cell`, `kind` (exit, convoy, general), `seen_from` |
-| info | `convoy_halted` | `unit`, `kind` (hold, go, holding, enemy, blocked) |
+| info | `convoy_halted` | `unit`, `kind` (hold, go, holding, enemy: a seen enemy on its next road cell, blocked) |
 | info | `general_fleeing` | `unit` |
 | info | `goal_met` | `side`, `goal`, `amount` |
 | info | `battle_ended` | `reason`: objective, held, keep_lost, escorted, convoy_lost, broke_out, leader_lost, general_slain, general_fled, rout, time_limit |

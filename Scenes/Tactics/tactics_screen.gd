@@ -610,6 +610,8 @@ func _objective_progress_text() -> String:
 		&"objective_kind.escort":
 			if _objective["convoy_holds"]:
 				return tr("OBJECTIVE_PROGRESS_HOLDING")
+			if _can_steer_convoy(int(_objective["convoy"])) and _convoy_stop_key() != "":
+				return tr("OBJECTIVE_PROGRESS_ROAD_STUCK_FORMAT") % _road_left()
 			return tr("OBJECTIVE_PROGRESS_ROAD_FORMAT") % _road_left()
 		&"objective_kind.break_siege":
 			return tr("OBJECTIVE_PROGRESS_ESCAPED_FORMAT") % [_objective["escaped"], _objective["count"]]
@@ -644,12 +646,53 @@ func show_objective() -> void:
 	var lines: Array[String] = [_objective_line(), tr(scenario.name_key)]
 	lines.append_array(_goal_lines())
 	_panel.show_card(tr("OBJECTIVE_CARD_TITLE") + ": " + tr(_kind_key("OBJECTIVE_KIND_")), Palette.GOLD, _objective_progress_text(), lines)
-	var buttons := _end_turn_button(_are_only_walks_left())
-	if _objective_kind() == &"objective_kind.escort" and _battle.get_active_side() == player_side and int(_objective["convoy"]) >= 0 and _units[_objective["convoy"]]["alive"]:
-		var holds: bool = _objective["convoy_holds"]
-		buttons.push_front({"action": &"convoy_go" if holds else &"convoy_hold", "text": "BUTTON_CONVOY_GO" if holds else "BUTTON_CONVOY_HOLD"})
-	_panel.set_buttons(buttons)
+	var is_escort := _objective_kind() == &"objective_kind.escort"
+	_panel.set_buttons(_convoy_buttons() if is_escort and _can_steer_convoy(int(_objective["convoy"])) else _end_turn_button(_are_only_walks_left()))
 	_set_hint(_kind_key("OBJECTIVE_KIND_"))
+
+
+func _is_convoy(unit: int) -> bool:
+	return unit >= 0 and unit == int(_objective.get("convoy", -1))
+
+
+# The cart, alive, in our phase: the player may hold it or let it roll.
+func _can_steer_convoy(unit: int) -> bool:
+	return _is_convoy(unit) and unit < _units.size() and _units[unit]["alive"] and _battle.get_active_side() == player_side and not _battle.is_finished()
+
+
+func _convoy_buttons() -> Array[Dictionary]:
+	var holds: bool = _objective.get("convoy_holds", false)
+	var buttons := _end_turn_button(_are_only_walks_left())
+	buttons.push_front({"action": &"convoy_go" if holds else &"convoy_hold", "text": "BUTTON_CONVOY_GO" if holds else "BUTTON_CONVOY_HOLD"})
+	return buttons
+
+
+# Why the cart stands still this phase ("" when it will roll): held, an
+# enemy we see on its next road cell, or no free cell ahead.
+func _convoy_stop_key() -> String:
+	if _objective.get("convoy_holds", false):
+		return "TACTICS_CONVOY_HELD"
+	if not _battle.get_convoy_path().is_empty():
+		return ""
+	var road: Array = _objective.get("road_cells", [])
+	var at := road.find(_units[int(_objective["convoy"])]["cell"])
+	if at >= 0 and at + 1 < road.size():
+		var blocker := _unit_at(road[at + 1])
+		if blocker >= 0 and _units[blocker]["side"] != player_side:
+			return "TACTICS_CONVOY_ENEMY_AHEAD"
+	return "TACTICS_CONVOY_BLOCKED"
+
+
+# The cart's card: how it rolls, the road left, and this phase's walk or
+# why it waits.
+func _show_convoy_card(unit: int) -> void:
+	var state: Dictionary = _units[unit]
+	var lines: Array[String] = [tr("TACTICS_CONVOY_RULE_FORMAT") % int(state["move_points"]), tr("TACTICS_CONVOY_ROAD_FORMAT") % _road_left()]
+	if _can_steer_convoy(unit):
+		var stop := _convoy_stop_key()
+		lines.append(tr(stop) if stop != "" else tr("TACTICS_CONVOY_WILL_GO_FORMAT") % (_battle.get_convoy_path().size() - 1))
+	lines.append(_terrain_line(state["cell"]))
+	_panel.show_card(_text.unit_name(state), TacticsPainter.PLAYER_FILL.lightened(0.45), tr("TACTICS_HP_FORMAT") % [state["hp"], state["max_hp"]], lines)
 
 
 # The objective in one short line.
@@ -884,6 +927,8 @@ func _after_playback() -> void:
 	_is_order_change = false
 	if _is_commandable(keep) and (not _is_done(keep) or _can_undo(keep) or was_order):
 		select_unit(keep)
+	elif _can_steer_convoy(keep):
+		select_unit(keep)
 	else:
 		_go_idle()
 	_update_hold_cells()
@@ -1057,6 +1102,8 @@ func _selected_hint(unit: int) -> String:
 
 
 func _unit_buttons(unit: int) -> Array[Dictionary]:
+	if _can_steer_convoy(unit):
+		return _convoy_buttons()
 	if not _is_commandable(unit):
 		return _end_turn_button(false)
 	var can_act := _battle.can_act(unit)
@@ -1477,6 +1524,9 @@ func _skill_zone_name(skill_id: StringName) -> String:
 # keywords in words; for a soldier its leader (or what makes it waver),
 # its keywords in words and the ground it stands on.
 func _show_unit_card(unit: int) -> void:
+	if _is_convoy(unit):
+		_show_convoy_card(unit)
+		return
 	var state: Dictionary = _units[unit]
 	var lines: Array[String] = []
 	var title_color := TacticsPainter.PLAYER_FILL.lightened(0.45) if state["side"] == player_side else TacticsPainter.ENEMY_FILL.lightened(0.35)

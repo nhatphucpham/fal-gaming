@@ -63,7 +63,7 @@ func _run() -> bool:
 	if not ClassDB.class_exists("TacticsBattle"):
 		push_error("TacticsBattle is missing: build the GDExtension (scons) before importing")
 		return false
-	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_fog_redraws, _check_night_objective, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_corner_buttons, _check_auto_end, _check_tap_count, _check_text_fits, _check_site_text, _check_banner_titles, _check_floats, _check_hidden_steps, _check_tip_place]
+	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_fog_redraws, _check_night_objective, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_corner_buttons, _check_auto_end, _check_tap_count, _check_text_fits, _check_site_text, _check_banner_titles, _check_floats, _check_hidden_steps, _check_tip_place, _check_convoy_tap]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Tactics feel test failed in %s" % check.get_method())
@@ -169,6 +169,36 @@ func _check_tip_place() -> bool:
 		await create_timer(TacticsTip.DISMISS_SEC + 0.05).timeout
 		if tips.get_shown() == shown:
 			return _fail("%s: a tap should let the \"%s\" tip go" % [path, shown])
+	return true
+
+
+# A tap on the cart shows how it rolls, the road left and this phase's
+# walk, with "Xe dừng"; pressed, the cart waits, stays selected and the
+# button turns to "Xe đi".
+func _check_convoy_tap() -> bool:
+	await _open(true, ROAD_SCENARIO_PATH)
+	var cart: int = _battle().get_objective_state()["convoy"]
+	var at := _cell_point(_cell(cart))
+	_press(at, true)
+	_press(at, false)
+	await process_frame
+	if _screen.get_selected() != cart:
+		return _fail("a tap on the cart should select it")
+	var road := tr("TACTICS_CONVOY_ROAD_FORMAT") % ((_battle().get_objective_state()["road_cells"] as Array).size() - 1 - (_battle().get_objective_state()["road_cells"] as Array).find(_cell(cart)))
+	var walk := tr("TACTICS_CONVOY_WILL_GO_FORMAT") % (_battle().get_convoy_path().size() - 1)
+	var lines := _screen.get_panel().get_shown_card_lines()
+	if not (road in lines) or not (walk in lines):
+		return _fail("the cart's card should say \"%s\" and \"%s\", got %s" % [road, walk, lines])
+	if not _screen.get_panel().get_buttons().any(func(entry: Dictionary) -> bool: return entry["action"] == &"convoy_hold"):
+		return _fail("the cart should offer \"Xe dừng\"")
+	_screen.press_button(&"convoy_hold")
+	await _wait_idle()
+	if not _battle().get_objective_state()["convoy_holds"] or _screen.get_selected() != cart:
+		return _fail("\"Xe dừng\" should hold the cart and keep it selected")
+	if not _screen.get_panel().get_buttons().any(func(entry: Dictionary) -> bool: return entry["action"] == &"convoy_go"):
+		return _fail("a held cart should offer \"Xe đi\"")
+	if not (tr("TACTICS_CONVOY_HELD") in _screen.get_panel().get_shown_card_lines()):
+		return _fail("a held cart's card should say it waits")
 	return true
 
 

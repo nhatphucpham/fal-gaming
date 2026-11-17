@@ -289,7 +289,13 @@ Sites and objectives (see [Tactics sites](tactics_sites.md) and
   "Hộ tống: Còn 14 ô", "Phá vây: Thoát 1/2"...) is a button: a tap shows the objective card (what
   it asks, the scenario, each side goal with its supplies or "đạt") and,
   escorting in our phase, "Xe dừng" or "Xe đi". Our phase's card opens
-  with the objective's short line.
+  with the objective's short line. Escorting, the chip says "xe kẹt"
+  when the cart will not roll this phase.
+- A tap on the cart selects it: its card says how it rolls, the road
+  left ("Còn 14 ô tới mép bản đồ") and, in our phase, how far it rolls
+  after our turn or why it waits (held, an enemy on the road, no free
+  cell ahead), with "Xe dừng" or "Xe đi"; pressed, the cart stays
+  selected.
 - A leader with a site in reach gets a button named after the site
   (greyed when no choice can be taken now). It opens `Mode.SITE_CHOICE`:
   one line and one button per choice, the reason on the line when it

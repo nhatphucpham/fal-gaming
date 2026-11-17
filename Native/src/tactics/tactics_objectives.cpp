@@ -162,6 +162,17 @@ void place_convoy(TacticsSim &p_sim, int p_cause) {
 	p_sim.spawn_lone_unit(SIDE_A, def.convoy, start, "convoy", p_cause);
 }
 
+// A seen enemy on the convoy's next road cell: why it cannot set out.
+bool is_road_blocked_by_enemy(const TacticsSim &p_sim) {
+	const std::vector<Cell> &road = objective_of(p_sim).road_cells;
+	const auto at = std::find(road.begin(), road.end(), p_sim.get_units()[p_sim.get_convoy()].cell);
+	if (at == road.end() || at + 1 == road.end()) {
+		return false;
+	}
+	const int occupant = p_sim.get_occupant(*(at + 1));
+	return occupant != NO_UNIT && p_sim.get_units()[occupant].side != SIDE_A && p_sim.is_unit_seen_by(SIDE_A, occupant);
+}
+
 // The convoy walks its road at the end of side A's phase and leaves the
 // map at the road's end.
 void walk_convoy(TacticsSim &p_sim, int p_side, int p_cause) {
@@ -174,7 +185,7 @@ void walk_convoy(TacticsSim &p_sim, int p_side, int p_cause) {
 		Event event;
 		event.type = EventType::CONVOY_HALTED;
 		event.unit = convoy;
-		event.kind = p_sim.does_convoy_hold() ? "holding" : (p_sim.has_enemy_next_to(SIDE_A, p_sim.get_units()[convoy].cell) ? "enemy" : "blocked");
+		event.kind = p_sim.does_convoy_hold() ? "holding" : (is_road_blocked_by_enemy(p_sim) ? "enemy" : "blocked");
 		event.cause = p_cause;
 		p_sim.emit(event);
 		return;

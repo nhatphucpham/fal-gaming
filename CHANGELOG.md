@@ -68,6 +68,12 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
   moves under the top bar when your squads stand on the map's bottom
   rows, glides away when the camera brings them under it, and the next
   tap anywhere lets it go.
+- Chiến Dịch: the supply cart can now be got through: it rolls past
+  your own troops and past enemies beside the road, and only an enemy
+  standing on the road stops it (it has more hp to take the hits). A tap
+  on the cart shows the road left, how far it rolls after your turn or
+  why it waits, and "Xe dừng" / "Xe đi"; the objective chip says "xe
+  kẹt" when it will not roll.
 - Chiến Dịch: the undo tip says a move that shows an enemy cannot be
   taken back.
 - Chiến Dịch: the weather and time chip moves to the map's top-left

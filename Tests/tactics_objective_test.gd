@@ -34,7 +34,7 @@ func _run() -> bool:
 		return false
 	var checks: Array[Callable] = [
 		_check_take_pass_win, _check_take_pass_time, _check_hold_city_win, _check_keep_lost, _check_waves,
-		_check_escort_win, _check_convoy_hold_and_halt, _check_convoy_lost, _check_convoy_targeted, _check_convoy_under_fog,
+		_check_escort_win, _check_convoy_hold_and_halt, _check_convoy_passes_ours, _check_convoy_lost, _check_convoy_targeted, _check_convoy_under_fog,
 		_check_siege_win, _check_siege_needs_count, _check_siege_leader_lost, _check_general_slain, _check_general_flees,
 		_check_general_keeps_post, _check_goals, _check_determinism,
 	]
@@ -223,15 +223,44 @@ func _check_convoy_hold_and_halt() -> bool:
 	var order := battle.set_convoy_hold(true)
 	var halted := battle.end_phase()
 	var held_at := Kit.cell_of(battle, cart)
-	# An enemy beside the road ahead stops it short.
-	var blocked := _escort({}, false, Vector2i(6, 8))
+	# An enemy on the road ahead stops it short; one beside the road does
+	# not; one on its next cell keeps it where it is.
+	var blocked := _escort({}, false, Vector2i(5, 8))
 	blocked.start()
 	var blocked_cart := _convoy(blocked)
 	var short_path := blocked.get_convoy_path()
 	blocked.end_phase()
+	var beside := _escort({}, false, Vector2i(6, 8))
+	beside.start()
+	var beside_path := beside.get_convoy_path()
+	var stuck := _escort({}, false, Vector2i(5, 9))
+	stuck.start()
+	var stuck_path := stuck.get_convoy_path()
+	var stuck_halt := Kit.of_type(stuck.end_phase(), &"convoy_halted").map(func(event: Dictionary) -> StringName: return event["kind"])
 	return Kit.expect("the order", Kit.of_type(order, &"convoy_halted").map(func(event: Dictionary) -> StringName: return event["kind"]), [&"hold"]) \
 		and Kit.expect("holds", [held_at, Kit.of_type(halted, &"convoy_halted").map(func(event: Dictionary) -> StringName: return event["kind"])], [Vector2i(5, 10), [&"holding"]]) \
-		and Kit.expect("stops before the enemy", [short_path, Kit.cell_of(blocked, blocked_cart)], [[Vector2i(5, 10), Vector2i(5, 9)], Vector2i(5, 9)])
+		and Kit.expect("stops before the enemy", [short_path, Kit.cell_of(blocked, blocked_cart)], [[Vector2i(5, 10), Vector2i(5, 9)], Vector2i(5, 9)]) \
+		and Kit.expect("passes an enemy beside the road", beside_path, [Vector2i(5, 10), Vector2i(5, 9), Vector2i(5, 8), Vector2i(5, 7)]) \
+		and Kit.expect("an enemy on its next cell", [stuck_path, stuck_halt], [[], [&"enemy"]])
+
+
+# The cart passes our own units on the road but never stops on one.
+func _check_convoy_passes_ours() -> bool:
+	var battle := _escort()
+	battle.start()
+	battle.move_leader(0, Vector2i(5, 9))
+	var past_one := battle.get_convoy_path()
+	var ends_on_ours := _escort({"move_points": 2})
+	ends_on_ours.start()
+	ends_on_ours.move_leader(0, Vector2i(5, 9))
+	var mid_path := ends_on_ours.get_convoy_path()
+	var one_step := _escort({"move_points": 1})
+	one_step.start()
+	one_step.move_leader(0, Vector2i(5, 9))
+	var none := one_step.get_convoy_path()
+	return Kit.expect("passes the leader", past_one, [Vector2i(5, 10), Vector2i(5, 9), Vector2i(5, 8), Vector2i(5, 7)]) \
+		and Kit.expect("passes it with fewer points", mid_path, [Vector2i(5, 10), Vector2i(5, 9), Vector2i(5, 8)]) \
+		and Kit.expect("never stops on the leader's cell", none, [])
 
 
 func _check_convoy_lost() -> bool:

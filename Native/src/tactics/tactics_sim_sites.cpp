@@ -199,9 +199,10 @@ void TacticsSim::update_site_memory() {
 	}
 }
 
-// The convoy goes along its road as far as its move points take it. It
-// does not set out with an enemy next to it, does not step next to an
-// enemy its side sees, and does not pass a unit on the road.
+// The convoy goes along its road as far as its move points take it. An
+// enemy its side sees standing on the road stops it before that cell; it
+// passes its own side's units but never stops on one. Enemies beside the
+// road do not stop it: holding it is the player's call ("Xe dừng").
 std::vector<Cell> TacticsSim::get_convoy_path() const {
 	std::vector<Cell> path;
 	if (!started || finished || convoy_unit == NO_UNIT || convoy_holds || !units[convoy_unit].is_alive) {
@@ -210,7 +211,7 @@ std::vector<Cell> TacticsSim::get_convoy_path() const {
 	const UnitState &convoy = units[convoy_unit];
 	const std::vector<Cell> &road = objective.road_cells;
 	const auto at = std::find(road.begin(), road.end(), convoy.cell);
-	if (at == road.end() || has_enemy_next_to(SIDE_A, convoy.cell)) {
+	if (at == road.end()) {
 		return path;
 	}
 	path.push_back(convoy.cell);
@@ -218,24 +219,20 @@ std::vector<Cell> TacticsSim::get_convoy_path() const {
 	int budget = active_side == SIDE_A ? convoy.move_points_left : get_stats(convoy_unit).move_points;
 	for (auto next = at + 1; next != road.end(); ++next) {
 		const int occupant = get_occupant(*next);
-		if (occupant != NO_UNIT && (units[occupant].side == SIDE_A || is_unit_seen_by(SIDE_A, occupant))) {
+		if (occupant != NO_UNIT && units[occupant].side != SIDE_A && is_unit_seen_by(SIDE_A, occupant)) {
 			break;
 		}
 		const int cost = get_step_cost(*this, convoy_unit, *next);
 		if (cost == UNREACHABLE || cost > budget) {
 			break;
 		}
-		bool is_threatened = false;
-		for (const Cell &direction : DIRECTIONS) {
-			const Cell side_cell = *next + direction;
-			const int enemy = is_on_map(side_cell) ? get_occupant(side_cell) : NO_UNIT;
-			is_threatened = is_threatened || (enemy != NO_UNIT && units[enemy].side != SIDE_A && is_unit_seen_by(SIDE_A, enemy) && !units[enemy].def.is_noncombatant);
-		}
-		if (is_threatened) {
-			break;
-		}
 		budget -= cost;
 		path.push_back(*next);
+	}
+	// Only our own units are known to stand there: an unseen enemy is an
+	// ambush at the walk, not a shorter preview that would give it away.
+	while (path.size() > 1 && get_occupant(path.back()) != NO_UNIT && units[get_occupant(path.back())].side == SIDE_A) {
+		path.pop_back();
 	}
 	if (path.size() < 2) {
 		path.clear();

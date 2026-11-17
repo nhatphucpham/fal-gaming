@@ -787,7 +787,7 @@ OBJECTIVE_KIND_SLAY_GENERAL,Hạ tướng,Bring him down
 OBJECTIVE_KIND_CELL,Chiếm mục tiêu,Take the objective
 OBJECTIVE_DESC_TAKE_PASS_FORMAT,"Đưa một tướng lên %s, giữ không địch kề bên tới hết lượt địch. Hạ hết tướng địch cũng thắng. Quá %d vòng là thua.",Put a leader on the %s and keep enemies off its sides until the enemy turn ends. Defeating every enemy leader also wins. After %d rounds you lose.
 OBJECTIVE_DESC_HOLD_CITY_FORMAT,Giữ %s đủ %d vòng. Địch chiếm và giữ qua một vòng là thua. Địch kéo tới thêm ở vòng %s.,"Hold the %s for %d rounds. If the enemy takes it and keeps it a round, you lose. More enemies come in rounds %s."
-OBJECTIVE_DESC_ESCORT_FORMAT,"Xe lương tự đi theo đường vàng cuối mỗi lượt ta, dừng khi địch kề. Đưa xe ra mép bản đồ. Mất xe hay quá %d vòng là thua.",The supply cart rolls along the gold road after each of our turns and stops by an enemy. Get it off the map. Losing it or running past %d rounds loses.
+OBJECTIVE_DESC_ESCORT_FORMAT,"Xe lương tự đi theo đường chấm cuối mỗi lượt ta, đi qua quân ta, dừng khi địch đứng chắn đường. Đưa xe ra mép bản đồ. Mất xe hay quá %d vòng là thua.","The supply cart rolls along the dotted road after each of our turns, passes our troops and stops when an enemy stands on the road. Get it off the map. Lose it or run past %d rounds and we lose."
 OBJECTIVE_DESC_BREAK_SIEGE_FORMAT,"Đưa %d tướng tới ô thoát vàng ở mép, trong đó có %s. Hạ hết tướng địch cũng thắng. Quá %d vòng là thua.","Get %d leaders to the gold exits at the edge, %s among them. Defeating every enemy leader also wins. After %d rounds you lose."
 OBJECTIVE_DESC_SLAY_GENERAL_FORMAT,Hạ %s. Còn %d%% máu thì hắn chạy ra ô thoát đỏ; hắn thoát là ta thua. Quá %d vòng là thua.,Bring down %s. At %d%% HP he runs for a red exit; if he gets out you lose. After %d rounds you lose.
 OBJECTIVE_PROGRESS_CAPTURE_FORMAT,Chiếm %d/%d,Taking %d/%d
@@ -797,6 +797,13 @@ OBJECTIVE_PROGRESS_KEEP_LOST,Thành mất!,Keep lost!
 OBJECTIVE_PROGRESS_ROUNDS_FORMAT,%d/%d vòng,Held %d/%d
 OBJECTIVE_PROGRESS_ROAD_FORMAT,Còn %d ô,%d cells left
 OBJECTIVE_PROGRESS_HOLDING,Xe đang dừng,Cart waiting
+OBJECTIVE_PROGRESS_ROAD_STUCK_FORMAT,Còn %d ô · xe kẹt,%d cells left · cart stuck
+TACTICS_CONVOY_ROAD_FORMAT,Còn %d ô tới mép bản đồ,%d cells to the map's edge
+TACTICS_CONVOY_WILL_GO_FORMAT,Hết lượt ta xe đi %d ô (vạch trắng),After our turn it rolls %d cells (white line)
+TACTICS_CONVOY_HELD,Xe đang dừng: bấm Xe đi để đi tiếp,Waiting: press Let it roll
+TACTICS_CONVOY_ENEMY_AHEAD,Địch chắn đường: xe đứng yên,An enemy blocks the road: it waits
+TACTICS_CONVOY_BLOCKED,Hết chỗ trống trên đường: xe đứng yên,No free cell ahead: it waits
+TACTICS_CONVOY_RULE_FORMAT,Đi %d ô mỗi lượt theo đường chấm. Đi qua quân ta. Địch đứng trên đường thì xe dừng.,Rolls %d cells a turn along the dotted road. Passes our troops. An enemy on the road stops it.
 OBJECTIVE_PROGRESS_ESCAPED_FORMAT,Thoát %d/%d,Out %d/%d
 OBJECTIVE_PROGRESS_HUNT,Truy tướng,On his trail
 OBJECTIVE_PROGRESS_FLEEING,Hắn đang chạy!,He is running!
@@ -828,7 +835,7 @@ TACTICS_END_GENERAL_FLED_LOSS,Tướng địch đã thoát.,The enemy general go
 TACTICS_TIP_SITE,"Đứng gần làng, miếu, trại: nút mang tên nơi đó hiện ra. Dùng rồi không hoàn tác.","Near a village, shrine or camp, a button with its name shows. It cannot be undone."
 TACTICS_TIP_OBJECTIVE,Ô mục tiêu ở góc trên: chạm để xem việc phải làm và mục tiêu phụ.,The objective chip up top: tap it for what to do and the side goals.
 TACTICS_TIP_CAPTURE,Vòng quanh ô là tiến độ chiếm: đầy vòng là chiếm. Địch kề bên thì dừng.,"The ring round the cell is the capture: full ring, it is taken. An enemy next to it stops it."
-TACTICS_TIP_CONVOY,Xe lương tự đi theo vạch trắng cuối lượt ta. Chạm ô mục tiêu để cho xe dừng hay đi.,The cart rolls along the white line after our turn. Tap the objective chip to hold it or let it go.
+TACTICS_TIP_CONVOY,Xe lương tự đi theo vạch trắng cuối lượt ta. Chạm vào xe để cho xe dừng hay đi.,The cart rolls along the white line after our turn. Tap the cart to hold it or let it roll.
 TACTICS_TIP_EXIT,Ô vàng ở mép là lối thoát: tướng tới đó là ra khỏi trận cùng toán.,Gold edge cells are exits: a leader there leaves the battle with its squad.
 TACTICS_TIP_WAVE,Ô đỏ ở mép: quân địch sẽ vào đó vòng tới.,Red edge cells: enemy troops come in there next round.
 SUMMARY_GOALS,Mục tiêu phụ,Side goals
