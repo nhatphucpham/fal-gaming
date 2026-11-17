@@ -43,6 +43,8 @@ constexpr int CELL_WEIGHT = 10;
 constexpr int NO_LEASH = -1;
 // Keys of a cell outside the leash, or in a wall of enemy reach.
 constexpr int FAR_PENALTY = 1000000;
+// Above any leash overrun on a 16-cell map.
+constexpr int EXPOSED_PENALTY = FAR_PENALTY * 40;
 constexpr int REACH_WEIGHT = 10000;
 constexpr int NO_SHOT_PENALTY = 5000;
 constexpr int SAFE_DISTANCE_CELLS = 20;
@@ -325,6 +327,8 @@ void fall_back(TacticsSim &p_sim, const SquadContext &p_context, int p_soldier, 
 			const int over = get_manhattan(p_cell, p_context.leader_cell) - limit;
 			key += over > 0 ? FAR_PENALTY * over : 0;
 		}
+		// Never next to an enemy, even to stay on the leash.
+		key += is_exposed(p_sim, p_soldier, p_cell, NO_UNIT) ? EXPOSED_PENALTY : 0;
 		key += get_reach_at(p_context, p_sim, p_cell) * REACH_WEIGHT;
 		key += shoots && !has_target_from(p_sim, p_soldier, p_cell) ? NO_SHOT_PENALTY : 0;
 		key += (SAFE_DISTANCE_CELLS - get_nearest_enemy_distance(p_sim, side, p_cell)) * 100;
