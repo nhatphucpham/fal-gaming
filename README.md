@@ -99,7 +99,9 @@ The script checks Godot, Git LFS, the submodule, Python and SCons, builds the
 C++ extension, imports the project, runs every test in `Tests/` and then
 opens the editor (leave out `editor` to skip that). The tactics tests
 include `tactics_brain_test.gd` (soldiers' and the AI's choices),
-`tactics_vision_test.gd` (fog of war, weather and night) and
+`tactics_vision_test.gd` (fog of war, weather and night),
+`tactics_site_test.gd` (villages, shrines, camps and strongholds),
+`tactics_objective_test.gd` (the five objective kinds and side goals) and
 `tactics_feel_test.gd` (zoom, pan, drag, auto end and tap counts). When a setup step fails it
 stops and says how to fix it; failed tests are listed at the end. It finds
 Godot in `C:\Godot`, on `PATH`, or in `Program Files\Godot`, Downloads or
