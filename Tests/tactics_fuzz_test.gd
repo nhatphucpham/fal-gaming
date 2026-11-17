@@ -120,6 +120,8 @@ func _run_seed() -> void:
 	var placements: Array = _place_leaders(battle, rows)
 	var seeds := _plant_incidents(battle)
 	_reset_model(battle)
+	# Before start: its strikes count, and the last seed's never do.
+	_soldier_strikes.clear()
 	var events := battle.start()
 	if events.is_empty():
 		return
@@ -132,7 +134,6 @@ func _run_seed() -> void:
 	_undo_leader = -1
 	_budget.clear()
 	_budget_turn = -1
-	_soldier_strikes.clear()
 	while commands.size() < MAX_COMMANDS and not battle.is_finished():
 		_command_index = commands.size()
 		var before := battle.get_state_hash()
