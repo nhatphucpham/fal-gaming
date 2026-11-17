@@ -702,7 +702,7 @@ SCENARIO_SUPPLY_ROAD,Hộ tống xe lương,Escort the supplies
 MAP_BROKEN_RING,Thung lũng vây,Valley of the ring
 SCENARIO_BROKEN_RING,Phá vây,Break the siege
 SITE_VILLAGE,Làng,Village
-SITE_VILLAGE_DESC,"Chữa thương, mộ binh hoặc cướp lương. Mỗi làng dùng một lần.","Heal, recruit or loot. Each village serves once."
+SITE_VILLAGE_DESC,"Chữa trị, mộ binh hoặc cướp lương. Mỗi làng dùng một lần.","Heal, recruit or loot. Each village serves once."
 SITE_SHRINE,Miếu,Shrine
 SITE_SHRINE_DESC,"Cầu khí, trấn an binh dao động gần, hoặc cầu phúc cả trận.","Pray for the skill, calm wavering soldiers near, or a blessing for the battle."
 SITE_CAMP,Trại,Camp
@@ -713,14 +713,14 @@ SITE_KEEP,Thành trì,Keep
 SITE_KEEP_DESC,"Tướng đứng trên, không địch kề bên tới hết lượt là chiếm. Thêm giáp, nhìn xa.","A leader on it with no enemy next to it takes it after a turn. More armor, sees far."
 SITE_WATCHTOWER,Vọng lâu,Watchtower
 SITE_WATCHTOWER_DESC,Chiếm sau 2 lượt đứng trên. Nhìn rất xa; bên giữ được viện binh một lần.,Taken after 2 turns on it. Sees very far; its holder gets reinforcements once.
-SITE_CHOICE_HEAL,Chữa thương,Heal
+SITE_CHOICE_HEAL,Chữa trị,Heal
 SITE_CHOICE_RECRUIT,Mộ binh,Recruit
 SITE_CHOICE_LOOT,Cướp lương,Loot
 SITE_CHOICE_CHARGE,Cầu khí,Pray
 SITE_CHOICE_CALM,Trấn an,Calm
 SITE_CHOICE_BLESS,Cầu phúc,Bless
 SITE_CHOICE_CAPTURE,Chiếm trại,Take it
-SITE_LINE_HEAL_FORMAT,Chữa thương: cả toán hồi %d%% máu.,Heal: the whole squad regains %d%% HP.
+SITE_LINE_HEAL_FORMAT,Chữa trị: cả toán hồi %d%% máu.,Heal: the whole squad regains %d%% HP.
 SITE_LINE_RECRUIT_FORMAT,Mộ binh: thêm một %s hoặc %s.,Recruit: add a %s or a %s.
 SITE_LINE_LOOT_FORMAT,"Cướp lương: +%d lương, làng cháy, binh oán.",Loot: +%d supplies; the village burns and the troops resent it.
 SITE_LINE_CHARGE,Cầu khí: kỹ năng của tướng sẵn sàng ngay.,Pray: the leader's skill is ready at once.

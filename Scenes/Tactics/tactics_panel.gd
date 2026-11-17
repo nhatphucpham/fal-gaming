@@ -150,7 +150,7 @@ func set_buttons(entries: Array[Dictionary]) -> void:
 		if entry.get("primary", false):
 			button.theme_type_variation = &"PrimaryButton"
 			button.add_theme_font_size_override(&"font_size", 28)
-		# A long name ("Chữa thương" in a row of four) steps its font down
+		# A long name ("Cướp lương" in a row of four) steps its font down
 		# to the small size rather than being cut.
 		button.resized.connect(_fit_button_text.bind(button, button.get_theme_font_size(&"font_size")))
 		var action: StringName = entry["action"]

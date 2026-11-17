@@ -725,7 +725,10 @@ func _check_labels() -> bool:
 			if button.size.y < 88.0:
 				return _fail("the button %s is %.0f px tall, under 88" % [button.text, button.size.y])
 			var font := button.get_theme_font(&"font")
-			if button.text != "" and font.get_string_size(tr(button.text), HORIZONTAL_ALIGNMENT_LEFT, -1, button.get_theme_font_size(&"font_size")).x > button.size.x - 8.0:
+			# The text is drawn inside the style's margins (16 px a side).
+			var box := button.get_theme_stylebox(&"disabled" if button.disabled else &"normal")
+			var room := minf(button.size.x - 8.0, button.size.x - box.get_margin(SIDE_LEFT) - box.get_margin(SIDE_RIGHT))
+			if button.text != "" and font.get_string_size(tr(button.text), HORIZONTAL_ALIGNMENT_LEFT, -1, button.get_theme_font_size(&"font_size")).x > room:
 				return _fail("the button %s shows its text whole" % tr(button.text))
 	for order: StringName in _screen.get_panel().get_order_buttons():
 		var button := _screen.get_panel().get_order_buttons()[order]
