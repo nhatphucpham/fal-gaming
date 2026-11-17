@@ -4,6 +4,9 @@ extends Control
 ## round, sliding in across a band of our colour or the enemy's. It does
 ## not catch taps; the playback shows and hides it.
 
+const TITLE_FONT_PX: int = 64
+const MIN_TITLE_FONT_PX: int = 36
+
 ## The battle's round limit, shown as "Vòng 3/30".
 var max_rounds: int = 30
 
@@ -23,7 +26,7 @@ func _init() -> void:
 	_band.anchor_top = 0.4
 	_band.anchor_bottom = 0.52
 	add_child(_band)
-	_title = _make_label(64)
+	_title = _make_label(TITLE_FONT_PX)
 	_title.anchor_top = 0.0
 	_title.anchor_bottom = 0.68
 	_band.add_child(_title)
@@ -39,8 +42,14 @@ func _init() -> void:
 func present(title: String, subtitle: String, is_ours: bool) -> void:
 	_title.text = title
 	_subtitle.text = subtitle
-	# A long line (a weather's words) wraps onto a taller band.
+	# A long title ("Vòng tới: quân địch kéo tới") steps its font down to
+	# fit the width rather than run off both edges.
 	var font := _subtitle.get_theme_font(&"font")
+	var title_px := TITLE_FONT_PX
+	while font != null and title_px > MIN_TITLE_FONT_PX and font.get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, title_px).x > size.x - 32.0:
+		title_px -= 2
+	_title.add_theme_font_size_override(&"font_size", title_px)
+	# A long line (a weather's words) wraps onto a taller band.
 	var width := font.get_string_size(subtitle, HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x if font != null else 0.0
 	var is_tall := width > size.x - 32.0
 	_band.anchor_bottom = 0.58 if is_tall else 0.52

@@ -61,7 +61,7 @@ func _run() -> bool:
 	if not ClassDB.class_exists("TacticsBattle"):
 		push_error("TacticsBattle is missing: build the GDExtension (scons) before importing")
 		return false
-	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_fog_redraws, _check_night_objective, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_corner_buttons, _check_auto_end, _check_tap_count, _check_text_fits, _check_site_text, _check_floats, _check_hidden_steps]
+	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_fog_redraws, _check_night_objective, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_corner_buttons, _check_auto_end, _check_tap_count, _check_text_fits, _check_site_text, _check_banner_titles, _check_floats, _check_hidden_steps]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Tactics feel test failed in %s" % check.get_method())
@@ -659,6 +659,32 @@ func _check_site_text() -> bool:
 		await process_frame
 		if not await _check_labels():
 			return false
+	return true
+
+
+# Every banner title fits across the map (the wave warning's ran off both
+# edges), at no less than the small font size.
+func _check_banner_titles() -> bool:
+	await _open(true)
+	var banner: TacticsBanner = _screen.find_children("*", "TacticsBanner", true, false)[0]
+	var titles: Array[String] = [tr("TACTICS_PHASE_PLAYER"), tr("TACTICS_PHASE_ENEMY")]
+	var file := FileAccess.open("res://Locale/strings.csv", FileAccess.READ)
+	while not file.eof_reached():
+		var key := file.get_csv_line()[0]
+		if key.begins_with("TACTICS_BANNER_") and not key.ends_with("_FORMAT") and not key.ends_with("_DETAIL"):
+			titles.append(tr(key))
+	for weather: StringName in [&"weather.clear", &"weather.rain", &"weather.fog", &"weather.wind"]:
+		titles.append(tr("TACTICS_WEATHER_SOON_FORMAT") % TacticsText.new(_screen.catalog).environment_name(&"weather", weather))
+	for title: String in titles:
+		banner.present(title, "", true)
+		await process_frame
+		for label: Label in banner.find_children("*", "Label", true, false):
+			if label.text != title:
+				continue
+			var font_px := label.get_theme_font_size(&"font_size")
+			if font_px < GameTheme.SMALL_FONT_SIZE or label.get_theme_font(&"font").get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, font_px).x > banner.size.x - 16.0:
+				return _fail("the banner title %s fits across the map (%d px)" % [title, font_px])
+	banner.dismiss()
 	return true
 
 
