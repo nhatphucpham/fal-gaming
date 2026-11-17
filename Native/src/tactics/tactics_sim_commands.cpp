@@ -467,7 +467,7 @@ bool TacticsSim::is_leader_closed(int p_unit) const {
 	if (p_unit < 0 || p_unit >= static_cast<int>(units.size()) || !can_leader_act(p_unit)) {
 		return true;
 	}
-	return !can_leader_move(p_unit) && get_strike_targets(p_unit).empty() && get_skill_cells(p_unit).empty();
+	return !can_leader_move(p_unit) && get_strike_targets(p_unit).empty() && get_skill_cells(p_unit).empty() && !has_site_action(p_unit);
 }
 
 std::vector<int> TacticsSim::get_attack_targets(int p_unit) const {

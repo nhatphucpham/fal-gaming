@@ -237,6 +237,7 @@ void emit_capture(TacticsSim &p_sim, int p_site, int p_side, const char *p_kind,
 	event.target = p_site;
 	event.to = placed(p_sim, p_site).cell;
 	event.kind = p_kind;
+	event.amount = p_sim.get_seen_mask(event.to);
 	event.cause = p_cause;
 	p_sim.emit(event);
 }

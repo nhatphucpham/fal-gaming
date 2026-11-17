@@ -84,6 +84,20 @@ bool TacticsSim::can_use_site(int p_unit, int p_site, const std::string &p_choic
 	return site.def.handler->check(*this, p_site, p_unit, p_choice, p_option, r_error);
 }
 
+bool TacticsSim::has_site_action(int p_unit) const {
+	std::string error;
+	for (int site = 0; site < static_cast<int>(map.sites.size()); site++) {
+		for (const std::string &choice : map.sites[site].def.handler->choices) {
+			for (int option = 0; option < get_site_option_count(map.sites[site].def, choice); option++) {
+				if (can_use_site(p_unit, site, choice, option, &error)) {
+					return true;
+				}
+			}
+		}
+	}
+	return false;
+}
+
 // Using a site is never taken back: the steps back end here
 // (Docs/systems/tactics_sites.md, Undo).
 bool TacticsSim::use_site(int p_unit, int p_site, const std::string &p_choice, int p_option, std::string *r_error) {

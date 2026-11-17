@@ -101,6 +101,8 @@ public:
 
 	// Sites and objectives (tactics_sim_sites.cpp).
 	bool can_use_site(int p_unit, int p_site, const std::string &p_choice, int p_option, std::string *r_error) const;
+	// Some site within p_unit's reach offers it a choice it may take now.
+	bool has_site_action(int p_unit) const;
 	const std::vector<SiteState> &get_site_states() const { return sites; }
 	SiteState &edit_site(int p_site) { return sites[p_site]; }
 	// The site as p_side knows it: as it is while the side sees its cell (or

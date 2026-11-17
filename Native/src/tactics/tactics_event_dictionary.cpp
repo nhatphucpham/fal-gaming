@@ -239,6 +239,7 @@ void add_site_payload(const tactics::Event &p_event, Dictionary &r_dict) {
 			r_dict["phases"] = p_event.threshold;
 			r_dict["cell"] = to_vector2i(p_event.to);
 			r_dict["kind"] = to_id(p_event.kind);
+			r_dict["seen_mask"] = p_event.amount;
 			break;
 		case tactics::EventType::UNIT_HEALED:
 			r_dict["unit"] = p_event.unit;
