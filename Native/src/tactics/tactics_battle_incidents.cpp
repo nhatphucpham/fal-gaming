@@ -1,6 +1,7 @@
 #include "tactics_battle.h"
 
 #include "tactics_event_dictionary.h"
+#include "tactics_objectives.h"
 
 #include <godot_cpp/core/error_macros.hpp>
 
@@ -25,6 +26,9 @@ bool is_valid_side(int64_t p_side) {
 StringName get_status(const tactics::UnitState &p_unit) {
 	if (p_unit.has_fled) {
 		return StringName("fled");
+	}
+	if (p_unit.has_escaped) {
+		return StringName("escaped");
 	}
 	return StringName(p_unit.is_alive ? "alive" : "dead");
 }
@@ -104,6 +108,15 @@ Dictionary TacticsBattle::get_battle_report() const {
 	karma.push_back(get_karma(tactics::SIDE_A));
 	karma.push_back(get_karma(tactics::SIDE_B));
 	report["karma"] = karma;
+	// Sites and objectives: supplies won, the secondary goals met (indexes
+	// into the objective's goals) and the objective's kind.
+	report["supplies"] = sim.get_supplies(tactics::SIDE_A);
+	Array goals;
+	for (int goal : sim.get_met_goals()) {
+		goals.push_back(goal);
+	}
+	report["goals_met"] = goals;
+	report["objective"] = sim.get_objective().handler != nullptr ? to_id(sim.get_objective().handler->id) : StringName();
 	Array units;
 	for (const tactics::UnitState &unit : sim.get_units()) {
 		Dictionary entry;
@@ -115,6 +128,8 @@ Dictionary TacticsBattle::get_battle_report() const {
 		entry["side"] = unit.side;
 		entry["status"] = get_status(unit);
 		entry["has_defected"] = unit.side != unit.start_side;
+		entry["arrival"] = to_id(unit.arrival_kind);
+		entry["is_noncombatant"] = unit.def.is_noncombatant;
 		entry["leader_id"] = unit.leader != tactics::NO_UNIT ? to_id(sim.get_units()[unit.leader].def.id) : StringName();
 		Array marks;
 		for (const tactics::MarkState &mark : unit.marks) {

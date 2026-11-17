@@ -10,7 +10,11 @@ extends SceneTree
 # marks comes back as an enemy leader when river_crossing is played again;
 # karma carries over at half; a real battle with incidents leaves marks;
 # names stay unique; a named leader can die; more named soldiers than
-# spawn cells fight in squads; a hundred battles keep the save small.
+# spawn cells fight in squads; a hundred battles keep the save small;
+# supplies are saved, a save from before them reads as none and a negative
+# store is refused; a soldier a village gave joins the roster unless it
+# fell, the report's supplies are stored and the side goals listed; a
+# reserve soldier costs supplies and is refused without them.
 
 const CATALOG_PATH: String = "res://Data/Tactics/tactics_catalog.tres"
 const SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/river_crossing.tres"
@@ -43,7 +47,7 @@ func _run() -> bool:
 		_check_save_round_trip, _check_bad_saves, _check_muster_fill, _check_report, _check_naming, _check_biography_battles,
 		_check_named_leader, _check_traitor_returns, _check_karma_carry, _check_real_battle,
 		_check_atomic_save, _check_unreadable_kept, _check_unique_names, _check_named_leader_dies, _check_all_named,
-		_check_leader_cap, _check_long_campaign, _check_next_scenario,
+		_check_leader_cap, _check_long_campaign, _check_next_scenario, _check_supplies_saved, _check_recruits_and_supplies,
 	]
 	for check: Callable in checks:
 		if not check.call():
@@ -459,11 +463,11 @@ func _check_long_campaign() -> bool:
 
 # The campaign takes the catalog's scenarios in turn, one per battle fought:
 # the river crossing, then the night raid with the soldiers it supplies
-# (scouts among them), then the river again.
+# (scouts among them), the three objective maps, then the river again.
 func _check_next_scenario() -> bool:
 	var roster := TacticsRoster.create(41)
 	var ids: Array[StringName] = []
-	for battles: int in 3:
+	for battles: int in 6:
 		roster.battles = battles
 		ids.append(TacticsCampaign.next_scenario(roster, _catalog).id)
 	roster.battles = 1
@@ -481,7 +485,60 @@ func _check_next_scenario() -> bool:
 	if not night.prepare_battle(battle, night.people):
 		return false
 	battle.start()
-	return _expect("in turn", ids, [&"scenario.river_crossing", &"scenario.night_raid", &"scenario.river_crossing"]) \
+	return _expect("in turn", ids, [&"scenario.river_crossing", &"scenario.night_raid", &"scenario.city_defense", &"scenario.supply_road", &"scenario.broken_ring", &"scenario.river_crossing"]) \
 		and _expect("the supplied soldiers fill the squads", supplied, expected) \
 		and _expect("scouts are supplied", supplied.count(&"troop.kite_scout"), 3) \
 		and _expect("the night raid has fog, night and fog weather", [battle.has_fog_of_war(), battle.get_daytime_id(1), battle.get_weather_id(1), battle.get_weather_id(base.weather_change_round)], [true, &"daytime.night", &"weather.fog", &"weather.rain"])
+
+
+func _check_supplies_saved() -> bool:
+	var roster := TacticsRoster.create(12)
+	roster.supplies = 7
+	if not roster.save():
+		return false
+	var loaded := TacticsRoster.load_roster()
+	var data := roster.to_save_data()
+	data.erase("supplies")
+	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	file.store_string(JSON.stringify(data))
+	file.close()
+	var old := TacticsRoster.load_roster()
+	data["supplies"] = -2
+	file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	file.store_string(JSON.stringify(data))
+	file.close()
+	print("Tactics roster test: the next warning (unreadable roster) is expected")
+	var negative := TacticsRoster.load_roster()
+	TacticsRoster.delete()
+	return _expect("supplies kept", loaded.supplies, 7) and _expect("an old save has no supplies", [old.supplies, old.seed_value], [0, 12]) \
+		and _expect("negative supplies refused", negative.seed_value != 12, true)
+
+
+func _check_recruits_and_supplies() -> bool:
+	var scenario := load("res://Data/Tactics/Scenarios/city_defense.tres") as TacticsScenarioData
+	var roster := TacticsRoster.create(21)
+	var campaign := TacticsCampaign.new(roster, _catalog, scenario)
+	var people := roster.people.size()
+	var alive := _report_unit(30, &"alive")
+	alive["arrival"] = &"recruit"
+	alive["id"] = &"troop.militia"
+	var fallen := _report_unit(31, &"dead")
+	fallen["arrival"] = &"recruit"
+	var report := _report([alive, fallen])
+	report["supplies"] = 5
+	report["goals_met"] = [0]
+	var summary := campaign.apply_report(report, {})
+	var goals: Array = summary["goals"]
+	var recruit := roster.people[-1]
+	if not (_expect("one recruit joins", roster.people.size(), people + 1) and _expect("its troop", recruit["troop"], &"troop.militia")
+			and _expect("row says recruit", (summary["rows"] as Array).map(func(row: Dictionary) -> bool: return row["is_recruit"]), [true])
+			and _expect("supplies stored", [summary["supplies"], summary["supplies_total"], roster.supplies], [5, 5, 5])
+			and _expect("goals listed", goals.size(), scenario.objective.goals.size()) and _expect("first goal met", goals[0]["is_met"], true)
+			and _expect("second goal missed", goals.size() < 2 or not goals[1]["is_met"], true)):
+		return false
+	roster.supplies = scenario.reserve_cost - 1
+	var refused := campaign.hire_reserve(&"leader.lac_hong")
+	roster.supplies = scenario.reserve_cost
+	var hired := campaign.hire_reserve(&"leader.lac_hong")
+	return _expect("refused without supplies", refused, -1) and _expect("hired", roster.get_person(hired).get("troop"), scenario.reserve_troop.id) \
+		and _expect("paid", roster.supplies, 0)

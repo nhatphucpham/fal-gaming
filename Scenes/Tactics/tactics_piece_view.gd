@@ -7,6 +7,7 @@ extends Node2D
 ## is the centre of its cell. It has no per-frame work: it redraws only
 ## when a shown value changes, and moves through tweens made by
 ## TacticsPlayback. It never reads the battle; callers set what it shows.
+## It draws as one triangle array (TacticsMeshCanvas): one draw call.
 ## [codeblock]
 ## var piece := TacticsPieceView.new()
 ## piece.setup(state, TacticsPainter.glyph_for(class_id, state["keywords"]))
@@ -101,17 +102,20 @@ func get_token_center() -> Vector2:
 
 
 func _draw() -> void:
-	TacticsPainter.draw_token(self, TOKEN_OFFSET, side, is_leader, glyph, is_done)
+	# Recorded into one triangle array: one draw call for the whole token.
+	var mesh := TacticsMeshCanvas.new()
+	TacticsPainter.draw_token(mesh, TOKEN_OFFSET, side, is_leader, glyph, is_done)
 	if flash > 0.01:
-		var r := 22.0 if is_leader else 16.0
-		draw_circle(TOKEN_OFFSET, r, Color(1, 1, 1, 0.75 * flash))
-	TacticsPainter.draw_hp_bar(self, Vector2(0, BAR_Y), LEADER_BAR_PX if is_leader else SOLDIER_BAR_PX, float(hp) / max_hp, side)
+		var flash_r := 22.0 if is_leader else 16.0
+		mesh.draw_circle(TOKEN_OFFSET, flash_r, Color(1, 1, 1, 0.75 * flash))
+	TacticsPainter.draw_hp_bar(mesh, Vector2(0, BAR_Y), LEADER_BAR_PX if is_leader else SOLDIER_BAR_PX, float(hp) / max_hp, side)
 	if is_leader and charge_threshold > 0:
-		TacticsPainter.draw_pips(self, Vector2(0, PIPS_Y), charge_value, charge_threshold)
+		TacticsPainter.draw_pips(mesh, Vector2(0, PIPS_Y), charge_value, charge_threshold)
 	var r := 21.0 if is_leader else 15.0
 	for index: int in mini(mark_count, SHOWN_MARKS):
 		var p := TOKEN_OFFSET + Vector2(-r - 1.0, -r + 3.0 + index * 7.0)
-		draw_colored_polygon(PackedVector2Array([p + Vector2(0, -3.5), p + Vector2(3.5, 0), p + Vector2(0, 3.5), p + Vector2(-3.5, 0)]), Palette.GOLD)
-		draw_polyline(PackedVector2Array([p + Vector2(0, -3.5), p + Vector2(3.5, 0), p + Vector2(0, 3.5), p + Vector2(-3.5, 0), p + Vector2(0, -3.5)]), Palette.INK, 1.0)
+		mesh.draw_colored_polygon(PackedVector2Array([p + Vector2(0, -3.5), p + Vector2(3.5, 0), p + Vector2(0, 3.5), p + Vector2(-3.5, 0)]), Palette.GOLD)
+		mesh.draw_polyline(PackedVector2Array([p + Vector2(0, -3.5), p + Vector2(3.5, 0), p + Vector2(0, 3.5), p + Vector2(-3.5, 0), p + Vector2(0, -3.5)]), Palette.INK, 1.0)
 	if wavering != Wavering.NONE and wavering_scale > 0.01:
-		TacticsPainter.draw_wavering(self, TOKEN_OFFSET + Vector2(r * 0.85, -r * 1.05), 9.0 * wavering_scale, wavering == Wavering.GOOD)
+		TacticsPainter.draw_wavering(mesh, TOKEN_OFFSET + Vector2(r * 0.85, -r * 1.05), 9.0 * wavering_scale, wavering == Wavering.GOOD)
+	mesh.commit(get_canvas_item())

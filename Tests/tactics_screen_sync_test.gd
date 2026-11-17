@@ -12,10 +12,19 @@ extends SceneTree
 # look, the fog and the last-seen ghosts) and no error may be logged; an
 # enemy we do not see has no piece shown. Odd seeds play with the roster and
 # incidents (most soldiers seeded): the pieces must also show each unit's
-# side, wavering mark and marks as the battle has them.
+# side, wavering mark and marks as the battle has them. The seeds take the
+# five scenarios in turn: the sites shown are those our side knows, a site
+# choice or recruit button is enabled only when the battle takes it, the
+# objective line names the objective, the exits and the convoy's path are
+# the battle's, and units arriving mid-battle get their pieces. Marches
+# sometimes head for the objective, so strongholds are taken too.
 
-const SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/river_crossing.tres"
-const SEED_COUNT: int = 6
+const SCENARIO_PATHS: Array[String] = [
+	"res://Data/Tactics/Scenarios/river_crossing.tres", "res://Data/Tactics/Scenarios/night_raid.tres",
+	"res://Data/Tactics/Scenarios/city_defense.tres", "res://Data/Tactics/Scenarios/supply_road.tres",
+	"res://Data/Tactics/Scenarios/broken_ring.tres",
+]
+const SEED_COUNT: int = 10
 const MAX_TAPS: int = 500
 const CATALOG_PATH: String = "res://Data/Tactics/tactics_catalog.tres"
 const INCIDENTS: Array[StringName] = [
@@ -40,6 +49,8 @@ var _phase_began: bool = false
 ## Unit index -> marks its roster person carried in (campaign seeds).
 var _carried: Dictionary = {}
 var _incident_events: int = 0
+## Site and objective steps played (sites used, arrivals, captures...).
+var _site_events: Dictionary = {}
 
 
 func _initialize() -> void:
@@ -77,17 +88,21 @@ func _run() -> bool:
 			finished += 1
 		_screen.queue_free()
 		await process_frame
-	print("%d playbacks checked, %d of %d battles finished, %d incident steps" % [_played, finished, SEED_COUNT, _incident_events])
+	print("%d playbacks checked, %d of %d battles finished, %d incident steps, site steps %s" % [_played, finished, SEED_COUNT, _incident_events, _site_events])
 	if _incident_events == 0:
 		push_error("Tactics screen sync test: no incident was played")
 		return false
+	for type: StringName in [&"site_used", &"unit_arrived", &"capture_progressed"]:
+		if not _site_events.has(type):
+			push_error("Tactics screen sync test: no %s step was played" % type)
+			return false
 	return true
 
 
 func _play_seed(seed_value: int) -> bool:
 	_rng.seed = seed_value
 	_screen = TacticsScreen.new()
-	_screen.scenario = load(SCENARIO_PATH) as TacticsScenarioData
+	_screen.scenario = load(SCENARIO_PATHS[seed_value % SCENARIO_PATHS.size()]) as TacticsScenarioData
 	_carried.clear()
 	if seed_value % 2 == 1:
 		var campaign := TacticsCampaign.new(TacticsRoster.load_roster(), load(CATALOG_PATH) as TacticsCatalog, _screen.scenario)
@@ -104,7 +119,9 @@ func _play_seed(seed_value: int) -> bool:
 	await process_frame
 	_screen.get_playback().played.connect(_check_played)
 	_screen.get_playback().step_started.connect(func(type: StringName) -> void:
-		_incident_events += 1 if String(type) in ["soldier_wavered", "incident_fired", "incident_calmed"] else 0)
+		_incident_events += 1 if String(type) in ["soldier_wavered", "incident_fired", "incident_calmed"] else 0
+		if String(type) in ["site_used", "site_changed", "capture_progressed", "unit_arrived", "unit_escaped", "unit_healed", "convoy_halted", "general_fleeing", "supplies_gained"]:
+			_site_events[type] = int(_site_events.get(type, 0)) + 1)
 	if _screen.campaign != null:
 		for state: Dictionary in _battle().get_units():
 			var person := _screen.campaign.get_person(state["record_id"])
@@ -151,6 +168,11 @@ func _random_tap() -> String:
 			var reachable: Array = _screen.get_map().get_marks().get("reachable", [])
 			if not reachable.is_empty() and _rng.randf() < 0.5:
 				var cell := _nearest_to_enemy(reachable)
+				# Now and then toward the objective instead (a stronghold
+				# to take, an exit), so captures and breakouts come too.
+				var goal: Vector2i = _battle().get_objective_state().get("cell", Vector2i(-1, -1))
+				if goal.x >= 0 and _rng.randf() < 0.4:
+					cell = _nearest_to(reachable, goal)
 				_screen.tap_cell(cell)
 				return "march leader %d to %s" % [leader, cell]
 			return "tap leader %d" % leader
@@ -184,6 +206,9 @@ func _random_tap() -> String:
 		var order: StringName = orders[_rng.randi_range(0, orders.size() - 1)]
 		_screen.get_panel().get_order_buttons()[order].pressed.emit()
 		return "order %s" % order
+	if _rng.randf() < 0.06:
+		_screen.get_objective_chip().pressed.emit()
+		return "objective chip"
 	var buttons: Array[Dictionary] = []
 	for entry: Dictionary in _screen.get_panel().get_buttons():
 		# End turn less often, so leaders get to act.
@@ -205,6 +230,14 @@ func _living_leaders(side: int) -> Array[int]:
 
 
 # The cell of `cells` nearest to any living enemy.
+func _nearest_to(cells: Array, goal: Vector2i) -> Vector2i:
+	var best: Vector2i = cells[0]
+	for cell: Vector2i in cells:
+		if absi(goal.x - cell.x) + absi(goal.y - cell.y) < absi(goal.x - best.x) + absi(goal.y - best.y):
+			best = cell
+	return best
+
+
 func _nearest_to_enemy(cells: Array) -> Vector2i:
 	var best: Vector2i = cells[0]
 	var best_distance := 1 << 30
@@ -253,6 +286,7 @@ func _check_synced(what: String) -> void:
 	_check_intents(what)
 	_check_marks(what)
 	_check_buttons(what)
+	_check_objective(what)
 
 
 func _check_pieces(what: String, is_synced: bool) -> void:
@@ -292,7 +326,7 @@ func _check_pieces(what: String, is_synced: bool) -> void:
 			if is_synced:
 				# Closed: it waited, or no point reaches a cell, no strike is left
 				# (moving first with the points left) and no skill cell.
-				var has_nothing: bool = not _battle().can_move(unit) and _battle().get_strike_targets(unit).is_empty() and _battle().get_skill_cells(unit).is_empty()
+				var has_nothing: bool = not _battle().can_move(unit) and _battle().get_strike_targets(unit).is_empty() and _battle().get_skill_cells(unit).is_empty() and not _has_site_choice(unit)
 				var is_done: bool = state["side"] == 0 and _battle().get_active_side() == 0 and (not _battle().can_act(unit) or has_nothing)
 				if piece.is_done != is_done:
 					_problems.append("%s: leader %d done=%s, piece done=%s" % [what, unit, is_done, piece.is_done])
@@ -315,7 +349,7 @@ func _check_zones(what: String) -> void:
 func _check_fog(what: String) -> void:
 	var map := _screen.get_map()
 	if not _battle().has_fog_of_war():
-		_problems.append("%s: the river crossing should have fog of war" % what)
+		_problems.append("%s: every scenario should have fog of war" % what)
 		return
 	if map.get_fog() != _battle().get_fog_cells(0):
 		_problems.append("%s: the fog shown differs from what side 0 sees" % what)
@@ -381,12 +415,60 @@ func _check_marks(what: String) -> void:
 		_problems.append("%s: leader %d card lacks \"%s\": %s" % [what, leader, turn_line, _screen.get_panel().get_shown_card_lines()])
 
 
+# Some site within the leader's reach takes a choice now.
+func _has_site_choice(unit: int) -> bool:
+	for site: Dictionary in _battle().get_site_actions(unit):
+		for choice: Dictionary in site["choices"]:
+			if choice["can"]:
+				return true
+	return false
+
+
+func _can_take(leader: int, site: int, choice: StringName) -> bool:
+	for option: int in 4:
+		if _battle().can_use_site(leader, site, choice, option):
+			return true
+	return false
+
+
+# The sites shown are the battle's for our side; the objective's line, its
+# exits and the convoy's path are the battle's too.
+func _check_objective(what: String) -> void:
+	var map := _screen.get_map()
+	if map.get_sites() != _battle().get_sites(0):
+		_problems.append("%s: the sites shown differ from what side 0 knows" % what)
+	var objective := _battle().get_objective_state()
+	var kind: StringName = objective["kind"]
+	var name := tr("OBJECTIVE_KIND_" + String(kind).trim_prefix("objective_kind.").to_upper())
+	if not _screen.get_objective_chip_text().begins_with(name + ":"):
+		_problems.append("%s: the objective line reads \"%s\" for %s" % [what, _screen.get_objective_chip_text(), kind])
+	var marks := map.get_objective_marks()
+	if kind == &"objective_kind.break_siege" and Array(marks.get("exits", [])) != Array(objective["exit_cells"]):
+		_problems.append("%s: exits shown %s, battle %s" % [what, marks.get("exits"), objective["exit_cells"]])
+	if kind == &"objective_kind.escort":
+		var path: Array = _battle().get_convoy_path() if _battle().get_active_side() == 0 and not _battle().is_finished() else []
+		if Array(marks.get("convoy_path", [])) != path:
+			_problems.append("%s: convoy path shown %s, battle %s" % [what, marks.get("convoy_path"), path])
+
+
 # Buttons that would send a command are enabled only when the battle takes it.
 func _check_buttons(what: String) -> void:
 	var leader := _screen.get_selected()
+	var site := _screen.get_shown_site()
 	for entry: Dictionary in _screen.get_panel().get_buttons():
 		var action: StringName = entry["action"]
 		var enabled: bool = entry["enabled"]
+		if action == &"site" and enabled != (leader >= 0 and _has_site_choice(leader)):
+			_problems.append("%s: site button enabled=%s for leader %d" % [what, enabled, leader])
+		if String(action).begins_with("site_"):
+			var choice := StringName(String(action).trim_prefix("site_"))
+			if site < 0 or enabled != _can_take(leader, site, choice):
+				_problems.append("%s: %s enabled=%s at site %d for leader %d" % [what, action, enabled, site, leader])
+		if String(action).begins_with("recruit_"):
+			if site < 0 or enabled != _battle().can_use_site(leader, site, &"recruit", int(String(action).trim_prefix("recruit_"))):
+				_problems.append("%s: %s enabled=%s at site %d" % [what, action, enabled, site])
+		if action in [&"convoy_hold", &"convoy_go"] and (_battle().get_active_side() != 0 or _battle().get_objective_state()["convoy_holds"] != (action == &"convoy_go")):
+			_problems.append("%s: %s offered out of turn or the wrong way round" % [what, action])
 		if action == &"undo" and (leader < 0 or not _battle().can_undo_move(leader)):
 			_problems.append("%s: undo offered with no move to take back" % what)
 		if action in [&"wait", &"skill", &"undo"] and leader < 0:

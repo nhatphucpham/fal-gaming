@@ -18,6 +18,8 @@ extends SceneTree
 
 const SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/river_crossing.tres"
 const NIGHT_SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/night_raid.tres"
+const ROAD_SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/supply_road.tres"
+const RING_SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/broken_ring.tres"
 const MAX_FRAMES: int = 3000
 ## On a 360-px-wide phone the 720-px layout is halved.
 const MIN_CELL_LAYOUT_PX: float = 88.0
@@ -61,7 +63,7 @@ func _run() -> bool:
 	if not ClassDB.class_exists("TacticsBattle"):
 		push_error("TacticsBattle is missing: build the GDExtension (scons) before importing")
 		return false
-	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_fog_redraws, _check_night_objective, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_corner_buttons, _check_auto_end, _check_tap_count, _check_text_fits, _check_floats, _check_hidden_steps]
+	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_fog_redraws, _check_night_objective, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_corner_buttons, _check_auto_end, _check_tap_count, _check_text_fits, _check_site_text, _check_banner_titles, _check_floats, _check_hidden_steps, _check_tip_place, _check_convoy_tap, _check_framing]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Tactics feel test failed in %s" % check.get_method())
@@ -141,6 +143,109 @@ func _drag(from: Vector2, to: Vector2, steps: int) -> void:
 		root.push_input(event)
 
 
+# A first-time tip never covers a unit of ours on screen (the supply road
+# and the broken ring start with our squads on the map's bottom rows, where
+# the tip used to sit, and with the selected leader there), and the next tap
+# anywhere lets it go.
+func _check_tip_place() -> bool:
+	for path: String in [ROAD_SCENARIO_PATH, RING_SCENARIO_PATH]:
+		DirAccess.remove_absolute(RunSettings.path)
+		await _open(true, path)
+		var tips := _screen.get_tips()
+		if tips.get_shown() != &"fog":
+			return _fail("%s: the fog tip should show at the start, not \"%s\"" % [path, tips.get_shown()])
+		await create_timer(TacticsTip.IN_SEC + 0.05).timeout
+		if not _is_tip_clear(path + " at the start"):
+			return false
+		var leader := _our_leaders()[0]
+		_screen.select_unit(leader)
+		await create_timer(TacticsMapView.CAMERA_SEC + TacticsTip.MOVE_SEC + 0.1).timeout
+		if not _is_tip_clear(path + " with a leader selected"):
+			return false
+		var shown := tips.get_shown()
+		var press_at := root.get_final_transform() * (_screen.get_tips().get_box_rect().get_center())
+		_press(press_at, true)
+		_press(press_at, false)
+		await create_timer(TacticsTip.DISMISS_SEC + 0.05).timeout
+		if tips.get_shown() == shown:
+			return _fail("%s: a tap should let the \"%s\" tip go" % [path, shown])
+	return true
+
+
+# A tap on the cart shows how it rolls, the road left and this phase's
+# walk, with "Xe dừng"; pressed, the cart waits, stays selected and the
+# button turns to "Xe đi".
+func _check_convoy_tap() -> bool:
+	await _open(true, ROAD_SCENARIO_PATH)
+	var cart: int = _battle().get_objective_state()["convoy"]
+	var at := _cell_point(_cell(cart))
+	_press(at, true)
+	_press(at, false)
+	await process_frame
+	if _screen.get_selected() != cart:
+		return _fail("a tap on the cart should select it")
+	var road := tr("TACTICS_CONVOY_ROAD_FORMAT") % ((_battle().get_objective_state()["road_cells"] as Array).size() - 1 - (_battle().get_objective_state()["road_cells"] as Array).find(_cell(cart)))
+	var walk := tr("TACTICS_CONVOY_WILL_GO_FORMAT") % (_battle().get_convoy_path().size() - 1)
+	var lines := _screen.get_panel().get_shown_card_lines()
+	if not (road in lines) or not (walk in lines):
+		return _fail("the cart's card should say \"%s\" and \"%s\", got %s" % [road, walk, lines])
+	if not _screen.get_panel().get_buttons().any(func(entry: Dictionary) -> bool: return entry["action"] == &"convoy_hold"):
+		return _fail("the cart should offer \"Xe dừng\"")
+	_screen.press_button(&"convoy_hold")
+	await _wait_idle()
+	if not _battle().get_objective_state()["convoy_holds"] or _screen.get_selected() != cart:
+		return _fail("\"Xe dừng\" should hold the cart and keep it selected")
+	if not _screen.get_panel().get_buttons().any(func(entry: Dictionary) -> bool: return entry["action"] == &"convoy_go"):
+		return _fail("a held cart should offer \"Xe đi\"")
+	if not (tr("TACTICS_CONVOY_HELD") in _screen.get_panel().get_shown_card_lines()):
+		return _fail("a held cart's card should say it waits")
+	return true
+
+
+# Every map opens on a line between columns (the broken ring used to cut
+# its left column of tokens in half) with our leaders in view, and the
+# broken ring points at its exits out of view without a mark on a leader
+# (its south exits' mark sat on Lạc Hồng).
+func _check_framing() -> bool:
+	for path: String in [SCENARIO_PATH, NIGHT_SCENARIO_PATH, ROAD_SCENARIO_PATH, RING_SCENARIO_PATH]:
+		await _open(true, path)
+		var map := _map()
+		var cell_px := map.get_cell_px()
+		var offset := map.get_camera_offset().x
+		if absf(offset / cell_px - roundf(offset / cell_px)) > 0.01:
+			return _fail("%s opens with a column cut in half (offset %.1f, cell %.1f)" % [path, offset, cell_px])
+		for leader: int in _our_leaders():
+			if not map.is_in_view(map.cell_to_local(_cell(leader))):
+				return _fail("%s opens with leader %d out of view" % [path, leader])
+		if path == RING_SCENARIO_PATH:
+			var exits: Array = _battle().get_objective_state()["exit_cells"]
+			var pointed := map.get_edge_marks().filter(func(mark: Dictionary) -> bool: return exits.has(mark["cell"]))
+			var out_of_view := exits.filter(func(cell: Vector2i) -> bool: return not map.is_in_view(map.cell_to_local(cell)))
+			if not out_of_view.is_empty() and pointed.is_empty():
+				return _fail("the broken ring's exits out of view should get an edge mark")
+		# A mark on the view's edge never sits on one of our leaders.
+		for mark: Dictionary in map.get_edge_marks():
+			for leader: int in _our_leaders():
+				var at := map.board_to_view(map.get_piece(leader).position)
+				if at.distance_to(mark["at"]) < TacticsMapView.EDGE_MARK_PX + cell_px * 0.3:
+					return _fail("%s opens with an edge mark at %s on leader %d at %s" % [path, mark["at"], leader, at])
+	return true
+
+
+func _is_tip_clear(label: String) -> bool:
+	var box := _screen.get_tips().get_box_rect()
+	var map := _map()
+	var view := Rect2(map.position, map.size)
+	for piece: TacticsPieceView in map.get_pieces():
+		if not piece.visible or piece.side != 0:
+			continue
+		var cell := Vector2.ONE * map.get_cell_px()
+		var rect := Rect2(map.position + map.board_to_view(piece.position) - cell / 2.0, cell).intersection(view)
+		if rect.has_area() and rect.grow(-4.0).intersects(box):
+			return _fail("%s: the tip %s covers unit %d at %s" % [label, box, piece.unit_index, rect])
+	return true
+
+
 # Frames over `seconds` that changed what would be drawn: [changed, frames].
 func _count_changed_frames(seconds: float) -> Array[int]:
 	var changed := 0
@@ -183,6 +288,22 @@ func _check_idle_frames() -> bool:
 		push_error("An idle tactics map redrew its layers")
 		return false
 	print("Idle map: %d of %d frames changed" % counts)
+	# The new maps, their sites, road, exits and wave marks drawn, with the
+	# objective card open: still too, once the banners are gone.
+	for path: String in ["res://Data/Tactics/Scenarios/city_defense.tres", "res://Data/Tactics/Scenarios/supply_road.tres", "res://Data/Tactics/Scenarios/broken_ring.tres"]:
+		await _open(false, path)
+		var banner: Control = _screen.find_children("*", "TacticsBanner", true, false)[0]
+		for frame: int in MAX_FRAMES:
+			if not banner.visible:
+				break
+			await process_frame
+		_screen.show_objective()
+		await create_timer(0.6).timeout
+		draws = _map().get_layer_draw_count()
+		counts = await _count_changed_frames(1.0)
+		if counts[0] > 0 or _map().get_layer_draw_count() != draws:
+			push_error("An idle %s changed %d of %d frames (%d layer draws)" % [path.get_file(), counts[0], counts[1], _map().get_layer_draw_count() - draws])
+			return false
 	return true
 
 
@@ -258,7 +379,7 @@ func _check_night_objective() -> bool:
 		if not map.is_fog_blending():
 			break
 		await process_frame
-	var objective: Vector2i = _screen.scenario.map.objective_cell
+	var objective: Vector2i = _battle().get_objective_state()["cell"]
 	if _battle().get_fog_cells(0)[objective.y * map.map_width + objective.x] != 0:
 		push_error("The night raid's objective should start unseen")
 		return false
@@ -616,6 +737,78 @@ func _check_text_fits() -> bool:
 	return await _check_labels()
 
 
+# The site choices, a recruit's pick and the objective card's buttons fit
+# whole in a row of four: first a village's choices on the supply road
+# opened by its button, then every site's row and the cart's.
+func _check_site_text() -> bool:
+	await _open(true, "res://Data/Tactics/Scenarios/supply_road.tres")
+	var opened := false
+	for unit: Dictionary in _battle().get_units():
+		if opened or unit["side"] != 0 or unit["role"] != &"leader":
+			continue
+		for site: Dictionary in _battle().get_sites(0):
+			if opened or site["kind"] != &"site_kind.village":
+				continue
+			for cell: Vector2i in _battle().get_reachable_cells(unit["index"]):
+				if absi(cell.x - site["cell"].x) + absi(cell.y - site["cell"].y) > int(site["reach_cells"]):
+					continue
+				_screen.select_unit(unit["index"])
+				_screen.move_to(cell)
+				await _wait_idle()
+				_screen.press_button(&"site")
+				await process_frame
+				opened = _screen.get_shown_site() >= 0
+				if opened:
+					break
+				_screen.undo()
+				await _wait_idle()
+	if not opened:
+		return _fail("a leader on the supply road reaches the village and opens its choices")
+	if not await _check_labels():
+		return false
+	var rows: Array = [["site_heal", "SITE_CHOICE_HEAL", "site_recruit", "SITE_CHOICE_RECRUIT", "site_loot", "SITE_CHOICE_LOOT"],
+		["site_charge", "SITE_CHOICE_CHARGE", "site_calm", "SITE_CHOICE_CALM", "site_bless", "SITE_CHOICE_BLESS"],
+		["site_capture", "SITE_CHOICE_CAPTURE"], ["recruit_0", "TROOP_MILITIA", "recruit_1", "TROOP_HUNTER"],
+		["convoy_hold", "BUTTON_CONVOY_HOLD"], ["convoy_go", "BUTTON_CONVOY_GO"]]
+	for row: Array in rows:
+		var buttons: Array[Dictionary] = []
+		for index: int in range(0, row.size(), 2):
+			buttons.append({"action": StringName(row[index]), "text": row[index + 1]})
+		buttons.append({"action": &"cancel" if not String(row[0]).begins_with("convoy") else &"end_turn", "text": "BUTTON_CANCEL" if not String(row[0]).begins_with("convoy") else "BUTTON_END_TURN", "primary": String(row[0]).begins_with("convoy")})
+		_screen.get_panel().set_buttons(buttons)
+		await process_frame
+		await process_frame
+		if not await _check_labels():
+			return false
+	return true
+
+
+# Every banner title fits across the map (the wave warning's ran off both
+# edges), at no less than the small font size.
+func _check_banner_titles() -> bool:
+	await _open(true)
+	var banner: TacticsBanner = _screen.find_children("*", "TacticsBanner", true, false)[0]
+	var titles: Array[String] = [tr("TACTICS_PHASE_PLAYER"), tr("TACTICS_PHASE_ENEMY")]
+	var file := FileAccess.open("res://Locale/strings.csv", FileAccess.READ)
+	while not file.eof_reached():
+		var key := file.get_csv_line()[0]
+		if key.begins_with("TACTICS_BANNER_") and not key.ends_with("_FORMAT") and not key.ends_with("_DETAIL"):
+			titles.append(tr(key))
+	for weather: StringName in [&"weather.clear", &"weather.rain", &"weather.fog", &"weather.wind"]:
+		titles.append(tr("TACTICS_WEATHER_SOON_FORMAT") % TacticsText.new(_screen.catalog).environment_name(&"weather", weather))
+	for title: String in titles:
+		banner.present(title, "", true)
+		await process_frame
+		for label: Label in banner.find_children("*", "Label", true, false):
+			if label.text != title:
+				continue
+			var font_px := label.get_theme_font_size(&"font_size")
+			if font_px < GameTheme.SMALL_FONT_SIZE or label.get_theme_font(&"font").get_string_size(title, HORIZONTAL_ALIGNMENT_LEFT, -1, font_px).x > banner.size.x - 16.0:
+				return _fail("the banner title %s fits across the map (%d px)" % [title, font_px])
+	banner.dismiss()
+	return true
+
+
 func _hint_label() -> Label:
 	for label: Label in _screen.find_children("*", "Label", true, false):
 		if label.text == _screen.get_hint():
@@ -653,7 +846,10 @@ func _check_labels() -> bool:
 			if button.size.y < 88.0:
 				return _fail("the button %s is %.0f px tall, under 88" % [button.text, button.size.y])
 			var font := button.get_theme_font(&"font")
-			if button.text != "" and font.get_string_size(tr(button.text), HORIZONTAL_ALIGNMENT_LEFT, -1, button.get_theme_font_size(&"font_size")).x > button.size.x - 8.0:
+			# The text is drawn inside the style's margins (16 px a side).
+			var box := button.get_theme_stylebox(&"disabled" if button.disabled else &"normal")
+			var room := minf(button.size.x - 8.0, button.size.x - box.get_margin(SIDE_LEFT) - box.get_margin(SIDE_RIGHT))
+			if button.text != "" and font.get_string_size(tr(button.text), HORIZONTAL_ALIGNMENT_LEFT, -1, button.get_theme_font_size(&"font_size")).x > room:
 				return _fail("the button %s shows its text whole" % tr(button.text))
 	for order: StringName in _screen.get_panel().get_order_buttons():
 		var button := _screen.get_panel().get_order_buttons()[order]

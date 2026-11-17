@@ -74,6 +74,38 @@ func new_battle(rows: PackedStringArray, ai_b: bool = false, rules: TacticsRules
 	return battle
 
 
+## A battle on the given rows with sites: each entry is [TacticsSiteData,
+## cell, owner (-1 none, 0, 1)]; side B by hand unless `ai_b`.
+func new_site_battle(rows: PackedStringArray, sites: Array, ai_b: bool = false, rules: TacticsRulesData = null) -> TacticsBattle:
+	var battle := TacticsBattle.new()
+	_battles.append(battle)
+	battle.set_side_ai(TacticsBattle.SIDE_B, ai_b)
+	var map := make_map(rows)
+	var site_list: Array[TacticsSiteData] = []
+	var cells: Array[Vector2i] = []
+	var owners := PackedInt32Array()
+	for entry: Array in sites:
+		site_list.append(entry[0])
+		cells.append(entry[1])
+		owners.append(entry[2])
+	map.sites = site_list
+	map.site_cells = cells
+	map.site_owners = owners
+	var ok := battle.setup(rules if rules != null else catalog.rules, map)
+	assert(ok, "Tactics test: setup with sites failed")
+	return battle
+
+
+## A site from Data/Tactics/Sites/ (a copy when `changes` sets fields).
+func site(name: String, changes: Dictionary = {}) -> TacticsSiteData:
+	var data := load("res://Data/Tactics/Sites/%s.tres" % name) as TacticsSiteData
+	if not changes.is_empty():
+		data = data.duplicate() as TacticsSiteData
+		for key: String in changes:
+			data.set(key, changes[key])
+	return data
+
+
 ## A copy of a sample leader with no passives and no squad unless given;
 ## `changes` sets other fields (move_points, keywords, ...).
 func leader(id: StringName, passives: Array[TacticsPassiveData] = [], changes: Dictionary = {}) -> TacticsLeaderData:

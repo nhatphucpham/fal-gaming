@@ -18,9 +18,10 @@ after each command.
 
 - Layer: presentation.
 - Code: `Scenes/Tactics/`:
-  - `muster_screen.gd` (`MusterScreen`): objective, terrain legend, our
-    leaders with their squads, the enemy's leaders; moves soldiers between
-    leaders within capacity.
+  - `muster_screen.gd` (`MusterScreen`): the objective in full, its side
+    goals and the map's sites, the supplies and the reserve hire, terrain
+    legend, our leaders with their squads, the enemy's leaders; moves
+    soldiers between leaders within capacity.
   - `tactics_screen.gd` (`TacticsScreen`): owns the `TacticsBattle` node, the
     tap state machine and the layout (top bar, map, panel, overlays).
   - `tactics_map_view.gd` (`TacticsMapView`): a clipping window onto the
@@ -33,6 +34,8 @@ after each command.
     and charge pips.
   - `tactics_painter.gd` (`TacticsPainter`): static drawing of terrains,
     tokens, ghosts, hp bars, pips, order and intent icons, by registries.
+  - `tactics_mesh_canvas.gd` (`TacticsMeshCanvas`): records the painter's
+    shapes into one triangle array (one draw call for a token or a layer).
   - `tactics_panel.gd` (`TacticsPanel`): the bottom panel.
   - `tactics_playback.gd` (`TacticsPlayback`): plays a command's events.
   - `tactics_close_up.gd` (`TacticsCloseUp`), `tactics_skill_fx.gd`
@@ -176,19 +179,32 @@ Taps (the flow a phone player uses):
 First-time tips: the first time the player selects a leader of ours,
 moves one (a move that can be taken back), first spends its last move
 point on such moves, changes an order and sees a soldier of ours waver
-with a bad incident, one line slides up in a
-gold-edged box just above the panel with the text-blip sound, stays 4.5 s
-and fades ("Tướng đi đâu, toán binh dàn quanh đó.", "Còn điểm thì đi
+with a bad incident, one line slides in, in a
+gold-edged box with the text-blip sound, stays 4.5 s or until the next
+tap anywhere, and fades ("Tướng đi đâu, toán binh dàn quanh đó.", "Còn điểm thì đi
 tiếp. Xong thì bấm Chờ.", "Đi nhầm? Hoàn tác lùi từng bước
 tới khi đánh, đổi lệnh hay thấy địch.", "Đổi lệnh không mất lượt: tướng vẫn đi,
 đánh được.", "Dấu ! đỏ: binh sắp gây chuyện. Đưa tướng lại gần nó.", or
 for a soldier out of its leader's sight "Binh khuất mắt tướng chỉ yên
-khi tướng thấy nó: đưa tướng tới."; the `TACTICS_TIP_*` rows). A tip that comes while another shows waits for it.
+khi tướng thấy nó: đưa tướng tới."; the `TACTICS_TIP_*` rows). A tip that comes while another shows waits for it
+(after a tap let one go, the next follows 0.35 s later).
+The box sits just above the panel, unless that strip holds a unit on
+screen; then under the top bar (clear of the map's corner chip and
+button), else at the height between them that covers the fewest units,
+ours weighing a hundred times the enemy's. It looks
+again after each playback and whenever the camera comes to rest
+(`TacticsMapView.camera_settled`), and glides to its new place.
 Each is saved as shown (`RunSettings.save_seen_tip("tactics.<id>")`) and
 never offered again. Tips never catch taps.
 
 Map camera: it opens at the zoom that fits eight columns across (90 layout
-px a cell, 45 px on a 360-px-wide phone), centred on our leaders; one
+px a cell, 45 px on a 360-px-wide phone), centred on the middle of our
+leaders; a programmatic glide or jump at such a zoom lands on a line
+between columns, so the view's edges never cut a column of tokens in
+half (a finger's pan or pinch is left where it stops). Where the board
+leaves a gap in the view the map draws the backdrop itself; under a board
+that fills the view nothing is drawn behind it, and behind the bottom
+panel only two thin strips fill its rounded corners. One
 finger drags it (a press that slides more than 24 px is a drag, not a
 tap), two fingers pinch it between the whole board and 1.4x that zoom
 (the mouse wheel too), and "Toàn cảnh" / "Phóng to" switches to the whole
@@ -204,7 +220,8 @@ Campaign flow: muster (roster soldiers fill the squads; named soldiers are
 extra leaders of ours, returning traitors extra enemy leaders) → battle →
 summary (also after a retreat) → "Tiếp tục" back to the muster. The
 campaign takes the catalog's scenarios in turn, one per battle fought:
-the river crossing, then the night raid, then the river again.
+the river crossing, the night raid, the city defense, the supply road and
+the broken ring, then the river again.
 
 Fog, weather and night (see [Tactics vision](tactics_vision.md)):
 
@@ -241,8 +258,11 @@ Fog, weather and night (see [Tactics vision](tactics_vision.md)):
   known from the map. While it is out of view a gold flag mark on the
   edge of the map view points at it (`get_edge_marks()` entries with
   `is_objective`), so at the night raid's dark start you know which way
-  to go. Edge marks keep their pointer inside the view, clear of the top
-  bar.
+  to go. Each edge of the map holding our exits (the broken ring) gets
+  the same mark while none of its exits is in view. Edge marks keep their
+  pointer inside the view, clear of the top bar, and slide along their
+  edge off the pieces in view (our leaders above all, then our soldiers,
+  then enemies and other marks), moving again after each step played.
 - A wavering soldier of ours out of view gets a mark on the edge of the
   map view pointing at it; its card says when it is out of its leader's
   sight ("Ngoài tầm mắt tướng: dễ dao động, chưa trấn an được"; never on
@@ -265,6 +285,56 @@ Fog, weather and night (see [Tactics vision](tactics_vision.md)):
   icons and lines, the weather change, the time cycle, the fog line and
   the scouts we bring; scouts carry an eye badge on their chips.
 
+Sites and objectives (see [Tactics sites](tactics_sites.md) and
+[Tactics objectives](tactics_objectives.md)):
+
+- The map's site layer draws each site our side knows (`get_sites`): its
+  icon by kind, status and owner (`TacticsPainter.draw_site`), and a ring
+  filling with a stronghold's capture count in the capturing side's
+  colour. A site never seen is not drawn. Over it: the convoy's road
+  (dashes), the cells the cart walks at the end of our phase (a cream line
+  with an arrowhead, our phase only), our exits (gold arrows outward), the
+  general's exits (red), and the cells where an enemy wave comes in this
+  round or the next (red arrows inward). The layer redraws only when the
+  sites or marks change.
+- The objective chip under the round line ("Giữ thành: 3/8 vòng",
+  "Hộ tống: Còn 14 ô", "Phá vây: Thoát 1/2"...) is a button: a tap shows the objective card (what
+  it asks, the scenario, each side goal with its supplies or "đạt") and,
+  escorting in our phase, "Xe dừng" or "Xe đi". Our phase's card opens
+  with the objective's short line. Escorting, the chip says "xe kẹt"
+  when the cart will not roll this phase.
+- A tap on the cart selects it: its card says how it rolls, the road
+  left ("Còn 14 ô tới mép bản đồ") and, in our phase, how far it rolls
+  after our turn or why it waits (held, an enemy on the road, no free
+  cell ahead), with "Xe dừng" or "Xe đi"; pressed, the cart stays
+  selected.
+- A leader with a site in reach gets a button named after the site
+  (greyed when no choice can be taken now). It opens `Mode.SITE_CHOICE`:
+  one line and one button per choice, the reason on the line when it
+  cannot be taken, and "Dùng rồi thì không hoàn tác được." last; a village's recruit
+  asks which of its two soldiers first. A tap on a site's cell shows its
+  card (what it does, who holds it, its capture count).
+- Playback: a site used floats its choice (sound `site_heal`, or
+  `site_fire` for a loot); a capture or a loot floats over the site
+  (`capture`, `site_fire`); a capture count floats "1/2" (`battle_drum`,
+  `block` when contested or lost); heals float their hp (`site_heal`);
+  arrivals fade in beside their leader, a wave or reinforcements with a
+  banner and `war_horn` (ours: `formation_on`), a recruit with "Binh mới!"
+  (`merge`), the cart with `cart`; an escape slides the piece off the
+  edge (`charge`, `cart`); the cart's halt floats why (`block` or
+  `cart`); the general's flight a banner and `war_horn`; supplies rise in
+  gold at the top of the map (`coin`). Steps our side did not see
+  (`seen_mask`, `seen_from`, `seen_to`) do not play.
+- The round before a wave comes, once our phase's banner is gone, a
+  banner names how many leaders and from which edge, with `war_horn`
+  (the weather's warning waits the same way; both in turn when they
+  fall on one round). A long banner title steps its font down to fit.
+- Tips, once each: the objective, a site in reach, the convoy, the exits,
+  the first wave warning.
+- Summary: a "Mục tiêu phụ" panel with each side goal met (with its
+  supplies) or missed, and the supplies in store; recruits and soldiers
+  that got out have their own line.
+
 ## Public API
 
 `TacticsScreen` (Control). Set `scenario` (and `squads` from the muster)
@@ -278,14 +348,16 @@ test drives the screen through them.
 | `auto_end` | property | End our phase by itself once every leader of ours is done (default true) |
 | `tap_cell(cell)` | method | A tap on the map: select, move at once (a blue cell), forecast a strike (a red-ringed enemy), confirm (a second tap on the target or the skill cell), or step back (a tap elsewhere) |
 | `select_unit(unit)`, `move_to(cell)`, `undo()`, `confirm()`, `cancel()` | method | Select a unit; move the selected leader; take its move back; confirm the strike or skill previewed; step back one level |
-| `press_button(action)`, `choose_order(order)` | method | A panel button (`end_turn`, `wait`, `skill`, `undo`, `attack`, `cast`, `cancel`); an order of the row |
+| `press_button(action)`, `choose_order(order)` | method | A panel button (`end_turn`, `wait`, `skill`, `undo`, `attack`, `cast`, `cancel`, `site`, `site_<choice>`, `recruit_<option>`, `convoy_hold`, `convoy_go`); an order of the row |
+| `show_objective()`, `get_objective_chip()`, `get_objective_chip_text()` | method | The objective card (the chip's tap); the chip; its line |
+| `get_shown_site()` | method | The site whose choices the panel shows, -1 if none |
 | `is_auto_end_pending()` | method | The phase is about to end by itself |
 | `campaign`, `squad_people` | property | Optional `TacticsCampaign` and the person ids per squad slot (from the muster): the battle gets the rules, karma and records before it starts, and its end opens the summary |
 | `get_summary()` | method | The `TacticsSummaryView` shown, or null |
 | `campaign_continue_requested` | signal | The summary's "Tiếp tục" |
 | `retreat()` | method | "Rút": the first tap asks, a second within 3 s emits `home_requested` (with a campaign: shows the summary, the battle counted as a retreat). The top bar sits above the skip catcher and the close-up, so it works during any playback |
 | `get_round_text()` | method | The top bar's round and phase line |
-| `is_busy()`, `get_mode()`, `get_selected()` | method | Playback running; `Mode` (`IDLE`, `SELECTED`, `MOVE_PREVIEW` (a drag), `FORECAST`, `SKILL_TARGET`, `SKILL_PREVIEW`, `BUSY`, `ENDED`); the selected unit |
+| `is_busy()`, `get_mode()`, `get_selected()` | method | Playback running; `Mode` (`IDLE`, `SELECTED`, `MOVE_PREVIEW` (a drag), `FORECAST`, `SKILL_TARGET`, `SKILL_PREVIEW`, `BUSY`, `ENDED`, `SITE_CHOICE`); the selected unit |
 | `get_battle()`, `get_map()`, `get_panel()`, `get_playback()`, `get_close_up()`, `get_result_banner()`, `get_retreat_button()`, `get_hint()` | method | Parts and the hint line, for tests and screenshots |
 | `home_requested` | signal | The result's "Về màn hình chính" or a confirmed retreat |
 | `became_idle` | signal | After each playback, when the next tap is taken |
@@ -340,7 +412,8 @@ with its rise, never under `GameTheme.SMALL_FONT_SIZE`); camera: `center_on(poin
 (tests); `hold_cells` (where a press starts a drag), `is_instant`;
 signals `cell_tapped(cell)` (press and release on the same cell within
 24 px), `cell_held(cell)` (a press on a hold cell, then each new cell under
-the finger), `hold_released(cell)`, `hold_cancelled()`.
+the finger), `hold_released(cell)`, `hold_cancelled()`, `camera_settled()`
+(the camera came to rest after a glide, a jump, a pan or a pinch).
 
 `TacticsPanel` (PanelContainer, 430 layout px tall): `show_card(title,
 color, side_note, lines)` (up to four lines, each wrapped; the lines that
@@ -402,8 +475,12 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
 - A new event type: add a handler to `TacticsPlayback._handlers`.
 - A new incident: its playback needs nothing; add its `INCIDENT_<X>` and
   `_HINT` rows and a `BIO_MARK_<X>_FORMAT` row.
-- Another scenario: point `Main.TACTICS_SCENARIO_PATH` at it (one scenario
-  for now).
+- Another scenario: add it to the catalog's `scenarios`; the campaign
+  takes them in turn.
+- A new site kind: its icon in `TacticsPainter.draw_site`, its choice
+  line in `_site_choice_line` and refusal in `_site_refusal`.
+- A new objective kind: its progress line in `_objective_progress_text`,
+  its short line in `_objective_line` and its marks in `_sync_objective`.
 
 ## Tests
 
@@ -438,11 +515,20 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   the small font size and every button is at least 88 px tall; a float
   at the corner of a zoomed view is drawn inside it, and one asked for
   at 18 px is drawn at the small font size; a hidden enemy's incident,
-  wait and hit play no step and add no effect, a seen one's do.
+  wait and hit play no step and add no effect, a seen one's do; a first-time tip
+  never covers our units and a tap lets it go; a tap on the supply cart
+  holds it and lets it go; every map opens on a line between columns with
+  our leaders in view, the broken ring's exits out of view get an edge
+  mark and no edge mark sits on one of our leaders.
+- `Tests/tactics_mesh_canvas_test.gd`: the triangles `TacticsMeshCanvas`
+  records for rects, circles, polygons, lines (1-px soft edges when
+  antialiased) and closed outlines (mitred corners), and that commit()
+  empties it.
 - `Tests/tactics_screen_sync_test.gd`: random taps (cells, leaders and
   marches toward the enemy, drags,
   enabled buttons with undo, the order row) on six seeds in instant mode,
-  with the auto end on (waited out); after every
+  with the auto end on (waited out), now and then marching toward the
+  objective and pressing the objective chip; after every
   playback, before the sync, tokens, hp, deaths, pips, zones and the top
   bar's round and phase must match the battle, and after every tap the
   marks (strike targets, slots), the order row (greyed out exactly when
@@ -504,13 +590,15 @@ Run one with
   it.
 - No reduced-motion setting exists in the project, so the close-up and skill
   effects always play (a tap skips them).
-- One scenario (the river crossing), reached from the title; only the
-  roster is saved between battles.
+- Five scenarios in a fixed turn, reached from the title; only the
+  roster (with its supplies) is saved between battles.
 - In fast playback (taps skipping steps) floats from several incidents and
   hits can pile up over the same tokens.
 - The muster screen moves soldiers only; it does not change leaders or
   their start cells.
-- About 125 draw calls a frame on the map at the start and 180 with a
-  leader selected (360x640, Mesa), from about 240 and 250 before the zoom
-  (tokens outside the view are clipped); the terrain is one. An idle map
-  draws no frame.
+- Draw calls a frame on the map at the start and with a leader selected
+  (360x640, Mesa): river crossing 42 and 93, night raid 44 and 93, city
+  defense 40 and 89, supply road 39 and 91, broken ring 47 and 96 (from
+  133-291 and 187-349 before tokens and the map's layers were drawn as
+  one triangle array each, `TacticsMeshCanvas`). Most of what is left is
+  the panel's text. An idle map draws no frame.

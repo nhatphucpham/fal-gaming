@@ -4,7 +4,7 @@ extends Control
 ## holds the terrain (drawn once into a texture, so the whole board costs
 ## one draw call), zones, selection marks, enemy intents, unit tokens and
 ## floating text, each its own layer that redraws only when its content
-## changes; moving the camera only moves the board, so an idle map draws
+## changes (shapes recorded into one triangle array, one draw call each); moving the camera only moves the board, so an idle map draws
 ## nothing new. Under fog of war one small texture (a pixel per cell,
 ## smoothly filtered) darkens what is not seen and tints the night; it is
 ## rewritten only when what is seen changes, with a short blend. Enemies
@@ -27,6 +27,8 @@ signal cell_held(cell: Vector2i)
 signal hold_released(cell: Vector2i)
 ## A pinch or drag stopped a hold before it was released.
 signal hold_cancelled()
+## The camera came to rest after a glide, a jump, a pan or a pinch.
+signal camera_settled()
 
 const CELL_PX: float = 58.0
 ## How far a press may slide and still count as a tap, in pixels.
@@ -61,6 +63,14 @@ const LIGHT_COLOR := Color(1.0, 0.7, 0.32, 0.1)
 ## over its own frames).
 const FOG_BLEND_SEC: float = 0.25
 const EDGE_MARK_PX: float = 30.0
+# An edge mark slides along its edge off the pieces under it: how much
+# each px of overlap costs (our leaders most), against each px it slides.
+const EDGE_LEADER_WEIGHT: float = 20.0
+const EDGE_SOLDIER_WEIGHT: float = 4.0
+const EDGE_ENEMY_WEIGHT: float = 1.0
+const EDGE_MARK_WEIGHT: float = 20.0
+const EDGE_SHIFT_COST: float = 0.5
+const EDGE_SCAN_STEP_PX: float = 10.0
 
 var map_width: int = 0
 var map_height: int = 0
@@ -97,8 +107,16 @@ var fog_write_count: int = 0
 var fog_change_count: int = 0
 var _memory_layer: _Layer
 var _last_seen: Array = []
+## Sites as our side knows them and the objective's marks (exits, the
+## road, the convoy's path, where enemy waves come in), over the fog.
+var _site_layer: _Layer
+var _sites: Array = []
+var _objective_marks: Dictionary = {}
 var _edge_layer: _Layer
 var _edge_cells: Array = []
+var _drawn_edge_marks: Array = []
+## The side whose pieces the edge marks keep clearest of.
+var our_side: int = 0
 var _zone_layer: _Layer
 var _mark_layer: _Layer
 var _intent_layer: _Layer
@@ -109,6 +127,9 @@ var _zoom: float = 1.0
 var _is_whole_map: bool = false
 var _camera_tween: Tween
 var _baked_scale: float = 0.0
+## Whether the board fills the whole view: then the view draws no backdrop
+## under it (one full-screen fill less a frame).
+var _is_view_covered: bool = false
 ## Until the view first has a size, the default zoom waits, with the board
 ## point it should centre.
 var _is_laid_out: bool = false
@@ -157,6 +178,7 @@ func _init() -> void:
 	_fog_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_fog_rect.visible = false
 	_board.add_child(_fog_rect)
+	_site_layer = _add_layer(_draw_sites)
 	_zone_layer = _add_layer(_draw_zones)
 	_mark_layer = _add_layer(_draw_marks)
 	_memory_layer = _add_layer(_draw_last_seen)
@@ -224,7 +246,7 @@ func _lay_out() -> bool:
 	_is_laid_out = true
 	var point := _first_focus if _first_focus.x >= 0.0 else get_board_size() / 2.0
 	_zoom = get_default_zoom()
-	_apply_camera(size / 2.0 - point * _zoom, _zoom)
+	_apply_camera(size / 2.0 - _snap_to_columns(point) * _zoom, _zoom)
 	return true
 
 
@@ -233,7 +255,18 @@ func center_on(board_point: Vector2) -> void:
 	if not _is_laid_out:
 		_first_focus = board_point
 		return
-	_move_camera(size / 2.0 - board_point * _zoom, _zoom, false)
+	_move_camera(size / 2.0 - _snap_to_columns(board_point) * _zoom, _zoom, false)
+
+
+# At a zoom that fits a whole number of columns across the view, a point
+# to centre moves across to the nearest line between columns, so the
+# view's edges cut no column (and no token) in half.
+func _snap_to_columns(board_point: Vector2) -> Vector2:
+	var columns := size.x / (CELL_PX * _zoom)
+	if absf(columns - roundf(columns)) > 0.01:
+		return board_point
+	var shift := 0.0 if int(roundf(columns)) % 2 == 0 else 0.5
+	return Vector2((roundf(board_point.x / CELL_PX - shift) + shift) * CELL_PX, board_point.y)
 
 
 func get_board_size() -> Vector2:
@@ -299,7 +332,7 @@ func follow(board_point: Vector2) -> void:
 	var inner := Rect2(Vector2.ZERO, size).grow(-FOLLOW_MARGIN_PX)
 	if inner.has_point(at) or _is_whole_map:
 		return
-	_move_camera(size / 2.0 - board_point * _zoom, _zoom, true)
+	_move_camera(size / 2.0 - _snap_to_columns(board_point) * _zoom, _zoom, true)
 
 
 ## Brings a board point into view only when it is outside the view now.
@@ -335,12 +368,14 @@ func _move_camera(offset: Vector2, zoom: float, smooth: bool) -> void:
 		_camera_tween.kill()
 	if not smooth or is_instant or not is_inside_tree():
 		_apply_camera(target, zoom)
+		camera_settled.emit()
 		return
 	var from_offset := _board.position
 	var from_zoom := _zoom
 	_camera_tween = create_tween()
 	_camera_tween.tween_method(func(weight: float) -> void:
 		_apply_camera(from_offset.lerp(target, weight), lerpf(from_zoom, zoom, weight), false), 0.0, 1.0, CAMERA_SEC).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_camera_tween.tween_callback(camera_settled.emit)
 
 
 # Writes the board's transform only when it changes (an unchanged write
@@ -352,10 +387,21 @@ func _apply_camera(offset: Vector2, zoom: float, clamps: bool = true) -> void:
 		_board.scale = Vector2(zoom, zoom)
 	if _board.position != target:
 		_board.position = target
-		if not _edge_cells.is_empty() or is_on_map(_objective):
+		if not _edge_cells.is_empty() or is_on_map(_objective) or _objective_marks.has("exits"):
 			_edge_layer.queue_redraw()
 	if _baked_scale > 0.0 and _bake_scale() > _baked_scale + 0.01:
 		_paint_terrain()
+	var is_covered := Rect2(target, get_board_size() * zoom).encloses(Rect2(Vector2.ZERO, size).grow(-0.5))
+	if is_covered != _is_view_covered:
+		_is_view_covered = is_covered
+		queue_redraw()
+
+
+# The backdrop around a board smaller than the view; none under a board
+# that covers it.
+func _draw() -> void:
+	if not _is_view_covered:
+		draw_rect(Rect2(Vector2.ZERO, size), Palette.BACKDROP)
 
 
 # A board smaller than the view is centred; a larger one cannot leave a gap
@@ -432,7 +478,7 @@ func get_whole_map_button() -> PressButton:
 
 ## Redraws of the mark, zone, intent and memory layers so far, for tests.
 func get_layer_draw_count() -> int:
-	return _zone_layer.draw_count + _mark_layer.draw_count + _intent_layer.draw_count + _memory_layer.draw_count
+	return _zone_layer.draw_count + _mark_layer.draw_count + _intent_layer.draw_count + _memory_layer.draw_count + _site_layer.draw_count
 
 
 ## Fog of war and the time of day: one state per cell (0 never seen, 1 seen
@@ -508,6 +554,34 @@ func is_fog_blending() -> bool:
 	return _fog_tween != null and _fog_tween.is_valid() and _fog_tween.is_running()
 
 
+## Sites as our side knows them (TacticsBattle.get_sites()); an unknown
+## one draws nothing over the terrain.
+func set_sites(sites: Array) -> void:
+	if sites == _sites:
+		return
+	_sites = sites
+	_site_layer.queue_redraw()
+
+
+func get_sites() -> Array:
+	return _sites
+
+
+## The objective's marks; every key is optional: `exits` (cells, gold),
+## `enemy_exits` (cells, red), `road` (cells), `convoy_path` (cells),
+## `entries` (cells where enemies come in next round).
+func set_objective_marks(marks: Dictionary) -> void:
+	if marks == _objective_marks:
+		return
+	_objective_marks = marks
+	_site_layer.queue_redraw()
+	_edge_layer.queue_redraw()
+
+
+func get_objective_marks() -> Dictionary:
+	return _objective_marks
+
+
 ## Enemies remembered where they were last seen: [{unit, cell, is_leader}].
 func set_last_seen(ghosts: Array) -> void:
 	if ghosts == _last_seen:
@@ -523,14 +597,21 @@ func get_last_seen() -> Array:
 ## Cells of our wavering soldiers: those outside the view show a mark on
 ## its edge, pointing at them.
 func set_edge_marks(cells: Array) -> void:
-	if cells == _edge_cells:
-		return
 	_edge_cells = cells
-	_edge_layer.queue_redraw()
+	refresh_edge_marks()
+
+
+## Redraws the edge marks only if where they go changed (the pieces they
+## stay clear of may have moved).
+func refresh_edge_marks() -> void:
+	if get_edge_marks() != _drawn_edge_marks:
+		_edge_layer.queue_redraw()
 
 
 ## The marks shown on the view's edge now: [{cell, at, is_objective}] in
-## view coordinates: our wavering soldiers and the objective outside it.
+## view coordinates: our wavering soldiers and the objective outside it,
+## and each edge of our exits with none of its cells in view; each slides
+## along its edge off the pieces in view (our leaders above all).
 func get_edge_marks() -> Array:
 	var marks: Array = []
 	# Room for the bubble and its pointer, which reaches 12 px past it.
@@ -538,14 +619,75 @@ func get_edge_marks() -> Array:
 	var cells: Array = _edge_cells.duplicate()
 	if is_on_map(_objective):
 		cells.append(_objective)
+	cells.append_array(_exits_out_of_view())
+	var blockers := _edge_blockers()
 	for at_index: int in cells.size():
 		var cell: Vector2i = cells[at_index]
 		var at := board_to_view(cell_to_local(cell))
 		if Rect2(Vector2.ZERO, size).has_point(at) or not inner.has_area():
 			continue
-		var is_objective := at_index == _edge_cells.size()
-		marks.append({"cell": cell, "at": Vector2(clampf(at.x, inner.position.x, inner.end.x), clampf(at.y, inner.position.y, inner.end.y)), "is_objective": is_objective})
+		var is_objective := at_index >= _edge_cells.size()
+		var clamped := Vector2(clampf(at.x, inner.position.x, inner.end.x), clampf(at.y, inner.position.y, inner.end.y))
+		var spot := _free_edge_spot(clamped, at.x != clamped.x, inner, blockers)
+		blockers.append({"at": spot, "reach": EDGE_MARK_PX * 2.0, "weight": EDGE_MARK_WEIGHT})
+		marks.append({"cell": cell, "at": spot, "is_objective": is_objective})
 	return marks
+
+
+# What an edge mark keeps off: each piece in view ({at, reach, weight}),
+# ours weighed most and our leaders more.
+func _edge_blockers() -> Array:
+	var blockers: Array = []
+	var reach := EDGE_MARK_PX + get_cell_px() * 0.45
+	for piece: TacticsPieceView in _pieces.values():
+		if not piece.visible:
+			continue
+		var weight := EDGE_ENEMY_WEIGHT
+		if piece.side == our_side:
+			weight = EDGE_LEADER_WEIGHT if piece.is_leader else EDGE_SOLDIER_WEIGHT
+		blockers.append({"at": board_to_view(piece.position), "reach": reach, "weight": weight})
+	return blockers
+
+
+# Along its edge (up and down for a mark on the left or right, else
+# across), the spot nearest `at` that covers the least of `blockers`.
+func _free_edge_spot(at: Vector2, is_side_edge: bool, inner: Rect2, blockers: Array) -> Vector2:
+	var best := at
+	var best_cost := INF
+	var low := inner.position.y if is_side_edge else inner.position.x
+	var high := inner.end.y if is_side_edge else inner.end.x
+	var start := at.y if is_side_edge else at.x
+	var steps := int((high - low) / EDGE_SCAN_STEP_PX) + 1
+	for index: int in steps:
+		var along := low + index * EDGE_SCAN_STEP_PX
+		var spot := Vector2(at.x, along) if is_side_edge else Vector2(along, at.y)
+		var cost := absf(along - start) * EDGE_SHIFT_COST
+		for blocker: Dictionary in blockers:
+			cost += maxf(blocker["reach"] - spot.distance_to(blocker["at"]), 0.0) * float(blocker["weight"])
+		if cost < best_cost:
+			best_cost = cost
+			best = spot
+	# Where it would go first, if nothing is in the way there.
+	var cost_at := 0.0
+	for blocker: Dictionary in blockers:
+		cost_at += maxf(blocker["reach"] - at.distance_to(blocker["at"]), 0.0) * float(blocker["weight"])
+	return at if cost_at <= best_cost else best
+
+
+# Per edge of the map holding our exits, the exit nearest the view's
+# centre when no exit of that edge is in view.
+func _exits_out_of_view() -> Array:
+	var nearest: Dictionary = {}
+	var center := view_to_board(size / 2.0)
+	for cell: Vector2i in _objective_marks.get("exits", []):
+		var edge := _outward(cell)
+		if is_in_view(cell_to_local(cell)):
+			nearest[edge] = null
+			continue
+		if nearest.has(edge) and (nearest[edge] == null or cell_to_local(nearest[edge]).distance_to(center) <= cell_to_local(cell).distance_to(center)):
+			continue
+		nearest[edge] = cell
+	return nearest.values().filter(func(cell: Variant) -> bool: return cell != null)
 
 
 func _fog_color(index: int) -> Color:
@@ -723,6 +865,9 @@ func _on_button(button: InputEventMouseButton) -> void:
 			_gesture = _Gesture.NONE
 			if cell == _press_cell and button.position.distance_to(_press_position) <= TAP_SLOP_PX and is_on_map(cell):
 				cell_tapped.emit(cell)
+		_Gesture.PAN:
+			_gesture = _Gesture.NONE
+			camera_settled.emit()
 		_:
 			_gesture = _Gesture.NONE
 
@@ -759,6 +904,7 @@ func _on_touch(touch: InputEventScreenTouch) -> void:
 		_start_pinch()
 	elif _touches.is_empty() and _gesture == _Gesture.PINCH:
 		_gesture = _Gesture.NONE
+		camera_settled.emit()
 	accept_event()
 
 
@@ -824,7 +970,8 @@ func _draw_terrain(canvas: Control) -> void:
 	canvas.draw_rect(Rect2(Vector2.ZERO, Vector2(map_width, map_height) * CELL_PX), Palette.INK, false, 3.0)
 
 
-func _draw_zones(canvas: Control) -> void:
+func _draw_zones(layer: Control) -> void:
+	var canvas := TacticsMeshCanvas.new()
 	for zone: Dictionary in _zones:
 		var color: Color = ZONE_COLORS.get(zone["zone"], Color(0.8, 0.8, 0.8))
 		for cell: Vector2i in zone["cells"]:
@@ -834,9 +981,10 @@ func _draw_zones(canvas: Control) -> void:
 			canvas.draw_rect(rect, Color(color, 0.32))
 			canvas.draw_rect(rect.grow(-3.0), Color(color, 0.85), false, 2.0)
 			_draw_zone_motif(canvas, zone["zone"], rect, color)
+	canvas.commit(layer.get_canvas_item())
 
 
-func _draw_zone_motif(canvas: Control, zone_id: StringName, rect: Rect2, color: Color) -> void:
+func _draw_zone_motif(canvas: TacticsMeshCanvas, zone_id: StringName, rect: Rect2, color: Color) -> void:
 	var c := rect.get_center()
 	if zone_id == &"zone.fire":
 		canvas.draw_colored_polygon(PackedVector2Array([c + Vector2(-16, 18), c + Vector2(-8, 18), c + Vector2(-12, 4)]), color)
@@ -846,7 +994,8 @@ func _draw_zone_motif(canvas: Control, zone_id: StringName, rect: Rect2, color: 
 		canvas.draw_arc(c + Vector2(12, 14), 7.0, PI, TAU * 0.95, 8, color, 2.0)
 
 
-func _draw_marks(canvas: Control) -> void:
+func _draw_marks(layer: Control) -> void:
+	var canvas := TacticsMeshCanvas.new()
 	for cell: Vector2i in _marks.get("reachable", []):
 		canvas.draw_rect(_cell_rect(cell).grow(-2.0), REACH_COLOR)
 	for cell: Vector2i in _marks.get("threat", []):
@@ -882,6 +1031,53 @@ func _draw_marks(canvas: Control) -> void:
 		if from != ghost["cell"]:
 			_draw_dashes(canvas, cell_to_local(from), cell_to_local(ghost["cell"]), Color(Palette.CREAM, 0.7), 2.0)
 		TacticsPainter.draw_ghost(canvas, cell_to_local(ghost["cell"]) + TacticsPieceView.TOKEN_OFFSET, ghost["side"], ghost["is_leader"])
+	canvas.commit(layer.get_canvas_item())
+
+
+# Over the fog: the road, the exits, the convoy's path and the known
+# sites with their capture rings.
+func _draw_sites(layer: Control) -> void:
+	var canvas := TacticsMeshCanvas.new()
+	var road: Array = _objective_marks.get("road", [])
+	if road.size() > 1:
+		for index: int in range(1, road.size()):
+			_draw_dashes(canvas, cell_to_local(road[index - 1]), cell_to_local(road[index]), TacticsPainter.ROAD_COLOR, 6.0)
+	for cell: Vector2i in _objective_marks.get("exits", []):
+		TacticsPainter.draw_exit(canvas, _cell_rect(cell), _outward(cell), TacticsPainter.EXIT_COLOR)
+	for cell: Vector2i in _objective_marks.get("enemy_exits", []):
+		TacticsPainter.draw_exit(canvas, _cell_rect(cell), _outward(cell), TacticsPainter.ENEMY_EXIT_COLOR)
+	for cell: Vector2i in _objective_marks.get("entries", []):
+		TacticsPainter.draw_exit(canvas, _cell_rect(cell), -_outward(cell), TacticsPainter.ENEMY_EXIT_COLOR)
+	var path: Array = _objective_marks.get("convoy_path", [])
+	if path.size() > 1:
+		var points := PackedVector2Array()
+		for cell: Vector2i in path:
+			points.append(cell_to_local(cell))
+		canvas.draw_polyline(points, Color(Palette.INK, 0.6), 9.0, true)
+		canvas.draw_polyline(points, Palette.CREAM, 5.0, true)
+		var tip := points[points.size() - 1]
+		var direction := (tip - points[points.size() - 2]).normalized()
+		var side := Vector2(-direction.y, direction.x)
+		canvas.draw_colored_polygon(PackedVector2Array([tip + direction * 14.0, tip - direction * 6.0 + side * 11.0, tip - direction * 6.0 - side * 11.0]), Palette.CREAM)
+	for site: Dictionary in _sites:
+		if not site.get("is_known", true):
+			continue
+		var cell: Vector2i = site["cell"]
+		TacticsPainter.draw_site(canvas, _cell_rect(cell), site["kind"], site["status"], site["owner"])
+		if int(site.get("capture_phases", 0)) > 0 and int(site.get("capture_progress", 0)) > 0:
+			TacticsPainter.draw_capture_ring(canvas, cell_to_local(cell), CELL_PX * 0.47, site["capture_progress"], site["capture_phases"], site["capture_side"])
+	canvas.commit(layer.get_canvas_item())
+
+
+# The way out of the map from an edge cell.
+func _outward(cell: Vector2i) -> Vector2:
+	if cell.y == 0:
+		return Vector2.UP
+	if cell.y == map_height - 1:
+		return Vector2.DOWN
+	if cell.x == 0:
+		return Vector2.LEFT
+	return Vector2.RIGHT
 
 
 # Over the fog: the objective (known from the map, so findable at night
@@ -895,7 +1091,8 @@ func _draw_last_seen(canvas: Control) -> void:
 
 
 func _draw_edge_marks(canvas: Control) -> void:
-	for mark: Dictionary in get_edge_marks():
+	_drawn_edge_marks = get_edge_marks()
+	for mark: Dictionary in _drawn_edge_marks:
 		var at: Vector2 = mark["at"]
 		var toward := (board_to_view(cell_to_local(mark["cell"])) - at).normalized()
 		if mark["is_objective"]:
@@ -904,7 +1101,8 @@ func _draw_edge_marks(canvas: Control) -> void:
 			TacticsPainter.draw_edge_mark(canvas, at, toward, EDGE_MARK_PX)
 
 
-func _draw_intents(canvas: Control) -> void:
+func _draw_intents(layer: Control) -> void:
+	var canvas := TacticsMeshCanvas.new()
 	for intent: Dictionary in _intents:
 		var from := cell_to_local(intent["from"])
 		var to := cell_to_local(intent["to"])
@@ -919,9 +1117,10 @@ func _draw_intents(canvas: Control) -> void:
 			canvas.draw_line(to, aim, Color(ATTACK_COLOR, 0.85), 3.0)
 			icon_at = aim + Vector2(-CELL_PX * 0.32, -CELL_PX * 0.32)
 		TacticsPainter.draw_intent_icon(canvas, intent["action"], icon_at, 12.0)
+	canvas.commit(layer.get_canvas_item())
 
 
-func _draw_dashes(canvas: Control, from: Vector2, to: Vector2, color: Color, width: float) -> void:
+func _draw_dashes(canvas: Object, from: Vector2, to: Vector2, color: Color, width: float) -> void:
 	var length := from.distance_to(to)
 	var step := 12.0
 	var direction := (to - from) / maxf(length, 0.001)

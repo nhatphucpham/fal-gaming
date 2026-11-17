@@ -19,13 +19,17 @@ on events; the simulation never does, and nothing ever waits for a sound.
 ## Data
 
 `SoundData`: `id` (`coin`, `music_prep`), `stream`, `volume_db` (-40..6),
-`is_music`. The bank has 27 effects (`ui_tap`, `coin`, `card_flip`, `buy`,
+`is_music`. The bank has 32 effects (`ui_tap`, `coin`, `card_flip`, `buy`,
 `sell`, `merge`, `level_up`, `timer_tick`, `battle_drum`, `hit_light`,
 `hit_heavy`, `arrow`, `spell`, `skill_cast`, `block`, `charge`, `death`,
 `formation_on`, `formation_break`, `petrify`, `win`, `lose`, `epiphany`,
-`text_blip`, and for the tactics fog `fog_reveal`, `ambush`,
-`weather_turn`, which play the `spell`, `petrify` and `epiphany` files at
-their own volumes) and 2 music loops (`music_prep`, `music_battle`).
+`text_blip`; for the tactics sites and objectives `site_heal` (a rising
+chime), `site_fire` (a village burning), `capture` (a drum and a fifth),
+`war_horn` (an enemy wave, the general fleeing) and `cart` (the supply
+cart rolling); and for the tactics fog `fog_reveal`, `ambush`,
+`weather_turn`, aliases in `ALIASES` that play the `spell`, `petrify` and
+`epiphany` files at their own volumes) and 2 music loops (`music_prep`,
+`music_battle`).
 
 All are 16-bit mono 22050 Hz WAVs made by `Tools/make_sfx.gd` from code
 (tones, noise, envelopes; effects end with a 6 ms fade, everything is
@@ -82,13 +86,14 @@ Presentation code calls `Sound`, not `Audio`: scripts run with `--script`
 
 ## How to extend
 
-Add a recipe to `EFFECTS` or `MUSIC` in `Tools/make_sfx.gd` and run it (see
-[build.md](../build.md)); it rewrites the WAVs and the bank. A recorded WAV
+Add a recipe to `EFFECTS` or `MUSIC` in `Tools/make_sfx.gd` (or an alias to
+`ALIASES`) and run it (see [build.md](../build.md)); it rewrites the WAVs
+and the bank, aliases included. A recorded WAV
 can be dropped in `Assets/Sfx/` and listed in the bank instead.
 
 ## Tests
 
-`Tests/audio_test.gd`: the bank (24 + 2, looping music), an unknown id
+`Tests/audio_test.gd`: the bank (32 + 2, looping music), an unknown id
 warning once, the cooldown and voice limit (on a clock the test holds, so
 a loaded machine cannot break it), the web lock, mute saved and
 read back (to a test settings file). Nobody has listened to the sounds; the

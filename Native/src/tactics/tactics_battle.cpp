@@ -93,6 +93,10 @@ bool TacticsBattle::load_scenario_with_squads(const Ref<TacticsScenarioData> &p_
 		clear_setup();
 		return false;
 	}
+	if (p_scenario->get_objective().is_valid() && !set_objective(p_scenario->get_objective())) {
+		clear_setup();
+		return false;
+	}
 	return true;
 }
 
@@ -295,6 +299,15 @@ void TacticsBattle::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_order", "unit", "order"), &TacticsBattle::set_order);
 	ClassDB::bind_method(D_METHOD("end_phase"), &TacticsBattle::end_phase);
 	ClassDB::bind_method(D_METHOD("undo_move", "unit"), &TacticsBattle::undo_move);
+	ClassDB::bind_method(D_METHOD("use_site", "unit", "site", "choice", "option"), &TacticsBattle::use_site, DEFVAL(0));
+	ClassDB::bind_method(D_METHOD("set_convoy_hold", "holds"), &TacticsBattle::set_convoy_hold);
+	ClassDB::bind_method(D_METHOD("set_objective", "objective"), &TacticsBattle::set_objective);
+	ClassDB::bind_method(D_METHOD("can_use_site", "unit", "site", "choice", "option"), &TacticsBattle::can_use_site, DEFVAL(0));
+	ClassDB::bind_method(D_METHOD("get_site_actions", "unit"), &TacticsBattle::get_site_actions);
+	ClassDB::bind_method(D_METHOD("get_sites", "side"), &TacticsBattle::get_sites);
+	ClassDB::bind_method(D_METHOD("get_objective_state"), &TacticsBattle::get_objective_state);
+	ClassDB::bind_method(D_METHOD("get_convoy_path"), &TacticsBattle::get_convoy_path);
+	ClassDB::bind_method(D_METHOD("get_supplies", "side"), &TacticsBattle::get_supplies);
 	ClassDB::bind_method(D_METHOD("can_undo_move", "unit"), &TacticsBattle::can_undo_move);
 	ClassDB::bind_method(D_METHOD("get_strike_cell", "unit", "target"), &TacticsBattle::get_strike_cell);
 	ClassDB::bind_method(D_METHOD("get_strike_targets", "unit"), &TacticsBattle::get_strike_targets);

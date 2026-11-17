@@ -685,3 +685,177 @@ FORECAST_WALK_FORMAT,Đi %d ô rồi đánh,Walks %d cells then attacks
 FORECAST_STAY,Đánh tại chỗ,Attacks from here
 FORECAST_TARGET_GONE,Binh sẽ hạ nó trước khi tướng ra tay.,The soldiers fell it before the leader strikes.
 FORECAST_SQUAD_NOTE,Bóng mờ: chỗ tướng và binh sẽ đứng.,Ghosts: where the leader and soldiers will stand.
+LEADER_HAC_HO,Hắc Hổ,Black Tiger
+LEADER_HO_BAO,Hồ Báo,Ho Bao
+LEADER_DO_UY,Đô Úy,Do Uy
+TROOP_MILITIA,Dân binh,Militia
+TROOP_HUNTER,Thợ săn,Hunter
+TROOP_SUPPLY_CART,Xe lương,Supply cart
+TROOP_MILITIA_SHORT,Dân,Militia
+TROOP_HUNTER_SHORT,Săn,Hunter
+TROOP_SUPPLY_CART_SHORT,Xe,Cart
+TERRAIN_WALL,Tường thành,Wall
+MAP_CITY_DEFENSE,Thành Đông,East citadel
+SCENARIO_CITY_DEFENSE,Giữ thành,Hold the city
+MAP_SUPPLY_ROAD,Đường lương,Supply road
+SCENARIO_SUPPLY_ROAD,Hộ tống xe lương,Escort the supplies
+MAP_BROKEN_RING,Thung lũng vây,Valley of the ring
+SCENARIO_BROKEN_RING,Phá vây,Break the siege
+SITE_VILLAGE,Làng,Village
+SITE_VILLAGE_DESC,"Chữa trị, mộ binh hoặc cướp lương. Mỗi làng dùng một lần.","Heal, recruit or loot. Each village serves once."
+SITE_SHRINE,Miếu,Shrine
+SITE_SHRINE_DESC,"Cầu khí, trấn an binh dao động gần, hoặc cầu phúc cả trận.","Pray for the skill, calm wavering soldiers near, or a blessing for the battle."
+SITE_CAMP,Trại,Camp
+SITE_CAMP_DESC,Toán đứng quanh trại của mình hồi máu cuối lượt. Chiếm trại địch được lương.,Squads by their own camp heal at the end of the turn. Taking an enemy camp gives supplies.
+SITE_PASS_FORT,Ải,Pass fort
+SITE_PASS_FORT_DESC,"Tướng đứng trên, không địch kề bên tới hết lượt địch là chiếm. Thêm giáp, nhìn xa; bên giữ được viện binh một lần.","A leader on it with no enemy next to it takes it after the enemy turn. More armor, sees far; its holder gets reinforcements once."
+SITE_KEEP,Thành trì,Keep
+SITE_KEEP_DESC,"Tướng đứng trên, không địch kề bên tới hết lượt là chiếm. Thêm giáp, nhìn xa.","A leader on it with no enemy next to it takes it after a turn. More armor, sees far."
+SITE_WATCHTOWER,Vọng lâu,Watchtower
+SITE_WATCHTOWER_DESC,Chiếm sau 2 lượt đứng trên. Nhìn rất xa; bên giữ được viện binh một lần.,Taken after 2 turns on it. Sees very far; its holder gets reinforcements once.
+SITE_CHOICE_HEAL,Chữa trị,Heal
+SITE_CHOICE_RECRUIT,Mộ binh,Recruit
+SITE_CHOICE_LOOT,Cướp lương,Loot
+SITE_CHOICE_CHARGE,Cầu khí,Pray
+SITE_CHOICE_CALM,Trấn an,Calm
+SITE_CHOICE_BLESS,Cầu phúc,Bless
+SITE_CHOICE_CAPTURE,Chiếm trại,Take it
+SITE_LINE_HEAL_FORMAT,Chữa trị: cả toán hồi %d%% máu.,Heal: the whole squad regains %d%% HP.
+SITE_LINE_RECRUIT_FORMAT,Mộ binh: thêm một %s hoặc %s.,Recruit: add a %s or a %s.
+SITE_LINE_LOOT_FORMAT,"Cướp lương: +%d lương, làng cháy, binh oán.",Loot: +%d supplies; the village burns and the troops resent it.
+SITE_LINE_CHARGE,Cầu khí: kỹ năng của tướng sẵn sàng ngay.,Pray: the leader's skill is ready at once.
+SITE_LINE_CALM_FORMAT,Trấn an: binh dao động trong %d ô yên lại.,Calm: wavering soldiers within %d cells settle.
+SITE_LINE_BLESS_FORMAT,Cầu phúc: cả toán +%d%% Công tới hết trận.,Bless: the squad gets +%d%% Atk for the battle.
+SITE_LINE_CAPTURE_FORMAT,Chiếm trại: +%d lương; toán quanh trại hồi máu.,Take it: +%d supplies; squads by it heal.
+SITE_LINE_HOLD_FORMAT,"Đứng trên ô, không địch kề: %d lượt là chiếm.","Stand on it, no enemy next to it: %d turns to take it."
+SITE_LINE_NO_UNDO,Dùng rồi thì không hoàn tác được.,This cannot be undone.
+SITE_NO_HURT,Không ai bị thương.,Nobody is hurt.
+SITE_NO_ROOM,Toán đã đủ binh.,The squad is full.
+SITE_NO_CHARGE,Kỹ năng đã sẵn sàng.,The skill is already ready.
+SITE_NO_WAVERING,Không binh nào dao động gần.,No wavering soldier near.
+SITE_NO_CAMP,"Địch kề bên, hoặc trại đã là của ta.","An enemy is next to us, or the camp is ours."
+SITE_NO_ACT,Tướng đã xong lượt.,The leader is done.
+SITE_STATUS_USED,Đã dùng,Used
+SITE_STATUS_BURNED,Đã cháy,Burned
+SITE_OWNER_OURS,Của ta,Ours
+SITE_OWNER_ENEMY,Của địch,The enemy's
+SITE_OWNER_NONE,Bỏ trống,Unheld
+SITE_CAPTURE_FORMAT,%s đang chiếm %d/%d,%s taking it %d/%d
+SITE_SIDE_OURS,Ta,We are
+SITE_SIDE_ENEMY,Địch,The enemy is
+SITE_RECRUIT_TITLE,Chọn binh mộ,Pick a recruit
+TACTICS_HINT_SITE_FORMAT,Chọn việc ở %s. Không hoàn tác được.,Pick what to do at the %s. It cannot be undone.
+TACTICS_HINT_RECRUIT,Chọn một binh để mộ vào toán.,Pick a soldier to join the squad.
+TACTICS_FLOAT_HEAL_FORMAT,+%d Máu,+%d HP
+TACTICS_FLOAT_RECRUIT,Binh mới!,New recruit!
+TACTICS_FLOAT_LOOTED,Cướp lương!,Looted!
+TACTICS_FLOAT_BURNED,Làng cháy!,Village burns!
+TACTICS_FLOAT_CAPTURED,Chiếm được!,Taken!
+TACTICS_FLOAT_PRAYED,Đã cầu,Prayed
+TACTICS_FLOAT_BLESSED,Được phúc!,Blessed!
+TACTICS_FLOAT_RESTED,Nghỉ trại,Rests
+TACTICS_FLOAT_CAPTURE_FORMAT,Chiếm %d/%d,Taking %d/%d
+TACTICS_FLOAT_CONTESTED,Bị cản!,Contested!
+TACTICS_FLOAT_CAPTURE_LOST,Bỏ dở,Broken off
+TACTICS_FLOAT_SUPPLIES_FORMAT,+%d lương,+%d supplies
+TACTICS_FLOAT_ARRIVED,Viện binh!,Reinforcements!
+TACTICS_FLOAT_WAVE,Quân địch tới!,Enemies arrive!
+TACTICS_FLOAT_ESCAPED,Thoát vây!,Broke out!
+TACTICS_FLOAT_CONVOY_OUT,Xe đã qua!,The cart is through!
+TACTICS_FLOAT_GENERAL_OUT,Tướng địch thoát!,The general got away!
+TACTICS_FLOAT_CONVOY_HOLD,Xe dừng,Cart waits
+TACTICS_FLOAT_CONVOY_GO,Xe đi,Cart rolls
+TACTICS_FLOAT_CONVOY_BLOCKED,Xe kẹt!,Cart blocked!
+TACTICS_FLOAT_CONVOY_ENEMY,Địch chặn xe!,Enemy at the cart!
+TACTICS_FLOAT_GOAL,Đạt mục tiêu phụ!,Side goal met!
+TACTICS_BANNER_WAVE_SOON,Vòng tới: quân địch kéo tới,Next round: enemy troops arrive
+TACTICS_BANNER_WAVE_SOON_FORMAT,"%d tướng địch, từ phía %s. Ô đỏ ở mép: chỗ chúng vào.","%d enemy leaders, from the %s. Red edge cells: where they come in."
+TACTICS_BANNER_WAVE,Quân địch tới!,Enemy troops arrive!
+TACTICS_BANNER_REINFORCE,Viện binh tới!,Reinforcements!
+TACTICS_BANNER_REINFORCE_FORMAT,%s dẫn quân tới bên %s.,%s brings troops to the %s.
+TACTICS_BANNER_GENERAL_FLEEING,Tướng địch bỏ chạy!,The enemy general flees!
+TACTICS_BANNER_GENERAL_FLEEING_DETAIL,Chặn hắn trước khi tới ô thoát đỏ ở mép.,Stop him before he reaches a red exit at the edge.
+DIR_NORTH,Bắc,north
+DIR_SOUTH,Nam,south
+DIR_EAST,Đông,east
+DIR_WEST,Tây,west
+OBJECTIVE_KIND_TAKE_PASS,Chiếm ải,Take the pass
+OBJECTIVE_KIND_HOLD_CITY,Giữ thành,Hold the city
+OBJECTIVE_KIND_ESCORT,Hộ tống,Escort
+OBJECTIVE_KIND_BREAK_SIEGE,Phá vây,Break the siege
+OBJECTIVE_KIND_SLAY_GENERAL,Hạ tướng,Bring him down
+OBJECTIVE_KIND_CELL,Chiếm mục tiêu,Take the objective
+OBJECTIVE_DESC_TAKE_PASS_FORMAT,"Đưa một tướng lên %s, giữ không địch kề bên tới hết lượt địch. Hạ hết tướng địch cũng thắng. Quá %d vòng là thua.",Put a leader on the %s and keep enemies off its sides until the enemy turn ends. Defeating every enemy leader also wins. After %d rounds you lose.
+OBJECTIVE_DESC_HOLD_CITY_FORMAT,Giữ %s đủ %d vòng. Địch chiếm và giữ qua một vòng là thua. Địch kéo tới thêm ở vòng %s.,"Hold the %s for %d rounds. If the enemy takes it and keeps it a round, you lose. More enemies come in rounds %s."
+OBJECTIVE_DESC_ESCORT_FORMAT,"Xe lương tự đi theo đường chấm cuối mỗi lượt ta, đi qua quân ta, dừng khi địch đứng chắn đường. Đưa xe ra mép bản đồ. Mất xe hay quá %d vòng là thua.","The supply cart rolls along the dotted road after each of our turns, passes our troops and stops when an enemy stands on the road. Get it off the map. Lose it or run past %d rounds and we lose."
+OBJECTIVE_DESC_BREAK_SIEGE_FORMAT,"Đưa %d tướng tới ô thoát vàng ở mép, trong đó có %s. Hạ hết tướng địch cũng thắng. Quá %d vòng là thua.","Get %d leaders to the gold exits at the edge, %s among them. Defeating every enemy leader also wins. After %d rounds you lose."
+OBJECTIVE_DESC_SLAY_GENERAL_FORMAT,Hạ %s. Còn %d%% máu thì hắn chạy ra ô thoát đỏ; hắn thoát là ta thua. Quá %d vòng là thua.,Bring down %s. At %d%% HP he runs for a red exit; if he gets out you lose. After %d rounds you lose.
+OBJECTIVE_PROGRESS_CAPTURE_FORMAT,Chiếm %d/%d,Taking %d/%d
+OBJECTIVE_PROGRESS_HELD,Đã chiếm,Taken
+OBJECTIVE_PROGRESS_NOT_HELD,Chưa chiếm,Not taken
+OBJECTIVE_PROGRESS_KEEP_LOST,Thành mất!,Keep lost!
+OBJECTIVE_PROGRESS_ROUNDS_FORMAT,%d/%d vòng,Held %d/%d
+OBJECTIVE_PROGRESS_ROAD_FORMAT,Còn %d ô,%d cells left
+OBJECTIVE_PROGRESS_HOLDING,Xe đang dừng,Cart waiting
+OBJECTIVE_PROGRESS_ROAD_STUCK_FORMAT,Còn %d ô · xe kẹt,%d cells left · cart stuck
+TACTICS_CONVOY_ROAD_FORMAT,Còn %d ô tới mép bản đồ,%d cells to the map's edge
+TACTICS_CONVOY_WILL_GO_FORMAT,Hết lượt ta xe đi %d ô (vạch trắng),After our turn it rolls %d cells (white line)
+TACTICS_CONVOY_HELD,Xe đang dừng: bấm Xe đi để đi tiếp,Waiting: press Let it roll
+TACTICS_CONVOY_ENEMY_AHEAD,Địch chắn đường: xe đứng yên,An enemy blocks the road: it waits
+TACTICS_CONVOY_BLOCKED,Hết chỗ trống trên đường: xe đứng yên,No free cell ahead: it waits
+TACTICS_CONVOY_RULE_FORMAT,Đi %d ô mỗi lượt theo đường chấm. Đi qua quân ta. Địch đứng trên đường thì xe dừng.,Rolls %d cells a turn along the dotted road. Passes our troops. An enemy on the road stops it.
+OBJECTIVE_PROGRESS_ESCAPED_FORMAT,Thoát %d/%d,Out %d/%d
+OBJECTIVE_PROGRESS_HUNT,Truy tướng,On his trail
+OBJECTIVE_PROGRESS_FLEEING,Hắn đang chạy!,He is running!
+OBJECTIVE_CARD_TITLE,Mục tiêu,Objective
+OBJECTIVE_GOAL_LINE_FORMAT,Phụ: %s (+%d lương),Side: %s (+%d supplies)
+OBJECTIVE_GOAL_MET_FORMAT,Phụ: %s: đạt,Side: %s: met
+GOAL_VILLAGES_SAFE,không làng nào cháy,no village burned
+GOAL_NO_LOSSES,không mất quân nào,lose nobody
+GOAL_BY_ROUND_FORMAT,thắng trong %d vòng,win within %d rounds
+GOAL_CAMPS_TAKEN,chiếm mọi trại,take every camp
+BUTTON_CONVOY_HOLD,Xe dừng,Hold cart
+BUTTON_CONVOY_GO,Xe đi,Let it roll
+TACTICS_END_HELD_WIN,Thành vẫn đứng vững.,The city held.
+TACTICS_END_HELD_LOSS,Địch giữ được thành.,The enemy held the city.
+TACTICS_END_KEEP_LOST_WIN,Ta đã chiếm thành.,We took the keep.
+TACTICS_END_KEEP_LOST_LOSS,Địch đã chiếm thành.,The enemy took the keep.
+TACTICS_END_ESCORTED_WIN,Xe lương đã qua.,The supplies got through.
+TACTICS_END_ESCORTED_LOSS,Xe lương địch đã qua.,The enemy supplies got through.
+TACTICS_END_CONVOY_LOST_WIN,Xe lương địch đã bị phá.,The enemy cart was destroyed.
+TACTICS_END_CONVOY_LOST_LOSS,Xe lương đã mất.,The supply cart was lost.
+TACTICS_END_BROKE_OUT_WIN,Ta đã phá được vây.,We broke out.
+TACTICS_END_BROKE_OUT_LOSS,Địch đã phá được vây.,The enemy broke out.
+TACTICS_END_LEADER_LOST_WIN,Địch không còn đủ tướng để thoát.,The enemy can no longer get out.
+TACTICS_END_LEADER_LOST_LOSS,Không còn đủ tướng để phá vây.,Too few leaders left to break out.
+TACTICS_END_GENERAL_SLAIN_WIN,Tướng địch đã bị hạ.,The enemy general is down.
+TACTICS_END_GENERAL_SLAIN_LOSS,Tướng ta đã bị hạ.,Our general is down.
+TACTICS_END_GENERAL_FLED_WIN,Tướng ta đã thoát.,Our general got away.
+TACTICS_END_GENERAL_FLED_LOSS,Tướng địch đã thoát.,The enemy general got away.
+TACTICS_TIP_SITE,"Đứng gần làng, miếu, trại: nút mang tên nơi đó hiện ra. Dùng rồi không hoàn tác.","Near a village, shrine or camp, a button with its name shows. It cannot be undone."
+TACTICS_TIP_OBJECTIVE,Ô mục tiêu ở góc trên: chạm để xem việc phải làm và mục tiêu phụ.,The objective chip up top: tap it for what to do and the side goals.
+TACTICS_TIP_CAPTURE,Vòng quanh ô là tiến độ chiếm: đầy vòng là chiếm. Địch kề bên thì dừng.,"The ring round the cell is the capture: full ring, it is taken. An enemy next to it stops it."
+TACTICS_TIP_CONVOY,Xe lương tự đi theo vạch trắng cuối lượt ta. Chạm vào xe để cho xe dừng hay đi.,The cart rolls along the white line after our turn. Tap the cart to hold it or let it roll.
+TACTICS_TIP_EXIT,Ô vàng ở mép là lối thoát: tướng tới đó là ra khỏi trận cùng toán.,Gold edge cells are exits: a leader there leaves the battle with its squad.
+TACTICS_TIP_WAVE,Ô đỏ ở mép: quân địch sẽ vào đó vòng tới.,Red edge cells: enemy troops come in there next round.
+SUMMARY_GOALS,Mục tiêu phụ,Side goals
+SUMMARY_GOAL_MET_FORMAT,Đạt: %s (+%d lương),Met: %s (+%d supplies)
+SUMMARY_GOAL_MISSED_FORMAT,Hụt: %s,Missed: %s
+SUMMARY_SUPPLIES_FORMAT,Lương thu được: %d. Kho: %d.,Supplies gained: %d. Store: %d.
+SUMMARY_RECRUITED,Mộ được,Recruited
+SUMMARY_ESCAPED,Đã thoát,Got out
+MUSTER_SUPPLIES_FORMAT,Kho lương: %d,Supplies: %d
+MUSTER_RESERVE_FORMAT,Mộ %s (%d lương),Hire a %s (%d supplies)
+MUSTER_RESERVE_NO_ROOM,Các tướng đã đủ binh.,Every leader is full.
+MUSTER_RESERVE_NO_SUPPLIES,"Thiếu lương. Thắng mục tiêu phụ, cướp làng, chiếm trại để có lương.","Not enough supplies. Side goals, loot and camps give supplies."
+MUSTER_RESERVE_HIRED_FORMAT,%s đã vào toán của %s.,A %s joined %s.
+MUSTER_GOAL_ITEM_FORMAT,%s (+%d lương),%s (+%d supplies)
+MUSTER_GOALS_FORMAT,Mục tiêu phụ: %s,Side goals: %s
+MUSTER_SITES_FORMAT,Trên bản đồ: %s,On the map: %s
+OBJECTIVE_SHORT_TAKE_PASS_FORMAT,Mục tiêu: chiếm %s,Goal: take the %s
+OBJECTIVE_SHORT_HOLD_CITY_FORMAT,Mục tiêu: giữ %s %d vòng,Goal: hold the %s %d rounds
+OBJECTIVE_SHORT_ESCORT,Mục tiêu: đưa xe lương ra mép bản đồ,Goal: get the cart off the map
+OBJECTIVE_SHORT_BREAK_SIEGE_FORMAT,"Mục tiêu: %d tướng ra ô thoát, có %s","Goal: %d leaders out, %s among them"
+OBJECTIVE_SHORT_SLAY_GENERAL_FORMAT,Mục tiêu: hạ %s trước khi hắn thoát,Goal: bring down %s before he escapes
+INTENT_SITE,Ý đồ: cướp làng,Intent: loot a village
+SITE_RECRUIT_LINE_FORMAT,"%s: đánh tầm %d-%d ô, đi %d ô.","%s: range %d-%d, moves %d."

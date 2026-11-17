@@ -1,0 +1,17 @@
+[gd_resource type="TacticsSiteData" format=3]
+
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/militia.tres" id="troop_militia"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/hunter.tres" id="troop_hunter"]
+
+[resource]
+id = &"site.village"
+kind = &"site_kind.village"
+name_key = "SITE_VILLAGE"
+description_key = "SITE_VILLAGE_DESC"
+reach_cells = 1
+heal_pct = 40
+recruits = Array[TacticsTroopData]([ExtResource("troop_militia"), ExtResource("troop_hunter")])
+supplies = 2
+karma_kept = 1
+karma_burned = 1
+karma_looted = 2

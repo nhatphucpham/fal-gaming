@@ -34,6 +34,8 @@ class TacticsUnitData : public Resource {
 	int move_points = 4;
 	int vision_cells = 4;
 	TypedArray<TacticsKeywordData> keywords;
+	// Never attacks or counters and holds no zone of control (a convoy).
+	bool is_noncombatant = false;
 
 protected:
 	static void _bind_methods();
@@ -64,6 +66,8 @@ public:
 	int get_vision_cells() const { return vision_cells; }
 	void set_keywords(const TypedArray<TacticsKeywordData> &p_value) { keywords = p_value; }
 	TypedArray<TacticsKeywordData> get_keywords() const { return keywords; }
+	void set_is_noncombatant(bool p_value) { is_noncombatant = p_value; }
+	bool get_is_noncombatant() const { return is_noncombatant; }
 };
 
 // A soldier type (binh): one file per type in Data/Tactics/Troops/, id

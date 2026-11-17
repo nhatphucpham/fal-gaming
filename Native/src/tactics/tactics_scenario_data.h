@@ -2,6 +2,7 @@
 
 #include "tactics_environment_data.h"
 #include "tactics_map_data.h"
+#include "tactics_objective_data.h"
 #include "tactics_rules_data.h"
 #include "tactics_unit_data.h"
 
@@ -39,6 +40,13 @@ class TacticsScenarioData : public Resource {
 	// keeps each leader's own squad.
 	PackedInt32Array supplied_sizes;
 	TypedArray<TacticsTroopData> supplied_troops;
+	// What the battle is won by (Docs/systems/tactics_objectives.md); null:
+	// the map's objective cell, if any, taken by a move.
+	Ref<TacticsObjectiveData> objective;
+	// The soldier one supply buys at the muster (Docs/systems/tactics_roster.md).
+	Ref<TacticsTroopData> reserve_troop;
+	// Supplies one reserve soldier costs.
+	int reserve_cost = 3;
 
 protected:
 	static void _bind_methods();
@@ -76,6 +84,12 @@ public:
 	PackedInt32Array get_supplied_sizes() const { return supplied_sizes; }
 	void set_supplied_troops(const TypedArray<TacticsTroopData> &p_value) { supplied_troops = p_value; }
 	TypedArray<TacticsTroopData> get_supplied_troops() const { return supplied_troops; }
+	void set_objective(const Ref<TacticsObjectiveData> &p_value) { objective = p_value; }
+	Ref<TacticsObjectiveData> get_objective() const { return objective; }
+	void set_reserve_troop(const Ref<TacticsTroopData> &p_value) { reserve_troop = p_value; }
+	Ref<TacticsTroopData> get_reserve_troop() const { return reserve_troop; }
+	void set_reserve_cost(int p_value) { reserve_cost = p_value; }
+	int get_reserve_cost() const { return reserve_cost; }
 	// The squad the leader at p_index of a side starts with: the supplied
 	// soldiers on side A when the scenario supplies them, else its own.
 	TypedArray<TacticsTroopData> get_squad(int64_t p_side, int64_t p_index) const;

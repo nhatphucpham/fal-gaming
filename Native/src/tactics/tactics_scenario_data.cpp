@@ -59,6 +59,9 @@ void TacticsScenarioData::_bind_methods() {
 	BATTLE_BIND_ACCESSORS(TacticsScenarioData, daytime_start_index);
 	BATTLE_BIND_ACCESSORS(TacticsScenarioData, supplied_sizes);
 	BATTLE_BIND_ACCESSORS(TacticsScenarioData, supplied_troops);
+	BATTLE_BIND_ACCESSORS(TacticsScenarioData, objective);
+	BATTLE_BIND_ACCESSORS(TacticsScenarioData, reserve_troop);
+	BATTLE_BIND_ACCESSORS(TacticsScenarioData, reserve_cost);
 	ClassDB::bind_method(D_METHOD("get_leaders", "side"), &TacticsScenarioData::get_leaders);
 	ClassDB::bind_method(D_METHOD("get_squad", "side", "index"), &TacticsScenarioData::get_squad);
 
@@ -77,4 +80,7 @@ void TacticsScenarioData::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "daytime_start_index", PROPERTY_HINT_RANGE, "0,16,1"), "set_daytime_start_index", "get_daytime_start_index");
 	ADD_PROPERTY(PropertyInfo(Variant::PACKED_INT32_ARRAY, "supplied_sizes"), "set_supplied_sizes", "get_supplied_sizes");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "supplied_troops", PROPERTY_HINT_ARRAY_TYPE, "TacticsTroopData"), "set_supplied_troops", "get_supplied_troops");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "objective", PROPERTY_HINT_RESOURCE_TYPE, "TacticsObjectiveData"), "set_objective", "get_objective");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "reserve_troop", PROPERTY_HINT_RESOURCE_TYPE, "TacticsTroopData"), "set_reserve_troop", "get_reserve_troop");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "reserve_cost", PROPERTY_HINT_RANGE, "1,100"), "set_reserve_cost", "get_reserve_cost");
 }

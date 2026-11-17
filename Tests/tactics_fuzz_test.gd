@@ -26,7 +26,14 @@ extends SceneTree
 # Every other seed plays with incidents, most soldiers seeded with a random
 # one: the events must account for flights and defections too. Every third
 # seed plays under fog of war with a weather (turning on some) and times of
-# day: a walk may stop at an ambush, and the rest must hold as well.
+# day: a walk may stop at an ambush, and the rest must hold as well. Most
+# seeds put sites on the map (villages, shrines, camps, strongholds) and
+# many an objective kind (take the pass, hold the city, escort, break the
+# siege, bring down the general): a site use or a convoy order is accepted
+# exactly when can_use_site() or the convoy said so, ends the steps back,
+# and units that arrive, heal or leave by an exit come with their events;
+# the panel's site actions agree with can_use_site(), and a site a side
+# never saw tells it nothing.
 
 const Kit := preload("res://Tests/tactics_test_kit.gd")
 const SEED_COUNT: int = 24
@@ -74,6 +81,11 @@ var _last_moved: int = -1
 var _strikes: int = 0
 ## The most moves of one leader taken back one by one in a row.
 var _deepest_undo: int = 0
+## This seed's sites, [name, cell, owner] each, and objective (or null).
+var _site_specs: Array = []
+var _objective_data: TacticsObjectiveData = null
+## Site and objective events seen over all seeds, by type.
+var _site_counts: Dictionary = {}
 
 
 func _initialize() -> void:
@@ -87,10 +99,14 @@ func _initialize() -> void:
 		_run_seed()
 		_kit.free_battles()
 	Engine.print_error_messages = true
+	for type: StringName in [&"site_used", &"unit_arrived", &"site_changed", &"unit_escaped"]:
+		if _site_counts.get(type, 0) == 0:
+			_failures.append("no %s on any seed" % type)
 	for failure: String in _failures.slice(0, 20):
 		printerr("Tactics fuzz test: %s" % failure)
 	print("Tactics fuzz test: incident events %s, %d strikes, %d undos (up to %d moves deep)" % [_incident_counts, _strikes, _undos, _deepest_undo])
 	print("Tactics fuzz test: sight events %s" % _sight_counts)
+	print("Tactics fuzz test: site and objective events %s" % _site_counts)
 	for type: StringName in [&"vision_changed", &"weather_changed", &"daytime_changed"]:
 		if _sight_counts.get(type, 0) == 0:
 			_failures.append("no %s on any fog seed" % type)
@@ -113,13 +129,20 @@ func _run_seed() -> void:
 	_rng.seed = _seed
 	var rows := _random_rows(_rng.randi_range(6, 12), _rng.randi_range(6, 12))
 	var objective := Vector2i(-1, -1)
-	if _rng.randf() < 0.3:
+	if _rng.randf() < 0.15:
 		objective = Vector2i(_rng.randi_range(0, rows[0].length() - 1), _rng.randi_range(0, rows.size() - 1))
 	var ai_sides: Array[bool] = [_rng.randf() < 0.1, _rng.randf() < 0.6]
+	_site_specs = _random_sites(rows) if objective.x < 0 else []
+	_objective_data = null
 	var battle := _new_battle(rows, objective, ai_sides)
 	var placements: Array = _place_leaders(battle, rows)
+	if objective.x < 0 and _rng.randf() < 0.6:
+		_objective_data = _random_objective(battle, rows)
+	_set_objective(battle)
 	var seeds := _plant_incidents(battle)
 	_reset_model(battle)
+	# Before start: its strikes count, and the last seed's never do.
+	_soldier_strikes.clear()
 	var events := battle.start()
 	if events.is_empty():
 		return
@@ -132,7 +155,6 @@ func _run_seed() -> void:
 	_undo_leader = -1
 	_budget.clear()
 	_budget_turn = -1
-	_soldier_strikes.clear()
 	while commands.size() < MAX_COMMANDS and not battle.is_finished():
 		_command_index = commands.size()
 		var before := battle.get_state_hash()
@@ -157,6 +179,7 @@ func _run_seed() -> void:
 	var replay := _new_battle(rows, objective, ai_sides)
 	for placement: Array in placements:
 		replay.add_leader(placement[0], placement[1], placement[2])
+	_set_objective(replay)
 	_apply_incidents(replay, seeds)
 	replay.start()
 	for index: int in commands.size():
@@ -178,6 +201,7 @@ func _replay_without_undone(rows: PackedStringArray, objective: Vector2i, ai_sid
 	var replay := _new_battle(rows, objective, ai_sides)
 	for placement: Array in placements:
 		replay.add_leader(placement[0], placement[1], placement[2])
+	_set_objective(replay)
 	_apply_incidents(replay, seeds)
 	replay.start()
 	for index: int in commands.size():
@@ -199,6 +223,9 @@ func _snapshot(battle: TacticsBattle) -> Dictionary:
 		"report": var_to_str(battle.get_battle_report()),
 		"intents": var_to_str(battle.get_enemy_intents()),
 		"round": [battle.get_round(), battle.get_turn(), battle.get_active_side()],
+		"sites": var_to_str([battle.get_sites(TacticsBattle.SIDE_A), battle.get_sites(TacticsBattle.SIDE_B)]),
+		"objective": var_to_str(battle.get_objective_state()),
+		"supplies": [battle.get_supplies(TacticsBattle.SIDE_A), battle.get_supplies(TacticsBattle.SIDE_B)],
 	}
 
 
@@ -245,8 +272,106 @@ func _random_rows(width: int, height: int) -> PackedStringArray:
 	return rows
 
 
+## On most seeds, 2 to 8 sites on passable cells, any owner.
+func _random_sites(rows: PackedStringArray) -> Array:
+	var specs: Array = []
+	if _rng.randf() < 0.25:
+		return specs
+	var names: Array[String] = ["village", "shrine", "camp", "keep", "watchtower", "pass_fort"]
+	var taken: Dictionary = {}
+	for index: int in _rng.randi_range(2, 8):
+		var cell := Vector2i(_rng.randi_range(0, rows[0].length() - 1), _rng.randi_range(0, rows.size() - 1))
+		if taken.has(cell) or _is_impassable(rows, cell):
+			continue
+		taken[cell] = true
+		specs.append([names[_rng.randi_range(0, names.size() - 1)], cell, _rng.randi_range(-1, 1)])
+	return specs
+
+
+func _is_impassable(rows: PackedStringArray, cell: Vector2i) -> bool:
+	return _kit.catalog.get_terrain(Kit.TERRAIN_IDS[Kit.SYMBOLS.find(rows[cell.y][cell.x])]).is_impassable
+
+
+## An objective kind the seed's map and leaders allow, or null.
+func _random_objective(battle: TacticsBattle, rows: PackedStringArray) -> TacticsObjectiveData:
+	var width := rows[0].length()
+	var height := rows.size()
+	var objective := TacticsObjectiveData.new()
+	objective.id = &"objective.fuzz"
+	var strongholds: Array[int] = []
+	for index: int in _site_specs.size():
+		if _site_specs[index][0] in ["keep", "watchtower", "pass_fort"]:
+			strongholds.append(index)
+	var edges: Array[Vector2i] = []
+	for index: int in _rng.randi_range(1, 3):
+		var cell := Vector2i(_rng.randi_range(0, width - 1), 0 if _rng.randf() < 0.5 else height - 1)
+		if not edges.has(cell):
+			edges.append(cell)
+	var kinds: Array[StringName] = [&"objective_kind.escort", &"objective_kind.break_siege", &"objective_kind.slay_general"]
+	if not strongholds.is_empty():
+		kinds.append_array([&"objective_kind.take_pass", &"objective_kind.hold_city"])
+	objective.kind = kinds[_rng.randi_range(0, kinds.size() - 1)]
+	match objective.kind:
+		&"objective_kind.take_pass", &"objective_kind.hold_city":
+			objective.site = strongholds[_rng.randi_range(0, strongholds.size() - 1)]
+			objective.rounds = _rng.randi_range(1, 5)
+			if objective.kind == &"objective_kind.hold_city" and _rng.randf() < 0.7:
+				var wave := TacticsWaveData.new()
+				wave.round = _rng.randi_range(1, 3)
+				var leaders: Array[TacticsLeaderData] = [_kit.catalog.get_leader(LEADERS[_rng.randi_range(0, LEADERS.size() - 1)])]
+				wave.leaders = leaders
+				wave.entry_cells = edges
+				var waves: Array[TacticsWaveData] = [wave]
+				objective.waves = waves
+		&"objective_kind.escort":
+			var road: Array[Vector2i] = []
+			var col := _rng.randi_range(0, width - 1)
+			for row: int in range(_rng.randi_range(1, height - 1), -1, -1):
+				road.append(Vector2i(col, row))
+			objective.road_cells = road
+			objective.convoy = _kit.catalog.get_troop(&"troop.supply_cart")
+		&"objective_kind.break_siege":
+			objective.exit_cells = edges
+			objective.count = 1
+			objective.rounds = _rng.randi_range(2, 6)
+			objective.required_leader = 0 if _rng.randf() < 0.5 else -1
+		&"objective_kind.slay_general":
+			objective.exit_cells = edges
+			objective.general = 0
+			objective.flee_hp_pct = _rng.randi_range(30, 100)
+			objective.general_hold_cells = _rng.randi_range(0, 3)
+	var goals: Array[TacticsGoalData] = []
+	for kind: StringName in [&"goal.villages_safe", &"goal.no_losses", &"goal.by_round", &"goal.camps_taken"]:
+		if _rng.randf() < 0.4:
+			var goal := TacticsGoalData.new()
+			goal.kind = kind
+			goal.value = _rng.randi_range(1, 6)
+			goal.supplies = _rng.randi_range(0, 3)
+			goals.append(goal)
+	objective.goals = goals
+	if not battle.set_objective(objective):
+		return null
+	return objective
+
+
+## Sets this seed's objective on a battle about to start (a replay too).
+func _set_objective(battle: TacticsBattle) -> void:
+	if _objective_data != null and not battle.is_started() and battle.get_objective_state().get("id", &"") != &"objective.fuzz":
+		if not battle.set_objective(_objective_data):
+			_fail("the objective was refused on a replay")
+
+
 func _new_battle(rows: PackedStringArray, objective: Vector2i, ai_sides: Array[bool]) -> TacticsBattle:
-	var battle := _kit.new_battle(rows, ai_sides[1], null, objective)
+	var battle: TacticsBattle
+	if _site_specs.is_empty():
+		battle = _kit.new_battle(rows, ai_sides[1], null, objective)
+	else:
+		var sites: Array = []
+		for spec: Array in _site_specs:
+			sites.append([_kit.site(spec[0]), spec[1], spec[2]])
+		battle = _kit.new_site_battle(rows, sites, ai_sides[1])
+		if objective.x >= 0:
+			_fail("a seed with sites should have no map objective")
 	battle.set_side_ai(TacticsBattle.SIDE_A, ai_sides[0])
 	var environment := _environment()
 	if environment != null and not battle.set_environment(environment):
@@ -354,6 +479,9 @@ func _pick_command(battle: TacticsBattle) -> Array:
 	var off_map := Vector2i(_rng.randi_range(-1, battle.get_map_width()), _rng.randi_range(-1, battle.get_map_height()))
 	var is_leader: bool = battle.get_unit_state(leader)["role"] == &"leader"
 	var roll := _rng.randf()
+	# A site in reach is often taken (or tried).
+	if is_leader and not battle.get_site_actions(leader).is_empty() and _rng.randf() < 0.35:
+		roll = 0.85
 	if is_leader and battle.get_skill_charge(leader)["is_ready"] and _rng.randf() < 0.6:
 		roll = 0.6
 	if roll < 0.32:
@@ -386,6 +514,16 @@ func _pick_command(battle: TacticsBattle) -> Array:
 		return [&"strike", leader, target, battle.get_strike_cell(leader, target)]
 	if roll < 0.83:
 		return [&"order", leader, ORDERS[_rng.randi_range(0, ORDERS.size() - 1)]]
+	if roll < 0.9 and not _site_specs.is_empty():
+		var actions: Array = battle.get_site_actions(leader) if is_leader else []
+		if not actions.is_empty() and _rng.randf() < 0.8:
+			var action: Dictionary = actions[_rng.randi_range(0, actions.size() - 1)]
+			var choice: Dictionary = action["choices"][_rng.randi_range(0, (action["choices"] as Array).size() - 1)]
+			return [&"site", leader, [action["site"], choice["choice"], _rng.randi_range(0, int(choice["options"]))]]
+		var choices: Array[StringName] = [&"heal", &"recruit", &"loot", &"charge", &"calm", &"bless", &"capture", &"nothing"]
+		return [&"site", leader, [_rng.randi_range(-1, _site_specs.size()), choices[_rng.randi_range(0, choices.size() - 1)], _rng.randi_range(-1, 2)]]
+	if roll < 0.92 and _objective_data != null and _objective_data.kind == &"objective_kind.escort":
+		return [&"convoy", -1, _rng.randf() < 0.5]
 	return [&"end_phase", -1, null]
 
 
@@ -406,6 +544,10 @@ func _run(battle: TacticsBattle, command: Array) -> Array:
 			return []
 		&"strike":
 			return _strike(battle, command[1], command[2], command[3])
+		&"site":
+			return battle.use_site(command[1], command[2][0], command[2][1], command[2][2])
+		&"convoy":
+			return battle.set_convoy_hold(command[2])
 		_:
 			return battle.end_phase()
 
@@ -430,6 +572,16 @@ func _run_checked(battle: TacticsBattle, command: Array) -> Array:
 		return _run_undo(battle, command[1])
 	if command[0] == &"strike":
 		return _run_strike(battle, command)
+	if command[0] == &"site":
+		return _run_site(battle, command)
+	if command[0] == &"convoy":
+		# A refused order (or the same one again) changes nothing; one taken
+		# ends the steps back.
+		var halted := battle.set_convoy_hold(command[2])
+		for unit: Dictionary in battle.get_units():
+			if not halted.is_empty() and battle.can_undo_move(unit["index"]):
+				_fail("after a convoy order leader %d can still take a move back" % unit["index"])
+		return halted
 	if command[0] == &"end_phase":
 		var ended := battle.end_phase()
 		if ended.is_empty():
@@ -507,6 +659,24 @@ func _run_checked(battle: TacticsBattle, command: Array) -> Array:
 			_check_move(battle, events, path, preview)
 	elif command[0] == &"attack":
 		_check_engagement(events, forecast)
+	return events
+
+
+## A site use: accepted exactly when can_use_site() said so; after it no
+## leader of ours can take a move back.
+func _run_site(battle: TacticsBattle, command: Array) -> Array:
+	var leader: int = command[1]
+	var args: Array = command[2]
+	var expected := battle.can_use_site(leader, args[0], args[1], args[2])
+	var events := _run(battle, command)
+	if events.is_empty() == expected:
+		_fail("%s accepted %s, can_use_site() said %s" % [command, not events.is_empty(), expected])
+	if not events.is_empty():
+		for unit: Dictionary in battle.get_units():
+			if battle.can_undo_move(unit["index"]):
+				_fail("after %s leader %d can still take a move back" % [command, unit["index"]])
+		if Kit.of_type(events, &"site_used").size() != 1:
+			_fail("%s gave %d site_used events" % [command, Kit.of_type(events, &"site_used").size()])
 	return events
 
 
@@ -657,6 +827,20 @@ func _check_skill(events: Array, skill_preview: Dictionary) -> void:
 func _check_queries(battle: TacticsBattle) -> void:
 	battle.get_zones()
 	battle.get_enemy_intents()
+	battle.get_objective_state()
+	battle.get_convoy_path()
+	for side: int in 2:
+		for site: Dictionary in battle.get_sites(side):
+			if not site["is_known"] and (site["status"] != &"ready" or site["uses"] != 0 or site["capture_progress"] != 0 or site["has_reinforced"]):
+				_fail("side %d is told the state of site %d it never saw: %s" % [side, site["site"], site])
+	for unit: Dictionary in battle.get_units():
+		for action: Dictionary in battle.get_site_actions(unit["index"]):
+			for choice: Dictionary in action["choices"]:
+				var can_any := false
+				for option: int in int(choice["options"]):
+					can_any = can_any or battle.can_use_site(unit["index"], action["site"], choice["choice"], option)
+				if can_any != bool(choice["can"]):
+					_fail("get_site_actions(%d) says %s for %s, can_use_site() says %s" % [unit["index"], choice["can"], choice["choice"], can_any])
 	for unit: Dictionary in battle.get_units():
 		if not unit["alive"] and not battle.get_reachable_cells(unit["index"]).is_empty():
 			_fail("dead unit %d has reachable cells" % unit["index"])
@@ -771,12 +955,29 @@ func _apply_model(battle: TacticsBattle, events: Array) -> void:
 				_model[event["unit"]]["side"] = event["side"]
 			&"skill_charge_changed":
 				_model[event["unit"]]["charge"] = event["value"]
+			&"unit_healed":
+				var healed: Dictionary = _model[event["unit"]]
+				if not healed["alive"] or event["hp_after"] != healed["hp"] + int(event["amount"]):
+					_fail("heal %s does not follow hp %d" % [event, healed["hp"]])
+				healed["hp"] = event["hp_after"]
+			&"unit_arrived":
+				if _model.has(event["unit"]):
+					_fail("unit %d arrived twice" % event["unit"])
+				var arrived := battle.get_unit_state(event["unit"])
+				var arrived_charge: int = battle.get_skill_charge(event["unit"])["value"] if arrived["role"] == &"leader" else 0
+				_model[event["unit"]] = {"cell": event["cell"], "hp": arrived["max_hp"], "alive": true, "charge": arrived_charge, "side": event["side"], "is_soldier": arrived["role"] == &"soldier"}
+			&"unit_escaped":
+				if _model[event["unit"]]["cell"] != event["cell"]:
+					_fail("unit %d left from %s, but it was on %s" % [event["unit"], event["cell"], _model[event["unit"]]["cell"]])
+				_model[event["unit"]]["alive"] = false
 			&"zone_created":
 				_zone_count += 1
 			&"zone_expired":
 				_zone_count -= 1
 		if String(event["type"]) in ["vision_changed", "ambushed", "weather_changed", "daytime_changed"]:
 			_sight_counts[event["type"]] = int(_sight_counts.get(event["type"], 0)) + 1
+		if String(event["type"]) in ["site_used", "site_changed", "capture_progressed", "unit_arrived", "unit_escaped", "unit_healed", "convoy_halted", "general_fleeing", "supplies_gained", "goal_met"]:
+			_site_counts[event["type"]] = int(_site_counts.get(event["type"], 0)) + 1
 		if String(event["type"]) in ["soldier_wavered", "incident_calmed", "incident_fired", "mark_earned", "unit_fled", "unit_defected"]:
 			_incident_counts[event["type"]] = int(_incident_counts.get(event["type"], 0)) + 1
 	for unit: Dictionary in battle.get_units():
@@ -802,7 +1003,7 @@ func _check_nothing_after_end(battle: TacticsBattle) -> void:
 
 ## The leader's turn queries agree with its state: open until it waited,
 ## one attack and one cast, moves while its points reach a cell, and
-## closed exactly when nothing is left. After "Chờ" nothing is possible.
+## closed exactly when nothing is left (a site it may use included). After "Chờ" nothing is possible.
 func _check_turn_queries(battle: TacticsBattle, unit: int, state: Dictionary, can_act: bool, can_attack: bool) -> void:
 	var can_move: bool = can_act and int(state["move_points_left"]) > 0 and not battle.get_reachable_cells(unit).is_empty()
 	var can_cast: bool = can_act and not state.get("has_cast", false) and state["role"] == &"leader" and battle.get_skill_charge(unit)["is_ready"]
@@ -811,7 +1012,11 @@ func _check_turn_queries(battle: TacticsBattle, unit: int, state: Dictionary, ca
 		_fail("can_act/move/attack/cast of %d are %s, its state says %s: %s" % [unit, actual, [can_act, can_move, can_attack, can_cast], state])
 	if battle.get_move_points_left(unit) != int(state["move_points_left"]) or battle.has_attacked(unit) != bool(state["has_attacked"]):
 		_fail("move points left or has_attacked of %d disagree with its state %s" % [unit, state])
-	var is_closed: bool = not can_act or (not can_move and battle.get_strike_targets(unit).is_empty() and battle.get_skill_cells(unit).is_empty())
+	var has_site_action := false
+	for action: Dictionary in battle.get_site_actions(unit):
+		for choice: Dictionary in action["choices"]:
+			has_site_action = has_site_action or bool(choice["can"])
+	var is_closed: bool = not can_act or (not can_move and battle.get_strike_targets(unit).is_empty() and battle.get_skill_cells(unit).is_empty() and not has_site_action)
 	if battle.is_closed(unit) != is_closed:
 		_fail("is_closed(%d) is %s, expected %s: %s" % [unit, battle.is_closed(unit), is_closed, state])
 	if state["has_waited"] and not (battle.get_attack_targets(unit).is_empty() and battle.get_skill_cells(unit).is_empty() and battle.get_strike_targets(unit).is_empty()):

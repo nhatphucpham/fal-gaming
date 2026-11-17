@@ -1,0 +1,18 @@
+[gd_resource type="TacticsTroopData" format=3]
+
+[ext_resource type="UnitData" path="res://Data/Units/iron_guard.tres" id="base_unit"]
+[ext_resource type="ClassData" path="res://Data/Classes/shield.tres" id="base_class"]
+
+[resource]
+id = &"troop.supply_cart"
+name_key = "TROOP_SUPPLY_CART"
+base_unit = ExtResource("base_unit")
+base_class = ExtResource("base_class")
+hp_pct = 340
+attack_pct = 0
+min_range_cells = 1
+max_range_cells = 1
+move_points = 3
+vision_cells = 3
+keywords = Array[TacticsKeywordData]([])
+is_noncombatant = true

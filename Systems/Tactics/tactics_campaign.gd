@@ -57,8 +57,8 @@ func _init(tactics_roster: TacticsRoster, tactics_catalog: TacticsCatalog, base_
 
 
 ## The scenario the roster fights next: the catalog's scenarios in turn,
-## one per battle fought (the river crossing first, then the night raid,
-## then the river again).
+## one per battle fought, in the catalog's order (the river crossing first,
+## and back to it after the last).
 static func next_scenario(tactics_roster: TacticsRoster, tactics_catalog: TacticsCatalog) -> TacticsScenarioData:
 	if tactics_catalog.scenarios.is_empty():
 		return null
@@ -110,8 +110,9 @@ func prepare_battle(battle: TacticsBattle, squad_people: Array) -> bool:
 
 
 ## Writes the battle's report into the roster (marks, deaths, desertions,
-## defections, names, recruits and karma), saves it and returns what
-## changed, for the after-battle summary. Works on a battle left early too.
+## defections, names, recruits, karma and supplies), saves it and returns
+## what changed, for the after-battle summary. Works on a battle left early
+## too.
 func finish_battle(battle: TacticsBattle, squad_people: Array, is_saved: bool = true) -> Dictionary:
 	if _unit_to_person.is_empty():
 		for pair: Array in _unit_people(battle, squad_people):
@@ -135,8 +136,14 @@ func apply_report(report: Dictionary, by_unit: Dictionary) -> Dictionary:
 		var unit: int = entry["unit"]
 		var person := roster.get_person(by_unit.get(unit, -1))
 		var marks: Array = entry["marks"]
+		var is_recruit := false
 		if person.is_empty() and entry["start_side"] == SIDE_B and entry["has_defected"] and entry["status"] == &"alive" and entry["role"] == &"soldier":
 			person = roster.recruit(entry["id"], entry["leader_id"])
+		# A soldier a village gave us joins the roster, face and all, unless
+		# it fell.
+		if person.is_empty() and entry["start_side"] == SIDE_A and entry.get("arrival", &"") == &"recruit" and entry["status"] != &"dead" and not entry["has_defected"]:
+			person = roster.recruit(entry["id"], entry["leader_id"])
+			is_recruit = true
 		if person.is_empty():
 			continue
 		for mark: Dictionary in marks:
@@ -153,7 +160,7 @@ func apply_report(report: Dictionary, by_unit: Dictionary) -> Dictionary:
 		rows.append({
 			"id": person["id"], "unit": unit, "status": entry["status"], "has_defected": entry["has_defected"], "start_side": entry["start_side"],
 			"role": entry["role"], "marks": marks.map(func(mark: Dictionary) -> StringName: return mark["incident"]), "is_named_now": is_named_now,
-			"before": before, "after": person["status"],
+			"before": before, "after": person["status"], "is_recruit": is_recruit,
 		})
 	var karma: Dictionary = report["karma"][SIDE_A]
 	var next_bait := (int(karma["carried_bait"]) + int(karma["bait"])) * rules.karma_keep_pct / 100
@@ -161,10 +168,40 @@ func apply_report(report: Dictionary, by_unit: Dictionary) -> Dictionary:
 	roster.karma_bait = next_bait
 	roster.karma_rescue = next_rescue
 	roster.battles = battle_number
+	var gained := int(report.get("supplies", 0))
+	roster.supplies += gained
 	return {
 		"is_finished": report["is_finished"], "winner": report["winner"], "reason": report["reason"], "round": report["round"],
 		"rows": rows, "named": named, "karma": {"bait": karma["bait"], "rescue": karma["rescue"], "next_bait": next_bait, "next_rescue": next_rescue},
+		"supplies": gained, "supplies_total": roster.supplies, "goals": _goal_rows(report.get("goals_met", [])),
 	}
+
+
+## The scenario's side goals: [{kind, value, supplies, is_met}].
+func _goal_rows(met: Array) -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	var objective := scenario.objective
+	if objective == null:
+		return rows
+	for index: int in objective.goals.size():
+		var goal: TacticsGoalData = objective.goals[index]
+		rows.append({"kind": goal.kind, "value": goal.value, "supplies": goal.supplies, "is_met": met.has(index)})
+	return rows
+
+
+## Whether the muster can buy one more reserve soldier now: the scenario
+## names one and the roster has the supplies.
+func can_hire_reserve() -> bool:
+	return scenario.reserve_troop != null and roster.supplies >= scenario.reserve_cost
+
+
+## Buys the scenario's reserve soldier for `leader_id`: a new roster person
+## (face and all); returns its id, or -1 without enough supplies.
+func hire_reserve(leader_id: StringName) -> int:
+	if not can_hire_reserve():
+		return -1
+	roster.supplies -= scenario.reserve_cost
+	return int(roster.recruit(scenario.reserve_troop.id, leader_id)["id"])
 
 
 ## A roster person as a leader: its troop's figure, keywords and ranges,

@@ -17,7 +17,7 @@ using namespace godot;
 namespace {
 
 constexpr int HASH_HEX_DIGITS = 16;
-const char *const INTENT_ACTION_NAMES[] = { "wait", "attack", "skill" };
+const char *const INTENT_ACTION_NAMES[] = { "wait", "attack", "skill", "site" };
 
 tactics::Cell to_cell(const Vector2i &p_cell) {
 	return { p_cell.x, p_cell.y };
@@ -118,6 +118,10 @@ Dictionary TacticsBattle::get_unit_state(int64_t p_unit) const {
 	state["start_side"] = unit.start_side;
 	state["record_id"] = unit.record_id;
 	state["has_fled"] = unit.has_fled;
+	state["has_escaped"] = unit.has_escaped;
+	state["has_used_site"] = unit.has_used_site;
+	state["arrival"] = StringName(to_godot_string(unit.arrival_kind));
+	state["is_noncombatant"] = unit.def.is_noncombatant;
 	state["wavering"] = is_wavering ? StringName(to_godot_string(sim.get_incident_rules().incidents[unit.seed].id)) : StringName();
 	state["is_wavering_good"] = is_wavering && sim.get_incident_rules().incidents[unit.seed].handler->is_good;
 	// It wavers only because its leader does not see it (fog of war).
@@ -324,6 +328,7 @@ Array TacticsBattle::get_enemy_intents() const {
 		entry["action"] = StringName(INTENT_ACTION_NAMES[static_cast<int>(intent.action)]);
 		entry["target"] = intent.target;
 		entry["target_cell"] = to_vector2i(intent.target_cell);
+		entry["site"] = intent.site;
 		intents.push_back(entry);
 	}
 	return intents;

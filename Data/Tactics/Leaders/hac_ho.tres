@@ -1,0 +1,31 @@
+[gd_resource type="TacticsLeaderData" format=3]
+
+[ext_resource type="UnitData" path="res://Data/Units/heavy_rider.tres" id="base_unit"]
+[ext_resource type="ClassData" path="res://Data/Classes/cavalry.tres" id="base_class"]
+[ext_resource type="TacticsKeywordData" path="res://Data/Tactics/Keywords/charge.tres" id="kw_charge"]
+[ext_resource type="TacticsPassiveData" path="res://Data/Tactics/Passives/iron_will.tres" id="passive_iron_will"]
+[ext_resource type="TacticsPassiveData" path="res://Data/Tactics/Passives/warlord_growth.tres" id="passive_warlord_growth"]
+[ext_resource type="TacticsSkillData" path="res://Data/Tactics/Skills/blood_oath.tres" id="skill"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/shieldman.tres" id="troop_shieldman"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/spearman.tres" id="troop_spearman"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/archer.tres" id="troop_archer"]
+[ext_resource type="TacticsTraitData" path="res://Data/Tactics/Traits/strict.tres" id="trait_strict"]
+
+[resource]
+id = &"leader.hac_ho"
+name_key = "LEADER_HAC_HO"
+base_unit = ExtResource("base_unit")
+base_class = ExtResource("base_class")
+hp_pct = 160
+attack_pct = 125
+min_range_cells = 1
+max_range_cells = 1
+move_points = 5
+vision_cells = 5
+keywords = Array[TacticsKeywordData]([ExtResource("kw_charge")])
+lead_capacity = 4
+passives = Array[TacticsPassiveData]([ExtResource("passive_iron_will"), ExtResource("passive_warlord_growth")])
+skill = ExtResource("skill")
+default_order = &"order.follow"
+squad = Array[TacticsTroopData]([ExtResource("troop_shieldman"), ExtResource("troop_spearman"), ExtResource("troop_archer")])
+traits = Array[TacticsTraitData]([ExtResource("trait_strict")])

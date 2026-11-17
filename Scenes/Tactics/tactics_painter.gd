@@ -21,12 +21,19 @@ const MAX_PIPS: int = 5
 const TERRAIN_FILLS: Dictionary[StringName, Color] = {
 	&"terrain.plain": Color("c9c58f"), &"terrain.forest": Color("7f9c5c"), &"terrain.hill": Color("cfb07a"),
 	&"terrain.river": Color("4f7fae"), &"terrain.ford": Color("8db0c8"), &"terrain.bridge": Color("4f7fae"),
-	&"terrain.fort": Color("b9ab92"), &"terrain.village": Color("c9c58f"),
+	&"terrain.fort": Color("b9ab92"), &"terrain.village": Color("c9c58f"), &"terrain.wall": Color("6f6658"),
 }
+## Sites (Docs/systems/tactics_sites.md): the badge each kind shows.
+const SITE_BADGE_PX: float = 13.0
+const BURNED_COLOR := Color("3a2a22")
+const EXIT_COLOR := Color("f2c14e")
+const ENEMY_EXIT_COLOR := Color("ff5a3a")
+const ROAD_COLOR := Color(0.95, 0.9, 0.78, 0.55)
 
 static var _terrain_details: Dictionary[StringName, Callable] = {}
 static var _glyphs: Dictionary[StringName, Callable] = {}
 static var _order_icons: Dictionary[StringName, Callable] = {}
+static var _site_icons: Dictionary[StringName, Callable] = {}
 
 
 ## The side's token colour (fill), our side 0 blue, the enemy red.
@@ -44,7 +51,7 @@ static func draw_terrain(canvas: CanvasItem, terrain_id: StringName, rect: Rect2
 
 
 ## A unit token centred on `c`. `glyph` is a class id or `glyph.flying`.
-static func draw_token(canvas: CanvasItem, c: Vector2, side: int, is_leader: bool, glyph: StringName, is_done: bool) -> void:
+static func draw_token(canvas: Object, c: Vector2, side: int, is_leader: bool, glyph: StringName, is_done: bool) -> void:
 	_ensure_registries()
 	var r := 21.0 if is_leader else 15.0
 	var fill := side_color(side)
@@ -65,7 +72,7 @@ static func draw_token(canvas: CanvasItem, c: Vector2, side: int, is_leader: boo
 
 
 ## A translucent outline of a token: where a soldier will stand.
-static func draw_ghost(canvas: CanvasItem, c: Vector2, side: int, is_leader: bool) -> void:
+static func draw_ghost(canvas: Object, c: Vector2, side: int, is_leader: bool) -> void:
 	var r := 21.0 if is_leader else 15.0
 	var shape := _token_shape(c, r, side)
 	canvas.draw_colored_polygon(shape, Color(side_color(side), 0.35))
@@ -132,7 +139,7 @@ static func draw_scout_badge(canvas: CanvasItem, c: Vector2, r: float) -> void:
 
 
 ## An hp bar of `width` px centred under the token.
-static func draw_hp_bar(canvas: CanvasItem, center: Vector2, width: float, ratio: float, side: int) -> void:
+static func draw_hp_bar(canvas: Object, center: Vector2, width: float, ratio: float, side: int) -> void:
 	var rect := Rect2(center - Vector2(width / 2.0, 3.0), Vector2(width, 6.0))
 	canvas.draw_rect(rect.grow(1.5), OUTLINE)
 	canvas.draw_rect(rect, Color("3a302b"))
@@ -142,7 +149,7 @@ static func draw_hp_bar(canvas: CanvasItem, center: Vector2, width: float, ratio
 
 ## Skill pips: up to MAX_PIPS dots, filled by value / threshold; all gold
 ## when the skill is ready.
-static func draw_pips(canvas: CanvasItem, center: Vector2, value: int, threshold: int) -> void:
+static func draw_pips(canvas: Object, center: Vector2, value: int, threshold: int) -> void:
 	var count := mini(maxi(threshold, 1), MAX_PIPS)
 	var filled := float(value) / maxf(threshold, 1) * count
 	var is_ready := value >= threshold
@@ -169,7 +176,7 @@ static func draw_order_icon(canvas: CanvasItem, order: StringName, c: Vector2, s
 
 
 ## A small intent icon: `attack` crossed blades, `skill` a star, `wait` a bar.
-static func draw_intent_icon(canvas: CanvasItem, action: StringName, c: Vector2, r: float) -> void:
+static func draw_intent_icon(canvas: Object, action: StringName, c: Vector2, r: float) -> void:
 	canvas.draw_circle(c, r + 2.0, OUTLINE)
 	canvas.draw_circle(c, r, Palette.OCHRE)
 	if action == &"attack":
@@ -192,7 +199,7 @@ static func draw_glyph_badge(canvas: CanvasItem, c: Vector2, r: float, glyph: St
 
 ## The wavering mark (dao động) of radius `r`: a gold bubble with a star
 ## for a good incident, a red one with "!" for a bad one.
-static func draw_wavering(canvas: CanvasItem, c: Vector2, r: float, is_good: bool) -> void:
+static func draw_wavering(canvas: Object, c: Vector2, r: float, is_good: bool) -> void:
 	canvas.draw_colored_polygon(PackedVector2Array([c + Vector2(-r * 0.5, r * 0.6), c + Vector2(-r * 0.9, r * 1.35), c + Vector2(0, r * 0.85)]), OUTLINE)
 	canvas.draw_circle(c, r + 2.0, OUTLINE)
 	canvas.draw_circle(c, r, Palette.GOLD if is_good else Palette.VERMILION)
@@ -201,6 +208,54 @@ static func draw_wavering(canvas: CanvasItem, c: Vector2, r: float, is_good: boo
 	else:
 		canvas.draw_rect(Rect2(c + Vector2(-r * 0.16, -r * 0.62), Vector2(r * 0.32, r * 0.78)), Palette.CREAM)
 		canvas.draw_circle(c + Vector2(0, r * 0.45), r * 0.17, Palette.CREAM)
+
+
+## A site's badge in the cell `rect`'s top-left corner: its kind's icon on
+## a disc ringed in its owner's colour (cream when unheld); a used site is
+## dimmed, a burned one charred.
+static func draw_site(canvas: Object, rect: Rect2, kind: StringName, status: StringName, owner: int) -> void:
+	_ensure_registries()
+	if status == &"burned":
+		for spot: Vector2 in [Vector2(0.3, 0.55), Vector2(0.62, 0.42), Vector2(0.5, 0.75)]:
+			canvas.draw_circle(rect.position + rect.size * spot, rect.size.x * 0.14, Color(BURNED_COLOR, 0.75))
+	var c := rect.position + Vector2(SITE_BADGE_PX + 3.0, SITE_BADGE_PX + 3.0)
+	var ring := Palette.CREAM if owner < 0 else side_color(owner)
+	var fill := Palette.PANEL if status == &"ready" else Color("5a5650")
+	if status == &"burned":
+		fill = BURNED_COLOR
+	canvas.draw_circle(c, SITE_BADGE_PX + 2.5, OUTLINE)
+	canvas.draw_circle(c, SITE_BADGE_PX, ring)
+	canvas.draw_circle(c, SITE_BADGE_PX - 3.0, fill)
+	var icon: Callable = _site_icons.get(kind, Callable())
+	if icon.is_valid():
+		icon.call(canvas, c, SITE_BADGE_PX - 4.0, Palette.CREAM if status == &"ready" else Color(Palette.CREAM, 0.55))
+	if status == &"used":
+		canvas.draw_line(c + Vector2(-5, 0), c + Vector2(-1, 4), Palette.JADE_LIGHT, 3.0)
+		canvas.draw_line(c + Vector2(-1, 4), c + Vector2(6, -5), Palette.JADE_LIGHT, 3.0)
+
+
+## The capture of a stronghold: a ring round the cell, the share taken in
+## the capturing side's colour.
+static func draw_capture_ring(canvas: Object, c: Vector2, radius: float, progress: int, phases: int, side: int) -> void:
+	canvas.draw_arc(c, radius, 0.0, TAU, 32, Color(OUTLINE, 0.7), 9.0)
+	canvas.draw_arc(c, radius, 0.0, TAU, 32, Color(Palette.CREAM, 0.35), 5.0)
+	if phases <= 0 or progress <= 0:
+		return
+	var share := clampf(float(progress) / phases, 0.0, 1.0)
+	canvas.draw_arc(c, radius, -PI / 2.0, -PI / 2.0 + TAU * share, 32, side_color(side).lightened(0.2), 6.0)
+
+
+## An exit at the map's edge: the cell outlined and a chevron pointing
+## `toward` the outside.
+static func draw_exit(canvas: Object, rect: Rect2, toward: Vector2, color: Color) -> void:
+	canvas.draw_rect(rect.grow(-4.0), Color(color, 0.22))
+	canvas.draw_rect(rect.grow(-4.0), color, false, 3.0)
+	var c := rect.get_center() + toward * rect.size.x * 0.12
+	var side := Vector2(-toward.y, toward.x)
+	var r := rect.size.x * 0.2
+	for step: float in [0.0, 0.45]:
+		var tip := c + toward * r * (1.0 + step)
+		canvas.draw_polyline(PackedVector2Array([tip - toward * r + side * r, tip, tip - toward * r - side * r]), color, 4.0)
 
 
 ## A star polygon with `points` tips.
@@ -213,7 +268,9 @@ static func star_points(c: Vector2, outer: float, inner: float, points: int) -> 
 
 
 ## The glyph a unit shows: its class, or a kite for flyers.
-static func glyph_for(class_id: StringName, keywords: Array) -> StringName:
+static func glyph_for(class_id: StringName, keywords: Array, is_noncombatant: bool = false) -> StringName:
+	if is_noncombatant:
+		return &"glyph.cart"
 	return &"glyph.flying" if keywords.has(&"keyword.flying") else class_id
 
 
@@ -239,7 +296,7 @@ static func _closed(points: PackedVector2Array) -> PackedVector2Array:
 	return closed
 
 
-static func _draw_pennant(canvas: CanvasItem, base: Vector2, side: int) -> void:
+static func _draw_pennant(canvas: Object, base: Vector2, side: int) -> void:
 	canvas.draw_line(base, base + Vector2(0, -16), OUTLINE, 2.5)
 	var flag := PackedVector2Array([base + Vector2(0, -16), base + Vector2(13, -12), base + Vector2(0, -7)])
 	canvas.draw_colored_polygon(flag, Palette.GOLD if side == 0 else Palette.VERMILION_DARK)
@@ -252,12 +309,16 @@ static func _ensure_registries() -> void:
 	_terrain_details = {
 		&"terrain.plain": _grass, &"terrain.forest": _forest, &"terrain.hill": _hill,
 		&"terrain.river": _river, &"terrain.ford": _ford, &"terrain.bridge": _bridge,
-		&"terrain.fort": _fort, &"terrain.village": _village,
+		&"terrain.fort": _fort, &"terrain.village": _village, &"terrain.wall": _wall,
 	}
 	_glyphs = {
 		&"class.spear": _glyph_spear, &"class.sword": _glyph_sword, &"class.archer": _glyph_bow,
 		&"class.shield": _glyph_shield, &"class.cavalry": _glyph_horse, &"class.mage": _glyph_staff,
-		&"glyph.flying": _glyph_kite,
+		&"glyph.flying": _glyph_kite, &"glyph.cart": _glyph_cart,
+	}
+	_site_icons = {
+		&"site_kind.village": _site_village, &"site_kind.shrine": _site_shrine,
+		&"site_kind.camp": _site_camp, &"site_kind.stronghold": _site_tower,
 	}
 	_order_icons = {
 		&"order.follow": _order_follow, &"order.vanguard": _order_vanguard, &"order.flank": _order_flank,
@@ -337,18 +398,61 @@ static func _village(canvas: CanvasItem, rect: Rect2) -> void:
 	canvas.draw_rect(Rect2(c + Vector2(-3, 4), Vector2(6, 7)), Palette.WOOD)
 
 
-static func _glyph_spear(canvas: CanvasItem, c: Vector2, r: float, color: Color) -> void:
+static func _wall(canvas: CanvasItem, rect: Rect2) -> void:
+	var mortar := Color("4a443b")
+	for row: int in 4:
+		var y := rect.position.y + rect.size.y * row / 4.0
+		canvas.draw_line(Vector2(rect.position.x, y), Vector2(rect.end.x, y), mortar, 2.0)
+		var offset := 0.25 if row % 2 == 0 else 0.0
+		for column: int in 3:
+			var x := rect.position.x + rect.size.x * (column / 2.0 + offset)
+			if x > rect.position.x and x < rect.end.x:
+				canvas.draw_line(Vector2(x, y), Vector2(x, y + rect.size.y / 4.0), mortar, 2.0)
+	canvas.draw_rect(rect.grow(-1.0), OUTLINE, false, 2.0)
+
+
+static func _glyph_cart(canvas: Object, c: Vector2, r: float, color: Color) -> void:
+	canvas.draw_rect(Rect2(c + Vector2(-r * 0.8, -r * 0.55), Vector2(r * 1.6, r * 0.75)), color)
+	for x: float in [-0.45, 0.45]:
+		canvas.draw_circle(c + Vector2(r * x, r * 0.45), r * 0.3, color)
+
+
+static func _site_village(canvas: Object, c: Vector2, r: float, color: Color) -> void:
+	canvas.draw_rect(Rect2(c + Vector2(-r * 0.6, -r * 0.05), Vector2(r * 1.2, r * 0.75)), color)
+	canvas.draw_colored_polygon(PackedVector2Array([c + Vector2(-r * 0.85, 0), c + Vector2(r * 0.85, 0), c + Vector2(0, -r * 0.8)]), color)
+
+
+static func _site_shrine(canvas: Object, c: Vector2, r: float, color: Color) -> void:
+	# A gate: two posts under a curved lintel.
+	canvas.draw_line(c + Vector2(-r * 0.5, -r * 0.4), c + Vector2(-r * 0.5, r * 0.75), color, 2.5)
+	canvas.draw_line(c + Vector2(r * 0.5, -r * 0.4), c + Vector2(r * 0.5, r * 0.75), color, 2.5)
+	canvas.draw_line(c + Vector2(-r * 0.9, -r * 0.6), c + Vector2(r * 0.9, -r * 0.6), color, 3.0)
+	canvas.draw_line(c + Vector2(-r * 0.6, -r * 0.15), c + Vector2(r * 0.6, -r * 0.15), color, 2.0)
+
+
+static func _site_camp(canvas: Object, c: Vector2, r: float, color: Color) -> void:
+	canvas.draw_colored_polygon(PackedVector2Array([c + Vector2(-r * 0.85, r * 0.7), c + Vector2(r * 0.85, r * 0.7), c + Vector2(0, -r * 0.75)]), color)
+	canvas.draw_colored_polygon(PackedVector2Array([c + Vector2(-r * 0.2, r * 0.7), c + Vector2(r * 0.2, r * 0.7), c + Vector2(0, r * 0.1)]), OUTLINE)
+
+
+static func _site_tower(canvas: Object, c: Vector2, r: float, color: Color) -> void:
+	canvas.draw_rect(Rect2(c + Vector2(-r * 0.45, -r * 0.4), Vector2(r * 0.9, r * 1.15)), color)
+	for x: float in [-0.45, -0.05, 0.35]:
+		canvas.draw_rect(Rect2(c + Vector2(r * x, -r * 0.75), Vector2(r * 0.25, r * 0.3)), color)
+
+
+static func _glyph_spear(canvas: Object, c: Vector2, r: float, color: Color) -> void:
 	canvas.draw_line(c + Vector2(-r, r) * 0.8, c + Vector2(r, -r) * 0.55, color, 3.0)
 	var tip := c + Vector2(r, -r) * 0.8
 	canvas.draw_colored_polygon(PackedVector2Array([tip, tip + Vector2(-r * 0.55, r * 0.15), tip + Vector2(-r * 0.15, r * 0.55)]), color)
 
 
-static func _glyph_sword(canvas: CanvasItem, c: Vector2, r: float, color: Color) -> void:
+static func _glyph_sword(canvas: Object, c: Vector2, r: float, color: Color) -> void:
 	canvas.draw_line(c + Vector2(0, r * 0.75), c + Vector2(0, -r * 0.85), color, 4.0)
 	canvas.draw_line(c + Vector2(-r * 0.45, r * 0.35), c + Vector2(r * 0.45, r * 0.35), color, 3.0)
 
 
-static func _glyph_bow(canvas: CanvasItem, c: Vector2, r: float, color: Color) -> void:
+static func _glyph_bow(canvas: Object, c: Vector2, r: float, color: Color) -> void:
 	canvas.draw_arc(c + Vector2(-r * 0.25, 0), r * 0.85, -PI * 0.42, PI * 0.42, 12, color, 3.0)
 	var top := c + Vector2(-r * 0.25, 0) + Vector2.from_angle(-PI * 0.42) * r * 0.85
 	var bottom := c + Vector2(-r * 0.25, 0) + Vector2.from_angle(PI * 0.42) * r * 0.85
@@ -356,26 +460,26 @@ static func _glyph_bow(canvas: CanvasItem, c: Vector2, r: float, color: Color) -
 	canvas.draw_line(c + Vector2(-r * 0.6, 0), c + Vector2(r * 0.8, 0), color, 2.0)
 
 
-static func _glyph_shield(canvas: CanvasItem, c: Vector2, r: float, color: Color) -> void:
+static func _glyph_shield(canvas: Object, c: Vector2, r: float, color: Color) -> void:
 	var shape := PackedVector2Array([
 		c + Vector2(-r * 0.7, -r * 0.7), c + Vector2(r * 0.7, -r * 0.7), c + Vector2(r * 0.6, r * 0.15), c + Vector2(0, r * 0.85), c + Vector2(-r * 0.6, r * 0.15),
 	])
 	canvas.draw_colored_polygon(shape, color)
 
 
-static func _glyph_horse(canvas: CanvasItem, c: Vector2, r: float, color: Color) -> void:
+static func _glyph_horse(canvas: Object, c: Vector2, r: float, color: Color) -> void:
 	# A horseshoe, open at the bottom.
 	canvas.draw_arc(c + Vector2(0, -r * 0.1), r * 0.62, PI * 0.9, PI * 2.1, 14, color, 4.0)
 	canvas.draw_line(c + Vector2(-r * 0.6, r * 0.1), c + Vector2(-r * 0.6, r * 0.65), color, 4.0)
 	canvas.draw_line(c + Vector2(r * 0.6, r * 0.1), c + Vector2(r * 0.6, r * 0.65), color, 4.0)
 
 
-static func _glyph_staff(canvas: CanvasItem, c: Vector2, r: float, color: Color) -> void:
+static func _glyph_staff(canvas: Object, c: Vector2, r: float, color: Color) -> void:
 	canvas.draw_line(c + Vector2(-r * 0.2, r * 0.85), c + Vector2(r * 0.1, -r * 0.3), color, 3.0)
 	canvas.draw_colored_polygon(star_points(c + Vector2(r * 0.2, -r * 0.45), r * 0.5, r * 0.22, 4), color)
 
 
-static func _glyph_kite(canvas: CanvasItem, c: Vector2, r: float, color: Color) -> void:
+static func _glyph_kite(canvas: Object, c: Vector2, r: float, color: Color) -> void:
 	canvas.draw_colored_polygon(PackedVector2Array([c + Vector2(0, -r * 0.85), c + Vector2(r * 0.6, -r * 0.1), c + Vector2(0, r * 0.55), c + Vector2(-r * 0.6, -r * 0.1)]), color)
 	canvas.draw_line(c + Vector2(0, r * 0.55), c + Vector2(r * 0.25, r * 0.9), color, 1.5)
 

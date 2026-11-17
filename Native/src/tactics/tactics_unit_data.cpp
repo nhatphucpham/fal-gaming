@@ -32,6 +32,7 @@ bool TacticsUnitData::fill_unit_def(tactics::UnitDef *r_def, std::string *r_erro
 	r_def->max_range_cells = max_range_cells;
 	r_def->move_points = move_points;
 	r_def->vision_cells = vision_cells;
+	r_def->is_noncombatant = is_noncombatant;
 	r_def->keywords.clear();
 	for (int64_t index = 0; index < keywords.size(); index++) {
 		const Ref<TacticsKeywordData> keyword = keywords[index];
@@ -116,6 +117,7 @@ void TacticsUnitData::_bind_methods() {
 	BATTLE_BIND_ACCESSORS(TacticsUnitData, max_range_cells);
 	BATTLE_BIND_ACCESSORS(TacticsUnitData, move_points);
 	BATTLE_BIND_ACCESSORS(TacticsUnitData, vision_cells);
+	BATTLE_BIND_ACCESSORS(TacticsUnitData, is_noncombatant);
 	BATTLE_BIND_ACCESSORS(TacticsUnitData, keywords);
 
 	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "id"), "set_id", "get_id");
@@ -128,6 +130,7 @@ void TacticsUnitData::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "max_range_cells", PROPERTY_HINT_RANGE, "1,12,1"), "set_max_range_cells", "get_max_range_cells");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "move_points", PROPERTY_HINT_RANGE, "0,20,1"), "set_move_points", "get_move_points");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "vision_cells", PROPERTY_HINT_RANGE, "1,16,1"), "set_vision_cells", "get_vision_cells");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "is_noncombatant"), "set_is_noncombatant", "get_is_noncombatant");
 	ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "keywords", PROPERTY_HINT_ARRAY_TYPE, "TacticsKeywordData"), "set_keywords", "get_keywords");
 }
 

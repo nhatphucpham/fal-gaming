@@ -1,0 +1,17 @@
+[gd_resource type="TacticsSiteData" format=3]
+
+[ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/ho_bao.tres" id="leader_ho_bao"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/spearman.tres" id="troop_spearman"]
+
+[resource]
+id = &"site.pass_fort"
+kind = &"site_kind.stronghold"
+name_key = "SITE_PASS_FORT"
+description_key = "SITE_PASS_FORT_DESC"
+reach_cells = 0
+capture_phases = 1
+vision_cells = 3
+armor_bonus = 5
+reinforce_round = 10
+reinforce_leader = ExtResource("leader_ho_bao")
+reinforce_squad = Array[TacticsTroopData]([ExtResource("troop_spearman")])

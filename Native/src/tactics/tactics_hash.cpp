@@ -80,6 +80,9 @@ void TacticsSim::hash_unit(uint64_t *r_hash, const UnitState &p_unit) const {
 	hash_value(r_hash, p_unit.revealed_end_turn);
 	hash_value(r_hash, p_unit.is_unseen_waver ? 1 : 0);
 	hash_value(r_hash, p_unit.def.vision_cells);
+	hash_value(r_hash, p_unit.has_used_site ? 1 : 0);
+	hash_value(r_hash, p_unit.has_escaped ? 1 : 0);
+	hash_text(r_hash, p_unit.arrival_kind);
 	hash_value(r_hash, static_cast<int64_t>(p_unit.soldiers.size()));
 	for (int soldier : p_unit.soldiers) {
 		hash_value(r_hash, soldier);
@@ -179,6 +182,44 @@ void TacticsSim::hash_vision(uint64_t *r_hash) const {
 	}
 }
 
+namespace {
+
+void hash_site(uint64_t *r_hash, const SiteState &p_site) {
+	for (int value : { static_cast<int>(p_site.status), p_site.owner, p_site.uses, p_site.capture_side, p_site.capture_progress, p_site.owned_round,
+				 p_site.has_reinforced ? 1 : 0, p_site.burned_by, p_site.is_known ? 1 : 0 }) {
+		hash_value(r_hash, value);
+	}
+}
+
+} // namespace
+
+// The sites placed (their ids and cells), their state and what each side
+// remembers of them; the objective and where it stands.
+void TacticsSim::hash_sites(uint64_t *r_hash) const {
+	hash_value(r_hash, static_cast<int64_t>(map.sites.size()));
+	for (size_t index = 0; index < map.sites.size(); index++) {
+		hash_text(r_hash, map.sites[index].def.id);
+		hash_cell(r_hash, map.sites[index].cell);
+		hash_site(r_hash, sites[index]);
+	}
+	for (const std::vector<SiteState> &memory : site_memory) {
+		hash_value(r_hash, static_cast<int64_t>(memory.size()));
+		for (const SiteState &site : memory) {
+			hash_site(r_hash, site);
+		}
+	}
+	hash_text(r_hash, objective.id);
+	for (int value : { objective.site, objective.rounds, objective.count, objective.required_leader, objective.general, objective.flee_hp_pct, convoy_unit,
+				 convoy_holds ? 1 : 0, general_unit, general_fleeing ? 1 : 0, waves_sent, supplies[SIDE_A], supplies[SIDE_B] }) {
+		hash_value(r_hash, value);
+	}
+	hash_cell(r_hash, general_post);
+	hash_value(r_hash, static_cast<int64_t>(met_goals.size()));
+	for (int goal : met_goals) {
+		hash_value(r_hash, goal);
+	}
+}
+
 uint64_t TacticsSim::get_state_hash() const {
 	uint64_t hash = FNV_OFFSET_BASIS;
 	hash_setup(&hash);
@@ -219,8 +260,10 @@ uint64_t TacticsSim::get_state_hash() const {
 		hash_value(&hash, buff.end_turn);
 		hash_text(&hash, buff.source_id);
 	}
+	hash_sites(&hash);
 	hash_value(&hash, static_cast<int64_t>(intents.size()));
 	for (const Intent &intent : intents) {
+		hash_value(&hash, intent.site);
 		hash_value(&hash, intent.leader);
 		hash_cell(&hash, intent.destination);
 		hash_value(&hash, static_cast<int64_t>(intent.action));

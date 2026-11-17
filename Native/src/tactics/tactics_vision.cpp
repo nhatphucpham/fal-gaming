@@ -2,6 +2,7 @@
 
 #include "tactics_keywords.h"
 #include "tactics_sim.h"
+#include "tactics_sites.h"
 
 namespace tactics {
 
@@ -142,6 +143,19 @@ void compute_side_vision(const TacticsSim &p_sim, int p_side, const std::vector<
 			mark_unit_sight(p_sim, unit.index, unit.cell, p_lit, r_vision.scout_visible);
 		}
 		mark_diamond(p_sim, unit.cell, reveal, near);
+	}
+	// A stronghold its side holds watches around it (Docs/systems/tactics_sites.md).
+	const std::vector<SitePlacement> &sites = p_sim.get_map().sites;
+	for (size_t site = 0; site < sites.size(); site++) {
+		const int radius = sites[site].def.vision_cells;
+		if (!is_stronghold(sites[site].def) || radius <= 0 || p_sim.get_site_states()[site].owner != p_side) {
+			continue;
+		}
+		for (int index = 0; index < cell_count; index++) {
+			if (r_vision.visible[index] == 0 && get_sight_cost(p_sim, sites[site].cell, p_sim.get_cell_at(index), radius) <= radius) {
+				r_vision.visible[index] = 1;
+			}
+		}
 	}
 	// At night a leader's own light gives it away, in a forest too.
 	const bool shows_lights = p_sim.get_daytime().uses_lights && p_sim.get_rules().leader_light_cells > 0;

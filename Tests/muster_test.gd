@@ -10,7 +10,12 @@ extends SceneTree
 # touch, taps on a soldier chip and a leader card move a soldier, and a
 # drag that starts on a card or a chip scrolls the page instead. At the
 # 720x1280 layout no text on the muster, roster, character sheet or
-# summary is cut or under the game's small font size.
+# summary is cut or under the game's small font size. Every scenario's
+# muster tells its objective in full (no format left unfilled), its side
+# goals and sites, and the supplies in store; hiring the reserve soldier
+# spends them and puts a new roster person in the first squad with room,
+# and is refused without supplies or room. Each scenario's summary shows
+# its side goals and the supplies.
 
 const SLIDE_WAIT_SEC: float = 0.5
 
@@ -56,7 +61,7 @@ func _run() -> bool:
 	_main.queue_free()
 	_main = null
 	await process_frame
-	return await _check_touch() and await _check_text_fits()
+	return await _check_touch() and await _check_text_fits() and await _check_scenarios()
 
 
 # A muster screen of its own at the 720x1280 layout, driven by pushed taps
@@ -280,6 +285,94 @@ func _check_text_fits() -> bool:
 	await process_frame
 	TacticsRoster.delete()
 	return ok
+
+
+func _check_scenarios() -> bool:
+	var catalog := load("res://Data/Tactics/tactics_catalog.tres") as TacticsCatalog
+	for scenario: TacticsScenarioData in catalog.scenarios:
+		var where := String(scenario.id)
+		var roster := TacticsRoster.create(777)
+		var campaign := TacticsCampaign.new(roster, catalog, scenario)
+		roster.supplies = scenario.reserve_cost + 1
+		var muster := MusterScreen.new()
+		muster.campaign = campaign
+		muster.size = Vector2(720, 1280)
+		root.add_child(muster)
+		await process_frame
+		var line := muster.objective_text()
+		if line == "" or line.contains("%s") or line.contains("%d"):
+			push_error("%s: the objective reads \"%s\"" % [where, line])
+			return false
+		var panel := muster.find_child("ObjectivePanel", true, false) as Control
+		var panel_text := _all_text(panel)
+		if scenario.objective != null and not scenario.objective.goals.is_empty() and not panel_text.contains(tr("MUSTER_GOALS_FORMAT").get_slice("%", 0)):
+			push_error("%s: the muster does not list the side goals" % where)
+			return false
+		if not panel_text.contains(tr("MUSTER_SUPPLIES_FORMAT") % roster.supplies):
+			push_error("%s: the muster does not show the supplies (%s)" % [where, panel_text])
+			return false
+		if not await _texts_fit(muster, "muster " + where):
+			return false
+		var sizes: Array[int] = []
+		for slot: int in scenario.leaders_a.size():
+			sizes.append(muster.get_squad(slot).size())
+		var people_before := roster.people.size()
+		var has_room := false
+		for slot: int in sizes.size():
+			has_room = has_room or sizes[slot] < muster.get_capacity(slot)
+		var hired := muster.hire_reserve()
+		if hired != has_room:
+			push_error("%s: hiring with room %s gave %s" % [where, has_room, hired])
+			return false
+		if hired:
+			if roster.supplies != 1 or roster.people.size() != people_before + 1:
+				push_error("%s: a hire should cost %d and add a person (supplies %d, people %d)" % [where, scenario.reserve_cost, roster.supplies, roster.people.size()])
+				return false
+			var grown := -1
+			for slot: int in sizes.size():
+				if muster.get_squad(slot).size() == sizes[slot] + 1:
+					grown = slot
+					break
+			if grown < 0 or muster.get_squad(grown).back() != scenario.reserve_troop or int(muster.get_people()[grown].back()) != int(roster.people.back()["id"]):
+				push_error("%s: the hired soldier should join a squad with room" % where)
+				return false
+			if muster.hire_reserve() or roster.supplies != 1:
+				push_error("%s: a hire without supplies should be refused" % where)
+				return false
+		muster.queue_free()
+		var screen := TacticsScreen.new()
+		screen.scenario = campaign.scenario
+		screen.squads = campaign.squads
+		screen.campaign = campaign
+		screen.is_instant = true
+		screen.size = Vector2(720, 1280)
+		root.add_child(screen)
+		await process_frame
+		screen.retreat()
+		screen.retreat()
+		await create_timer(SLIDE_WAIT_SEC).timeout
+		var summary := screen.get_summary()
+		var goals := summary.find_child("GoalsPanel", true, false) as Control
+		if goals == null or not _all_text(goals).contains(tr("SUMMARY_SUPPLIES_FORMAT").get_slice("%", 0)):
+			push_error("%s: the summary should show the supplies" % where)
+			return false
+		if scenario.objective != null and not scenario.objective.goals.is_empty() and not _all_text(goals).contains(tr("SUMMARY_GOALS")):
+			push_error("%s: the summary should list the side goals" % where)
+			return false
+		if not await _texts_fit(summary, "summary " + where):
+			return false
+		screen.queue_free()
+		await process_frame
+	TacticsRoster.delete()
+	return true
+
+
+func _all_text(control: Control) -> String:
+	var texts: PackedStringArray = []
+	for node: Node in control.find_children("*", "", true, false):
+		if node is Label or node is Button:
+			texts.append(tr(node.text))
+	return "\n".join(texts)
 
 
 func _texts_fit(screen: Control, where: String) -> bool:

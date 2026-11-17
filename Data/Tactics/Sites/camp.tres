@@ -1,0 +1,11 @@
+[gd_resource type="TacticsSiteData" format=3]
+
+[resource]
+id = &"site.camp"
+kind = &"site_kind.camp"
+name_key = "SITE_CAMP"
+description_key = "SITE_CAMP_DESC"
+reach_cells = 1
+heal_pct = 15
+radius_cells = 1
+supplies = 2

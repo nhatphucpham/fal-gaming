@@ -40,6 +40,12 @@ var _picked := Vector2i(-1, -1)
 var _press_position := Vector2.ZERO
 var _forces: VBoxContainer
 var _hint: Label
+## The scenario as a loaded battle shows it: objective, sites and units.
+var _objective: Dictionary = {}
+var _sites: Array = []
+var _units: Array = []
+var _supplies_label: Label
+var _reserve_button: PressButton
 
 
 func _ready() -> void:
@@ -139,9 +145,12 @@ func _read_capacities() -> void:
 	var scratch := TacticsBattle.new()
 	if not scratch.load_scenario(scenario):
 		push_error("MusterScreen: the scenario %s did not load" % scenario.id)
-	for state: Dictionary in scratch.get_units():
+	_units = scratch.get_units()
+	for state: Dictionary in _units:
 		if state["role"] == &"leader" and state["side"] == 0:
 			_capacities.append(int(state["capacity"]))
+	_objective = scratch.get_objective_state()
+	_sites = scratch.get_sites(0)
 	scratch.free()
 
 
@@ -200,16 +209,119 @@ func open_roster() -> TacticsRosterView:
 
 func _objective_panel() -> Control:
 	var box := _panel()
+	box.name = "ObjectivePanel"
 	var rows := VBoxContainer.new()
 	box.add_child(rows)
 	rows.add_child(_label(tr(scenario.name_key), 34, Palette.GOLD))
+	var kind: StringName = _objective.get("kind", &"")
+	if kind != &"" and kind != &"objective_kind.cell":
+		rows.add_child(_label(tr(TacticsText.id_to_key(kind)), 26, Palette.JADE_LIGHT))
+	rows.add_child(_wrapped(objective_text(), Palette.TEXT))
+	var goals: PackedStringArray = []
+	for goal: Dictionary in _objective.get("goals", []):
+		goals.append(tr("MUSTER_GOAL_ITEM_FORMAT") % [_goal_name(goal), goal["supplies"]])
+	if not goals.is_empty():
+		rows.add_child(_wrapped(tr("MUSTER_GOALS_FORMAT") % "; ".join(goals), Palette.GOLD))
+	var kinds: PackedStringArray = []
+	for site: Dictionary in _sites:
+		var data := catalog.get_site(site["id"])
+		var site_name := tr(data.name_key) if data != null else String(site["id"])
+		if not kinds.has(site_name):
+			kinds.append(site_name)
+	if not kinds.is_empty():
+		rows.add_child(_wrapped(tr("MUSTER_SITES_FORMAT") % ", ".join(kinds), Palette.TEXT_DIM))
+	if campaign != null:
+		rows.add_child(_supplies_row())
+	return box
+
+
+## The objective in full: what wins, what loses and by when.
+func objective_text() -> String:
+	var max_rounds := scenario.rules.max_rounds
+	var site_name := ""
+	var site := int(_objective.get("site", -1))
+	if site >= 0 and site < _sites.size():
+		var data := catalog.get_site(_sites[site]["id"])
+		site_name = tr(data.name_key) if data != null else ""
+	match _objective.get("kind", &""):
+		&"objective_kind.take_pass":
+			return tr("OBJECTIVE_DESC_TAKE_PASS_FORMAT") % [site_name, max_rounds]
+		&"objective_kind.hold_city":
+			var rounds: PackedStringArray = []
+			for wave: Dictionary in _objective["waves"]:
+				rounds.append(str(wave["round"]))
+			return tr("OBJECTIVE_DESC_HOLD_CITY_FORMAT") % [site_name, _objective["rounds"], ", ".join(rounds)]
+		&"objective_kind.escort":
+			return tr("OBJECTIVE_DESC_ESCORT_FORMAT") % max_rounds
+		&"objective_kind.break_siege":
+			return tr("OBJECTIVE_DESC_BREAK_SIEGE_FORMAT") % [_objective["count"], _required_leader_name(), max_rounds]
+		&"objective_kind.slay_general":
+			var general := int(_objective["general"])
+			var general_name := _text.unit_name(_units[general]) if general >= 0 else ""
+			return tr("OBJECTIVE_DESC_SLAY_GENERAL_FORMAT") % [general_name, _objective["flee_hp_pct"], max_rounds]
 	var map := scenario.map
 	var cell := map.objective_cell
 	var objective_terrain := map.legend_terrains[map.legend_symbols.find(map.rows[cell.y][cell.x])]
-	var objective := _label(tr("MUSTER_OBJECTIVE_FORMAT") % [tr(objective_terrain.name_key), scenario.rules.max_rounds], 22, Palette.TEXT)
-	objective.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	rows.add_child(objective)
-	return box
+	return tr("MUSTER_OBJECTIVE_FORMAT") % [tr(objective_terrain.name_key), max_rounds]
+
+
+# The leader that must break out (by scenario order among our leaders).
+func _required_leader_name() -> String:
+	var wanted := int(_objective.get("required_leader", -1))
+	if wanted >= 0 and wanted < scenario.leaders_a.size():
+		return tr(scenario.leaders_a[wanted].name_key)
+	return ""
+
+
+func _goal_name(goal: Dictionary) -> String:
+	if goal["kind"] == &"goal.by_round":
+		return tr("GOAL_BY_ROUND_FORMAT") % goal["value"]
+	return tr("GOAL_" + String(goal["kind"]).trim_prefix("goal.").to_upper())
+
+
+# The supplies in store and the reserve soldier they buy.
+func _supplies_row() -> Control:
+	var row := VBoxContainer.new()
+	row.add_theme_constant_override(&"separation", 4)
+	_supplies_label = _label("", 24, Palette.GOLD)
+	row.add_child(_supplies_label)
+	if scenario.reserve_troop != null:
+		_reserve_button = PressButton.new()
+		_reserve_button.name = "ReserveButton"
+		_reserve_button.focus_mode = Control.FOCUS_NONE
+		_reserve_button.custom_minimum_size = Vector2(0, 96)
+		_reserve_button.text = tr("MUSTER_RESERVE_FORMAT") % [tr(scenario.reserve_troop.name_key), scenario.reserve_cost]
+		_reserve_button.pressed.connect(hire_reserve)
+		row.add_child(_reserve_button)
+	return row
+
+
+## Spends supplies on the scenario's reserve soldier, who joins the first
+## leader with room; false (and a hint) without room or supplies.
+func hire_reserve() -> bool:
+	if campaign == null or scenario.reserve_troop == null:
+		return false
+	var slot := -1
+	for index: int in _squads.size():
+		if _squads[index].size() < _capacities[index]:
+			slot = index
+			break
+	if slot < 0:
+		Sound.play(&"block")
+		_hint.text = tr("MUSTER_RESERVE_NO_ROOM")
+		return false
+	if not campaign.can_hire_reserve():
+		Sound.play(&"block")
+		_hint.text = tr("MUSTER_RESERVE_NO_SUPPLIES")
+		return false
+	var person := campaign.hire_reserve(scenario.leaders_a[slot].id)
+	_squads[slot].append(scenario.reserve_troop)
+	_people[slot].append(person)
+	campaign.fill_text(_text)
+	Sound.play(&"merge")
+	_hint.text = tr("MUSTER_RESERVE_HIRED_FORMAT") % [tr(scenario.reserve_troop.name_key), tr(scenario.leaders_a[slot].name_key)]
+	_refresh()
+	return true
 
 
 # The weather (and the one it turns into), the time of day, fog of war and
@@ -371,6 +483,10 @@ func _refresh() -> void:
 	_forces.add_child(_label("MUSTER_FORCES", 28, Palette.GOLD))
 	for slot: int in scenario.leaders_a.size():
 		_forces.add_child(_leader_card(slot))
+	if _supplies_label != null:
+		_supplies_label.text = tr("MUSTER_SUPPLIES_FORMAT") % campaign.roster.supplies
+	if _reserve_button != null:
+		_reserve_button.disabled = not campaign.can_hire_reserve()
 
 
 func _leader_card(slot: int) -> Control:

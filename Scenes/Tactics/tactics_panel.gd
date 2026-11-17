@@ -150,12 +150,29 @@ func set_buttons(entries: Array[Dictionary]) -> void:
 		if entry.get("primary", false):
 			button.theme_type_variation = &"PrimaryButton"
 			button.add_theme_font_size_override(&"font_size", 28)
+		# A long name ("Cướp lương" in a row of four) steps its font down
+		# to the small size rather than being cut.
+		button.resized.connect(_fit_button_text.bind(button, button.get_theme_font_size(&"font_size")))
 		var action: StringName = entry["action"]
 		button.set_meta(&"action", action)
 		button.pressed.connect(func() -> void:
 			Sound.play(&"ui_tap")
 			action_pressed.emit(action))
 		_buttons.add_child(button)
+
+
+# The largest font size, from the button's own down to the small size,
+# at which its text fits on one line.
+func _fit_button_text(button: Button, base_px: int) -> void:
+	var font := button.get_theme_font(&"font")
+	var box := button.get_theme_stylebox(&"normal")
+	var room := button.size.x - box.get_margin(SIDE_LEFT) - box.get_margin(SIDE_RIGHT)
+	var text := tr(button.text)
+	var px := base_px
+	while px > GameTheme.SMALL_FONT_SIZE and font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, px).x > room:
+		px -= 1
+	if button.get_theme_font_size(&"font_size") != px:
+		button.add_theme_font_size_override(&"font_size", px)
 
 
 ## The buttons shown now: [{action, text, enabled, primary, button}], for tests.

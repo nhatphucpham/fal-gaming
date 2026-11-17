@@ -68,6 +68,10 @@ public:
 	// Fog of war, weather and the times of day (setup; refused once
 	// started). Without it the battle is in clear daylight with no fog.
 	bool set_environment(const EnvironmentDef &p_environment, std::string *r_error);
+	// What the battle is won by (setup, after the leaders; refused once
+	// started). Without it the map's objective cell, if any, is taken by a
+	// leader's move (Docs/systems/tactics_objectives.md).
+	bool set_objective(const ObjectiveDef &p_objective, std::string *r_error);
 	// Begins round 1 with side A's phase (AI phases run on their own).
 	bool start(std::string *r_error);
 
@@ -79,6 +83,13 @@ public:
 	bool set_order(int p_unit, int p_order, std::string *r_error);
 	// Ends the phase; AI phases that follow run before it returns.
 	bool end_phase(std::string *r_error);
+	// Sites (tactics_sim_sites.cpp, Docs/systems/tactics_sites.md): the
+	// leader uses p_site with p_choice (p_option: which recruit). It does
+	// not close its turn unless the site says so, and it cannot be undone.
+	bool use_site(int p_unit, int p_site, const std::string &p_choice, int p_option, std::string *r_error);
+	// Escort: the convoy stops where it is (true) or walks on at the end
+	// of side A's phases (false). A free command of side A's phase.
+	bool set_convoy_hold(bool p_holds, std::string *r_error);
 	// Takes back p_unit's last move in a human phase, one step at a time,
 	// while its moves since its last other command only moved the leader
 	// and its squad (and changed its charge): the battle returns to the
@@ -87,6 +98,54 @@ public:
 	// that can be taken back (Docs/systems/tactics.md, Undo).
 	bool can_undo_move(int p_unit) const;
 	bool undo_move(int p_unit, std::string *r_error);
+
+	// Sites and objectives (tactics_sim_sites.cpp).
+	bool can_use_site(int p_unit, int p_site, const std::string &p_choice, int p_option, std::string *r_error) const;
+	// Some site within p_unit's reach offers it a choice it may take now.
+	bool has_site_action(int p_unit) const;
+	const std::vector<SiteState> &get_site_states() const { return sites; }
+	SiteState &edit_site(int p_site) { return sites[p_site]; }
+	// The site as p_side knows it: as it is while the side sees its cell (or
+	// without fog), else as it last saw it; is_known false: never seen.
+	SiteState get_known_site(int p_side, int p_site) const;
+	// After a site's state changed: site_changed (p_kind: used, looted,
+	// captured...) and what each side seeing it knows.
+	void change_site(int p_site, int p_side, const std::string &p_kind, int p_cause);
+	const ObjectiveDef &get_objective() const { return objective; }
+	bool has_objective_handler() const { return objective.handler != nullptr; }
+	int get_convoy() const { return convoy_unit; }
+	bool does_convoy_hold() const { return convoy_holds; }
+	// The cells the convoy would walk at the end of side A's phase, as side
+	// A plans it (unseen enemies are not in the way); empty when it stays.
+	std::vector<Cell> get_convoy_path() const;
+	int get_general() const { return general_unit; }
+	bool is_general_fleeing() const { return general_fleeing; }
+	Cell get_general_post() const { return general_post; }
+	void set_general_fleeing(bool p_fleeing) { general_fleeing = p_fleeing; }
+	int get_waves_sent() const { return waves_sent; }
+	void set_waves_sent(int p_count) { waves_sent = p_count; }
+	int get_supplies(int p_side) const { return supplies[p_side]; }
+	const std::vector<int> &get_met_goals() const { return met_goals; }
+	// Leaders of p_side that left by an exit.
+	int count_escaped_leaders(int p_side) const;
+	// Hp healed (up to max), with unit_healed; returns the hp gained.
+	int heal_unit(int p_unit, int p_amount, const std::string &p_source_id, int p_cause);
+	void add_supplies(int p_side, int p_amount, const std::string &p_source_id, int p_cause);
+	// A leader (and its squad) or a soldier joining mid-battle on the free
+	// cell nearest p_near (unit_arrived each); NO_UNIT when there is no
+	// room on the side or no cell.
+	int spawn_leader(int p_side, const UnitDef &p_leader, const std::vector<UnitDef> &p_squad, const Cell &p_near, const std::string &p_kind, int p_cause);
+	int spawn_soldier(int p_leader, const UnitDef &p_soldier, const std::string &p_kind, int p_cause);
+	// A non-leader unit with no squad (the convoy), on its cell.
+	int spawn_lone_unit(int p_side, const UnitDef &p_def, const Cell &p_cell, const std::string &p_kind, int p_cause);
+	// The unit leaves the battle by an exit, alive (unit_escaped).
+	void escape_unit(int p_unit, const std::string &p_kind, int p_cause);
+	// Ends the battle (side, reason); nothing happens once it ended.
+	void finish_battle(int p_winner, const std::string &p_reason, int p_cause) { end_battle(p_winner, p_reason, p_cause); }
+	// Units of p_side next to p_cell (orthogonally) that fight.
+	bool has_enemy_next_to(int p_side, const Cell &p_cell) const;
+	// Bit per side that sees p_cell now (bit 0: side A).
+	int get_seen_mask(const Cell &p_cell) const;
 
 	// Events appended since the last take_events().
 	std::vector<Event> take_events();
@@ -275,6 +334,18 @@ private:
 	std::vector<std::shared_ptr<const TacticsSim>> undo_states;
 	int undo_leader = NO_UNIT;
 	int battle_karma[SIDE_COUNT][2] = { { 0, 0 }, { 0, 0 } };
+	// Sites, now and as each side last saw them (map order).
+	std::vector<SiteState> sites;
+	std::vector<SiteState> site_memory[SIDE_COUNT];
+	ObjectiveDef objective;
+	int convoy_unit = NO_UNIT;
+	bool convoy_holds = false;
+	int general_unit = NO_UNIT;
+	bool general_fleeing = false;
+	Cell general_post = NO_CELL;
+	int waves_sent = 0;
+	int supplies[SIDE_COUNT] = { 0, 0 };
+	std::vector<int> met_goals;
 
 	bool check_new_leader(int p_side, const UnitDef &p_leader, const std::vector<UnitDef> &p_squad, std::string *r_error) const;
 	bool check_command(int p_unit, std::string *r_error) const;
@@ -309,6 +380,12 @@ private:
 	void hash_unit(uint64_t *r_hash, const UnitState &p_unit) const;
 	void hash_incidents(uint64_t *r_hash) const;
 	void hash_vision(uint64_t *r_hash) const;
+	void hash_sites(uint64_t *r_hash) const;
+	void update_site_memory();
+	void init_unit_phase(UnitState &r_unit);
+	int find_spawn_cell(int p_unit, const Cell &p_near) const;
+	int add_runtime_unit(int p_side, const UnitDef &p_def, int p_leader, const std::string &p_kind);
+	void emit_arrival(int p_unit, int p_cause);
 	// Weather and time-of-day events at the start of side A's phase.
 	void announce_environment(int p_cause);
 	// Cuts p_path at a hidden enemy in the way (ambush); returns the enemy,

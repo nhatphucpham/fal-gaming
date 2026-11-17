@@ -51,6 +51,9 @@ void plant_incident_seeds(TacticsSim &p_sim);
 int get_incident_weight(const TacticsSim &p_sim, int p_soldier, int p_incident);
 // Start of p_side's phase: dormant seeds whose trigger holds start wavering.
 void begin_incident_phase(TacticsSim &p_sim, int p_side, int p_cause);
+// A wavering soldier goes back to dormant at once (a shrine's prayer);
+// false when it does not waver.
+bool calm_wavering_soldier(TacticsSim &p_sim, int p_unit, const char *p_reason, int p_cause);
 // End of p_side's phase: each wavering soldier fires or calms down.
 void resolve_incident_phase(TacticsSim &p_sim, int p_side);
 // The soldier guarding p_leader against a hit now, or p_leader itself.

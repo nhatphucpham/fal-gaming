@@ -1,0 +1,15 @@
+[gd_resource type="TacticsTerrainData" format=3]
+
+[resource]
+id = &"terrain.wall"
+name_key = "TERRAIN_WALL"
+move_cost = 1
+is_impassable = true
+armor_bonus = 0
+damage_taken_pct = 0
+ranged_damage_taken_pct = 0
+ranged_range_bonus = 0
+vision_bonus = 0
+sight_block = 2
+hides_units = false
+light_cells = 0

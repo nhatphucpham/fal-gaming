@@ -1,8 +1,10 @@
 #include "tactics_sim.h"
 
 #include "tactics_keywords.h"
+#include "tactics_objectives.h"
 #include "tactics_orders.h"
 #include "tactics_passives.h"
+#include "tactics_sites.h"
 #include "tactics_skills.h"
 
 #include <algorithm>
@@ -67,7 +69,7 @@ Stats TacticsSim::get_stats_at(int p_unit, const Cell &p_cell) const {
 	stats.max_range_cells = unit.def.max_range_cells + mods.max_range_cells;
 	if (is_on_map(p_cell)) {
 		const TerrainDef &terrain = get_terrain(p_cell);
-		stats.armor = at_least(stats.armor + terrain.armor_bonus, 0);
+		stats.armor = at_least(stats.armor + terrain.armor_bonus + get_site_armor_bonus(*this, p_unit, p_cell), 0);
 		stats.max_range_cells += unit.def.is_ranged ? terrain.ranged_range_bonus : 0;
 	}
 	stats.max_range_cells = at_least(stats.max_range_cells, stats.min_range_cells);
@@ -121,6 +123,9 @@ void TacticsSim::collect_stat_sources(int p_unit, StatUse p_use, std::vector<std
 	}
 	if (p_use == StatUse::DEFENCE && is_on_map(unit.cell) && get_terrain(unit.cell).armor_bonus != 0) {
 		add_unique_source(r_sources, get_terrain(unit.cell).id);
+	}
+	if (p_use == StatUse::DEFENCE && is_on_map(unit.cell) && get_site_armor_bonus(*this, p_unit, unit.cell) != 0) {
+		add_unique_source(r_sources, map.sites[find_site_at(*this, unit.cell)].def.id);
 	}
 }
 
@@ -231,6 +236,9 @@ void TacticsSim::handle_death(int p_unit, int p_killer, int p_cause) {
 				passive.handler->on_enemy_defeated(*this, p_killer, p_unit, passive, death_id);
 			}
 		}
+	}
+	if (!finished && objective.handler != nullptr && objective.handler->on_unit_died != nullptr) {
+		objective.handler->on_unit_died(*this, p_unit, death_id);
 	}
 	check_rout(death_id);
 }

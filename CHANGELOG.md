@@ -9,6 +9,25 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Added
 
+- Chiến Dịch: places on the map. Villages heal, give a recruit (militia
+  or hunter) or can be looted for supplies (bad karma); the enemy burns
+  the ones it reaches. Shrines charge a leader's skill, calm wavering
+  soldiers or bless the squad. Camps give supplies when taken and rest
+  the hurt nearby. Strongholds (keep, pass fort, watchtower) are taken by
+  standing on them a phase or two with no enemy beside you; they give
+  armor, sight and sometimes reinforcements. Each place is used once and
+  cannot be taken back. Under fog you only know what you last saw.
+- Chiến Dịch: five objectives: take the pass, hold the city against
+  waves, escort the supply cart along its road (hold it or let it roll),
+  break out of a siege by the map's exits, bring down an enemy general
+  who flees when hurt. Each battle has side goals (no losses, every
+  village spared, every camp, win by a round) that pay supplies.
+- Chiến Dịch: three new maps: the city defense, the supply road and the
+  broken ring. The campaign takes the five battles in turn.
+- Chiến Dịch: supplies are kept in the roster; at the muster they hire a
+  reserve soldier. Recruits from villages join the roster. The muster
+  shows the objective, its side goals and the map's places, and the
+  summary the goals met.
 - Chiến Dịch: fog of war. Each side sees only around its units (further
   from hills, not through woods and hills); cells you saw stay dimmed,
   cells never seen stay dark. Enemies you do not see are not drawn and
@@ -45,6 +64,24 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Fixed
 
+- Chiến Dịch: a first-time tip no longer sits over your own units: it
+  moves under the top bar when your squads stand on the map's bottom
+  rows, glides away when the camera brings them under it, and the next
+  tap anywhere lets it go. It keeps off the enemy's units too when it
+  can.
+- Chiến Dịch: a map opens on the middle of your leaders and never with a
+  column of tokens cut in half at the screen's edge (the broken ring
+  did); the broken ring points at its exits out of view, and a mark on
+  the screen's edge slides off your leaders instead of covering one.
+- Chiến Dịch: the map draws with far fewer draw calls (a unit token is
+  one instead of 7 to 12) and fills the screen once a frame, so moves
+  and enemy phases run smoother in the browser.
+- Chiến Dịch: the supply cart can now be got through: it rolls past
+  your own troops and past enemies beside the road, and only an enemy
+  standing on the road stops it (it has more hp to take the hits). A tap
+  on the cart shows the road left, how far it rolls after your turn or
+  why it waits, and "Xe dừng" / "Xe đi"; the objective chip says "xe
+  kẹt" when it will not roll.
 - Chiến Dịch: the undo tip says a move that shows an enemy cannot be
   taken back.
 - Chiến Dịch: the weather and time chip moves to the map's top-left
