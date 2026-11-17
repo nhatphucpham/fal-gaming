@@ -13,7 +13,13 @@ extends Node
 ## sees: an enemy out of sight moves unseen, one that comes into sight fades
 ## in, one that leaves it fades out and leaves a "?" where it was last seen;
 ## new cells clear with a soft sound; an ambush bursts over the hidden enemy.
-## Weather and time-of-day changes get a banner. A tap skips the step that
+## Weather and time-of-day changes get a banner. Sites and objectives
+## (Docs/systems/tactics_sites.md, tactics_objectives.md): a site used, a
+## village burned, a capture ring filling, a camp's rest heal, new units
+## dropping in (a wave with the enemy's horn, a recruit, reinforcements),
+## units leaving by an exit, the convoy halting, the general turning to
+## flee (a banner) and supplies gained; what our side does not see of the
+## enemy stays hidden. A tap skips the step that
 ## plays now. It never changes the battle; the screen syncs the map from
 ## the battle once it is done.
 ## See Docs/systems/tactics_screen.md.
@@ -31,6 +37,8 @@ signal phase_shown(side: int, round_number: int)
 ## The weather or the time of day turned (`kind` is &"weather" or
 ## &"daytime"); the screen updates its icons and the night.
 signal environment_changed(kind: StringName, id: StringName)
+## Supplies of our side changed (amount gained, the new total).
+signal supplies_gained(amount: int, total: int)
 
 const MOVE_SEC_PER_CELL: float = 0.1
 const SQUAD_MOVE_MAX_SEC: float = 0.55
@@ -55,13 +63,17 @@ const SPOTTED_SEC: float = 0.25
 ## The fog blends over the walk that changed it, at least this long; alone
 ## (a death, a unit fleeing) over TacticsMapView.FOG_BLEND_SEC.
 const FOG_MIN_BLEND_SEC: float = 0.15
+## A unit arriving drops this far onto its cell as it fades in.
+const ARRIVE_DROP_PX: float = 40.0
+const ARRIVE_SEC: float = 0.35
+const HEAL_COLOR := Color("8ff0b0")
 ## Steps about one unit and nothing else (the unit hit, for damage): for
 ## an enemy our side does not see they only set its hidden piece, with no
 ## sound, ring, word or pause to give it away.
 const PRIVATE_STEPS: Array[StringName] = [
 	&"skill_charge_changed", &"skill_grew", &"buff_applied", &"buff_ended", &"passive_triggered",
 	&"order_changed", &"leader_waited", &"soldier_wavered", &"incident_calmed", &"incident_fired",
-	&"mark_earned", &"damage_dealt", &"unit_died",
+	&"mark_earned", &"damage_dealt", &"unit_died", &"unit_healed",
 ]
 ## The close-up backdrop for the terrain the fight is on.
 const BACKDROPS: Dictionary[StringName, StringName] = {
@@ -86,6 +98,9 @@ var close_up_count: int = 0
 ## Whether our side reads an enemy leader's intent (fog of war, night);
 ## unset reads them all.
 var intent_filter: Callable
+## Makes the piece of a unit that arrives mid-battle and returns its state
+## ({index, side, role, id, ...}); the screen reads it from the battle.
+var piece_factory: Callable
 
 var _units: Array[Dictionary] = []
 var _zones: Array[Dictionary] = []
@@ -104,6 +119,9 @@ func _init() -> void:
 		&"intent_declared": _play_intents, &"soldier_wavered": _play_wavered, &"incident_calmed": _play_calmed,
 		&"incident_fired": _play_incident, &"mark_earned": _play_mark, &"unit_fled": _play_fled, &"unit_defected": _play_defected,
 		&"vision_changed": _play_vision, &"ambushed": _play_ambush, &"weather_changed": _play_environment, &"daytime_changed": _play_environment,
+		&"site_used": _play_site_used, &"site_changed": _play_site_changed, &"capture_progressed": _play_capture,
+		&"unit_healed": _play_heals, &"unit_arrived": _play_arrivals, &"unit_escaped": _play_escaped,
+		&"convoy_halted": _play_convoy_halted, &"general_fleeing": _play_general_fleeing, &"supplies_gained": _play_supplies,
 	}
 
 
@@ -844,6 +862,8 @@ func _apply_quietly(event: Dictionary) -> void:
 			piece.is_dead = true
 			piece.hp = 0
 			_forget(unit)
+		&"unit_healed":
+			piece.hp = event["hp_after"]
 
 
 # Text rising over a unit, unless our side does not see it.
@@ -1000,6 +1020,263 @@ func _play_environment(events: Array, index: int) -> int:
 	await _finish(tween)
 	banner.dismiss()
 	return index + 1
+
+
+# --- Sites and objectives ---------------------------------------------
+
+# Our side sees the cell (bit of seen_mask), or the site was ours to use.
+func _sees_site_event(event: Dictionary) -> bool:
+	return int(event.get("side", -1)) == player_side or (int(event.get("seen_mask", 0)) >> player_side) & 1 == 1
+
+
+# The map's site entry updated from an event (what our side now knows).
+func _update_site(site: int, changes: Dictionary) -> void:
+	var sites: Array = map.get_sites().duplicate(true)
+	for entry: Dictionary in sites:
+		if entry["site"] == site:
+			entry.merge(changes, true)
+			entry["is_known"] = true
+	map.set_sites(sites)
+
+
+func _play_site_used(events: Array, index: int) -> int:
+	var event: Dictionary = events[index]
+	if not _sees_site_event(event):
+		return index + 1
+	var cell: Vector2i = event["cell"]
+	map.follow(map.cell_to_local(cell))
+	var tween := _new_step()
+	var at := map.cell_to_local(cell) + Vector2(0, -30)
+	map.float_text(at, tr("SITE_CHOICE_" + String(event["choice"]).to_upper()), Palette.GOLD, 26)
+	Sound.play(&"site_fire" if event["choice"] == &"loot" else &"site_heal")
+	var ring := _Ring.new()
+	ring.color = Palette.GOLD
+	ring.position = map.cell_to_local(cell)
+	map.get_fx_layer().add_child(ring)
+	tween.tween_property(ring, ^"radius", TacticsMapView.CELL_PX * 0.7, 0.4).from(8.0)
+	tween.parallel().tween_property(ring, ^"modulate:a", 0.0, 0.4)
+	tween.tween_callback(ring.queue_free)
+	await _finish(tween)
+	return index + 1
+
+
+func _play_site_changed(events: Array, index: int) -> int:
+	var event: Dictionary = events[index]
+	if not _sees_site_event(event):
+		return index + 1
+	_update_site(event["site"], {"status": event["status"], "owner": event["owner"], "capture_progress": 0})
+	var kind: StringName = event["kind"]
+	if kind == &"used":
+		return index + 1
+	var cell: Vector2i = event["cell"]
+	var line := tr("TACTICS_FLOAT_BURNED") if kind == &"looted" else tr("TACTICS_FLOAT_CAPTURED")
+	var is_ours: bool = event["owner"] == player_side
+	map.float_text(map.cell_to_local(cell) + Vector2(0, -10), line, Palette.JADE_LIGHT if is_ours and kind != &"looted" else Palette.VERMILION.lightened(0.25), 26)
+	Sound.play(&"site_fire" if kind == &"looted" else &"capture")
+	return await _pause(index, 0.45)
+
+
+func _play_capture(events: Array, index: int) -> int:
+	var event: Dictionary = events[index]
+	if not _sees_site_event(event):
+		return index + 1
+	var progress: int = event["progress"] if event["kind"] == &"advanced" else (0 if event["kind"] == &"lost" else -1)
+	if progress >= 0:
+		_update_site(event["site"], {"capture_progress": progress, "capture_side": event["side"]})
+	var cell: Vector2i = event["cell"]
+	var line := tr("TACTICS_FLOAT_CAPTURE_FORMAT") % [event["progress"], event["phases"]]
+	if event["kind"] == &"contested":
+		line = tr("TACTICS_FLOAT_CONTESTED")
+	elif event["kind"] == &"lost":
+		line = tr("TACTICS_FLOAT_CAPTURE_LOST")
+	map.follow(map.cell_to_local(cell))
+	map.float_text(map.cell_to_local(cell) + Vector2(0, -36), line, TacticsPainter.side_color(event["side"]).lightened(0.4), 24)
+	Sound.play(&"battle_drum" if event["kind"] == &"advanced" else &"block")
+	return await _pause(index, 0.4)
+
+
+# Heals in a row rise together (a squad at a village, a camp's rest).
+func _play_heals(events: Array, index: int) -> int:
+	var end := index
+	var any_shown := false
+	while end < events.size() and events[end]["type"] == &"unit_healed":
+		var event: Dictionary = events[end]
+		var piece := _piece(event["unit"])
+		if piece != null:
+			piece.hp = event["hp_after"]
+			if piece.visible:
+				any_shown = true
+				_float_at(event["unit"], _above(event["unit"]), tr("TACTICS_FLOAT_HEAL_FORMAT") % event["amount"], HEAL_COLOR, 24)
+		end += 1
+	if not any_shown:
+		return end
+	Sound.play(&"site_heal")
+	var tween := _new_step()
+	tween.tween_interval(0.35)
+	await _finish(tween)
+	return end
+
+
+# New units in a row drop in together: a wave, a recruit, reinforcements,
+# the convoy. An enemy our side does not see arrives hidden.
+func _play_arrivals(events: Array, index: int) -> int:
+	var end := index
+	var tween := _new_step()
+	tween.set_parallel()
+	var shown: Array[Dictionary] = []
+	while end < events.size() and events[end]["type"] == &"unit_arrived":
+		var event: Dictionary = events[end]
+		end += 1
+		var piece := _arrive(event)
+		if piece == null:
+			continue
+		var is_seen: bool = int(event["side"]) == player_side or event["seen_to"]
+		piece.visible = is_seen
+		if not is_seen:
+			continue
+		shown.append(event)
+		var cell_at := map.cell_to_local(event["cell"])
+		piece.position = cell_at + Vector2(0, -ARRIVE_DROP_PX)
+		piece.modulate.a = 0.0
+		tween.tween_property(piece, ^"position", cell_at, ARRIVE_SEC).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tween.tween_property(piece, ^"modulate:a", 1.0, FADE_SEC)
+	if shown.is_empty():
+		tween.kill()
+		return end
+	var first: Dictionary = shown[0]
+	map.follow(map.cell_to_local(first["cell"]))
+	var kind: StringName = first["kind"]
+	var is_ours: bool = int(first["side"]) == player_side
+	if kind == &"wave":
+		Sound.play(&"war_horn")
+		banner.present(tr("TACTICS_BANNER_WAVE"), "", false)
+		tween.chain().tween_interval(BANNER_SEC)
+		tween.chain().tween_callback(banner.dismiss)
+	elif kind == &"reinforce":
+		Sound.play(&"formation_on" if is_ours else &"war_horn")
+		banner.present(tr("TACTICS_BANNER_REINFORCE"), "", is_ours)
+		tween.chain().tween_interval(BANNER_SEC)
+		tween.chain().tween_callback(banner.dismiss)
+	else:
+		Sound.play(&"cart" if kind == &"convoy" else &"merge")
+	if kind == &"recruit":
+		_float_at(first["unit"], map.cell_to_local(first["cell"]) + Vector2(0, -40), tr("TACTICS_FLOAT_RECRUIT"), Palette.JADE_LIGHT, 24)
+	await _finish(tween)
+	banner.dismiss()
+	return end
+
+
+# The piece of an arriving unit, made by the screen; our _units grows to it.
+func _arrive(event: Dictionary) -> TacticsPieceView:
+	var unit: int = event["unit"]
+	var piece := _piece(unit)
+	if piece == null and piece_factory.is_valid():
+		var state: Dictionary = piece_factory.call(event)
+		while _units.size() <= unit:
+			_units.append({})
+		_units[unit] = state
+		piece = _piece(unit)
+	elif unit < _units.size() and not _units[unit].is_empty():
+		_units[unit]["side"] = event["side"]
+	if piece != null:
+		piece.is_dead = false
+		piece.position = map.cell_to_local(event["cell"])
+	return piece
+
+
+# A unit leaves by an exit (a leader breaking out with its squad, the
+# convoy at the road's end, the fleeing general): it slides off and fades.
+func _play_escaped(events: Array, index: int) -> int:
+	var end := index
+	var tween := _new_step()
+	tween.set_parallel()
+	var first_shown: Dictionary = {}
+	while end < events.size() and events[end]["type"] == &"unit_escaped":
+		var event: Dictionary = events[end]
+		end += 1
+		var unit: int = event["unit"]
+		var piece := _piece(unit)
+		_forget(unit)
+		if piece == null:
+			continue
+		piece.is_dead = true
+		var is_seen: bool = int(event["side"]) == player_side or event["seen_from"] or piece.visible
+		if not is_seen:
+			piece.hide()
+			continue
+		if first_shown.is_empty():
+			first_shown = event
+		var out := map.cell_to_local(event["cell"]) + _outward_of(event["cell"]) * TacticsMapView.CELL_PX
+		tween.tween_property(piece, ^"position", out, 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tween.tween_property(piece, ^"modulate:a", 0.0, 0.45)
+	if first_shown.is_empty():
+		tween.kill()
+		return end
+	var kind: StringName = first_shown["kind"]
+	var line := tr("TACTICS_FLOAT_ESCAPED")
+	if kind == &"convoy":
+		line = tr("TACTICS_FLOAT_CONVOY_OUT")
+	elif kind == &"general":
+		line = tr("TACTICS_FLOAT_GENERAL_OUT")
+	map.follow(map.cell_to_local(first_shown["cell"]))
+	map.float_text(map.cell_to_local(first_shown["cell"]) + Vector2(0, -30), line, Palette.GOLD, 26)
+	Sound.play(&"cart" if kind == &"convoy" else &"charge")
+	tween.chain().tween_callback(func() -> void:
+		for at: int in range(index, end):
+			var gone := _piece(events[at]["unit"])
+			if gone != null:
+				gone.hide())
+	await _finish(tween)
+	return end
+
+
+# The way off the map from an edge cell.
+func _outward_of(cell: Vector2i) -> Vector2:
+	if cell.y == 0:
+		return Vector2.UP
+	if cell.y == map.map_height - 1:
+		return Vector2.DOWN
+	return Vector2.LEFT if cell.x == 0 else Vector2.RIGHT
+
+
+func _play_convoy_halted(events: Array, index: int) -> int:
+	var event: Dictionary = events[index]
+	var keys := {&"hold": "TACTICS_FLOAT_CONVOY_HOLD", &"go": "TACTICS_FLOAT_CONVOY_GO", &"holding": "TACTICS_FLOAT_CONVOY_HOLD",
+		&"enemy": "TACTICS_FLOAT_CONVOY_ENEMY", &"blocked": "TACTICS_FLOAT_CONVOY_BLOCKED"}
+	var is_trouble: bool = event["kind"] == &"enemy" or event["kind"] == &"blocked"
+	_float_at(event["unit"], _above(event["unit"]), tr(keys.get(event["kind"], "TACTICS_FLOAT_CONVOY_HOLD")), Palette.VERMILION.lightened(0.25) if is_trouble else Palette.CREAM, 24)
+	Sound.play(&"block" if is_trouble else &"cart")
+	return await _pause(index, 0.35)
+
+
+# The general's nerve breaks: a banner, and his piece shakes if seen.
+func _play_general_fleeing(events: Array, index: int) -> int:
+	var event: Dictionary = events[index]
+	var piece := _piece(event["unit"])
+	Sound.play(&"war_horn")
+	var tween := _new_step()
+	banner.present(tr("TACTICS_BANNER_GENERAL_FLEEING"), tr("TACTICS_BANNER_GENERAL_FLEEING_DETAIL"), int(_units[event["unit"]]["side"]) != player_side)
+	if piece != null and piece.visible:
+		map.follow(piece.position)
+		var home := piece.position
+		for step: int in 3:
+			tween.tween_property(piece, ^"position", home + Vector2(6, 0), 0.05)
+			tween.tween_property(piece, ^"position", home - Vector2(6, 0), 0.05)
+		tween.tween_property(piece, ^"position", home, 0.05)
+	tween.tween_interval(BANNER_SEC)
+	tween.tween_callback(banner.dismiss)
+	await _finish(tween)
+	banner.dismiss()
+	return index + 1
+
+
+func _play_supplies(events: Array, index: int) -> int:
+	var event: Dictionary = events[index]
+	if int(event["side"]) != player_side:
+		return index + 1
+	supplies_gained.emit(int(event["amount"]), int(event["total"]))
+	Sound.play(&"coin")
+	return await _pause(index, 0.2)
 
 
 # A unit that is gone (dead, fled) is not remembered.

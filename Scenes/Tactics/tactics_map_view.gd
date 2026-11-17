@@ -97,6 +97,11 @@ var fog_write_count: int = 0
 var fog_change_count: int = 0
 var _memory_layer: _Layer
 var _last_seen: Array = []
+## Sites as our side knows them and the objective's marks (exits, the
+## road, the convoy's path, where enemy waves come in), over the fog.
+var _site_layer: _Layer
+var _sites: Array = []
+var _objective_marks: Dictionary = {}
 var _edge_layer: _Layer
 var _edge_cells: Array = []
 var _zone_layer: _Layer
@@ -157,6 +162,7 @@ func _init() -> void:
 	_fog_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_fog_rect.visible = false
 	_board.add_child(_fog_rect)
+	_site_layer = _add_layer(_draw_sites)
 	_zone_layer = _add_layer(_draw_zones)
 	_mark_layer = _add_layer(_draw_marks)
 	_memory_layer = _add_layer(_draw_last_seen)
@@ -432,7 +438,7 @@ func get_whole_map_button() -> PressButton:
 
 ## Redraws of the mark, zone, intent and memory layers so far, for tests.
 func get_layer_draw_count() -> int:
-	return _zone_layer.draw_count + _mark_layer.draw_count + _intent_layer.draw_count + _memory_layer.draw_count
+	return _zone_layer.draw_count + _mark_layer.draw_count + _intent_layer.draw_count + _memory_layer.draw_count + _site_layer.draw_count
 
 
 ## Fog of war and the time of day: one state per cell (0 never seen, 1 seen
@@ -506,6 +512,33 @@ func get_fog_color(cell: Vector2i) -> Color:
 
 func is_fog_blending() -> bool:
 	return _fog_tween != null and _fog_tween.is_valid() and _fog_tween.is_running()
+
+
+## Sites as our side knows them (TacticsBattle.get_sites()); an unknown
+## one draws nothing over the terrain.
+func set_sites(sites: Array) -> void:
+	if sites == _sites:
+		return
+	_sites = sites
+	_site_layer.queue_redraw()
+
+
+func get_sites() -> Array:
+	return _sites
+
+
+## The objective's marks; every key is optional: `exits` (cells, gold),
+## `enemy_exits` (cells, red), `road` (cells), `convoy_path` (cells),
+## `entries` (cells where enemies come in next round).
+func set_objective_marks(marks: Dictionary) -> void:
+	if marks == _objective_marks:
+		return
+	_objective_marks = marks
+	_site_layer.queue_redraw()
+
+
+func get_objective_marks() -> Dictionary:
+	return _objective_marks
 
 
 ## Enemies remembered where they were last seen: [{unit, cell, is_leader}].
@@ -882,6 +915,50 @@ func _draw_marks(canvas: Control) -> void:
 		if from != ghost["cell"]:
 			_draw_dashes(canvas, cell_to_local(from), cell_to_local(ghost["cell"]), Color(Palette.CREAM, 0.7), 2.0)
 		TacticsPainter.draw_ghost(canvas, cell_to_local(ghost["cell"]) + TacticsPieceView.TOKEN_OFFSET, ghost["side"], ghost["is_leader"])
+
+
+# Over the fog: the road, the exits, the convoy's path and the known
+# sites with their capture rings.
+func _draw_sites(canvas: Control) -> void:
+	var road: Array = _objective_marks.get("road", [])
+	if road.size() > 1:
+		for index: int in range(1, road.size()):
+			_draw_dashes(canvas, cell_to_local(road[index - 1]), cell_to_local(road[index]), TacticsPainter.ROAD_COLOR, 6.0)
+	for cell: Vector2i in _objective_marks.get("exits", []):
+		TacticsPainter.draw_exit(canvas, _cell_rect(cell), _outward(cell), TacticsPainter.EXIT_COLOR)
+	for cell: Vector2i in _objective_marks.get("enemy_exits", []):
+		TacticsPainter.draw_exit(canvas, _cell_rect(cell), _outward(cell), TacticsPainter.ENEMY_EXIT_COLOR)
+	for cell: Vector2i in _objective_marks.get("entries", []):
+		TacticsPainter.draw_exit(canvas, _cell_rect(cell), -_outward(cell), TacticsPainter.ENEMY_EXIT_COLOR)
+	var path: Array = _objective_marks.get("convoy_path", [])
+	if path.size() > 1:
+		var points := PackedVector2Array()
+		for cell: Vector2i in path:
+			points.append(cell_to_local(cell))
+		canvas.draw_polyline(points, Color(Palette.INK, 0.6), 9.0, true)
+		canvas.draw_polyline(points, Palette.CREAM, 5.0, true)
+		var tip := points[points.size() - 1]
+		var direction := (tip - points[points.size() - 2]).normalized()
+		var side := Vector2(-direction.y, direction.x)
+		canvas.draw_colored_polygon(PackedVector2Array([tip + direction * 14.0, tip - direction * 6.0 + side * 11.0, tip - direction * 6.0 - side * 11.0]), Palette.CREAM)
+	for site: Dictionary in _sites:
+		if not site.get("is_known", true):
+			continue
+		var cell: Vector2i = site["cell"]
+		TacticsPainter.draw_site(canvas, _cell_rect(cell), site["kind"], site["status"], site["owner"])
+		if int(site.get("capture_phases", 0)) > 0 and int(site.get("capture_progress", 0)) > 0:
+			TacticsPainter.draw_capture_ring(canvas, cell_to_local(cell), CELL_PX * 0.47, site["capture_progress"], site["capture_phases"], site["capture_side"])
+
+
+# The way out of the map from an edge cell.
+func _outward(cell: Vector2i) -> Vector2:
+	if cell.y == 0:
+		return Vector2.UP
+	if cell.y == map_height - 1:
+		return Vector2.DOWN
+	if cell.x == 0:
+		return Vector2.LEFT
+	return Vector2.RIGHT
 
 
 # Over the fog: the objective (known from the map, so findable at night

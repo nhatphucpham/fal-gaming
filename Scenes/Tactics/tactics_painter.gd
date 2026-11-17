@@ -21,12 +21,19 @@ const MAX_PIPS: int = 5
 const TERRAIN_FILLS: Dictionary[StringName, Color] = {
 	&"terrain.plain": Color("c9c58f"), &"terrain.forest": Color("7f9c5c"), &"terrain.hill": Color("cfb07a"),
 	&"terrain.river": Color("4f7fae"), &"terrain.ford": Color("8db0c8"), &"terrain.bridge": Color("4f7fae"),
-	&"terrain.fort": Color("b9ab92"), &"terrain.village": Color("c9c58f"),
+	&"terrain.fort": Color("b9ab92"), &"terrain.village": Color("c9c58f"), &"terrain.wall": Color("6f6658"),
 }
+## Sites (Docs/systems/tactics_sites.md): the badge each kind shows.
+const SITE_BADGE_PX: float = 13.0
+const BURNED_COLOR := Color("3a2a22")
+const EXIT_COLOR := Color("f2c14e")
+const ENEMY_EXIT_COLOR := Color("ff5a3a")
+const ROAD_COLOR := Color(0.95, 0.9, 0.78, 0.55)
 
 static var _terrain_details: Dictionary[StringName, Callable] = {}
 static var _glyphs: Dictionary[StringName, Callable] = {}
 static var _order_icons: Dictionary[StringName, Callable] = {}
+static var _site_icons: Dictionary[StringName, Callable] = {}
 
 
 ## The side's token colour (fill), our side 0 blue, the enemy red.
@@ -203,6 +210,54 @@ static func draw_wavering(canvas: CanvasItem, c: Vector2, r: float, is_good: boo
 		canvas.draw_circle(c + Vector2(0, r * 0.45), r * 0.17, Palette.CREAM)
 
 
+## A site's badge in the cell `rect`'s top-left corner: its kind's icon on
+## a disc ringed in its owner's colour (cream when unheld); a used site is
+## dimmed, a burned one charred.
+static func draw_site(canvas: CanvasItem, rect: Rect2, kind: StringName, status: StringName, owner: int) -> void:
+	_ensure_registries()
+	if status == &"burned":
+		for spot: Vector2 in [Vector2(0.3, 0.55), Vector2(0.62, 0.42), Vector2(0.5, 0.75)]:
+			canvas.draw_circle(rect.position + rect.size * spot, rect.size.x * 0.14, Color(BURNED_COLOR, 0.75))
+	var c := rect.position + Vector2(SITE_BADGE_PX + 3.0, SITE_BADGE_PX + 3.0)
+	var ring := Palette.CREAM if owner < 0 else side_color(owner)
+	var fill := Palette.PANEL if status == &"ready" else Color("5a5650")
+	if status == &"burned":
+		fill = BURNED_COLOR
+	canvas.draw_circle(c, SITE_BADGE_PX + 2.5, OUTLINE)
+	canvas.draw_circle(c, SITE_BADGE_PX, ring)
+	canvas.draw_circle(c, SITE_BADGE_PX - 3.0, fill)
+	var icon: Callable = _site_icons.get(kind, Callable())
+	if icon.is_valid():
+		icon.call(canvas, c, SITE_BADGE_PX - 4.0, Palette.CREAM if status == &"ready" else Color(Palette.CREAM, 0.55))
+	if status == &"used":
+		canvas.draw_line(c + Vector2(-5, 0), c + Vector2(-1, 4), Palette.JADE_LIGHT, 3.0)
+		canvas.draw_line(c + Vector2(-1, 4), c + Vector2(6, -5), Palette.JADE_LIGHT, 3.0)
+
+
+## The capture of a stronghold: a ring round the cell, the share taken in
+## the capturing side's colour.
+static func draw_capture_ring(canvas: CanvasItem, c: Vector2, radius: float, progress: int, phases: int, side: int) -> void:
+	canvas.draw_arc(c, radius, 0.0, TAU, 32, Color(OUTLINE, 0.7), 9.0)
+	canvas.draw_arc(c, radius, 0.0, TAU, 32, Color(Palette.CREAM, 0.35), 5.0)
+	if phases <= 0 or progress <= 0:
+		return
+	var share := clampf(float(progress) / phases, 0.0, 1.0)
+	canvas.draw_arc(c, radius, -PI / 2.0, -PI / 2.0 + TAU * share, 32, side_color(side).lightened(0.2), 6.0)
+
+
+## An exit at the map's edge: the cell outlined and a chevron pointing
+## `toward` the outside.
+static func draw_exit(canvas: CanvasItem, rect: Rect2, toward: Vector2, color: Color) -> void:
+	canvas.draw_rect(rect.grow(-4.0), Color(color, 0.22))
+	canvas.draw_rect(rect.grow(-4.0), color, false, 3.0)
+	var c := rect.get_center() + toward * rect.size.x * 0.12
+	var side := Vector2(-toward.y, toward.x)
+	var r := rect.size.x * 0.2
+	for step: float in [0.0, 0.45]:
+		var tip := c + toward * r * (1.0 + step)
+		canvas.draw_polyline(PackedVector2Array([tip - toward * r + side * r, tip, tip - toward * r - side * r]), color, 4.0)
+
+
 ## A star polygon with `points` tips.
 static func star_points(c: Vector2, outer: float, inner: float, points: int) -> PackedVector2Array:
 	var result := PackedVector2Array()
@@ -213,7 +268,9 @@ static func star_points(c: Vector2, outer: float, inner: float, points: int) -> 
 
 
 ## The glyph a unit shows: its class, or a kite for flyers.
-static func glyph_for(class_id: StringName, keywords: Array) -> StringName:
+static func glyph_for(class_id: StringName, keywords: Array, is_noncombatant: bool = false) -> StringName:
+	if is_noncombatant:
+		return &"glyph.cart"
 	return &"glyph.flying" if keywords.has(&"keyword.flying") else class_id
 
 
@@ -252,12 +309,16 @@ static func _ensure_registries() -> void:
 	_terrain_details = {
 		&"terrain.plain": _grass, &"terrain.forest": _forest, &"terrain.hill": _hill,
 		&"terrain.river": _river, &"terrain.ford": _ford, &"terrain.bridge": _bridge,
-		&"terrain.fort": _fort, &"terrain.village": _village,
+		&"terrain.fort": _fort, &"terrain.village": _village, &"terrain.wall": _wall,
 	}
 	_glyphs = {
 		&"class.spear": _glyph_spear, &"class.sword": _glyph_sword, &"class.archer": _glyph_bow,
 		&"class.shield": _glyph_shield, &"class.cavalry": _glyph_horse, &"class.mage": _glyph_staff,
-		&"glyph.flying": _glyph_kite,
+		&"glyph.flying": _glyph_kite, &"glyph.cart": _glyph_cart,
+	}
+	_site_icons = {
+		&"site_kind.village": _site_village, &"site_kind.shrine": _site_shrine,
+		&"site_kind.camp": _site_camp, &"site_kind.stronghold": _site_tower,
 	}
 	_order_icons = {
 		&"order.follow": _order_follow, &"order.vanguard": _order_vanguard, &"order.flank": _order_flank,
@@ -335,6 +396,49 @@ static func _village(canvas: CanvasItem, rect: Rect2) -> void:
 	canvas.draw_rect(Rect2(c + Vector2(-11, -2), Vector2(22, 13)), Palette.CREAM)
 	canvas.draw_colored_polygon(PackedVector2Array([c + Vector2(-15, -1), c + Vector2(15, -1), c + Vector2(0, -15)]), Palette.VERMILION_DARK)
 	canvas.draw_rect(Rect2(c + Vector2(-3, 4), Vector2(6, 7)), Palette.WOOD)
+
+
+static func _wall(canvas: CanvasItem, rect: Rect2) -> void:
+	var mortar := Color("4a443b")
+	for row: int in 4:
+		var y := rect.position.y + rect.size.y * row / 4.0
+		canvas.draw_line(Vector2(rect.position.x, y), Vector2(rect.end.x, y), mortar, 2.0)
+		var offset := 0.25 if row % 2 == 0 else 0.0
+		for column: int in 3:
+			var x := rect.position.x + rect.size.x * (column / 2.0 + offset)
+			if x > rect.position.x and x < rect.end.x:
+				canvas.draw_line(Vector2(x, y), Vector2(x, y + rect.size.y / 4.0), mortar, 2.0)
+	canvas.draw_rect(rect.grow(-1.0), OUTLINE, false, 2.0)
+
+
+static func _glyph_cart(canvas: CanvasItem, c: Vector2, r: float, color: Color) -> void:
+	canvas.draw_rect(Rect2(c + Vector2(-r * 0.8, -r * 0.55), Vector2(r * 1.6, r * 0.75)), color)
+	for x: float in [-0.45, 0.45]:
+		canvas.draw_circle(c + Vector2(r * x, r * 0.45), r * 0.3, color)
+
+
+static func _site_village(canvas: CanvasItem, c: Vector2, r: float, color: Color) -> void:
+	canvas.draw_rect(Rect2(c + Vector2(-r * 0.6, -r * 0.05), Vector2(r * 1.2, r * 0.75)), color)
+	canvas.draw_colored_polygon(PackedVector2Array([c + Vector2(-r * 0.85, 0), c + Vector2(r * 0.85, 0), c + Vector2(0, -r * 0.8)]), color)
+
+
+static func _site_shrine(canvas: CanvasItem, c: Vector2, r: float, color: Color) -> void:
+	# A gate: two posts under a curved lintel.
+	canvas.draw_line(c + Vector2(-r * 0.5, -r * 0.4), c + Vector2(-r * 0.5, r * 0.75), color, 2.5)
+	canvas.draw_line(c + Vector2(r * 0.5, -r * 0.4), c + Vector2(r * 0.5, r * 0.75), color, 2.5)
+	canvas.draw_line(c + Vector2(-r * 0.9, -r * 0.6), c + Vector2(r * 0.9, -r * 0.6), color, 3.0)
+	canvas.draw_line(c + Vector2(-r * 0.6, -r * 0.15), c + Vector2(r * 0.6, -r * 0.15), color, 2.0)
+
+
+static func _site_camp(canvas: CanvasItem, c: Vector2, r: float, color: Color) -> void:
+	canvas.draw_colored_polygon(PackedVector2Array([c + Vector2(-r * 0.85, r * 0.7), c + Vector2(r * 0.85, r * 0.7), c + Vector2(0, -r * 0.75)]), color)
+	canvas.draw_colored_polygon(PackedVector2Array([c + Vector2(-r * 0.2, r * 0.7), c + Vector2(r * 0.2, r * 0.7), c + Vector2(0, r * 0.1)]), OUTLINE)
+
+
+static func _site_tower(canvas: CanvasItem, c: Vector2, r: float, color: Color) -> void:
+	canvas.draw_rect(Rect2(c + Vector2(-r * 0.45, -r * 0.4), Vector2(r * 0.9, r * 1.15)), color)
+	for x: float in [-0.45, -0.05, 0.35]:
+		canvas.draw_rect(Rect2(c + Vector2(r * x, -r * 0.75), Vector2(r * 0.25, r * 0.3)), color)
 
 
 static func _glyph_spear(canvas: CanvasItem, c: Vector2, r: float, color: Color) -> void:

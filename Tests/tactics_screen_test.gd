@@ -337,9 +337,10 @@ func _check_tips() -> bool:
 	var tips := _screen.get_tips()
 	var met: Array = RunSettings.load_seen_tips().map(func(id: String) -> StringName: return StringName(id.trim_prefix(TacticsTip.SETTINGS_PREFIX)))
 	met.append_array(tips.get_pending())
-	# The river crossing has fog of war: its tip comes with our first phase.
-	if met != [&"fog", &"select", &"move", &"order"]:
-		push_error("The fog, then the first select, move and order should each offer their tip once, got %s" % [met])
+	# The river crossing has fog of war: its tip comes with our first phase,
+	# then the objective chip's.
+	if met != [&"fog", &"objective", &"select", &"move", &"order"]:
+		push_error("The fog, the objective, then the first select, move and order should each offer their tip once, got %s" % [met])
 		return false
 	if tr("TACTICS_TIP_FOG") == "TACTICS_TIP_FOG":
 		return _fail("The fog tip has no text")

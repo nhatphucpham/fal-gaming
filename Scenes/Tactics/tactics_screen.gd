@@ -21,7 +21,14 @@ extends Control
 ## war the map shows only what our side sees (Docs/systems/tactics_vision.md):
 ## enemies out of sight are not drawn or offered, those remembered show as
 ## "?" where last seen, and a chip over the map's top-left shows the weather
-## and the time of day (a tap says what they do).
+## and the time of day (a tap says what they do). Sites and objectives
+## (Docs/systems/tactics_sites.md, tactics_objectives.md): a line of the
+## top bar names the objective and its progress (a tap on the bar shows
+## what to do, the side goals and, escorting, holds or sends the convoy);
+## a leader within reach
+## of a site gets a button with the site's name that opens its choices; a
+## tap on a site cell tells its state; the round before an enemy wave the
+## banner warns and the cells it comes in by turn red.
 ## See Docs/systems/tactics_screen.md.
 ## [codeblock]
 ## var screen := TacticsScreen.new()
@@ -35,8 +42,9 @@ signal campaign_continue_requested()
 ## Every time the screen is ready for the next tap (after a playback).
 signal became_idle()
 
-## MOVE_PREVIEW: a finger is dragging a leader's ghosts.
-enum Mode {IDLE, SELECTED, MOVE_PREVIEW, FORECAST, SKILL_TARGET, SKILL_PREVIEW, BUSY, ENDED}
+## MOVE_PREVIEW: a finger is dragging a leader's ghosts; SITE_CHOICE: the
+## panel shows the choices of a site within the selected leader's reach.
+enum Mode {IDLE, SELECTED, MOVE_PREVIEW, FORECAST, SKILL_TARGET, SKILL_PREVIEW, BUSY, ENDED, SITE_CHOICE}
 
 const CATALOG_PATH: String = "res://Data/Tactics/tactics_catalog.tres"
 const LOOKS_PATH: String = "res://Data/Tactics/Looks/skill_looks.tres"
@@ -99,6 +107,14 @@ var _hint_key: String = "TACTICS_HINT_IDLE"
 var _retreat_arm_count: int = 0
 var _summary: TacticsSummaryView
 var _environment_chip: PressButton
+var _objective_chip: Button
+var _objective_label: Label
+## TacticsBattle.get_objective_state() as of the last sync.
+var _objective: Dictionary = {}
+## The site whose choices the panel shows (-1 none), and its choice when
+## it asks which recruit.
+var _site_shown: int = -1
+var _recruit_choice: bool = false
 var _weather_icon: TextureRect
 var _daytime_icon: TextureRect
 ## Fog and night were drawn once; later changes blend in.
@@ -130,18 +146,35 @@ func _ready() -> void:
 	_playback.intent_filter = func(unit: int) -> bool: return _battle.is_intent_known(player_side, unit)
 	_map.setup(_battle, _objective_cell())
 	_banner.max_rounds = scenario.rules.max_rounds
+	_playback.piece_factory = _on_unit_arrived
 	_units = _battle.get_units()
 	for state: Dictionary in _units:
-		var piece := TacticsPieceView.new()
-		var data := _text.unit_data(state["id"])
-		piece.setup(state, TacticsPainter.glyph_for(data.base_class.id if data != null else &"", state["keywords"]))
-		var person := campaign.get_person(state["record_id"]) if campaign != null else {}
-		_carried_marks[state["index"]] = (person["marks"] as Array).size() if not person.is_empty() else 0
-		_map.add_piece(piece, state["cell"])
+		_add_piece(state)
 	_map.center_on(_map.cell_to_local(_first_leader_cell()))
 	_sync()
 	Sound.play_music(&"music_battle")
 	_run(_battle.start())
+
+
+func _add_piece(state: Dictionary) -> TacticsPieceView:
+	var piece := TacticsPieceView.new()
+	var data := _text.unit_data(state["id"])
+	piece.setup(state, TacticsPainter.glyph_for(data.base_class.id if data != null else &"", state["keywords"], state.get("is_noncombatant", false)))
+	var person := campaign.get_person(state["record_id"]) if campaign != null else {}
+	_carried_marks[state["index"]] = (person["marks"] as Array).size() if not person.is_empty() else 0
+	_map.add_piece(piece, state["cell"])
+	return piece
+
+
+# A unit that arrived mid-battle, for the playback: its piece and state.
+func _on_unit_arrived(event: Dictionary) -> Dictionary:
+	var state := _battle.get_unit_state(event["unit"])
+	if _map.get_piece(event["unit"]) == null:
+		var piece := _add_piece(state)
+		if state["role"] == &"leader":
+			var charge := _battle.get_skill_charge(state["index"])
+			piece.set_charge(charge.get("value", 0), charge.get("threshold", 0))
+	return state
 
 
 ## The cell was tapped: selects, previews or confirms by what is there
@@ -164,6 +197,10 @@ func tap_cell(cell: Vector2i) -> void:
 				_preview_skill(cell)
 			else:
 				select_unit(_selected)
+			return
+		Mode.SITE_CHOICE:
+			# Any tap leaves the choices: on a unit it selects it.
+			select_unit(unit if unit >= 0 else _selected)
 			return
 	if _is_commandable(_selected) and _mode != Mode.IDLE:
 		if unit >= 0 and _battle.get_strike_targets(_selected).has(unit):
@@ -190,6 +227,8 @@ func select_unit(unit: int) -> void:
 		return
 	_cancel_auto_end()
 	_selected = unit
+	_site_shown = -1
+	_recruit_choice = false
 	_pending_cell = NO_CELL
 	_pending_target = -1
 	_mode = Mode.SELECTED
@@ -256,6 +295,9 @@ func confirm() -> void:
 
 ## Back one step: a preview to its leader, a selection to nothing.
 func cancel() -> void:
+	if _mode == Mode.SITE_CHOICE:
+		select_unit(_selected)
+		return
 	if _mode in [Mode.MOVE_PREVIEW, Mode.FORECAST, Mode.SKILL_TARGET, Mode.SKILL_PREVIEW]:
 		select_unit(_selected)
 	elif _mode == Mode.SELECTED:
@@ -423,6 +465,7 @@ func _build() -> void:
 	_playback.phase_shown.connect(_on_phase_shown)
 	_playback.environment_changed.connect(_on_environment_changed)
 	add_child(_playback)
+	_playback.supplies_gained.connect(_on_supplies_gained)
 	_build_environment_chip()
 
 
@@ -440,13 +483,28 @@ func _build_top_bar() -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override(&"separation", 10)
 	bar.add_child(row)
+	# The texts are one flat button: a tap shows the objective.
+	_objective_chip = Button.new()
+	_objective_chip.name = "ObjectiveChip"
+	_objective_chip.flat = true
+	_objective_chip.focus_mode = Control.FOCUS_NONE
+	_objective_chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_objective_chip.custom_minimum_size = Vector2(0, 88)
+	_objective_chip.pressed.connect(func() -> void:
+		Sound.play(&"ui_tap")
+		show_objective())
+	row.add_child(_objective_chip)
 	var texts := VBoxContainer.new()
-	texts.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	texts.set_anchors_preset(Control.PRESET_FULL_RECT)
 	texts.alignment = BoxContainer.ALIGNMENT_CENTER
-	texts.add_theme_constant_override(&"separation", 0)
-	row.add_child(texts)
-	_round_label = _bar_label(28, Palette.GOLD)
+	texts.add_theme_constant_override(&"separation", -4)
+	texts.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_objective_chip.add_child(texts)
+	_round_label = _bar_label(26, Palette.GOLD)
 	texts.add_child(_round_label)
+	_objective_label = _bar_label(GameTheme.SMALL_FONT_SIZE, Palette.JADE_LIGHT)
+	_objective_label.visible = false
+	texts.add_child(_objective_label)
 	_hint_label = _bar_label(GameTheme.SMALL_FONT_SIZE, Palette.CREAM)
 	texts.add_child(_hint_label)
 	_retreat_button = PressButton.new()
@@ -489,6 +547,210 @@ func _build_environment_chip() -> void:
 	# playback runs.
 	add_child(_environment_chip)
 	move_child(_environment_chip, _map.get_index() + 1)
+
+
+## The top bar's texts, a button: a tap shows the objective.
+func get_objective_chip() -> Button:
+	return _objective_chip
+
+
+## The objective line of the top bar now (its name and progress), for tests.
+func get_objective_chip_text() -> String:
+	return _objective_label.text
+
+
+func _objective_kind() -> StringName:
+	return _objective.get("kind", &"")
+
+
+# OBJECTIVE_KIND_TAKE_PASS and the like, from objective_kind.take_pass.
+func _kind_key(prefix: String) -> String:
+	return prefix + String(_objective_kind()).trim_prefix("objective_kind.").to_upper()
+
+
+func _update_objective_chip() -> void:
+	var kind := _objective_kind()
+	_objective_label.visible = kind != &""
+	_objective_chip.disabled = kind == &""
+	if kind == &"":
+		return
+	var line := "%s: %s" % [tr(_kind_key("OBJECTIVE_KIND_")), _objective_progress_text()]
+	if _objective_label.text != line:
+		_objective_label.text = line
+
+
+# The objective's progress in a few words, from what our side knows.
+func _objective_progress_text() -> String:
+	match _objective_kind():
+		&"objective_kind.take_pass", &"objective_kind.hold_city":
+			var site := _site_state(int(_objective["site"]))
+			if site.is_empty():
+				return ""
+			if _objective_kind() == &"objective_kind.hold_city":
+				if int(site["owner"]) != player_side:
+					return tr("OBJECTIVE_PROGRESS_KEEP_LOST")
+				return tr("OBJECTIVE_PROGRESS_ROUNDS_FORMAT") % [mini(maxi(_battle.get_round() - 1, 0), int(_objective["rounds"])), _objective["rounds"]]
+			if int(site["owner"]) == player_side:
+				return tr("OBJECTIVE_PROGRESS_HELD")
+			if int(site["capture_side"]) == player_side and int(site["capture_progress"]) > 0:
+				return tr("OBJECTIVE_PROGRESS_CAPTURE_FORMAT") % [site["capture_progress"], site["capture_phases"]]
+			return tr("OBJECTIVE_PROGRESS_NOT_HELD")
+		&"objective_kind.escort":
+			if _objective["convoy_holds"]:
+				return tr("OBJECTIVE_PROGRESS_HOLDING")
+			return tr("OBJECTIVE_PROGRESS_ROAD_FORMAT") % _road_left()
+		&"objective_kind.break_siege":
+			return tr("OBJECTIVE_PROGRESS_ESCAPED_FORMAT") % [_objective["escaped"], _objective["count"]]
+		&"objective_kind.slay_general":
+			return tr("OBJECTIVE_PROGRESS_FLEEING") if _objective["general_fleeing"] else tr("OBJECTIVE_PROGRESS_HUNT")
+	return ""
+
+
+# Road cells the convoy still has to go.
+func _road_left() -> int:
+	var convoy: int = _objective.get("convoy", -1)
+	var road: Array = _objective.get("road_cells", [])
+	if convoy < 0 or convoy >= _units.size():
+		return road.size()
+	var at := road.find(_units[convoy]["cell"])
+	return road.size() - 1 - at if at >= 0 else road.size()
+
+
+func _site_state(site: int) -> Dictionary:
+	for entry: Dictionary in _map.get_sites():
+		if entry["site"] == site:
+			return entry
+	return {}
+
+
+## What the objective asks, its side goals and (escorting, in our phase)
+## the convoy's hold or go, on the panel (the chip's tap).
+func show_objective() -> void:
+	if _mode == Mode.BUSY or _mode == Mode.ENDED or _objective_kind() == &"":
+		return
+	_go_idle()
+	var lines: Array[String] = [_objective_line(), tr(scenario.name_key)]
+	lines.append_array(_goal_lines())
+	_panel.show_card(tr("OBJECTIVE_CARD_TITLE") + ": " + tr(_kind_key("OBJECTIVE_KIND_")), Palette.GOLD, _objective_progress_text(), lines)
+	var buttons := _end_turn_button(_are_only_walks_left())
+	if _objective_kind() == &"objective_kind.escort" and _battle.get_active_side() == player_side and int(_objective["convoy"]) >= 0 and _units[_objective["convoy"]]["alive"]:
+		var holds: bool = _objective["convoy_holds"]
+		buttons.push_front({"action": &"convoy_go" if holds else &"convoy_hold", "text": "BUTTON_CONVOY_GO" if holds else "BUTTON_CONVOY_HOLD"})
+	_panel.set_buttons(buttons)
+	_set_hint(_kind_key("OBJECTIVE_KIND_"))
+
+
+# The objective in one short line.
+func _objective_line() -> String:
+	var site_name := ""
+	var site := int(_objective.get("site", -1))
+	if site >= 0:
+		var data := catalog.get_site(_site_state(site).get("id", &""))
+		site_name = tr(data.name_key) if data != null else ""
+	match _objective_kind():
+		&"objective_kind.take_pass":
+			return tr("OBJECTIVE_SHORT_TAKE_PASS_FORMAT") % site_name
+		&"objective_kind.hold_city":
+			return tr("OBJECTIVE_SHORT_HOLD_CITY_FORMAT") % [site_name, _objective["rounds"]]
+		&"objective_kind.escort":
+			return tr("OBJECTIVE_SHORT_ESCORT")
+		&"objective_kind.break_siege":
+			return tr("OBJECTIVE_SHORT_BREAK_SIEGE_FORMAT") % [_objective["count"], _required_leader_name()]
+		&"objective_kind.slay_general":
+			var general: int = _objective["general"]
+			return tr("OBJECTIVE_SHORT_SLAY_GENERAL_FORMAT") % (_text.unit_name(_units[general]) if general >= 0 else "")
+		&"objective_kind.cell":
+			return tr("TACTICS_OBJECTIVE_SHORT_FORMAT") % _text.terrain_name(_map.get_terrain_at(_objective_cell()))
+	return ""
+
+
+# The leader that must break out (by scenario order among our leaders).
+func _required_leader_name() -> String:
+	var order := 0
+	for state: Dictionary in _units:
+		if state["role"] == &"leader" and state["start_side"] == player_side and state.get("arrival", &"") == &"":
+			if order == int(_objective.get("required_leader", -1)):
+				return _text.unit_name(state)
+			order += 1
+	return ""
+
+
+# One line per side goal: what it asks, its reward, met or not.
+func _goal_lines() -> Array[String]:
+	var lines: Array[String] = []
+	for goal: Dictionary in _objective.get("goals", []):
+		var what := _goal_name(goal)
+		lines.append(tr("OBJECTIVE_GOAL_MET_FORMAT") % what if goal["is_met"] else tr("OBJECTIVE_GOAL_LINE_FORMAT") % [what, goal["supplies"]])
+	return lines
+
+
+func _goal_name(goal: Dictionary) -> String:
+	if goal["kind"] == &"goal.by_round":
+		return tr("GOAL_BY_ROUND_FORMAT") % goal["value"]
+	return tr("GOAL_" + String(goal["kind"]).trim_prefix("goal.").to_upper())
+
+
+# Supplies rise at the top of the map, under the objective line.
+func _on_supplies_gained(amount: int, _total: int) -> void:
+	var at := _map.view_to_board(Vector2(_map.size.x / 2.0, 60.0))
+	_map.float_text(at, tr("TACTICS_FLOAT_SUPPLIES_FORMAT") % amount, Palette.GOLD, 26)
+
+
+# Enemy wave entries to mark: waves still to come this round or the next.
+func _upcoming_entries() -> Array:
+	var cells: Array = []
+	var round_number := _battle.get_round()
+	var waves: Array = _objective.get("waves", [])
+	for index: int in range(int(_objective.get("waves_sent", 0)), waves.size()):
+		var wave: Dictionary = waves[index]
+		if int(wave["round"]) <= round_number + 1:
+			cells.append_array(wave["entry_cells"])
+	return cells
+
+
+# The round before an enemy wave comes, a banner and the horn say so.
+func _warn_wave(round_number: int) -> void:
+	var waves: Array = _objective.get("waves", [])
+	for index: int in range(int(_objective.get("waves_sent", 0)), waves.size()):
+		var wave: Dictionary = waves[index]
+		if int(wave["round"]) != round_number + 1:
+			continue
+		Sound.play(&"war_horn")
+		_banner.present(tr("TACTICS_BANNER_WAVE_SOON"), tr("TACTICS_BANNER_WAVE_SOON_FORMAT") % [wave["leaders"], tr(_direction_key(wave["entry_cells"]))], false)
+		get_tree().create_timer(0.01 if is_instant else TacticsPlayback.BANNER_SEC * 1.8).timeout.connect(_banner.dismiss)
+		_tips.offer(&"wave")
+		return
+
+
+# Which edge the cells sit on: north, south, east or west.
+func _direction_key(cells: Array) -> String:
+	var cell: Vector2i = cells[0] if not cells.is_empty() else Vector2i.ZERO
+	if cell.y == 0:
+		return "DIR_NORTH"
+	if cell.y == _map.map_height - 1:
+		return "DIR_SOUTH"
+	return "DIR_WEST" if cell.x < _map.map_width / 2 else "DIR_EAST"
+
+
+# Sites as our side knows them, the objective's marks and the chip.
+func _sync_objective() -> void:
+	_objective = _battle.get_objective_state()
+	_map.set_sites(_battle.get_sites(player_side))
+	var marks := {}
+	match _objective_kind():
+		&"objective_kind.break_siege":
+			marks["exits"] = _objective["exit_cells"]
+		&"objective_kind.slay_general":
+			marks["enemy_exits"] = _objective["exit_cells"]
+		&"objective_kind.escort":
+			marks["road"] = _objective["road_cells"]
+			if _battle.get_active_side() == player_side and not _battle.is_finished():
+				marks["convoy_path"] = _battle.get_convoy_path()
+	var entries := _upcoming_entries()
+	if not entries.is_empty() and not _battle.is_finished():
+		marks["entries"] = entries
+	_map.set_objective_marks(marks)
+	_update_objective_chip()
 
 
 func _chip_icon() -> TextureRect:
@@ -603,7 +865,7 @@ func _sync() -> void:
 	for state: Dictionary in _units:
 		var piece := _map.get_piece(state["index"])
 		if piece == null:
-			continue
+			piece = _add_piece(state)
 		var is_alive: bool = state["alive"]
 		piece.is_dead = not is_alive
 		piece.visible = is_alive and _is_seen(state["index"])
@@ -621,6 +883,7 @@ func _sync() -> void:
 			piece.set_charge(charge.get("value", 0), charge.get("threshold", 0))
 	_map.set_zones(_zones)
 	_sync_vision()
+	_sync_objective()
 	_intents.clear()
 	if _battle.get_active_side() == player_side and not _battle.is_finished():
 		for intent: Dictionary in _battle.get_enemy_intents():
@@ -669,8 +932,11 @@ func _on_phase_shown(side: int, round_number: int) -> void:
 		_show_our_phase_card(round_number)
 		_bring_ours_into_view()
 		_warn_weather(round_number)
+		_objective = _battle.get_objective_state()
+		_warn_wave(round_number)
 		if _battle.has_fog_of_war():
 			_tips.offer(&"fog")
+		_offer_objective_tips()
 		return
 	_set_hint("TACTICS_HINT_ENEMY_PHASE")
 	var lines: Array[String] = [tr("TACTICS_HINT_ENEMY_PHASE"), "", ""]
@@ -703,6 +969,8 @@ func _bring_ours_into_view() -> void:
 func _go_idle() -> void:
 	_mode = Mode.IDLE
 	_selected = -1
+	_site_shown = -1
+	_recruit_choice = false
 	_pending_cell = NO_CELL
 	_pending_target = -1
 	_map.set_marks({})
@@ -727,8 +995,9 @@ func _objective_cell() -> Vector2i:
 
 
 func _show_our_phase_card(round_number: int) -> void:
-	var objective := _text.terrain_name(_map.get_terrain_at(_objective_cell()))
-	var lines: Array[String] = [tr("TACTICS_OBJECTIVE_SHORT_FORMAT") % objective, tr(scenario.name_key), "", ""]
+	if _objective.is_empty():
+		_objective = _battle.get_objective_state()
+	var lines: Array[String] = [_objective_line(), tr(scenario.name_key), "", ""]
 	_panel.show_card(tr("TACTICS_PHASE_PLAYER"), Palette.GOLD, tr("TACTICS_ROUND_FORMAT") % [round_number, scenario.rules.max_rounds], lines)
 
 
@@ -759,12 +1028,141 @@ func _unit_buttons(unit: int) -> Array[Dictionary]:
 	var can_act := _battle.can_act(unit)
 	var buttons: Array[Dictionary] = [
 		{"action": &"skill", "text": "BUTTON_SKILL", "enabled": can_act and not _battle.get_skill_cells(unit).is_empty(), "primary": can_act and bool(_battle.get_skill_charge(unit).get("is_ready", false))},
-		{"action": &"wait", "text": "BUTTON_WAIT", "enabled": can_act},
 	]
+	var site := _site_action(unit)
+	if not site.is_empty():
+		var data := catalog.get_site(site["site_id"])
+		buttons.append({"action": &"site", "text": data.name_key if data != null else "SITE_VILLAGE", "enabled": _site_can(site)})
+	buttons.append({"action": &"wait", "text": "BUTTON_WAIT", "enabled": can_act})
 	if _can_undo(unit):
 		buttons.append({"action": &"undo", "text": "BUTTON_UNDO"})
-	buttons.append({"action": &"end_turn", "text": "BUTTON_END_TURN", "primary": _are_only_walks_left()})
+	# Four buttons fit a row: with a site and an undo, "Kết lượt" waits for
+	# the phase card.
+	if buttons.size() < 4:
+		buttons.append({"action": &"end_turn", "text": "BUTTON_END_TURN", "primary": _are_only_walks_left()})
 	return buttons
+
+
+# The site within the leader's reach it can use now, else the first one in
+# reach; empty when none is.
+func _site_action(unit: int) -> Dictionary:
+	var actions := _battle.get_site_actions(unit)
+	for entry: Dictionary in actions:
+		if _site_can(entry):
+			return entry
+	return actions[0] if not actions.is_empty() else {}
+
+
+func _site_can(entry: Dictionary) -> bool:
+	for choice: Dictionary in entry["choices"]:
+		if choice["can"]:
+			return true
+	return false
+
+
+# The site's choices on the panel: one line and one button each, the
+# reason on the line when it cannot be taken now.
+func _show_site_choices() -> void:
+	var entry := _site_action(_selected)
+	if entry.is_empty():
+		return
+	_site_shown = entry["site"]
+	_recruit_choice = false
+	var data := catalog.get_site(entry["site_id"])
+	var lines: Array[String] = []
+	var buttons: Array[Dictionary] = []
+	for choice: Dictionary in entry["choices"]:
+		var id: StringName = choice["choice"]
+		lines.append(_site_choice_line(data, id) if choice["can"] else "%s: %s" % [tr("SITE_CHOICE_" + String(id).to_upper()), tr(_site_refusal(id))])
+		buttons.append({"action": StringName("site_" + String(id)), "text": "SITE_CHOICE_" + String(id).to_upper(), "enabled": choice["can"]})
+	lines.append(tr("SITE_LINE_NO_UNDO"))
+	buttons.append({"action": &"cancel", "text": "BUTTON_CANCEL"})
+	_mode = Mode.SITE_CHOICE
+	_panel.hide_order_row()
+	_panel.show_card(tr(data.name_key), Palette.GOLD, "", lines)
+	_panel.set_buttons(buttons)
+	_set_hint(tr("TACTICS_HINT_SITE_FORMAT") % tr(data.name_key))
+
+
+func _site_choice_line(data: TacticsSiteData, choice: StringName) -> String:
+	match choice:
+		&"heal":
+			return tr("SITE_LINE_HEAL_FORMAT") % data.heal_pct
+		&"recruit":
+			var names: Array[String] = []
+			for troop: TacticsTroopData in data.recruits:
+				names.append(tr(troop.name_key))
+			while names.size() < 2:
+				names.append(names[0] if not names.is_empty() else "")
+			return tr("SITE_LINE_RECRUIT_FORMAT") % [names[0], names[1]]
+		&"loot":
+			return tr("SITE_LINE_LOOT_FORMAT") % data.supplies
+		&"charge":
+			return tr("SITE_LINE_CHARGE")
+		&"calm":
+			return tr("SITE_LINE_CALM_FORMAT") % data.calm_radius_cells
+		&"bless":
+			return tr("SITE_LINE_BLESS_FORMAT") % data.bless_amount
+		&"capture":
+			return tr("SITE_LINE_CAPTURE_FORMAT") % data.supplies
+	return ""
+
+
+# Why a choice cannot be taken now, in the player's words.
+func _site_refusal(choice: StringName) -> String:
+	if not _battle.can_act(_selected):
+		return "SITE_NO_ACT"
+	match choice:
+		&"heal":
+			return "SITE_NO_HURT"
+		&"recruit":
+			return "SITE_NO_ROOM"
+		&"charge":
+			return "SITE_NO_CHARGE"
+		&"calm":
+			return "SITE_NO_WAVERING"
+		&"capture":
+			return "SITE_NO_CAMP"
+	return "SITE_NO_ACT"
+
+
+# A site choice pressed: a village's recruit asks which soldier first.
+func _choose_site(choice: StringName) -> void:
+	if _mode != Mode.SITE_CHOICE or _site_shown < 0 or not _is_commandable(_selected):
+		return
+	var site := _site_shown
+	if choice == &"recruit" and not _recruit_choice:
+		var data := catalog.get_site(_battle.get_sites(player_side)[site]["id"])
+		if data != null and data.recruits.size() > 1:
+			_recruit_choice = true
+			var buttons: Array[Dictionary] = []
+			var lines: Array[String] = []
+			for option: int in data.recruits.size():
+				var troop: TacticsTroopData = data.recruits[option]
+				buttons.append({"action": StringName("recruit_%d" % option), "text": troop.name_key, "enabled": _battle.can_use_site(_selected, site, &"recruit", option)})
+				lines.append(tr("SITE_RECRUIT_LINE_FORMAT") % [tr(troop.name_key), troop.min_range_cells, troop.max_range_cells, troop.move_points])
+			buttons.append({"action": &"cancel", "text": "BUTTON_CANCEL"})
+			_panel.show_card(tr("SITE_RECRUIT_TITLE"), Palette.GOLD, "", lines)
+			_panel.set_buttons(buttons)
+			_set_hint("TACTICS_HINT_RECRUIT")
+			return
+	_use_site(choice, 0)
+
+
+## The site whose choices the panel shows now, -1 if none (for tests).
+func get_shown_site() -> int:
+	return _site_shown if _mode == Mode.SITE_CHOICE else -1
+
+
+func _use_site(choice: StringName, option: int) -> void:
+	var site := _site_shown
+	_site_shown = -1
+	_recruit_choice = false
+	if not _battle.can_use_site(_selected, site, choice, option):
+		Sound.play(&"block")
+		select_unit(_selected)
+		return
+	_run(_battle.use_site(_selected, site, choice, option))
 
 
 func _on_action(action: StringName) -> void:
@@ -785,6 +1183,16 @@ func _on_action(action: StringName) -> void:
 			confirm()
 		&"cancel":
 			cancel()
+		&"site":
+			_show_site_choices()
+		&"convoy_hold", &"convoy_go":
+			_run(_battle.set_convoy_hold(action == &"convoy_hold"))
+		_:
+			if String(action).begins_with("recruit_"):
+				if _mode == Mode.SITE_CHOICE:
+					_use_site(&"recruit", int(String(action).trim_prefix("recruit_")))
+			elif String(action).begins_with("site_"):
+				_choose_site(StringName(String(action).trim_prefix("site_")))
 
 
 func _on_skip_input(event: InputEvent) -> void:
@@ -1092,10 +1500,38 @@ func _turn_line(state: Dictionary) -> String:
 func _show_terrain(cell: Vector2i) -> void:
 	var terrain := _map.get_terrain_at(cell)
 	_map.set_marks({"selected": cell})
+	for site: Dictionary in _map.get_sites():
+		if site["cell"] == cell and site["is_known"]:
+			_show_site(site, terrain)
+			return
 	var lines: Array[String] = [_text.terrain_effects(terrain), "", "", ""]
 	if cell == _objective_cell():
-		lines[1] = tr("TACTICS_OBJECTIVE_SHORT_FORMAT") % _text.terrain_name(terrain)
+		lines[1] = _objective_line()
 	_panel.show_card(_text.terrain_name(terrain), Palette.CREAM, "", lines)
+
+
+# A known site's card: what it does, who holds it, its capture.
+func _show_site(site: Dictionary, terrain: StringName) -> void:
+	var data := catalog.get_site(site["id"])
+	if data == null:
+		return
+	var owner: int = site["owner"]
+	var side_note := tr("SITE_OWNER_OURS") if owner == player_side else (tr("SITE_OWNER_NONE") if owner < 0 else tr("SITE_OWNER_ENEMY"))
+	if site["status"] == &"burned":
+		side_note = tr("SITE_STATUS_BURNED")
+	elif site["status"] == &"used":
+		side_note = tr("SITE_STATUS_USED")
+	var lines: Array[String] = [tr(data.description_key)]
+	if int(site["capture_phases"]) > 0:
+		if int(site["capture_progress"]) > 0:
+			var who := tr("SITE_SIDE_OURS") if int(site["capture_side"]) == player_side else tr("SITE_SIDE_ENEMY")
+			lines.append(tr("SITE_CAPTURE_FORMAT") % [who, site["capture_progress"], site["capture_phases"]])
+		else:
+			lines.append(tr("SITE_LINE_HOLD_FORMAT") % site["capture_phases"])
+	if site["cell"] == _objective_cell():
+		lines.append(_objective_line())
+	lines.append(_text.terrain_effects(terrain))
+	_panel.show_card(tr(data.name_key), Palette.GOLD, side_note, lines)
 
 
 func _terrain_line(cell: Vector2i) -> String:
@@ -1112,6 +1548,8 @@ func _intent_text(unit: int) -> String:
 				return tr("INTENT_ATTACK_FORMAT") % _text.unit_name(_units[intent["target"]]) if intent["target"] >= 0 else tr("INTENT_WAIT")
 			&"skill":
 				return tr("INTENT_SKILL_FORMAT") % _text.skill_name(_battle.get_skill_charge(unit)["skill"])
+			&"site":
+				return tr("INTENT_SITE")
 		# A wait after a march shows an arrow on the map; the words agree.
 		return tr("INTENT_MARCH") if intent["from"] != intent["to"] else tr("INTENT_WAIT")
 	return tr("INTENT_WAIT")
@@ -1188,6 +1626,11 @@ func _is_beyond_calm(state: Dictionary) -> bool:
 # last point (undo step by step), the first order change, the first
 # soldier that wavers badly.
 func _offer_tips(unit: int, was_order: bool) -> void:
+	if _is_commandable(unit) and not _site_action(unit).is_empty():
+		_tips.offer(&"site")
+	for site: Dictionary in _map.get_sites():
+		if int(site.get("capture_progress", 0)) > 0:
+			_tips.offer(&"capture")
 	if _can_undo(unit):
 		_tips.offer(&"move")
 		if not _battle.can_move(unit):
@@ -1199,6 +1642,18 @@ func _offer_tips(unit: int, was_order: bool) -> void:
 		_tips.offer(&"waver")
 	elif wavering_hint == "TACTICS_HINT_WAVERING_UNSEEN":
 		_tips.offer(&"waver_unseen")
+
+
+# The objective's own tips, the first time each kind shows.
+func _offer_objective_tips() -> void:
+	if _objective_kind() == &"":
+		return
+	_tips.offer(&"objective")
+	match _objective_kind():
+		&"objective_kind.escort":
+			_tips.offer(&"convoy")
+		&"objective_kind.break_siege":
+			_tips.offer(&"exit")
 
 
 # A leader of ours whose turn is closed: it waited, or it has no point to
