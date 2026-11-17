@@ -565,5 +565,8 @@ Run one with
   their start cells.
 - About 125 draw calls a frame on the map at the start and 180 with a
   leader selected (360x640, Mesa), from about 240 and 250 before the zoom
-  (tokens outside the view are clipped); the terrain is one. An idle map
+  (tokens outside the view are clipped); the terrain is one. With sites
+  and objective marks: river crossing 133 and 187, night raid 160 and
+  214, city defense 166 and 220, supply road 183 and 240, broken ring 291
+  and 349 (its two armies start packed inside one view). An idle map
   draws no frame.
