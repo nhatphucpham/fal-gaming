@@ -13,7 +13,7 @@
 [ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/militia.tres" id="troop_militia"]
 
 [sub_resource type="TacticsGoalData" id="goal_0"]
-kind = &"goal.villages_safe"
+kind = &"goal.no_losses"
 value = 0
 supplies = 2
 

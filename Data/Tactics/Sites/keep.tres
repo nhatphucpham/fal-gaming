@@ -8,4 +8,4 @@ description_key = "SITE_KEEP_DESC"
 reach_cells = 0
 capture_phases = 1
 vision_cells = 3
-armor_bonus = 5
+armor_bonus = 10

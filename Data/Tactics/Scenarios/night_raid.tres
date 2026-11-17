@@ -32,9 +32,9 @@ supplies = 2
 id = &"objective.night_raid"
 kind = &"objective_kind.slay_general"
 general = 0
-flee_hp_pct = 40
+flee_hp_pct = 15
 general_hold_cells = 2
-exit_cells = Array[Vector2i]([Vector2i(0, 2), Vector2i(11, 2)])
+exit_cells = Array[Vector2i]([Vector2i(0, 6), Vector2i(11, 6)])
 goals = Array[TacticsGoalData]([SubResource("goal_0"), SubResource("goal_1")])
 
 [resource]
@@ -43,7 +43,7 @@ name_key = "SCENARIO_NIGHT_RAID"
 rules = ExtResource("rules")
 map = ExtResource("map")
 leaders_a = Array[TacticsLeaderData]([ExtResource("leader_lac_hong"), ExtResource("leader_moon_spear"), ExtResource("leader_lieu_mi")])
-leaders_b = Array[TacticsLeaderData]([ExtResource("leader_hac_ho"), ExtResource("leader_ba_khac"), ExtResource("leader_thiet_nha")])
+leaders_b = Array[TacticsLeaderData]([ExtResource("leader_hac_ho"), ExtResource("leader_ba_khac")])
 fog_of_war = true
 weather = ExtResource("weather_fog")
 weather_change_round = 5

@@ -708,7 +708,7 @@ SITE_SHRINE_DESC,"Cầu khí, trấn an binh dao động gần, hoặc cầu ph�
 SITE_CAMP,Trại,Camp
 SITE_CAMP_DESC,Toán đứng quanh trại của mình hồi máu cuối lượt. Chiếm trại địch được lương.,Squads by their own camp heal at the end of the turn. Taking an enemy camp gives supplies.
 SITE_PASS_FORT,Ải,Pass fort
-SITE_PASS_FORT_DESC,"Tướng đứng trên, không địch kề bên tới hết lượt địch là chiếm. Thêm giáp, nhìn xa.","A leader on it with no enemy next to it takes it after the enemy turn. More armor, sees far."
+SITE_PASS_FORT_DESC,"Tướng đứng trên, không địch kề bên tới hết lượt địch là chiếm. Thêm giáp, nhìn xa; bên giữ được viện binh một lần.","A leader on it with no enemy next to it takes it after the enemy turn. More armor, sees far; its holder gets reinforcements once."
 SITE_KEEP,Thành trì,Keep
 SITE_KEEP_DESC,"Tướng đứng trên, không địch kề bên tới hết lượt là chiếm. Thêm giáp, nhìn xa.","A leader on it with no enemy next to it takes it after a turn. More armor, sees far."
 SITE_WATCHTOWER,Vọng lâu,Watchtower

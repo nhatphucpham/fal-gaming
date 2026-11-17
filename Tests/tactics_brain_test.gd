@@ -619,10 +619,11 @@ func _march_and_strike(battle: TacticsBattle, leader: int) -> void:
 
 
 # An enemy stands next to `unit` (one that `before` puts on the same cell
-# when given: an enemy pushed there afterwards is not the soldier's doing).
+# when given: an enemy pushed there or arriving afterwards, as a
+# reinforcement, is not the soldier's doing).
 static func _next_to_enemy(units: Array, unit: Dictionary, before: Array = []) -> bool:
 	for other: Dictionary in units:
-		var has_stayed: bool = before.is_empty() or before[other["index"]]["cell"] == other["cell"]
+		var has_stayed: bool = before.is_empty() or (other["index"] < before.size() and before[other["index"]]["cell"] == other["cell"])
 		if other["alive"] and other["side"] != unit["side"] and _distance(other["cell"], unit["cell"]) == 1 and has_stayed:
 			return true
 	return false
@@ -630,6 +631,8 @@ static func _next_to_enemy(units: Array, unit: Dictionary, before: Array = []) -
 
 static func _ranged_kept_clear(before: Array, after: Array, where: String) -> bool:
 	for unit: Dictionary in after:
+		if unit["index"] >= before.size():
+			continue
 		var was: Dictionary = before[unit["index"]]
 		if unit["role"] != &"soldier" or not unit["alive"] or not (unit["is_ranged"] or int(unit["max_range"]) > 1) or unit["cell"] == was["cell"]:
 			continue

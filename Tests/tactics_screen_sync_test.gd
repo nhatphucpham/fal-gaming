@@ -16,7 +16,8 @@ extends SceneTree
 # five scenarios in turn: the sites shown are those our side knows, a site
 # choice or recruit button is enabled only when the battle takes it, the
 # objective line names the objective, the exits and the convoy's path are
-# the battle's, and units arriving mid-battle get their pieces.
+# the battle's, and units arriving mid-battle get their pieces. Marches
+# sometimes head for the objective, so strongholds are taken too.
 
 const SCENARIO_PATHS: Array[String] = [
 	"res://Data/Tactics/Scenarios/river_crossing.tres", "res://Data/Tactics/Scenarios/night_raid.tres",
@@ -167,6 +168,11 @@ func _random_tap() -> String:
 			var reachable: Array = _screen.get_map().get_marks().get("reachable", [])
 			if not reachable.is_empty() and _rng.randf() < 0.5:
 				var cell := _nearest_to_enemy(reachable)
+				# Now and then toward the objective instead (a stronghold
+				# to take, an exit), so captures and breakouts come too.
+				var goal: Vector2i = _battle().get_objective_state().get("cell", Vector2i(-1, -1))
+				if goal.x >= 0 and _rng.randf() < 0.4:
+					cell = _nearest_to(reachable, goal)
 				_screen.tap_cell(cell)
 				return "march leader %d to %s" % [leader, cell]
 			return "tap leader %d" % leader
@@ -224,6 +230,14 @@ func _living_leaders(side: int) -> Array[int]:
 
 
 # The cell of `cells` nearest to any living enemy.
+func _nearest_to(cells: Array, goal: Vector2i) -> Vector2i:
+	var best: Vector2i = cells[0]
+	for cell: Vector2i in cells:
+		if absi(goal.x - cell.x) + absi(goal.y - cell.y) < absi(goal.x - best.x) + absi(goal.y - best.y):
+			best = cell
+	return best
+
+
 func _nearest_to_enemy(cells: Array) -> Vector2i:
 	var best: Vector2i = cells[0]
 	var best_distance := 1 << 30

@@ -35,7 +35,7 @@ kind = &"objective_kind.break_siege"
 rounds = 10
 count = 2
 required_leader = 0
-exit_cells = Array[Vector2i]([Vector2i(4, 0), Vector2i(5, 0), Vector2i(6, 0), Vector2i(7, 0), Vector2i(11, 9), Vector2i(11, 10)])
+exit_cells = Array[Vector2i]([Vector2i(4, 0), Vector2i(5, 0), Vector2i(6, 0), Vector2i(7, 0), Vector2i(4, 15), Vector2i(5, 15), Vector2i(6, 15), Vector2i(7, 15)])
 goals = Array[TacticsGoalData]([SubResource("goal_0"), SubResource("goal_1")])
 
 [resource]
@@ -44,7 +44,7 @@ name_key = "SCENARIO_BROKEN_RING"
 rules = ExtResource("rules")
 map = ExtResource("map")
 leaders_a = Array[TacticsLeaderData]([ExtResource("leader_lac_hong"), ExtResource("leader_moon_spear"), ExtResource("leader_lieu_mi")])
-leaders_b = Array[TacticsLeaderData]([ExtResource("leader_ba_khac"), ExtResource("leader_thiet_nha"), ExtResource("leader_lang_vuong"), ExtResource("leader_ho_bao")])
+leaders_b = Array[TacticsLeaderData]([ExtResource("leader_ba_khac"), ExtResource("leader_thiet_nha"), ExtResource("leader_lang_vuong")])
 fog_of_war = true
 weather = ExtResource("weather_fog")
 daytimes = Array[TacticsDaytimeData]([ExtResource("daytime_dusk"), ExtResource("daytime_night")])
