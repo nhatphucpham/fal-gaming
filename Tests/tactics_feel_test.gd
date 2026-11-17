@@ -61,7 +61,7 @@ func _run() -> bool:
 	if not ClassDB.class_exists("TacticsBattle"):
 		push_error("TacticsBattle is missing: build the GDExtension (scons) before importing")
 		return false
-	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_fog_redraws, _check_night_objective, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_corner_buttons, _check_auto_end, _check_tap_count, _check_text_fits, _check_floats, _check_hidden_steps]
+	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_fog_redraws, _check_night_objective, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_corner_buttons, _check_auto_end, _check_tap_count, _check_text_fits, _check_site_text, _check_floats, _check_hidden_steps]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Tactics feel test failed in %s" % check.get_method())
@@ -614,6 +614,52 @@ func _check_text_fits() -> bool:
 			if shown.size() < 2 or shown[1] != lines[1]:
 				return _fail("the wavering line shows whole: %s" % lines[1])
 	return await _check_labels()
+
+
+# The site choices, a recruit's pick and the objective card's buttons fit
+# whole in a row of four: first a village's choices on the supply road
+# opened by its button, then every site's row and the cart's.
+func _check_site_text() -> bool:
+	await _open(true, "res://Data/Tactics/Scenarios/supply_road.tres")
+	var opened := false
+	for unit: Dictionary in _battle().get_units():
+		if opened or unit["side"] != 0 or unit["role"] != &"leader":
+			continue
+		for site: Dictionary in _battle().get_sites(0):
+			if opened or site["kind"] != &"site_kind.village":
+				continue
+			for cell: Vector2i in _battle().get_reachable_cells(unit["index"]):
+				if absi(cell.x - site["cell"].x) + absi(cell.y - site["cell"].y) > int(site["reach_cells"]):
+					continue
+				_screen.select_unit(unit["index"])
+				_screen.move_to(cell)
+				await _wait_idle()
+				_screen.press_button(&"site")
+				await process_frame
+				opened = _screen.get_shown_site() >= 0
+				if opened:
+					break
+				_screen.undo()
+				await _wait_idle()
+	if not opened:
+		return _fail("a leader on the supply road reaches the village and opens its choices")
+	if not await _check_labels():
+		return false
+	var rows: Array = [["site_heal", "SITE_CHOICE_HEAL", "site_recruit", "SITE_CHOICE_RECRUIT", "site_loot", "SITE_CHOICE_LOOT"],
+		["site_charge", "SITE_CHOICE_CHARGE", "site_calm", "SITE_CHOICE_CALM", "site_bless", "SITE_CHOICE_BLESS"],
+		["site_capture", "SITE_CHOICE_CAPTURE"], ["recruit_0", "TROOP_MILITIA", "recruit_1", "TROOP_HUNTER"],
+		["convoy_hold", "BUTTON_CONVOY_HOLD"], ["convoy_go", "BUTTON_CONVOY_GO"]]
+	for row: Array in rows:
+		var buttons: Array[Dictionary] = []
+		for index: int in range(0, row.size(), 2):
+			buttons.append({"action": StringName(row[index]), "text": row[index + 1]})
+		buttons.append({"action": &"cancel" if not String(row[0]).begins_with("convoy") else &"end_turn", "text": "BUTTON_CANCEL" if not String(row[0]).begins_with("convoy") else "BUTTON_END_TURN", "primary": String(row[0]).begins_with("convoy")})
+		_screen.get_panel().set_buttons(buttons)
+		await process_frame
+		await process_frame
+		if not await _check_labels():
+			return false
+	return true
 
 
 func _hint_label() -> Label:
