@@ -123,8 +123,13 @@ Taps (the flow a phone player uses):
   "Đã Chờ: xong lượt." once it waited.
 - Tap a blue cell: the leader moves at once with its squad. While it has
   points left it stays selected with the blue cells it can still reach,
-  and the hint says "Đi tiếp ô xanh, đánh địch viền đỏ, xong thì Chờ.";
-  with none left, "Hết điểm đi: chạm địch, Hoàn tác hoặc Chờ.". It may
+  and the hint says "Đi tiếp ô xanh, đánh địch viền đỏ, xong thì Chờ."
+  (with no enemy in reach "Chưa với tới địch: chạm ô xanh, xong thì
+  Chờ.", after its attack "Đã đánh: đi tiếp ô xanh, hoặc Chờ."); with
+  none left, "Hết điểm đi: chạm địch, Hoàn tác hoặc Chờ." (with no
+  enemy in reach "Hết điểm đi, chưa với tới địch: Hoàn tác hoặc Chờ.";
+  with only its
+  skill left, "Còn Kỹ năng: bấm Kỹ năng hoặc Chờ."). It may
   attack before or after moving, cast its skill as well, and change its
   order any number of times until it waits. "Hoàn tác" takes back one
   move at a time: `TacticsBattle.undo_move()` restores the exact state
@@ -156,6 +161,14 @@ Taps (the flow a phone player uses):
   points is not done, even with no enemy near. When all of ours are done, the hint
   says "Tự kết lượt…" and the phase ends after 1 s (1.8 s while the last
   move can be undone); any tap holds it, and "Kết lượt" is always there.
+  Only Chờ closes a leader, but a leader that acted this phase (moved,
+  struck or cast) and has no strike and no skill left has only walks:
+  once every leader of ours is done or in that state (never at the start
+  of a phase, even with no enemy in reach), "Kết lượt" turns primary and the hint says "Hết đòn để đánh: đi
+  tiếp, hay Kết lượt.", so one tap ends the phase instead of a Chờ per
+  leader. "Kết lượt" asks nothing; the open leaders' squads strike as at
+  any end of phase. The phase does not end by itself then: a walk may
+  still matter.
 - Tap any unit for its card: hp, a leader's skill and charge, its order
   (an enemy leader's declared intent instead), and its passives and
   keywords with what they do ("Vũ khí dài: Bị áp sát thì ra đòn trước.").
@@ -167,9 +180,10 @@ with a bad incident, one line slides up in a
 gold-edged box just above the panel with the text-blip sound, stays 4.5 s
 and fades ("Tướng đi đâu, toán binh dàn quanh đó.", "Còn điểm thì đi
 tiếp. Xong thì bấm Chờ.", "Đi nhầm? Hoàn tác lùi từng bước
-tới khi đánh hay đổi lệnh.", "Đổi lệnh không mất lượt: tướng vẫn đi,
-đánh được.", "Dấu ! đỏ: binh sắp làm loạn, đưa tướng lại sát nó."; the
-`TACTICS_TIP_*` rows). A tip that comes while another shows waits for it.
+tới khi đánh, đổi lệnh hay thấy địch.", "Đổi lệnh không mất lượt: tướng vẫn đi,
+đánh được.", "Dấu ! đỏ: binh sắp gây chuyện. Đưa tướng lại gần nó.", or
+for a soldier out of its leader's sight "Binh khuất mắt tướng chỉ yên
+khi tướng thấy nó: đưa tướng tới."; the `TACTICS_TIP_*` rows). A tip that comes while another shows waits for it.
 Each is saved as shown (`RunSettings.save_seen_tip("tactics.<id>")`) and
 never offered again. Tips never catch taps.
 
@@ -188,7 +202,68 @@ to the first one.
 
 Campaign flow: muster (roster soldiers fill the squads; named soldiers are
 extra leaders of ours, returning traitors extra enemy leaders) → battle →
-summary (also after a retreat) → "Tiếp tục" back to the muster.
+summary (also after a retreat) → "Tiếp tục" back to the muster. The
+campaign takes the catalog's scenarios in turn, one per battle fought:
+the river crossing, then the night raid, then the river again.
+
+Fog, weather and night (see [Tactics vision](tactics_vision.md)):
+
+- One `TextureRect` over the terrain and under the zones and marks holds an
+  `ImageTexture` of one pixel a cell, drawn with linear filtering so the
+  edges are soft: never-seen cells near black, seen ones dimmed, visible
+  ones clear; at dusk and night the visible cells take the night tint
+  (`darkness_pct`) except the lit ones, which glow warm. A change blends
+  the old colours to the new (one write a frame of only the cells that
+  change, `fog_change_count` blends) with the soft `fog_reveal` sound;
+  nothing is written while nothing changes. No shader, no node per cell.
+  A walk's sight changes (the leader's and each soldier's, which the
+  battle sends between the steps) are folded into the walk: the squad
+  still steps with its leader, the fog blends once over the walk's own
+  time (at least 0.15 s), and enemies spotted show after it; alone (a
+  death, a flight) a change blends over 0.25 s. So a walk under fog draws
+  about as many frames as one without: on the web build (Chromium,
+  iPhone 13, software GL, where every drawn frame costs about 100 ms) a
+  river walk went from 11-13 drawn frames (22.1-23.3 ms average, p95
+  100 ms) to 5-9 (19.2-21.2 ms, p95 16.8 ms on three of four walks); an
+  idle map still draws nothing.
+- Hidden enemies have no piece shown; one seen walking out of sight fades
+  at the end of its walk, and a hidden enemy's move plays at once. A
+  "last seen" ghost (a dimmed token with "?") stands where the battle
+  remembers each enemy; it goes when that enemy is seen again or its cell
+  is seen empty. A hidden enemy's own steps (its charge, buffs, passives,
+  order, wait, wavering, incident, mark, a hit or its death:
+  `TacticsPlayback.PRIVATE_STEPS`) play no sound, ring, word or pause;
+  they only set its hidden piece. One that defects to us fades in.
+- An ambush: the hidden enemy bursts into sight with a ring and "Phục
+  kích!", the walker shakes, sound `ambush`; the camera follows.
+- The objective (gold frame and flag) is drawn over the fog and the
+  night, and its cell is never darker than a cell seen before: it is
+  known from the map. While it is out of view a gold flag mark on the
+  edge of the map view points at it (`get_edge_marks()` entries with
+  `is_objective`), so at the night raid's dark start you know which way
+  to go. Edge marks keep their pointer inside the view, clear of the top
+  bar.
+- A wavering soldier of ours out of view gets a mark on the edge of the
+  map view pointing at it; its card says when it is out of its leader's
+  sight ("Ngoài tầm mắt tướng: dễ dao động, chưa trấn an được"; never on
+  an enemy's card). One that wavers only because it is out of sight
+  (`is_wavering_unseen`) gives that reason and cure on its wavering line
+  ("khuất mắt tướng; cho tướng thấy nó") instead of its incident's own;
+  while a bad wavering soldier is out of its leader's sight (or wavers
+  for it) the hint says "Binh khuất mắt dao động: cho tướng thấy nó." and
+  the first time it offers the tip `waver_unseen` instead of `waver`
+  (which names no incident: "binh sắp gây chuyện").
+- The weather and time chip (top left of the map, 132 x 88, clear of
+  the whole-map button at the top right): their icons;
+  a tap shows both descriptions, the coming weather change and the fog
+  line on the panel. A round before the weather turns, a banner says so;
+  each change of weather or time plays a banner with its one-line
+  description (wrapped onto a taller band when it does not fit) and the
+  `weather_turn` sound.
+- The first battle with fog offers the fog tip ("Ô tối: chưa thấy...").
+- Muster: a "Trời đất" panel under our forces with the weather and time
+  icons and lines, the weather change, the time cycle, the fog line and
+  the scouts we bring; scouts carry an eye badge on their chips.
 
 ## Public API
 
@@ -274,7 +349,7 @@ no longer fit are left out from the last one up, never cut),
 `show_forecast(left, right, note)`, `show_order_row(current, text,
 enabled)`, `hide_order_row()`, `is_order_row_shown()`,
 `get_current_order()`, `get_order_note()`, `set_buttons([{action, text,
-enabled, primary}])`, `get_buttons()`, `get_order_buttons()`; signals
+enabled, primary}])`, `get_buttons()` (the same keys plus `button`), `get_order_buttons()`; signals
 `action_pressed(action)`, `order_chosen(order)`. Order buttons are 88 px
 tall, action buttons 92 px (44 and 46 px on a 360-px-wide phone); no text
 on the screen is under `GameTheme.SMALL_FONT_SIZE` (22 layout px, 11 px on
@@ -343,7 +418,11 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   ghosts, the forecast against the battle), skills aimed, previewed and
   cast (the preview's damage checked against the cast), the hint of each
   step, and a scripted policy that wins; it counts close-ups and presses
-  the result's button. The first select, move and order change each offer
+  the result's button. Before each "Kết lượt" of that policy, the button
+  is primary exactly when every leader is done or acted and has no strike
+  and no skill left, with the hint saying so (some phase must end that
+  way; not the first phase before any move), and
+  a leader that struck with points left says so in the hint. The first select, move and order change each offer
   their tip once, the shown one with its text, and a new tip view never
   shows a saved tip again.
 - `Tests/tactics_feel_test.gd`: the default zoom (a cell at least 88
@@ -358,7 +437,8 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   wavering line too), no label is clipped by its panel, no text is under
   the small font size and every button is at least 88 px tall; a float
   at the corner of a zoomed view is drawn inside it, and one asked for
-  at 18 px is drawn at the small font size.
+  at 18 px is drawn at the small font size; a hidden enemy's incident,
+  wait and hit play no step and add no effect, a seen one's do.
 - `Tests/tactics_screen_sync_test.gd`: random taps (cells, leaders and
   marches toward the enemy, drags,
   enabled buttons with undo, the order row) on six seeds in instant mode,

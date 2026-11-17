@@ -11,6 +11,10 @@ tactics::TerrainDef TacticsTerrainData::to_terrain_def() const {
 	def.damage_taken_pct = damage_taken_pct;
 	def.ranged_damage_taken_pct = ranged_damage_taken_pct;
 	def.ranged_range_bonus = ranged_range_bonus;
+	def.vision_bonus = vision_bonus;
+	def.sight_block = sight_block;
+	def.hides_units = hides_units;
+	def.light_cells = light_cells;
 	return def;
 }
 
@@ -23,6 +27,10 @@ void TacticsTerrainData::_bind_methods() {
 	BATTLE_BIND_ACCESSORS(TacticsTerrainData, damage_taken_pct);
 	BATTLE_BIND_ACCESSORS(TacticsTerrainData, ranged_damage_taken_pct);
 	BATTLE_BIND_ACCESSORS(TacticsTerrainData, ranged_range_bonus);
+	BATTLE_BIND_ACCESSORS(TacticsTerrainData, vision_bonus);
+	BATTLE_BIND_ACCESSORS(TacticsTerrainData, sight_block);
+	BATTLE_BIND_ACCESSORS(TacticsTerrainData, hides_units);
+	BATTLE_BIND_ACCESSORS(TacticsTerrainData, light_cells);
 
 	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "id"), "set_id", "get_id");
 	ADD_PROPERTY(PropertyInfo(Variant::STRING, "name_key"), "set_name_key", "get_name_key");
@@ -32,4 +40,8 @@ void TacticsTerrainData::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "damage_taken_pct", PROPERTY_HINT_RANGE, "-100,100,1"), "set_damage_taken_pct", "get_damage_taken_pct");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "ranged_damage_taken_pct", PROPERTY_HINT_RANGE, "-100,100,1"), "set_ranged_damage_taken_pct", "get_ranged_damage_taken_pct");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "ranged_range_bonus", PROPERTY_HINT_RANGE, "0,12,1"), "set_ranged_range_bonus", "get_ranged_range_bonus");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "vision_bonus", PROPERTY_HINT_RANGE, "-8,8,1"), "set_vision_bonus", "get_vision_bonus");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "sight_block", PROPERTY_HINT_RANGE, "0,16,1"), "set_sight_block", "get_sight_block");
+	ADD_PROPERTY(PropertyInfo(Variant::BOOL, "hides_units"), "set_hides_units", "get_hides_units");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "light_cells", PROPERTY_HINT_RANGE, "0,8,1"), "set_light_cells", "get_light_cells");
 }

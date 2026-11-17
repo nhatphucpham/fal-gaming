@@ -78,7 +78,7 @@ bool TacticsBattle::load_scenario_with_squads(const Ref<TacticsScenarioData> &p_
 				clear_setup();
 				ERR_FAIL_V_MSG(false, vformat("Tactics: %s side %d leader %d has no leader data or a squad that is not an Array", p_scenario->get_id(), side, index));
 			}
-			const Array squad = is_overridden ? Array(p_squads[index]) : Array(leader->get_squad());
+			const Array squad = is_overridden ? Array(p_squads[index]) : Array(p_scenario->get_squad(side, index));
 			if (add_leader_with_squad(side, leader, spawns[index], squad) < 0) {
 				clear_setup();
 				return false;
@@ -88,6 +88,10 @@ bool TacticsBattle::load_scenario_with_squads(const Ref<TacticsScenarioData> &p_
 			clear_setup();
 			ERR_FAIL_V_MSG(false, vformat("Tactics: %s side %d has more leaders than spawn cells", p_scenario->get_id(), side));
 		}
+	}
+	if (!set_environment(p_scenario)) {
+		clear_setup();
+		return false;
 	}
 	return true;
 }
@@ -334,6 +338,17 @@ void TacticsBattle::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_incident_seeds"), &TacticsBattle::get_incident_seeds);
 	ClassDB::bind_method(D_METHOD("get_karma", "side"), &TacticsBattle::get_karma);
 	ClassDB::bind_method(D_METHOD("get_battle_report"), &TacticsBattle::get_battle_report);
+	ClassDB::bind_method(D_METHOD("set_environment", "scenario"), &TacticsBattle::set_environment);
+	ClassDB::bind_method(D_METHOD("has_fog_of_war"), &TacticsBattle::has_fog_of_war);
+	ClassDB::bind_method(D_METHOD("get_fog_cells", "side"), &TacticsBattle::get_fog_cells);
+	ClassDB::bind_method(D_METHOD("is_cell_visible", "side", "cell"), &TacticsBattle::is_cell_visible);
+	ClassDB::bind_method(D_METHOD("is_unit_seen", "side", "unit"), &TacticsBattle::is_unit_seen);
+	ClassDB::bind_method(D_METHOD("get_last_seen", "side"), &TacticsBattle::get_last_seen);
+	ClassDB::bind_method(D_METHOD("get_lit_cells"), &TacticsBattle::get_lit_cells);
+	ClassDB::bind_method(D_METHOD("is_intent_known", "side", "leader"), &TacticsBattle::is_intent_known);
+	ClassDB::bind_method(D_METHOD("get_weather_id", "round"), &TacticsBattle::get_weather_id);
+	ClassDB::bind_method(D_METHOD("get_daytime_id", "round"), &TacticsBattle::get_daytime_id);
+	ClassDB::bind_method(D_METHOD("get_weather_change_round"), &TacticsBattle::get_weather_change_round);
 	ClassDB::bind_method(D_METHOD("set_log_enabled", "enabled"), &TacticsBattle::set_log_enabled);
 	ClassDB::bind_method(D_METHOD("is_log_enabled"), &TacticsBattle::is_log_enabled);
 

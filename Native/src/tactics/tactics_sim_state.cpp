@@ -217,6 +217,7 @@ void TacticsSim::handle_death(int p_unit, int p_killer, int p_cause) {
 	event.from = unit.cell;
 	event.cause = p_cause;
 	const int death_id = emit(event);
+	refresh_vision(death_id);
 	buffs.erase(std::remove_if(buffs.begin(), buffs.end(), [&](const BuffState &p_buff) { return p_buff.unit == p_unit; }), buffs.end());
 	intents.erase(std::remove_if(intents.begin(), intents.end(), [&](const Intent &p_intent) { return p_intent.leader == p_unit; }), intents.end());
 	if (!is_leader(p_unit) && unit.leader != NO_UNIT && units[unit.leader].is_alive) {
@@ -250,6 +251,8 @@ int TacticsSim::relocate_unit(int p_unit, const std::vector<Cell> &p_path, const
 		return 0;
 	}
 	const Cell from = unit.cell;
+	const int other_side = 1 - unit.side;
+	const bool is_seen_from = is_unit_seen_by(other_side, p_unit);
 	occupants[get_cell_index(from)] = NO_UNIT;
 	unit.cell = p_path.back();
 	occupants[get_cell_index(unit.cell)] = p_unit;
@@ -261,7 +264,13 @@ int TacticsSim::relocate_unit(int p_unit, const std::vector<Cell> &p_path, const
 	event.cells = p_path;
 	event.kind = p_kind;
 	event.cause = p_cause;
+	event.value = is_seen_from ? 1 : 0;
 	const int move_id = emit(event);
+	const size_t move_slot = events.size() - 1;
+	refresh_vision(move_id);
+	// Bit 1: the other side sees it where it stopped (the playback hides
+	// what the player does not see).
+	events[move_slot].value |= is_unit_seen_by(other_side, p_unit) ? 2 : 0;
 	if (is_leader(p_unit)) {
 		trigger_skill_charge(*this, p_unit, ChargeTrigger::DISPLACED, 0, move_id);
 	}
@@ -281,6 +290,17 @@ void TacticsSim::add_zone(ZoneState p_zone, int p_duration_rounds, int p_cause) 
 	event.end_round = p_zone.end_round;
 	event.cause = p_cause;
 	emit(event);
+}
+
+void TacticsSim::remove_zone(int p_index, int p_cause) {
+	Event event;
+	event.type = EventType::ZONE_EXPIRED;
+	event.content_id = zones[p_index].def.id;
+	event.cells = zones[p_index].cells;
+	event.unit = zones[p_index].source;
+	event.cause = p_cause;
+	emit(event);
+	zones.erase(zones.begin() + p_index);
 }
 
 void TacticsSim::add_buff(BuffState p_buff, int p_duration_rounds, int p_cause) {

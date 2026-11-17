@@ -10,6 +10,7 @@
 #include <godot_cpp/classes/node.hpp>
 #include <godot_cpp/variant/array.hpp>
 #include <godot_cpp/variant/dictionary.hpp>
+#include <godot_cpp/variant/packed_byte_array.hpp>
 #include <godot_cpp/variant/vector2i.hpp>
 
 namespace godot {
@@ -72,6 +73,10 @@ public:
 	void set_karma(int64_t p_side, int64_t p_bait, int64_t p_rescue);
 	bool set_unit_record(int64_t p_unit, int64_t p_record_id, int64_t p_good_marks, int64_t p_bad_marks);
 	bool set_incident_seed(int64_t p_unit, const StringName &p_incident);
+	// Fog of war, weather and times of day (tactics_battle_vision.cpp):
+	// load_scenario() applies the scenario's; this applies another
+	// scenario's environment after setup(), before start().
+	bool set_environment(const Ref<TacticsScenarioData> &p_scenario);
 	Array start();
 
 	// Commands of the active side: each returns its events (empty with an
@@ -134,6 +139,23 @@ public:
 	// then), `squad` the soldiers' new cells; is_valid false too when the
 	// leader may not attack or move there.
 	Dictionary forecast_move_attack(int64_t p_unit, const Vector2i &p_cell, int64_t p_target) const;
+	// Vision (Docs/systems/tactics_vision.md); with fog off everything is
+	// visible. Fog cells: one byte per cell, row-major: 0 never seen, 1 seen
+	// before, 2 visible now.
+	bool has_fog_of_war() const { return sim.has_fog_of_war(); }
+	PackedByteArray get_fog_cells(int64_t p_side) const;
+	bool is_cell_visible(int64_t p_side, const Vector2i &p_cell) const;
+	bool is_unit_seen(int64_t p_side, int64_t p_unit) const;
+	// Enemies p_side remembers but does not see: {unit, cell} each.
+	Array get_last_seen(int64_t p_side) const;
+	// Cells lit now (1) for the night, row-major.
+	PackedByteArray get_lit_cells() const;
+	bool is_intent_known(int64_t p_side, int64_t p_leader) const;
+	// The weather and time of day of a round (the current one: get_round()).
+	StringName get_weather_id(int64_t p_round) const;
+	StringName get_daytime_id(int64_t p_round) const;
+	// The round the weather changes, 0 when it does not.
+	int get_weather_change_round() const;
 	// Tests and tools only: the hidden seeds; the screen never shows them.
 	Array get_incident_seeds() const;
 	Dictionary get_karma(int64_t p_side) const;

@@ -1,0 +1,18 @@
+[gd_resource type="TacticsWeatherData" format=3]
+
+[ext_resource type="Texture2D" path="res://Assets/Tactics/Icons/wind.svg" id="icon"]
+
+[resource]
+id = &"weather.wind"
+name_key = "WEATHER_WIND"
+description_key = "WEATHER_WIND_DESC"
+icon = ExtResource("icon")
+vision_delta = 0
+ranged_range_delta = 0
+burn_pct = 100
+cost_terrain_ids = Array[StringName]([])
+cost_delta = 0
+hides_intents = false
+wind = Vector2i(1, 0)
+wind_range_delta = 1
+waver_pct = 0

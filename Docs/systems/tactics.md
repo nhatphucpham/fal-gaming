@@ -123,7 +123,7 @@ start of their phase); each handler states which side it affects. Samples: `zone
 | --- | --- | --- |
 | `passive.stat_bonus` | `stat`, `amount`, `condition_terrain_id`, `condition_adjacent_allies` (both must hold when both are set) | `iron_will` (armor +15 on a fort), `pack_fury` (+20% attack with 2 adjacent allies), `forest_ambush` (+20% attack in a forest) |
 | `passive.squad_bonus` | `stat`, `amount`, `keyword`, `extra_capacity` | `drilled_ranks` (soldiers +10% attack, cover, capacity +1) |
-| `passive.trail_zone` | `zone`, `radius_cells`, `duration_rounds` | `wind_trail` (wind, radius 1, 1 round, where the leader stops) |
+| `passive.trail_zone` | `zone`, `radius_cells`, `duration_rounds` | `wind_trail` (wind, radius 1, 1 round, where the leader stops; one a phase: a later move of the same phase takes the zone along, so hops never stack wards) |
 | `passive.pull_strike` | `amount` | `hook_spear` (pulls the target 1 cell after the leader's own attack, not after counters) |
 | `passive.skill_growth` | `amount` | `warlord_growth` (skill area +1 per enemy leader killed) |
 
@@ -166,7 +166,14 @@ Keyword `amount` is 0..1000 and `min_cells` 0..20.
 `facing_a`/`_b` (initial heading), `guard_cells` (posts the side defending
 the objective holds; on the map, checked on load). `TacticsScenarioData`
 (`Data/Tactics/Scenarios/`): `rules`, `map`, `leaders_a`, `leaders_b`
-placed on the spawn cells in order. Sample: `scenario.river_crossing`.
+placed on the spawn cells in order (side A with the scenario's
+`supplied_troops` when it gives them), and the environment: fog of war,
+weather and times of day (see [Tactics vision](tactics_vision.md)).
+Scenarios: `scenario.river_crossing` (clear day, fog of war on; three enemy
+leaders, Lang Vương the third) and `scenario.night_raid` (woods and a ford
+to a lit camp; night from round 1, dusk from round 5, day from round 9; fog
+turning to rain in round 5; three kite scouts among its supplied
+soldiers).
 
 ## Rules
 
@@ -339,6 +346,10 @@ use the same rules. All numbers are in `TacticsRulesData` (above).
   lower index. It never takes a fight that kills it without killing,
   except under `vanguard`, which risks its soldiers.
 
+Since fog of war (milestone 4) the probe plays by sight and takes
+`--scenario=`; see [Tactics vision](tactics_vision.md), Balance, for the
+current numbers. The numbers below are from before it.
+
 The probe `Tools/tactics_brain_probe.gd` plays seeded river crossings
 (side A scripted with random squads and orders: each leader walks to the
 nearest enemy leader and strikes the weakest enemy in reach; incidents
@@ -464,7 +475,7 @@ error.
 | `add_leader_with_squad(side, leader, cell, squad) -> int` | method | Same with another squad (up to capacity) |
 | `start() -> Array` | method | Starts round 1, side A |
 | `move_leader(unit, cell)`, `attack(unit, target)`, `use_skill(unit, cell)`, `wait(unit)`, `set_order(unit, order)`, `end_phase()` | method | Commands for the active side; return events |
-| `undo_move(unit) -> bool`, `can_undo_move(unit)` | method | Takes back the leader's moves in a human phase one at a time, newest first: each undo returns the battle to the exact state (and hash) before that move, points left included, and sends no event. The moves of one leader stack; a move by another leader starts a new stack (undoing that move brings the first leader's stack back). Undo is blocked (the stack is cleared) by: a move whose events are anything but `unit_moved` or `skill_charge_changed` (a squad or passive strike, a zone, a rescue, an incident, the objective or the end); an attack, a skill, a wait, an order change, or `end_phase()`. A refused command changes nothing. The screen animates the pieces back itself |
+| `undo_move(unit) -> bool`, `can_undo_move(unit)` | method | Takes back the leader's moves in a human phase one at a time, newest first: each undo returns the battle to the exact state (and hash) before that move, points left included, and sends no event. The moves of one leader stack; a move by another leader starts a new stack (undoing that move brings the first leader's stack back). Undo is blocked (the stack is cleared) by: a move whose events are anything but `unit_moved`, `skill_charge_changed` or `vision_changed`, or after which its side knows more of the enemy ([Tactics vision](tactics_vision.md), Undo) (a squad or passive strike, a zone, a rescue, an incident, the objective or the end); an attack, a skill, a wait, an order change, or `end_phase()`. A refused command changes nothing. The screen animates the pieces back itself |
 | `get_strike_targets(unit)` | method | Enemies the leader could attack this phase from a cell it can still reach with its points left (its own cell when it cannot move); empty once it attacked or closed |
 | `get_strike_cell(unit, target) -> Vector2i` | method | Where the leader should strike `target` from: its own cell when it cannot move, else the cell in range it can reach with its points left that does not get it killed, then the fewest enemies able to reach the cell, the least counter damage, the better terrain, the shortest walk, the lower cell index; (-1, -1) when none |
 | `forecast_move_attack(unit, cell, target) -> Dictionary` | method | `forecast_engagement` after the leader moved to `cell` (its own cell: no move) and its squad stepped, on a copy: the same keys plus `cell`, `squad` (`[{unit, cell}]`) and `target_gone` (the squad's step already killed it); `is_valid` false without an error when the move would be refused or the leader already attacked. The squad strikes after the leader, so the result is the leader's own engagement |
@@ -603,7 +614,7 @@ commands) and
 `Tests/tactics_squad_test.gd` (orders, anticipation, slots of a dead
 leader, the five charge mechanisms, skills and zones, the AI casting a
 skill on an enemy and on its own side and a focus skill without moving,
-the five passive kinds, the side a zone affects, side B durations and
+the five passive kinds, one trail zone a phase however often the leader moves, the side a zone affects, side B durations and
 event causes) and `Tests/tactics_fuzz_test.gd` (random maps, leaders
 and commands, legal and not, on 24 seeds: queries and refused commands
 leave the hash unchanged, a command is accepted exactly when its query

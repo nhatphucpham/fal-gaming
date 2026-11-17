@@ -20,6 +20,8 @@ const TIPS: Dictionary = {
 	&"undo": "TACTICS_TIP_UNDO",
 	&"order": "TACTICS_TIP_ORDER",
 	&"waver": "TACTICS_TIP_WAVER",
+	&"waver_unseen": "TACTICS_TIP_WAVER_UNSEEN",
+	&"fog": "TACTICS_TIP_FOG",
 }
 const SETTINGS_PREFIX: String = "tactics."
 const IN_SEC: float = 0.25

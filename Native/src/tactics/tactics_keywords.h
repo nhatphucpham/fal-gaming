@@ -58,6 +58,9 @@ struct KeywordHandler {
 	void (*modify_incoming_as_ally)(const KeywordDef &p_keyword, const HitContext &p_context, HitModifiers &r_mods);
 	// True: this defender's counter lands before the attacker's hits.
 	bool (*strikes_first)(const KeywordDef &p_keyword, AttackKind p_incoming);
+	// A scout sees hidden units within its vision and reads enemy intents
+	// within `amount` cells at night and in fog (tactics_vision.h).
+	bool is_scout = false;
 };
 
 // nullptr when the id is not registered.

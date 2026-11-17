@@ -20,6 +20,7 @@ attack_pct = 120
 min_range_cells = 1
 max_range_cells = 1
 move_points = 6
+vision_cells = 5
 keywords = Array[TacticsKeywordData]([ExtResource("kw_charge")])
 lead_capacity = 3
 passives = Array[TacticsPassiveData]([ExtResource("passive_warlord_growth"), ExtResource("passive_pack_fury")])

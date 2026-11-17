@@ -1,5 +1,6 @@
 #include "tactics_paths.h"
 
+#include "tactics_combat.h"
 #include "tactics_keywords.h"
 #include "tactics_sim.h"
 
@@ -14,34 +15,43 @@ namespace {
 using QueueEntry = std::pair<int, int>;
 using MinQueue = std::priority_queue<QueueEntry, std::vector<QueueEntry>, std::greater<QueueEntry>>;
 
-// Cost of stepping into p_cell, or UNREACHABLE when the unit cannot.
-int get_enter_cost(const TacticsSim &p_sim, const MoveProfile &p_profile, int p_side, const Cell &p_cell) {
-	if (!p_sim.is_on_map(p_cell)) {
-		return UNREACHABLE;
-	}
+// An enemy of p_side that p_side sees stands on p_cell. Walks are planned
+// around seen enemies only; an unseen one is an ambush (walk_unit).
+bool is_seen_enemy_at(const TacticsSim &p_sim, int p_side, const Cell &p_cell) {
 	const int occupant = p_sim.get_occupant(p_cell);
-	if (occupant != NO_UNIT && p_sim.get_units()[occupant].side != p_side) {
-		return UNREACHABLE;
-	}
-	const TerrainDef &terrain = p_sim.get_terrain(p_cell);
-	if (terrain.is_impassable && !p_profile.ignores_impassable) {
-		return UNREACHABLE;
-	}
+	return occupant != NO_UNIT && p_sim.get_units()[occupant].side != p_side && p_sim.is_unit_seen_by(p_side, occupant);
+}
+
+// The terrain's cost with the unit's keywords and the weather.
+int get_terrain_cost(const TacticsSim &p_sim, const MoveProfile &p_profile, const Cell &p_cell) {
 	if (p_profile.ignores_terrain_cost) {
 		return 1;
 	}
+	const TerrainDef &terrain = p_sim.get_terrain(p_cell);
 	const int terrain_index = p_sim.get_map().cell_terrain[p_sim.get_cell_index(p_cell)];
-	return terrain.move_cost + p_profile.extra_cost_by_terrain[terrain_index];
+	int cost = terrain.move_cost + p_profile.extra_cost_by_terrain[terrain_index];
+	const WeatherDef &weather = p_sim.get_weather();
+	for (const std::string &id : weather.cost_terrain_ids) {
+		cost += id == terrain.id ? weather.cost_delta : 0;
+	}
+	return cost;
+}
+
+// Cost of stepping into p_cell, or UNREACHABLE when the unit cannot.
+int get_enter_cost(const TacticsSim &p_sim, const MoveProfile &p_profile, int p_side, const Cell &p_cell) {
+	if (!p_sim.is_on_map(p_cell) || is_seen_enemy_at(p_sim, p_side, p_cell)) {
+		return UNREACHABLE;
+	}
+	if (p_sim.get_terrain(p_cell).is_impassable && !p_profile.ignores_impassable) {
+		return UNREACHABLE;
+	}
+	return get_terrain_cost(p_sim, p_profile, p_cell);
 }
 
 bool is_next_to_enemy(const TacticsSim &p_sim, int p_side, const Cell &p_cell) {
 	for (const Cell &direction : DIRECTIONS) {
 		const Cell next = p_cell + direction;
-		if (!p_sim.is_on_map(next)) {
-			continue;
-		}
-		const int occupant = p_sim.get_occupant(next);
-		if (occupant != NO_UNIT && p_sim.get_units()[occupant].side != p_side) {
+		if (p_sim.is_on_map(next) && is_seen_enemy_at(p_sim, p_side, next)) {
 			return true;
 		}
 	}
@@ -157,6 +167,22 @@ std::vector<Cell> get_path(const TacticsSim &p_sim, const PathField &p_field, co
 	return std::vector<Cell>(reversed.rbegin(), reversed.rend());
 }
 
+int get_step_cost(const TacticsSim &p_sim, int p_unit, const Cell &p_cell) {
+	return get_terrain_cost(p_sim, build_move_profile(p_sim, p_unit), p_cell);
+}
+
+bool can_plan_stop_at(const TacticsSim &p_sim, int p_unit, const Cell &p_cell) {
+	if (!p_sim.is_on_map(p_cell)) {
+		return false;
+	}
+	const int occupant = p_sim.get_occupant(p_cell);
+	const int side = p_sim.get_units()[p_unit].side;
+	if (occupant != NO_UNIT && occupant != p_unit && (p_sim.get_units()[occupant].side == side || p_sim.is_unit_seen_by(side, occupant))) {
+		return false;
+	}
+	return !p_sim.get_terrain(p_cell).is_impassable || build_move_profile(p_sim, p_unit).ignores_impassable;
+}
+
 bool can_stop_at(const TacticsSim &p_sim, int p_unit, const Cell &p_cell) {
 	if (!p_sim.is_on_map(p_cell)) {
 		return false;
@@ -173,7 +199,7 @@ std::vector<Cell> get_reachable_cells(const TacticsSim &p_sim, int p_unit) {
 	std::vector<Cell> cells;
 	for (size_t index = 0; index < field.cost.size(); index++) {
 		const Cell cell = p_sim.get_cell_at(static_cast<int>(index));
-		if (field.cost[index] != UNREACHABLE && cell != field.origin && can_stop_at(p_sim, p_unit, cell)) {
+		if (field.cost[index] != UNREACHABLE && cell != field.origin && can_plan_stop_at(p_sim, p_unit, cell)) {
 			cells.push_back(cell);
 		}
 	}
@@ -203,7 +229,7 @@ Cell pick_reachable_cell(const TacticsSim &p_sim, int p_unit, const PathField &p
 	int best_cost = 0;
 	for (size_t index = 0; index < p_field.cost.size(); index++) {
 		const Cell cell = p_sim.get_cell_at(static_cast<int>(index));
-		if (p_field.cost[index] == UNREACHABLE || !can_stop_at(p_sim, p_unit, cell)) {
+		if (p_field.cost[index] == UNREACHABLE || !can_plan_stop_at(p_sim, p_unit, cell)) {
 			continue;
 		}
 		const int key = p_key(cell);
@@ -224,12 +250,10 @@ std::vector<Cell> get_attack_cells(const TacticsSim &p_sim, int p_unit, int p_ta
 	const int cell_count = p_sim.get_map().width * p_sim.get_map().height;
 	for (int index = 0; index < cell_count; index++) {
 		const Cell cell = p_sim.get_cell_at(index);
-		if (!can_stop_at(p_sim, p_unit, cell)) {
+		if (!can_plan_stop_at(p_sim, p_unit, cell)) {
 			continue;
 		}
-		const Stats stats = p_sim.get_stats_at(p_unit, cell);
-		const int distance = get_manhattan(cell, target_cell);
-		if (distance >= stats.min_range_cells && distance <= stats.max_range_cells) {
+		if (is_in_range_from(p_sim, p_unit, cell, target_cell)) {
 			cells.push_back(cell);
 		}
 	}

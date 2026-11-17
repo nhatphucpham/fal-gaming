@@ -67,7 +67,16 @@ int squad_bonus_capacity(const PassiveDef &p_passive) {
 
 // passive.trail_zone (environment): after each move the leader leaves its
 // zone on the cells within radius_cells (Manhattan) of where it stopped.
+// One trail a phase: a later move of the same phase takes the zone along,
+// so short hops never stack wards (Docs/systems/tactics.md, passives).
 void trail_zone_moved(TacticsSim &p_sim, int p_leader, const PassiveDef &p_passive, int p_cause) {
+	const int made_end_turn = p_sim.get_turn() + SIDE_COUNT * p_passive.duration_rounds;
+	for (int index = static_cast<int>(p_sim.get_zones().size()) - 1; index >= 0; index--) {
+		const ZoneState &earlier = p_sim.get_zones()[index];
+		if (earlier.source == p_leader && earlier.def.id == p_passive.zone.id && earlier.end_turn == made_end_turn) {
+			p_sim.remove_zone(index, p_cause);
+		}
+	}
 	const UnitState &leader = p_sim.get_units()[p_leader];
 	ZoneState zone;
 	zone.def = p_passive.zone;

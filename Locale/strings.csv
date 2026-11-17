@@ -329,6 +329,7 @@ LEADER_MOON_SPEAR,Nguyệt Thương,Moon Spear
 LEADER_LIEU_MI,Liễu Mi,Lieu Mi
 LEADER_BA_KHAC,Ba Khắc,Ba Khac
 LEADER_THIET_NHA,Thiết Nha,Thiet Nha
+LEADER_LANG_VUONG,Lang Vương,Lang Vuong
 TROOP_ARCHER,Binh cung,Archer
 TROOP_KITE_SCOUT,Diều trinh sát,Kite scout
 TROOP_RIDER,Kỵ binh,Rider
@@ -365,6 +366,26 @@ KEYWORD_COVER,Che chắn,Cover
 KEYWORD_COVER_DESC,Đồng đội đứng kề chịu đòn tầm xa ít hơn 30%.,Allies next to it take 30% less ranged damage.
 KEYWORD_FLYING,Bay,Flying
 KEYWORD_FLYING_DESC,"Bay qua mọi địa hình, không bị chặn đường.",Ignores terrain and zones of control.
+KEYWORD_SCOUT,Trinh sát,Scout
+KEYWORD_SCOUT_DESC,"Nhìn xa, thấy quân nấp trong rừng, đọc ý địch gần dù đêm hay sương.","Sees far, spots units hidden in forest, reads nearby enemy intents at night or in fog."
+WEATHER_CLEAR,Trời quang,Clear
+WEATHER_CLEAR_DESC,Trời quang: nhìn rõ như thường.,Clear: normal sight.
+WEATHER_RAIN,Mưa,Rain
+WEATHER_RAIN_DESC,"Mưa: tầm nhìn {vision}, tầm bắn {range}, lửa cháy còn {burn}%, lội sông tốn thêm {cost} bước.","Rain: sight {vision}, range {range}, fire burns at {burn}%, river crossings cost {cost} more."
+WEATHER_FOG,Sương mù,Fog
+WEATHER_FOG_DESC,"Sương mù: tầm nhìn {vision}, chỉ đọc được ý địch ở gần.","Fog: sight {vision}, enemy intents read only up close."
+WEATHER_WIND,Gió,Wind
+WEATHER_WIND_DESC,"Gió thổi {toward}: bắn {toward} xa thêm {wind}, bắn {against} kém {wind}.","Wind blowing {toward}: shots {toward} reach {wind} further, {against} {wind} less."
+TACTICS_TOWARD_RIGHT,sang phải,right
+TACTICS_TOWARD_LEFT,sang trái,left
+TACTICS_TOWARD_UP,lên trên,up
+TACTICS_TOWARD_DOWN,xuống dưới,down
+DAYTIME_DAY,Ngày,Day
+DAYTIME_DAY_DESC,Ban ngày: nhìn rõ như thường.,Day: normal sight.
+DAYTIME_DUSK,Hoàng hôn,Dusk
+DAYTIME_DUSK_DESC,"Hoàng hôn: tầm nhìn {vision}, ô có đèn vẫn thấy rõ.","Dusk: sight {vision}, lit cells still seen clearly."
+DAYTIME_NIGHT,Đêm,Night
+DAYTIME_NIGHT_DESC,"Đêm: tầm nhìn {vision}, chỉ ô có đèn (trại, làng, tướng) thấy rõ; ý địch chỉ đọc được ở gần.","Night: sight {vision}, only lit cells (camps, villages, leaders) are seen clearly; enemy intents read only up close."
 KEYWORD_HEAVY,Nặng,Heavy
 KEYWORD_HEAVY_DESC,Vào rừng và chỗ cạn tốn thêm 1 bước.,Forests and fords cost 1 more.
 TACTICS_PASSIVE_DRILLED_RANKS,Luyện binh,Drilled ranks
@@ -397,6 +418,8 @@ ZONE_WIND,Gió,Wind
 ZONE_WIND_DESC,Quân ta trong gió chịu đòn tầm xa ít hơn 50%.,Allies inside take 50% less ranged damage.
 MAP_RIVER_CROSSING,Bến sông,River crossing
 SCENARIO_RIVER_CROSSING,Qua sông,Crossing the river
+MAP_NIGHT_RAID,Trại địch trong rừng,Camp in the woods
+SCENARIO_NIGHT_RAID,Đột kích đêm,Night raid
 ORDER_FOLLOW,Bám sát,Follow
 ORDER_FOLLOW_DESC,Binh đi sau lưng tướng.,Soldiers walk behind the leader.
 ORDER_VANGUARD,Tiên phong,Vanguard
@@ -414,6 +437,12 @@ CHARGE_DAMAGE_TAKEN,Chịu đòn,Damage taken
 CHARGE_SOLDIERS_LOST,Binh ngã,Soldiers lost
 MUSTER_TITLE,Điểm binh,Muster
 MUSTER_OBJECTIVE_FORMAT,Đưa một tướng tới %s (ô cờ vàng) hoặc hạ hết tướng địch. Quá %d vòng là thua.,Bring a leader to the %s (gold flag) or defeat every enemy leader. After %d rounds you lose.
+MUSTER_ENVIRONMENT,Trời đất,Weather and time
+MUSTER_WEATHER_CHANGE_FORMAT,"Từ vòng %d: %s.","From round %d: %s."
+MUSTER_DAYTIME_CYCLE_FORMAT,"Bắt đầu lúc %s, đổi sau mỗi %d vòng.","Starts at %s, changes every %d rounds."
+MUSTER_FOG,"Sương chiến: chỉ thấy quanh quân ta.","Fog of war: we see only around our troops."
+MUSTER_SCOUTS_FORMAT,"Trinh sát (nhìn xa, thấy quân nấp): %s.","Scouts (see far, spot hidden units): %s."
+MUSTER_NO_SCOUTS,"Chưa có trinh sát: quân nấp trong rừng chỉ lộ khi đứng sát.","No scouts: units hidden in forest show only up close."
 MUSTER_TERRAIN,Địa hình,Terrain
 MUSTER_FORCES,Quân ta,Our forces
 MUSTER_ENEMY_FORMAT,Quân địch: %s,Enemy: %s
@@ -460,7 +489,7 @@ INTENT_SKILL_FORMAT,Ý đồ: dùng %s,Intent: use %s
 INTENT_WAIT,Ý đồ: đứng chờ,Intent: wait
 INTENT_MARCH,Ý đồ: hành quân,Intent: march
 FORECAST_HITS_FORMAT,%d đòn × %d,%d hits × %d
-FORECAST_HP_FORMAT,Máu %d → %d,HP %d → %d
+FORECAST_HP_FORMAT,Máu %d còn %d,HP %d to %d
 FORECAST_NO_COUNTER,Không với tới để phản đòn,Cannot reach to counter
 FORECAST_FIRST_STRIKE_FORMAT,%s ra đòn trước,%s strikes first
 FORECAST_DIES,ngã,falls
@@ -491,7 +520,7 @@ CLOSEUP_FIRST_STRIKE,Ra đòn trước!,First strike!
 CLOSEUP_COUNTER,Phản đòn,Counter
 CLOSEUP_FALLEN,Ngã!,Down!
 FORECAST_SIDE_FORMAT,%s: %s,%s: %s
-SKILL_PREVIEW_HIT_FORMAT,%s −%d → %d,%s −%d → %d
+SKILL_PREVIEW_HIT_FORMAT,%s mất %d còn %d,%s -%d to %d
 TACTICS_TERRAIN_FORMAT,Đứng trên: %s,Standing on: %s
 INCIDENT_RESCUE,Cứu trợ,Rescue
 INCIDENT_RESCUE_DESC,Tướng còn dưới 40% máu và ở gần: lao tới đỡ mọi đòn nhắm vào tướng đến hết lượt địch.,Leader under 40% hp and near: dashes in and takes every hit aimed at the leader until the enemy phase ends.
@@ -576,9 +605,11 @@ TACTICS_FLOAT_CALMED,Đã yên,Settled
 TACTICS_FLOAT_CALMED_LEADER,Tướng trấn an,Leader calms them
 TACTICS_FLOAT_MARK_FORMAT,Dấu: %s,Mark: %s
 TACTICS_FLOAT_FLED,Bỏ chạy!,Fled!
+TACTICS_FLOAT_AMBUSH,Phục kích!,Ambush!
 TACTICS_FLOAT_DEFECTED,Phản!,Defected!
 TACTICS_FLOAT_JOINED_US,Về phe ta!,Joins us!
 TACTICS_HINT_WAVERING,Binh dao động: kéo tướng lại gần nó.,A soldier wavers: bring its leader close.
+TACTICS_HINT_WAVERING_UNSEEN,Binh khuất mắt dao động: cho tướng thấy nó.,A soldier out of sight wavers: let its leader see it.
 TACTICS_HINT_WAVERING_GOOD,Binh sắp lập công: cứ để nó.,A soldier is about to shine: let it be.
 TACTICS_WAVERING_LINE_FORMAT,Dao động (%s): %s,Wavering (%s): %s
 TACTICS_MARKS_FORMAT,Dấu: %d,Marks: %d
@@ -620,22 +651,35 @@ INCIDENT_DISCONTENT_HINT,bị làm mồi mãi; kéo tướng về,used as bait; 
 INCIDENT_RIOT_HINT,toán tan tác; kéo tướng về,squad broken; bring the leader back
 INCIDENT_FLEE_HINT,"tướng xa, địch sát; kéo tướng về","leader far, enemy close; bring the leader back"
 INCIDENT_BETRAY_HINT,"tướng yếu, địch mạnh gần; kéo tướng về","leader weak, strong enemy near; bring the leader back"
+TACTICS_WAVERING_UNSEEN_HINT,khuất mắt tướng; cho tướng thấy nó,out of its leader's sight; let the leader see it
 BUTTON_UNDO,Hoàn tác,Undo
 TACTICS_WHOLE_MAP,Toàn cảnh,Whole map
 TACTICS_ZOOM_IN,Phóng to,Zoom in
 TACTICS_HINT_MOVED,"Hết điểm đi: chạm địch, Hoàn tác hoặc Chờ.","No points left: tap an enemy, Undo or Wait."
+TACTICS_HINT_MOVED_NO_TARGET,"Hết điểm đi, chưa với tới địch: Hoàn tác hoặc Chờ.","No points left, no enemy in reach: Undo or Wait."
 TACTICS_HINT_MOVE_ON,"Đi tiếp ô xanh, đánh địch viền đỏ, xong thì Chờ.","Move on in blue, strike red, then Wait."
 TACTICS_HINT_AUTO_END,Các tướng đã xong. Tự kết lượt…,Every leader is done. Ending the turn…
 TACTICS_HINT_UNDONE,"Đã lùi một bước, tướng đi lại được.",One move undone: the leader can move again.
+TACTICS_HINT_MOVE_ON_STRUCK,"Đã đánh: đi tiếp ô xanh, hoặc Chờ.","Struck: move on in blue, or Wait."
+TACTICS_HINT_SKILL_LEFT,Còn Kỹ năng: bấm Kỹ năng hoặc Chờ.,Skill left: tap Skill or Wait.
+TACTICS_HINT_ONLY_WALKS,"Hết đòn để đánh: đi tiếp, hay Kết lượt.","No strike left: move on, or End turn."
+TACTICS_HINT_WALK_ONLY,"Chưa với tới địch: chạm ô xanh, xong thì Chờ.","No enemy in reach: tap blue, then Wait."
+TACTICS_OUT_OF_SIGHT,"Ngoài tầm mắt tướng: dễ dao động, chưa trấn an được.","Out of its leader's sight: may waver, cannot be calmed yet."
+TACTICS_ENVIRONMENT_TITLE,Trời đất,Weather and time
+TACTICS_WEATHER_LATER_FORMAT,"Từ vòng %d: %s.","From round %d: %s."
+TACTICS_WEATHER_SOON_FORMAT,Vòng tới: %s,Next round: %s
+TACTICS_FOG_LINE,"Sương chiến: chỉ thấy quanh quân ta; ? là chỗ thấy địch lần cuối.","Fog of war: we see only around our troops; ? marks where an enemy was last seen."
 TACTICS_TIP_SELECT,"Tướng đi đâu, toán binh dàn quanh đó.","Where the leader goes, its squad forms up."
 TACTICS_TIP_MOVE,Còn điểm thì đi tiếp. Xong thì bấm Chờ.,Points left? Keep moving. Tap Wait when done.
-TACTICS_TIP_UNDO,Đi nhầm? Hoàn tác lùi từng bước tới khi đánh hay đổi lệnh.,Wrong cell? Undo steps back until you attack or change orders.
+TACTICS_TIP_UNDO,"Đi nhầm? Hoàn tác lùi từng bước tới khi đánh, đổi lệnh hay thấy địch.","Wrong cell? Undo steps back until you attack, change orders or spot an enemy."
 TACTICS_TIP_ORDER,"Đổi lệnh không mất lượt: tướng vẫn đi, đánh được.",Orders are free: the leader can still move and strike.
 TACTICS_TURN_FORMAT,Còn %d/%d điểm đi · %s,%d/%d move points left · %s
 TACTICS_TURN_ATTACK_READY,còn đòn đánh,can strike
 TACTICS_TURN_ATTACK_USED,đã đánh,struck
 TACTICS_TURN_WAITED,Đã Chờ: xong lượt.,Waited: turn over.
-TACTICS_TIP_WAVER,"Dấu ! đỏ: binh sắp làm loạn, đưa tướng lại sát nó.","A red !: a soldier will act up, bring its leader close."
+TACTICS_TIP_WAVER,Dấu ! đỏ: binh sắp gây chuyện. Đưa tướng lại gần nó.,A red !: a soldier is about to act up. Bring its leader close.
+TACTICS_TIP_WAVER_UNSEEN,"Binh khuất mắt tướng chỉ yên khi tướng thấy nó: đưa tướng tới.","A soldier out of its leader's sight calms only once the leader sees it: go to it."
+TACTICS_TIP_FOG,"Ô tối: chưa thấy. Địch có thể nấp trong rừng, đi dò từng bước.","Dark cells are unseen. Enemies may hide in forest: scout ahead."
 TACTICS_NAMED_DESC_FORMAT,%s: %s,%s: %s
 FORECAST_WALK_FORMAT,Đi %d ô rồi đánh,Walks %d cells then attacks
 FORECAST_STAY,Đánh tại chỗ,Attacks from here

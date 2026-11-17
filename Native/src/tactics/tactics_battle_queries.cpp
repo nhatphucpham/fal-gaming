@@ -5,6 +5,7 @@
 #include "tactics_orders.h"
 #include "tactics_paths.h"
 #include "tactics_skills.h"
+#include "tactics_vision.h"
 
 #include <godot_cpp/core/error_macros.hpp>
 
@@ -108,6 +109,9 @@ Dictionary TacticsBattle::get_unit_state(int64_t p_unit) const {
 	state["has_waited"] = unit.has_waited;
 	state["has_squad_struck"] = unit.has_squad_struck;
 	state["move_points_left"] = sim.get_move_budget(index);
+	state["vision"] = unit.def.vision_cells;
+	state["is_scout"] = tactics::is_scout(sim, index);
+	state["is_out_of_leader_sight"] = sim.is_out_of_leader_sight(index);
 	// Incidents: only what the player may see (a wavering soldier shows its
 	// incident; a dormant seed stays hidden).
 	const bool is_wavering = unit.stage == tactics::IncidentStage::WAVERING;
@@ -116,6 +120,8 @@ Dictionary TacticsBattle::get_unit_state(int64_t p_unit) const {
 	state["has_fled"] = unit.has_fled;
 	state["wavering"] = is_wavering ? StringName(to_godot_string(sim.get_incident_rules().incidents[unit.seed].id)) : StringName();
 	state["is_wavering_good"] = is_wavering && sim.get_incident_rules().incidents[unit.seed].handler->is_good;
+	// It wavers only because its leader does not see it (fog of war).
+	state["is_wavering_unseen"] = is_wavering && unit.is_unseen_waver;
 	state["marks"] = static_cast<int>(unit.marks.size());
 	state["is_guarding"] = unit.guard_leader != tactics::NO_UNIT && sim.get_turn() < unit.guard_end_turn;
 	state["holds_ground"] = sim.is_holding_ground(index);
@@ -164,8 +170,10 @@ Array TacticsBattle::get_path_to(int64_t p_unit, const Vector2i &p_cell) const {
 	}
 	const int unit = static_cast<int>(p_unit);
 	// Only cells move_leader() could end on (an ally's cell is passed, not
-	// stopped on), so the path shown is one the move would take.
-	if (!tactics::can_stop_at(sim, unit, to_cell(p_cell))) {
+	// stopped on), so the path shown is one the move would take; an enemy
+	// the side does not see is not known to be there (the walk may stop at
+	// it, an ambush).
+	if (!tactics::can_plan_stop_at(sim, unit, to_cell(p_cell))) {
 		return Array();
 	}
 	const tactics::PathField field = tactics::find_move_paths(sim, unit);
@@ -305,6 +313,11 @@ Dictionary TacticsBattle::get_skill_charge(int64_t p_leader) const {
 Array TacticsBattle::get_enemy_intents() const {
 	Array intents;
 	for (const tactics::Intent &intent : sim.get_intents()) {
+		// Under fog an intent shows only while the other side reads it
+		// (Docs/systems/tactics_vision.md, Intents).
+		if (!sim.is_intent_known(1 - sim.get_units()[intent.leader].side, intent.leader)) {
+			continue;
+		}
 		Dictionary entry;
 		entry["unit"] = intent.leader;
 		entry["to"] = to_vector2i(intent.destination);

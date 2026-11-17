@@ -32,7 +32,8 @@
   fake server on localhost. `tactics_test.gd`, `tactics_squad_test.gd`,
   `tactics_fuzz_test.gd`, `tactics_query_test.gd` and
   `tactics_incident_test.gd` test the tactics simulation, its queries and
-  its incidents (sharing `tactics_test_kit.gd`); `tactics_roster_test.gd`
+  its incidents, and `tactics_vision_test.gd` its fog of war, weather and
+  times of day (sharing `tactics_test_kit.gd`); `tactics_roster_test.gd`
   tests the roster and the campaign;
   `tactics_screen_test.gd` (a battle won through the tactics screen) and
   `muster_test.gd` (the muster screen from the title) test its screens.
@@ -136,7 +137,8 @@ run is won or lost the end screen shows the result and returns to the title.
 "Chiến Dịch" loads the roster (Sổ quân) and opens the tactics muster screen
 ("Điểm binh", with "Về" back to the title); "Xuất quân" opens the tactics
 battle. Its end, or a double "Rút", opens the after-battle summary, which
-writes the roster; "Tiếp tục" goes back to the muster.
+writes the roster; "Tiếp tục" goes back to the muster of the next
+scenario (the catalog's in turn).
 Every switch between screens is a slide.
 
 When a Kỳ Ngộ fires after a battle, its cutscene plays before the reward
@@ -226,8 +228,10 @@ preview; `Battle.set_synergy()` applies the same evaluation to both sides at
 auto-battle: leaders with squads of soldiers on a terrain grid, alternating
 side phases, Dijkstra movement with zones of control, four-hit engagements
 with a counter, keywords, orders, passives, charged leader skills, zones and
-an AI that declares its intent, and incidents (Biến cố: hidden seeds that
-waver and fire, karma and marks). The simulation (`TacticsSim`, namespace
+an AI that declares its intent, incidents (Biến cố: hidden seeds that
+waver and fire, karma and marks), and fog of war with weather and times of
+day (what each side sees and remembers, the AI included; see
+[Tactics vision](systems/tactics_vision.md)). The simulation (`TacticsSim`, namespace
 `tactics`) is plain C++17 with integer math and registries of keywords,
 zones, passives, charge mechanisms, skill targets and effects keyed by ids
 in `Data/Tactics/`; it reuses the battle system's damage formula. Its

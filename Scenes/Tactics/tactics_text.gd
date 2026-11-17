@@ -80,6 +80,45 @@ func terrain_effects(id: StringName) -> String:
 	return " · ".join(parts)
 
 
+## The weather (`kind` &"weather") or time of day (&"daytime") data by id;
+## null when the catalog has none.
+func environment_data(kind: StringName, id: StringName) -> Resource:
+	return catalog.get_weather(id) if kind == &"weather" else catalog.get_daytime(id)
+
+
+func environment_name(kind: StringName, id: StringName) -> String:
+	var data := environment_data(kind, id)
+	return tr(data.get("name_key")) if data != null else String(id)
+
+
+## One line on what the weather or time of day does.
+func environment_description(kind: StringName, id: StringName) -> String:
+	var data := environment_data(kind, id)
+	return describe_environment(data) if data != null else ""
+
+
+## The description of a TacticsWeatherData or TacticsDaytimeData with its
+## numbers filled in from the data ({vision}, {range}, {burn}, {cost},
+## {wind}, {toward}, {against}), so a change to the data changes the text.
+static func describe_environment(data: Resource) -> String:
+	var values := {"vision": "%+d" % int(data.get("vision_delta"))}
+	var weather := data as TacticsWeatherData
+	if weather != null:
+		values["range"] = "%+d" % weather.ranged_range_delta
+		values["burn"] = weather.burn_pct
+		values["cost"] = weather.cost_delta
+		values["wind"] = weather.wind_range_delta
+		values["toward"] = String(TranslationServer.translate(_toward_key(weather.wind)))
+		values["against"] = String(TranslationServer.translate(_toward_key(-weather.wind)))
+	return String(TranslationServer.translate(data.get("description_key"))).format(values)
+
+
+static func _toward_key(direction: Vector2i) -> String:
+	if direction.x != 0:
+		return "TACTICS_TOWARD_RIGHT" if direction.x > 0 else "TACTICS_TOWARD_LEFT"
+	return "TACTICS_TOWARD_DOWN" if direction.y > 0 else "TACTICS_TOWARD_UP"
+
+
 func skill_name(id: StringName) -> String:
 	var skill := catalog.get_skill(id)
 	return tr(skill.name_key) if skill != null else String(id)

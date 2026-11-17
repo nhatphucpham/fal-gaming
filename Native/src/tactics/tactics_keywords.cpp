@@ -69,6 +69,7 @@ const KeywordHandler KEYWORD_HANDLERS[] = {
 	{ "keyword.cover", nullptr, nullptr, cover_incoming_as_ally, nullptr },
 	{ "keyword.flying", flying_movement, nullptr, nullptr, nullptr },
 	{ "keyword.heavy", heavy_movement, nullptr, nullptr, nullptr },
+	{ "keyword.scout", nullptr, nullptr, nullptr, nullptr, true },
 };
 
 } // namespace

@@ -48,9 +48,12 @@ const ChargeHandler CHARGE_HANDLERS[] = {
 	{ "charge.soldiers_lost", update_soldiers_lost },
 };
 
+// An enemy the caster's side sees: a skill never aims at, or reports,
+// what the caster cannot see (fog of war).
 bool is_enemy_at(const TacticsSim &p_sim, int p_caster, const Cell &p_cell) {
 	const int occupant = p_sim.get_occupant(p_cell);
-	return occupant != NO_UNIT && p_sim.get_units()[occupant].side != p_sim.get_units()[p_caster].side;
+	const int side = p_sim.get_units()[p_caster].side;
+	return occupant != NO_UNIT && p_sim.get_units()[occupant].side != side && p_sim.is_unit_seen_by(side, occupant);
 }
 
 bool check_cast_range(const TacticsSim &p_sim, int p_caster, const Cell &p_from, const Cell &p_cell, std::string *r_error) {
@@ -121,7 +124,7 @@ bool select_chain(const TacticsSim &p_sim, int p_caster, const Cell &p_from, con
 		const Cell from = p_sim.get_units()[r_selection.targets.back()].cell;
 		int best = NO_UNIT;
 		for (const UnitState &unit : p_sim.get_units()) {
-			if (!unit.is_alive || unit.side == p_sim.get_units()[p_caster].side || is_selected(r_selection, unit.index)) {
+			if (!unit.is_alive || !is_enemy_at(p_sim, p_caster, unit.cell) || is_selected(r_selection, unit.index)) {
 				continue;
 			}
 			const int distance = get_manhattan(from, unit.cell);

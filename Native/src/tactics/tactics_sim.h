@@ -65,6 +65,9 @@ public:
 	// Forces a seed (tests, scripted battles): when any is set, no seed is
 	// drawn at random.
 	bool set_forced_seed(int p_unit, int p_incident, std::string *r_error);
+	// Fog of war, weather and the times of day (setup; refused once
+	// started). Without it the battle is in clear daylight with no fog.
+	bool set_environment(const EnvironmentDef &p_environment, std::string *r_error);
 	// Begins round 1 with side A's phase (AI phases run on their own).
 	bool start(std::string *r_error);
 
@@ -87,6 +90,30 @@ public:
 
 	// Events appended since the last take_events().
 	std::vector<Event> take_events();
+
+	// Vision (tactics_vision.h, Docs/systems/tactics_vision.md). Without
+	// fog of war every cell and unit counts as seen.
+	const EnvironmentDef &get_environment() const { return environment; }
+	bool has_fog_of_war() const { return environment.fog_of_war; }
+	// The weather and time of day of the round now.
+	const WeatherDef &get_weather() const;
+	const DaytimeDef &get_daytime() const;
+	const WeatherDef &get_weather_of_round(int p_round) const;
+	const DaytimeDef &get_daytime_of_round(int p_round) const;
+	bool is_cell_visible(int p_side, const Cell &p_cell) const;
+	bool is_cell_seen(int p_side, const Cell &p_cell) const;
+	// p_unit is alive and p_side sees it now (always its own units).
+	bool is_unit_seen_by(int p_side, int p_unit) const;
+	// Where p_side last saw p_unit, NO_CELL when it sees it now, never saw
+	// it, or saw that cell empty since.
+	Cell get_last_seen(int p_side, int p_unit) const;
+	// p_side may read the declared intent of enemy leader p_leader: it sees
+	// the leader and, at night or in fog, one of its units stands within
+	// intent_read_cells of it (a scout within its keyword's amount).
+	bool is_intent_known(int p_side, int p_leader) const;
+	// The soldier's living leader does not see it (fog of war only).
+	bool is_out_of_leader_sight(int p_soldier) const;
+	const SideVision &get_side_vision(int p_side) const { return vision[p_side]; }
 
 	// Queries.
 	bool is_started() const { return started; }
@@ -183,6 +210,17 @@ public:
 	// side's phase that many rounds later (end_round and end_turn are set here).
 	void add_zone(ZoneState p_zone, int p_duration_rounds, int p_cause);
 	void add_buff(BuffState p_buff, int p_duration_rounds, int p_cause);
+	// Removes zones[p_index] and emits zone_expired.
+	void remove_zone(int p_index, int p_cause);
+	// Recomputes both sides' vision after a change of position, side, life
+	// or round, updates what they remember and, for a side played by hand,
+	// emits vision_changed when it sees more or less. Nothing without fog.
+	void refresh_vision(int p_cause);
+	// Remembers what p_unit saw from the cells it walked through (not its
+	// ends), as it went.
+	void note_walk_sight(int p_unit, const std::vector<Cell> &p_path);
+	// The unit attacked: the other side sees it for attack_reveal_phases.
+	void reveal_attacker(int p_unit);
 	void change_skill_charge(int p_leader, int p_delta, bool p_resets, int p_cause);
 	void emit_passive_triggered(int p_unit, const std::string &p_passive_id, int p_cause);
 	// Puts a unit on a free cell with no event and no other effect, for the
@@ -213,6 +251,9 @@ private:
 	std::vector<BuffState> buffs;
 	std::vector<Intent> intents;
 	std::vector<Event> events;
+	EnvironmentDef environment;
+	DaytimeDef default_daytime;
+	SideVision vision[SIDE_COUNT];
 	bool side_is_ai[SIDE_COUNT] = { false, true };
 	bool is_ready = false;
 	bool started = false;
@@ -267,6 +308,22 @@ private:
 	void hash_setup(uint64_t *r_hash) const;
 	void hash_unit(uint64_t *r_hash, const UnitState &p_unit) const;
 	void hash_incidents(uint64_t *r_hash) const;
+	void hash_vision(uint64_t *r_hash) const;
+	// Weather and time-of-day events at the start of side A's phase.
+	void announce_environment(int p_cause);
+	// Cuts p_path at a hidden enemy in the way (ambush); returns the enemy,
+	// NO_UNIT when the whole path is free.
+	int cut_path_at_ambush(int p_unit, std::vector<Cell> &r_path, Cell *r_blocked) const;
+	// In a planning copy (a forecast, the squad preview): takes the enemies
+	// p_side does not see off the map, so no walk, zone of control or squad
+	// step planned there gives them away. Returns them with their cells.
+	std::vector<std::pair<int, Cell>> lift_unseen_enemies(int p_side);
+	// Puts lifted enemies back on their cells that are still free, so a
+	// fight forecast in the copy counts them as the real fight will.
+	void put_back_enemies(const std::vector<std::pair<int, Cell>> &p_lifted);
+	// p_side knows more of the enemy than in p_before: an enemy seen now
+	// that was not, or one remembered at a cell it was not remembered at.
+	bool knows_more_than(const TacticsSim &p_before, int p_side) const;
 };
 
 } // namespace tactics

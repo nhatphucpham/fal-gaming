@@ -1,0 +1,34 @@
+[gd_resource type="TacticsScenarioData" format=3]
+
+[ext_resource type="TacticsRulesData" path="res://Data/Tactics/Rules/tactics_rules.tres" id="rules"]
+[ext_resource type="TacticsMapData" path="res://Data/Tactics/Maps/night_raid.tres" id="map"]
+[ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/lac_hong.tres" id="leader_lac_hong"]
+[ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/moon_spear.tres" id="leader_moon_spear"]
+[ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/lieu_mi.tres" id="leader_lieu_mi"]
+[ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/ba_khac.tres" id="leader_ba_khac"]
+[ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/thiet_nha.tres" id="leader_thiet_nha"]
+[ext_resource type="TacticsWeatherData" path="res://Data/Tactics/Weathers/fog.tres" id="weather_fog"]
+[ext_resource type="TacticsWeatherData" path="res://Data/Tactics/Weathers/rain.tres" id="weather_rain"]
+[ext_resource type="TacticsDaytimeData" path="res://Data/Tactics/Daytimes/night.tres" id="daytime_night"]
+[ext_resource type="TacticsDaytimeData" path="res://Data/Tactics/Daytimes/dusk.tres" id="daytime_dusk"]
+[ext_resource type="TacticsDaytimeData" path="res://Data/Tactics/Daytimes/day.tres" id="daytime_day"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/kite_scout.tres" id="troop_kite_scout"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/spearman.tres" id="troop_spearman"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/swordsman.tres" id="troop_swordsman"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/shieldman.tres" id="troop_shieldman"]
+
+[resource]
+id = &"scenario.night_raid"
+name_key = "SCENARIO_NIGHT_RAID"
+rules = ExtResource("rules")
+map = ExtResource("map")
+leaders_a = Array[TacticsLeaderData]([ExtResource("leader_lac_hong"), ExtResource("leader_moon_spear"), ExtResource("leader_lieu_mi")])
+leaders_b = Array[TacticsLeaderData]([ExtResource("leader_ba_khac"), ExtResource("leader_thiet_nha")])
+fog_of_war = true
+weather = ExtResource("weather_fog")
+weather_change_round = 5
+weather_after = ExtResource("weather_rain")
+daytimes = Array[TacticsDaytimeData]([ExtResource("daytime_night"), ExtResource("daytime_dusk"), ExtResource("daytime_day")])
+daytime_step_rounds = 4
+supplied_sizes = PackedInt32Array(4, 3, 3)
+supplied_troops = Array[TacticsTroopData]([ExtResource("troop_kite_scout"), ExtResource("troop_spearman"), ExtResource("troop_swordsman"), ExtResource("troop_spearman"), ExtResource("troop_spearman"), ExtResource("troop_swordsman"), ExtResource("troop_kite_scout"), ExtResource("troop_kite_scout"), ExtResource("troop_swordsman"), ExtResource("troop_spearman")])

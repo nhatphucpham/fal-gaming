@@ -31,6 +31,7 @@ class TacticsIncidentData : public Resource {
 	int threshold_count = 0;
 	int radius_cells = 0;
 	int calm_radius_cells = 0;
+	int unseen_waver_pct = 0;
 	int amount = 0;
 	int secondary_amount = 0;
 	int duration_rounds = 0;
@@ -63,6 +64,8 @@ public:
 	int get_radius_cells() const { return radius_cells; }
 	void set_calm_radius_cells(int64_t p_value) { calm_radius_cells = clamp_to_int(p_value); }
 	int get_calm_radius_cells() const { return calm_radius_cells; }
+	void set_unseen_waver_pct(int64_t p_value) { unseen_waver_pct = clamp_to_int(p_value); }
+	int get_unseen_waver_pct() const { return unseen_waver_pct; }
 	void set_amount(int64_t p_value) { amount = clamp_to_int(p_value); }
 	int get_amount() const { return amount; }
 	void set_secondary_amount(int64_t p_value) { secondary_amount = clamp_to_int(p_value); }

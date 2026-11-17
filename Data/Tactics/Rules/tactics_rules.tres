@@ -17,3 +17,7 @@ ai_strength_radius_cells = 4
 ai_attack_ratio_pct = 100
 ai_advance_ratio_pct = 120
 ai_hold_radius_cells = 1
+leader_light_cells = 1
+intent_read_cells = 3
+reveal_cells = 1
+attack_reveal_phases = 2

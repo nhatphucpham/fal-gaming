@@ -30,12 +30,22 @@ func _init() -> void:
 	_subtitle = _make_label(26)
 	_subtitle.anchor_top = 0.62
 	_subtitle.anchor_bottom = 1.0
+	_subtitle.offset_left = 16
+	_subtitle.offset_right = -16
+	_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_band.add_child(_subtitle)
 
 
 func present(title: String, subtitle: String, is_ours: bool) -> void:
 	_title.text = title
 	_subtitle.text = subtitle
+	# A long line (a weather's words) wraps onto a taller band.
+	var font := _subtitle.get_theme_font(&"font")
+	var width := font.get_string_size(subtitle, HORIZONTAL_ALIGNMENT_LEFT, -1, 26).x if font != null else 0.0
+	var is_tall := width > size.x - 32.0
+	_band.anchor_bottom = 0.58 if is_tall else 0.52
+	_title.anchor_bottom = 0.5 if is_tall else 0.68
+	_subtitle.anchor_top = 0.44 if is_tall else 0.62
 	_band.color = Color(TacticsPainter.PLAYER_DARK if is_ours else TacticsPainter.ENEMY_DARK, 0.92)
 	visible = true
 	_band.position.x = -size.x

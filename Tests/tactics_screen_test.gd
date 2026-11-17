@@ -25,6 +25,7 @@ var _screen: TacticsScreen
 var _went_home: bool = false
 var _skills_cast: int = 0
 var _attacks: int = 0
+var _settled_phases: int = 0
 
 
 func _initialize() -> void:
@@ -58,7 +59,7 @@ func _run() -> bool:
 	await process_frame
 	if not await _idle():
 		return false
-	var checks: Array[Callable] = [_check_start, _check_undo, _check_move, _check_forecast_and_order, _check_tips, _check_battle_to_victory]
+	var checks: Array[Callable] = [_check_start, _check_undo, _check_move, _check_forecast_and_order, _check_tips, _check_moved_out_of_reach, _check_battle_to_victory]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Tactics screen test failed in %s" % check.get_method())
@@ -99,8 +100,28 @@ func _check_start() -> bool:
 	if _screen.get_map().get_pieces().size() != _battle().get_unit_count():
 		push_error("Every unit should have a piece")
 		return false
-	if _screen.get_map().get_intents().is_empty():
-		push_error("The enemy's intents should be shown in our phase")
+	# The river crossing has fog of war: the intents shown are those of the
+	# enemy leaders we see, and every hidden enemy is off the board. The
+	# intents of a clear battle are checked in the input test.
+	if _screen.get_map().get_intents().size() != _battle().get_enemy_intents().size():
+		push_error("The enemy's known intents should be shown in our phase: %d shown, %d known" % [_screen.get_map().get_intents().size(), _battle().get_enemy_intents().size()])
+		return false
+	if _screen.get_map().get_fog() != _battle().get_fog_cells(0):
+		push_error("The fog on the map should be the battle's")
+		return false
+	if not _screen.get_map().get_fog().has(0):
+		push_error("The river crossing should open with cells never seen")
+		return false
+	for piece: TacticsPieceView in _screen.get_map().get_pieces():
+		var unit := piece.unit_index
+		var seen: bool = _battle().get_unit_state(unit)["side"] == 0 or _battle().is_unit_seen(0, unit)
+		if piece.visible != seen:
+			push_error("Unit %d is seen=%s but its piece visible=%s" % [unit, seen, piece.visible])
+			return false
+	# Nobody has walked yet: even with no enemy in reach the screen does not
+	# invite ending the turn.
+	if not _check_end_turn_look() or _settled_phases != 0:
+		push_error("At the start of the battle Kết lượt should not be the button to press")
 		return false
 	return _screen.get_mode() == TacticsScreen.Mode.IDLE
 
@@ -131,6 +152,45 @@ func _check_undo() -> bool:
 		push_error("A tap elsewhere should undo the selection")
 		return false
 	return true
+
+
+# A leader that walked all its points away from the enemy, with nobody to
+# strike: the hint offers only Undo or Wait, never "tap an enemy". Undone
+# after, so the battle goes on as it was.
+func _check_moved_out_of_reach() -> bool:
+	var leader := _our_leaders()[1]
+	var home := _cell(leader)
+	var hash_before := _battle().get_state_hash()
+	var enemy := _nearest_enemy_leader(leader)
+	for hop: int in 4:
+		if not _battle().can_move(leader):
+			break
+		_screen.tap_cell(_cell(leader))
+		_screen.tap_cell(_farthest_reachable(leader, enemy))
+		if not await _idle():
+			return false
+	if _battle().can_move(leader) or not _battle().get_strike_targets(leader).is_empty() or not _battle().can_undo_move(leader):
+		return _fail("Leader %d should have walked out its points, out of reach, undoable" % leader)
+	if _screen.get_selected() != leader:
+		_screen.tap_cell(_cell(leader))
+	if not _expect_hint("TACTICS_HINT_MOVED_NO_TARGET"):
+		return false
+	while _battle().can_undo_move(leader):
+		_screen.press_button(&"undo")
+		if not await _idle():
+			return false
+	if _cell(leader) != home or _battle().get_state_hash() != hash_before:
+		return _fail("Undoing every step should bring leader %d home" % leader)
+	_screen.cancel()
+	return true
+
+
+func _farthest_reachable(leader: int, from: Vector2i) -> Vector2i:
+	var best := _cell(leader)
+	for cell: Vector2i in _battle().get_reachable_cells(leader):
+		if absi(cell.x - from.x) + absi(cell.y - from.y) > absi(best.x - from.x) + absi(best.y - from.y):
+			best = cell
+	return best
 
 
 func _check_move() -> bool:
@@ -170,7 +230,7 @@ func _check_move() -> bool:
 		return false
 	var left := _battle().get_move_points_left(leader)
 	var reachable: Array = _screen.get_map().get_marks().get("reachable", [])
-	if _screen.get_selected() != leader or not _expect_hint("TACTICS_HINT_MOVE_ON") or not _button_actions().has(&"undo") \
+	if _screen.get_selected() != leader or not _expect_hint(_move_on_hint(leader)) or not _button_actions().has(&"undo") \
 			or reachable != _battle().get_reachable_cells(leader) or reachable.is_empty() or piece.is_done:
 		push_error("A leader with points left should stay selected, open, with its blue cells and undo")
 		return false
@@ -213,9 +273,20 @@ func _check_move() -> bool:
 		return false
 	# Moved as far as it goes toward the enemy: the hint speaks of moving on,
 	# or (no points left) of attacking, undoing or waiting.
-	if _screen.get_selected() != leader or not _expect_hint("TACTICS_HINT_MOVE_ON" if _battle().can_move(leader) else "TACTICS_HINT_MOVED"):
+	if _screen.get_selected() != leader or not _expect_hint(_move_on_hint(leader) if _battle().can_move(leader) else _moved_hint(leader)):
 		return false
 	return true
+
+
+# After a move with points left: red rings are only promised when there
+# is an enemy to strike.
+func _move_on_hint(leader: int) -> String:
+	return "TACTICS_HINT_MOVE_ON" if not _battle().get_strike_targets(leader).is_empty() else "TACTICS_HINT_WALK_ONLY"
+
+
+# After a move with no points left: "tap an enemy" only with one to strike.
+func _moved_hint(leader: int) -> String:
+	return "TACTICS_HINT_MOVED" if not _battle().get_strike_targets(leader).is_empty() else "TACTICS_HINT_MOVED_NO_TARGET"
 
 
 # The free cell next to the leader closest to `goal`.
@@ -266,15 +337,22 @@ func _check_tips() -> bool:
 	var tips := _screen.get_tips()
 	var met: Array = RunSettings.load_seen_tips().map(func(id: String) -> StringName: return StringName(id.trim_prefix(TacticsTip.SETTINGS_PREFIX)))
 	met.append_array(tips.get_pending())
-	if met != [&"select", &"move", &"order"]:
-		push_error("The first select, move and order should each offer their tip once, got %s" % [met])
+	# The river crossing has fog of war: its tip comes with our first phase.
+	if met != [&"fog", &"select", &"move", &"order"]:
+		push_error("The fog, then the first select, move and order should each offer their tip once, got %s" % [met])
+		return false
+	if tr("TACTICS_TIP_FOG") == "TACTICS_TIP_FOG":
+		return _fail("The fog tip has no text")
+	if tips.get_shown() == &"fog" and tips.get_text() != tr("TACTICS_TIP_FOG"):
+		push_error("The fog tip should read \"%s\", not \"%s\"" % [tr("TACTICS_TIP_FOG"), tips.get_text()])
 		return false
 	if tips.get_shown() == &"select" and tips.get_text() != tr("TACTICS_TIP_SELECT"):
 		push_error("The select tip should read \"%s\", not \"%s\"" % [tr("TACTICS_TIP_SELECT"), tips.get_text()])
 		return false
 	var again := TacticsTip.new()
 	root.add_child(again)
-	again.offer(&"select")
+	# The first tip has been shown (and saved) by now.
+	again.offer(met[0])
 	var shown := again.get_shown()
 	again.free()
 	if shown != &"":
@@ -298,6 +376,8 @@ func _check_battle_to_victory() -> bool:
 				return false
 		if _battle().is_finished():
 			break
+		if not _check_end_turn_look():
+			return false
 		_screen.press_button(&"end_turn")
 		if not await _idle():
 			return false
@@ -310,6 +390,9 @@ func _check_battle_to_victory() -> bool:
 		return false
 	if _skills_cast == 0 or _attacks == 0:
 		push_error("The battle should have used a skill and an attack (%d, %d)" % [_skills_cast, _attacks])
+		return false
+	if _settled_phases == 0:
+		push_error("Some phase should end with only walks left")
 		return false
 	if _screen.get_playback().close_up_count == 0:
 		push_error("A skill should open the close-up")
@@ -412,6 +495,36 @@ func _attack(leader: int, target: int) -> bool:
 		push_error("The forecast said hp %d after, the battle has %d" % [forecast["defender_hp_after"], hp_after])
 		return false
 	_attacks += 1
+	# Struck with points left: no red rings, so the hint no longer asks to
+	# tap one.
+	if _screen.get_selected() == leader and _battle().can_move(leader) and not _expect_hint("TACTICS_HINT_MOVE_ON_STRUCK"):
+		return false
+	return true
+
+
+# With every leader done, or with no strike and no skill left, only walks
+# remain: "Kết lượt" is the primary button and the hint says so, before
+# any leader waits. Otherwise it is not primary.
+func _check_end_turn_look() -> bool:
+	_screen.cancel()
+	_screen.cancel()
+	var is_settled := true
+	for leader: int in _our_leaders():
+		var state := _battle().get_unit_state(leader)
+		var has_acted: bool = state["has_moved"] or state["has_attacked"] or state["has_cast"]
+		var is_walk_only := _battle().get_strike_targets(leader).is_empty() and _battle().get_skill_cells(leader).is_empty()
+		is_settled = is_settled and (_battle().is_closed(leader) or (is_walk_only and has_acted))
+	var is_primary := false
+	for entry: Dictionary in _screen.get_panel().get_buttons():
+		if entry["action"] == &"end_turn":
+			is_primary = entry.get("primary", false)
+	if is_primary != is_settled:
+		push_error("Kết lượt should be primary exactly when only walks are left (%s, %s) mode %d buttons %s" % [is_primary, is_settled, _screen.get_mode(), _screen.get_panel().get_buttons()])
+		return false
+	if is_settled and not _screen.get_hint() in [tr("TACTICS_HINT_ONLY_WALKS"), tr("TACTICS_HINT_ALL_DONE"), tr("TACTICS_HINT_WAVERING"), tr("TACTICS_HINT_WAVERING_UNSEEN"), tr("TACTICS_HINT_WAVERING_GOOD")]:
+		push_error("With only walks left the hint should say Kết lượt, got %s" % _screen.get_hint())
+		return false
+	_settled_phases += 1 if is_settled else 0
 	return true
 
 

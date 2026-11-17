@@ -56,6 +56,15 @@ func _init(tactics_roster: TacticsRoster, tactics_catalog: TacticsCatalog, base_
 	_build(base_scenario)
 
 
+## The scenario the roster fights next: the catalog's scenarios in turn,
+## one per battle fought (the river crossing first, then the night raid,
+## then the river again).
+static func next_scenario(tactics_roster: TacticsRoster, tactics_catalog: TacticsCatalog) -> TacticsScenarioData:
+	if tactics_catalog.scenarios.is_empty():
+		return null
+	return tactics_catalog.scenarios[tactics_roster.battles % tactics_catalog.scenarios.size()] as TacticsScenarioData
+
+
 ## Registers the runtime leaders and the names of roster soldiers on a
 ## screen's TacticsText.
 func fill_text(target: TacticsText) -> void:
@@ -198,10 +207,12 @@ func _build(base: TacticsScenarioData) -> void:
 		if leading.size() < _room(scenario.map.spawn_cells_a.size(), leaders_a.size()):
 			leading.append(person)
 			taken[person["id"]] = true
-	for leader: TacticsLeaderData in base.leaders_a:
+	for slot: int in base.leaders_a.size():
+		var leader: TacticsLeaderData = base.leaders_a[slot]
 		var squad: Array[TacticsTroopData] = []
 		var ids: Array[int] = []
-		for troop: TacticsTroopData in leader.squad:
+		# The scenario's supplied soldiers, else the leader's own squad.
+		for troop: TacticsTroopData in base.get_squad(SIDE_A, slot):
 			var found := roster.find_soldiers(troop.id, taken)
 			var person: Dictionary = found[0] if not found.is_empty() else roster.recruit(troop.id, leader.id)
 			taken[person["id"]] = true

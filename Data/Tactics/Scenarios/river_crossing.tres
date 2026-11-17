@@ -7,6 +7,9 @@
 [ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/lieu_mi.tres" id="leader_lieu_mi"]
 [ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/ba_khac.tres" id="leader_ba_khac"]
 [ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/thiet_nha.tres" id="leader_thiet_nha"]
+[ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/lang_vuong.tres" id="leader_lang_vuong"]
+[ext_resource type="TacticsWeatherData" path="res://Data/Tactics/Weathers/clear.tres" id="weather_clear"]
+[ext_resource type="TacticsDaytimeData" path="res://Data/Tactics/Daytimes/day.tres" id="daytime_day"]
 
 [resource]
 id = &"scenario.river_crossing"
@@ -14,4 +17,7 @@ name_key = "SCENARIO_RIVER_CROSSING"
 rules = ExtResource("rules")
 map = ExtResource("map")
 leaders_a = Array[TacticsLeaderData]([ExtResource("leader_lac_hong"), ExtResource("leader_moon_spear"), ExtResource("leader_lieu_mi")])
-leaders_b = Array[TacticsLeaderData]([ExtResource("leader_ba_khac"), ExtResource("leader_thiet_nha")])
+leaders_b = Array[TacticsLeaderData]([ExtResource("leader_ba_khac"), ExtResource("leader_thiet_nha"), ExtResource("leader_lang_vuong")])
+fog_of_war = true
+weather = ExtResource("weather_clear")
+daytimes = Array[TacticsDaytimeData]([ExtResource("daytime_day")])

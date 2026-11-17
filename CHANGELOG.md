@@ -7,8 +7,56 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ## Unreleased
 
+### Added
+
+- Chiến Dịch: fog of war. Each side sees only around its units (further
+  from hills, not through woods and hills); cells you saw stay dimmed,
+  cells never seen stay dark. Enemies you do not see are not drawn and
+  nothing they do out of sight is heard or shown, their intents are
+  hidden, and a dimmed "?" token marks where you last saw one.
+  Enemies in woods are hidden unless you stand next to them or a scout
+  sees them. Walking into a hidden enemy stops you short: an ambush. A
+  move that shows an enemy, or passes one in sight, cannot be taken back.
+  The drag preview and strike forecasts never give away an enemy you do
+  not see. The enemy plays by the same sight.
+- Chiến Dịch: scouts (kite scouts, Liễu Mi) see further, see hidden
+  units and read enemy intents nearby even at night.
+- Chiến Dịch: weather (clear, rain, fog, wind) and times of day (day,
+  dusk, night) from the scenario, shown on the muster and on the map with
+  their icons; a tap says what they do, with the numbers (sight -1, range
+  -1...) and which way the wind blows on the map. The weather may turn once, with a
+  banner a round ahead. Night darkens the map except around camps,
+  villages and leaders; a leader's light shows it from afar, in woods
+  too.
+- Chiến Dịch: soldiers out of their leader's sight are likelier to flee
+  or betray, more so at night and in fog, and cannot be calmed until the
+  leader sees them again; a mark on the edge of the map points at a
+  wavering soldier you cannot see, and its card, the hint and a tip say
+  to let its leader see it.
+- Chiến Dịch: a second battle, "Đột kích đêm" (night raid): through the
+  woods and over a ford to a lit enemy camp, in fog that turns to rain,
+  with its own soldiers. The campaign alternates it with the river
+  crossing.
+
+### Changed
+
+- Chiến Dịch: the river crossing is played with fog of war in clear
+  daylight, and a third enemy leader, Lang Vương, holds its fort.
+
 ### Fixed
 
+- Chiến Dịch: the undo tip says a move that shows an enemy cannot be
+  taken back.
+- Chiến Dịch: the weather and time chip moves to the map's top-left
+  corner; it covered the "whole map" button.
+- Chiến Dịch: a leader that has walked all its points with no enemy in
+  reach is no longer told to tap an enemy; the hint says Undo or Wait.
+- Chiến Dịch: the objective shows through the fog and the night, and a
+  gold flag on the edge of the map points at it while it is out of view;
+  edge marks no longer tuck their pointer under the top bar.
+- Chiến Dịch: Liễu Mi's wind trail is laid once a phase where she stops;
+  moving her in short hops no longer leaves several wind zones that
+  stacked into near-total protection from arrows.
 - Chiến Dịch: a quick double tap on an enemy near the edge of the map now
   strikes it; the map no longer slides away under the second tap.
 - Chiến Dịch: dragging the map with a finger that starts on one of your
@@ -28,6 +76,13 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
   forgotten after a while, so a long campaign's save stays small.
 
 ### Changed
+
+- Chiến Dịch: when every leader has acted and none has a strike or a
+  skill left, "Kết lượt" lights up (not at the start of a turn with no
+  enemy in reach, so it never invites skipping a turn) and the hint says so, so one tap ends the phase instead of a
+  "Chờ" for every leader that could only walk. The hints no longer ask
+  you to tap a red-ringed enemy when there is none (after the attack, or
+  with no enemy in reach).
 
 - Chiến Dịch: a leader's turn stays open until you press "Chờ". It can
   move several times within its move points for the turn (the blue cells

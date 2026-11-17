@@ -156,6 +156,12 @@ bool TacticsSim::start(std::string *r_error) {
 	if (incident_rules.enabled) {
 		plant_incident_seeds(*this);
 	}
+	if (environment.fog_of_war) {
+		for (SideVision &side : vision) {
+			side.seen.assign(map.width * map.height, 0);
+			side.last_seen.assign(units.size(), NO_CELL);
+		}
+	}
 	begin_phase(SIDE_A);
 	run_ai_phases();
 	return true;
@@ -204,6 +210,11 @@ void TacticsSim::begin_phase(int p_side) {
 	event.type = EventType::PHASE_STARTED;
 	event.side = p_side;
 	const int cause = emit(event);
+	if (p_side == SIDE_A) {
+		announce_environment(cause);
+	}
+	// A new round may bring night or fog; attackers seen last phase fade.
+	refresh_vision(cause);
 	expire_timed_effects(cause);
 	for (UnitState &unit : units) {
 		if (unit.side == p_side) {
@@ -322,14 +333,7 @@ void TacticsSim::expire_timed_effects(int p_cause) {
 			index++;
 			continue;
 		}
-		Event event;
-		event.type = EventType::ZONE_EXPIRED;
-		event.content_id = zones[index].def.id;
-		event.cells = zones[index].cells;
-		event.unit = zones[index].source;
-		event.cause = p_cause;
-		emit(event);
-		zones.erase(zones.begin() + static_cast<long>(index));
+		remove_zone(static_cast<int>(index), p_cause);
 	}
 	for (size_t index = 0; index < buffs.size();) {
 		if (turn < buffs[index].end_turn) {

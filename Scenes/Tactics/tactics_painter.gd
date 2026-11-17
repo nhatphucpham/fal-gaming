@@ -72,6 +72,65 @@ static func draw_ghost(canvas: CanvasItem, c: Vector2, side: int, is_leader: boo
 	canvas.draw_polyline(_closed(shape), Color(Palette.CREAM, 0.95), 3.0, true)
 
 
+## An enemy remembered where it was last seen: its token dimmed, with "?".
+static func draw_last_seen(canvas: CanvasItem, c: Vector2, is_leader: bool) -> void:
+	var r := 21.0 if is_leader else 15.0
+	var shape := _token_shape(c, r, 1)
+	canvas.draw_colored_polygon(shape, Color(ENEMY_DARK, 0.5))
+	canvas.draw_polyline(_closed(shape), Color(Palette.CREAM, 0.55), 2.0, true)
+	var font := ThemeDB.fallback_font
+	var font_px := 26 if is_leader else 22
+	var width := font.get_string_size("?", HORIZONTAL_ALIGNMENT_LEFT, -1, font_px).x
+	var baseline := c + Vector2(-width / 2.0, font_px * 0.36)
+	canvas.draw_string_outline(font, baseline, "?", HORIZONTAL_ALIGNMENT_LEFT, -1, font_px, 5, Color(OUTLINE, 0.8))
+	canvas.draw_string(font, baseline, "?", HORIZONTAL_ALIGNMENT_LEFT, -1, font_px, Palette.CREAM)
+
+
+## The objective: a gold frame round the cell `rect` and a gold flag.
+static func draw_objective(canvas: CanvasItem, rect: Rect2) -> void:
+	canvas.draw_rect(rect, Palette.GOLD, false, 4.0)
+	var pole := rect.position + Vector2(rect.size.x * 0.72, rect.size.y * 0.86)
+	canvas.draw_line(pole, pole + Vector2(0, -40), Palette.INK, 3.0)
+	canvas.draw_colored_polygon(PackedVector2Array([pole + Vector2(0, -40), pole + Vector2(-20, -33), pole + Vector2(0, -26)]), Palette.GOLD)
+
+
+## A mark on the view's edge at `at`, pointing `toward` the objective
+## outside the view: a dark bubble with a gold flag and a gold pointer.
+static func draw_objective_edge_mark(canvas: CanvasItem, at: Vector2, toward: Vector2, r: float) -> void:
+	var tip := at + toward * (r + 12.0)
+	var side := Vector2(-toward.y, toward.x) * r * 0.55
+	canvas.draw_colored_polygon(PackedVector2Array([tip, at + side, at - side]), Palette.GOLD)
+	canvas.draw_circle(at, r - 2.0, OUTLINE)
+	canvas.draw_circle(at, r - 5.0, Palette.PANEL)
+	var pole := at + Vector2(-r * 0.15, r * 0.45)
+	canvas.draw_line(pole, pole + Vector2(0, -r * 0.9), Palette.CREAM, 3.0)
+	canvas.draw_colored_polygon(PackedVector2Array([pole + Vector2(0, -r * 0.9), pole + Vector2(r * 0.5, -r * 0.7), pole + Vector2(0, -r * 0.5)]), Palette.GOLD)
+
+
+## A mark on the view's edge at `at`, pointing `toward` a wavering soldier
+## of ours outside the view: a red bubble with "!" and a pointer.
+static func draw_edge_mark(canvas: CanvasItem, at: Vector2, toward: Vector2, r: float) -> void:
+	var tip := at + toward * (r + 12.0)
+	var side := Vector2(-toward.y, toward.x) * r * 0.55
+	canvas.draw_colored_polygon(PackedVector2Array([tip, at + side, at - side]), OUTLINE)
+	draw_wavering(canvas, at, r - 4.0, false)
+
+
+## A scout's eye badge of radius `r`.
+static func draw_scout_badge(canvas: CanvasItem, c: Vector2, r: float) -> void:
+	canvas.draw_circle(c, r + 2.0, OUTLINE)
+	canvas.draw_circle(c, r, Palette.JADE_LIGHT)
+	var eye := PackedVector2Array()
+	for step: int in 13:
+		var angle := PI * step / 12.0
+		eye.append(c + Vector2(cos(angle) * r * 0.8, -sin(angle) * r * 0.45))
+	for step: int in range(1, 12):
+		var angle := PI - PI * step / 12.0
+		eye.append(c + Vector2(cos(angle) * r * 0.8, sin(angle) * r * 0.45))
+	canvas.draw_colored_polygon(eye, Palette.CREAM)
+	canvas.draw_circle(c, r * 0.28, OUTLINE)
+
+
 ## An hp bar of `width` px centred under the token.
 static func draw_hp_bar(canvas: CanvasItem, center: Vector2, width: float, ratio: float, side: int) -> void:
 	var rect := Rect2(center - Vector2(width / 2.0, 3.0), Vector2(width, 6.0))

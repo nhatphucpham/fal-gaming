@@ -20,6 +20,7 @@ attack_pct = 120
 min_range_cells = 1
 max_range_cells = 2
 move_points = 4
+vision_cells = 5
 keywords = Array[TacticsKeywordData]([ExtResource("kw_long_weapon")])
 lead_capacity = 3
 passives = Array[TacticsPassiveData]([ExtResource("passive_hook_spear")])

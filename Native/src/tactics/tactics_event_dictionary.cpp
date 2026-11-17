@@ -35,6 +35,10 @@ const char *const EVENT_TYPE_NAMES[] = {
 	"unit_defected",
 	"karma_changed",
 	"battle_ended",
+	"vision_changed",
+	"ambushed",
+	"weather_changed",
+	"daytime_changed",
 };
 
 StringName to_id(const std::string &p_text) {
@@ -207,6 +211,29 @@ void add_payload(const tactics::Event &p_event, Dictionary &r_dict) {
 			r_dict["to"] = to_vector2i(p_event.to);
 			r_dict["path"] = tactics_cells_to_array(p_event.cells);
 			r_dict["kind"] = to_id(p_event.kind);
+			// Whether the other side saw the unit where it set off and
+			// where it stopped (fog of war).
+			r_dict["seen_from"] = (p_event.value & 1) != 0;
+			r_dict["seen_to"] = (p_event.value & 2) != 0;
+			break;
+		case tactics::EventType::VISION_CHANGED:
+			r_dict["side"] = p_event.side;
+			r_dict["cells"] = tactics_cells_to_array(p_event.cells);
+			r_dict["lost_cells"] = tactics_cells_to_array(p_event.other_cells);
+			r_dict["units"] = units_to_array(p_event.units);
+			r_dict["lost_units"] = units_to_array(p_event.other_units);
+			r_dict["lost_at"] = tactics_cells_to_array(p_event.other_units_cells);
+			break;
+		case tactics::EventType::AMBUSHED:
+			r_dict["unit"] = p_event.unit;
+			r_dict["by"] = p_event.target;
+			r_dict["cell"] = to_vector2i(p_event.to);
+			r_dict["blocked"] = to_vector2i(p_event.from);
+			break;
+		case tactics::EventType::WEATHER_CHANGED:
+		case tactics::EventType::DAYTIME_CHANGED:
+			r_dict["now"] = to_id(p_event.content_id);
+			r_dict["before"] = to_id(p_event.detail_id);
 			break;
 		case tactics::EventType::ORDER_CHANGED:
 			r_dict["unit"] = p_event.unit;

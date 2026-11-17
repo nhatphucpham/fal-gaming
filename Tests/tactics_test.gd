@@ -70,9 +70,16 @@ func _check_scenario() -> bool:
 		return false
 	var events := battle.start()
 	var leaders := battle.get_units().filter(func(unit: Dictionary) -> bool: return unit["role"] == &"leader")
-	return Kit.expect("first event", events[0]["type"], &"battle_started") and Kit.expect("leaders", leaders.size(), 5) \
-		and Kit.expect("units", battle.get_unit_count(), 5 + 4 + 3 + 3 + 3 + 3) and Kit.expect("active side", battle.get_active_side(), A) \
-		and Kit.expect("intents", battle.get_enemy_intents().size(), 2)
+	return Kit.expect("first event", events[0]["type"], &"battle_started") and Kit.expect("leaders", leaders.size(), 6) \
+		and Kit.expect("units", battle.get_unit_count(), 6 + 4 + 3 + 3 + 3 + 3 + 4) and Kit.expect("active side", battle.get_active_side(), A) \
+		and Kit.expect("intents declared", events.filter(func(event: Dictionary) -> bool: return event["type"] == &"intent_declared").size(), 3) \
+		and Kit.expect_true("fog of war on", battle.has_fog_of_war()) \
+		and Kit.expect("intents shown through the fog", battle.get_enemy_intents().size(), _seen_leaders(battle, B).size())
+
+
+# The leaders of a side the other side sees now.
+func _seen_leaders(battle: TacticsBattle, side: int) -> Array:
+	return battle.get_units().filter(func(unit: Dictionary) -> bool: return unit["role"] == &"leader" and unit["side"] == side and battle.is_unit_seen(1 - side, unit["index"]))
 
 
 # Forest costs 2, a river is impassable but its bridge is not, a ford costs 3.

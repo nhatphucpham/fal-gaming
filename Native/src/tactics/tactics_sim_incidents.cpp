@@ -92,7 +92,7 @@ void TacticsSim::remove_fled_unit(int p_unit, const Cell &p_edge, int p_cause) {
 	event.from = unit.cell;
 	event.to = p_edge;
 	event.cause = p_cause;
-	emit(event);
+	refresh_vision(emit(event));
 }
 
 // The new leader keeps squad order: the soldier takes the first dead slot,
@@ -132,7 +132,7 @@ bool TacticsSim::defect_unit(int p_unit, int p_new_leader, int p_cause) {
 	event.value = from_side;
 	event.target = p_new_leader;
 	event.cause = p_cause;
-	emit(event);
+	refresh_vision(emit(event));
 	return true;
 }
 

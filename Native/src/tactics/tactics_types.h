@@ -107,6 +107,16 @@ struct Rules {
 	int ai_attack_ratio_pct = 100;
 	int ai_advance_ratio_pct = 120;
 	int ai_hold_radius_cells = 1;
+	// Vision (Docs/systems/tactics_vision.md): leaders carry a light this
+	// many cells around them; at night or in fog an enemy leader's intent
+	// is read only within intent_read_cells of a unit of ours; a unit hidden
+	// by its terrain shows to enemies within reveal_cells of it.
+	int leader_light_cells = 1;
+	int intent_read_cells = 3;
+	int reveal_cells = 1;
+	// A unit that attacks is seen by the other side through this many
+	// phases, wherever it stands.
+	int attack_reveal_phases = 2;
 };
 
 struct KeywordHandler;
@@ -127,6 +137,60 @@ struct TerrainDef {
 	int ranged_damage_taken_pct = 0;
 	// Extra max range for a ranged unit standing here.
 	int ranged_range_bonus = 0;
+	// Vision (Docs/systems/tactics_vision.md): cells added to the vision of
+	// a unit standing here, cells a line of sight pays to pass over it (on
+	// top of the one every cell costs), whether units on it are hidden,
+	// and the light it gives at night around it.
+	int vision_bonus = 0;
+	int sight_block = 0;
+	bool hides_units = false;
+	int light_cells = 0;
+};
+
+// The weather of a battle (Data/Tactics/Weathers/): every number is a
+// change applied while it lasts; adding a weather is a data change.
+struct WeatherDef {
+	std::string id;
+	int vision_delta = 0;
+	// Ranged units' max range; never below their min range.
+	int ranged_range_delta = 0;
+	// Burn zones deal this percent of their amount.
+	int burn_pct = 100;
+	// Extra move cost on these terrains (river, ford in rain).
+	std::vector<std::string> cost_terrain_ids;
+	int cost_delta = 0;
+	// Enemy intents are read only up close (fog).
+	bool hides_intents = false;
+	// Wind: a unit step ({0, 0} none). A ranged shot whose longer axis runs
+	// with it reaches wind_range_delta further, against it as much less.
+	Cell wind = { 0, 0 };
+	int wind_range_delta = 0;
+	// Added to the odds of an unseen soldier wavering (incidents).
+	int waver_pct = 0;
+};
+
+// A time of day (Data/Tactics/Times/): day, dusk, night.
+struct DaytimeDef {
+	std::string id;
+	int vision_delta = 0;
+	// Lit cells are seen as far as by day.
+	bool uses_lights = false;
+	bool hides_intents = false;
+	int waver_pct = 0;
+};
+
+// What a battle sees by: fog of war on or off, the weather (and the one it
+// turns into from change_round), and the cycle of times of day, each step
+// lasting step_rounds rounds from the step start_index.
+struct EnvironmentDef {
+	bool fog_of_war = false;
+	WeatherDef weather;
+	bool has_weather_change = false;
+	int weather_change_round = 0;
+	WeatherDef weather_after;
+	std::vector<DaytimeDef> daytimes;
+	int daytime_step_rounds = 1;
+	int daytime_start_index = 0;
 };
 
 struct KeywordDef {
@@ -217,6 +281,10 @@ struct IncidentDef {
 	int amount = 0;
 	int secondary_amount = 0;
 	int duration_rounds = 0;
+	// Percent odds a dormant seed wavers when the soldier is out of its
+	// leader's sight and the rest of the trigger holds (handlers with an
+	// unseen trigger only); time of day and weather add theirs.
+	int unseen_waver_pct = 0;
 };
 
 // Seeds, odds and karma; `enabled` is false for a battle without incidents.
@@ -249,6 +317,8 @@ struct UnitDef {
 	int min_range_cells = 1;
 	int max_range_cells = 1;
 	int move_points = 1;
+	// How far it sees in clear daylight, in sight cost (cells).
+	int vision_cells = 4;
 	std::vector<KeywordDef> keywords;
 	// Leaders only.
 	int lead_capacity = 0;

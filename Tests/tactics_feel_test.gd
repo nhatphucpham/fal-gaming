@@ -17,6 +17,7 @@ extends SceneTree
 # than the small font.
 
 const SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/river_crossing.tres"
+const NIGHT_SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/night_raid.tres"
 const MAX_FRAMES: int = 3000
 ## On a 360-px-wide phone the 720-px layout is halved.
 const MIN_CELL_LAYOUT_PX: float = 88.0
@@ -33,6 +34,8 @@ class ErrorLog extends Logger:
 var _errors := ErrorLog.new()
 var _screen: TacticsScreen
 var _taps: int = 0
+## Taps that closed a leader that struck with move points left.
+var _closing_taps: int = 0
 
 
 func _initialize() -> void:
@@ -58,7 +61,7 @@ func _run() -> bool:
 	if not ClassDB.class_exists("TacticsBattle"):
 		push_error("TacticsBattle is missing: build the GDExtension (scons) before importing")
 		return false
-	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_auto_end, _check_tap_count, _check_text_fits, _check_floats]
+	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_fog_redraws, _check_night_objective, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_corner_buttons, _check_auto_end, _check_tap_count, _check_text_fits, _check_floats, _check_hidden_steps]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Tactics feel test failed in %s" % check.get_method())
@@ -66,12 +69,12 @@ func _run() -> bool:
 	return true
 
 
-func _open(is_instant: bool) -> void:
+func _open(is_instant: bool, path: String = SCENARIO_PATH) -> void:
 	if _screen != null:
 		_screen.queue_free()
 		await process_frame
 	_screen = TacticsScreen.new()
-	_screen.scenario = load(SCENARIO_PATH) as TacticsScenarioData
+	_screen.scenario = load(path) as TacticsScenarioData
 	_screen.is_instant = is_instant
 	_screen.size = Vector2(720, 1280)
 	root.add_child(_screen)
@@ -183,6 +186,108 @@ func _check_idle_frames() -> bool:
 	return true
 
 
+# The fog texture is written only when what we see changes: a tap or an
+# idle map writes nothing; a walk that reveals blends once, in the walk's
+# own frames, then the map is still again.
+func _check_fog_redraws() -> bool:
+	await _open(false)
+	var map := _map()
+	for frame: int in MAX_FRAMES:
+		if not map.is_fog_blending():
+			break
+		await process_frame
+	if map.get_fog().is_empty() or map.get_fog() != _battle().get_fog_cells(0):
+		push_error("The river crossing should open with the battle's fog")
+		return false
+	var writes := map.fog_write_count
+	var changes := map.fog_change_count
+	var leader := _our_leaders()[0]
+	_screen.select_unit(leader)
+	await create_timer(0.6).timeout
+	var counts := await _count_changed_frames(0.5)
+	if map.fog_write_count != writes or counts[0] > 0:
+		push_error("A selection on an idle map wrote the fog %d times and changed %d frames" % [map.fog_write_count - writes, counts[0]])
+		return false
+	var before := _battle().get_fog_cells(0)
+	var far := _cell(leader)
+	for cell: Vector2i in _battle().get_reachable_cells(leader):
+		if _unit_at(cell) < 0 and cell.y < far.y:
+			far = cell
+	_screen.move_to(far)
+	# The reveal blends within the walk's own frames: when the walk (and its
+	# squad) has played, the fog is still.
+	var is_blending_after := false
+	for frame: int in MAX_FRAMES:
+		if not _screen.is_busy():
+			is_blending_after = map.is_fog_blending()
+			break
+		await process_frame
+	for frame: int in MAX_FRAMES:
+		if not map.is_fog_blending():
+			break
+		await process_frame
+	if _battle().get_fog_cells(0) == before:
+		push_error("The walk to %s should have revealed cells" % far)
+		return false
+	# One blend for the whole walk, however many pieces' sight changed.
+	var blend_writes := map.fog_write_count - writes
+	var blends := map.fog_change_count - changes
+	if blends != 1 or blend_writes < 2 or is_blending_after:
+		push_error("A walk's reveal should blend once within the walk, got %d blends (%d writes), still blending after it: %s" % [blends, blend_writes, is_blending_after])
+		return false
+	if map.get_fog() != _battle().get_fog_cells(0):
+		push_error("After the walk the fog shown should be the battle's")
+		return false
+	writes = map.fog_write_count
+	await create_timer(0.6).timeout
+	counts = await _count_changed_frames(0.5)
+	if map.fog_write_count != writes or counts[0] > 0:
+		push_error("After the reveal the map should be still: %d fog writes, %d frames changed" % [map.fog_write_count - writes, counts[0]])
+		return false
+	print("Fog: %d blend in the walk (%d writes, headless frames), none idle" % [blends, blend_writes])
+	return true
+
+
+# At the night raid's start the objective lies in the dark, out of view: it
+# is never covered as never seen, and a gold mark on the view's edge points
+# at it; the idle map still draws nothing.
+func _check_night_objective() -> bool:
+	await _open(false, NIGHT_SCENARIO_PATH)
+	var map := _map()
+	for frame: int in MAX_FRAMES:
+		if not map.is_fog_blending():
+			break
+		await process_frame
+	var objective: Vector2i = _screen.scenario.map.objective_cell
+	if _battle().get_fog_cells(0)[objective.y * map.map_width + objective.x] != 0:
+		push_error("The night raid's objective should start unseen")
+		return false
+	if map.get_fog_color(objective).is_equal_approx(TacticsMapView.FOG_NEVER_COLOR):
+		push_error("The objective is known from the map: it should not be covered as never seen")
+		return false
+	if map.is_in_view(map.cell_to_local(objective)):
+		push_error("The night raid should open with the objective out of view")
+		return false
+	var pointing := map.get_edge_marks().filter(func(mark: Dictionary) -> bool: return mark["is_objective"])
+	if pointing.size() != 1 or pointing[0]["cell"] != objective:
+		push_error("A mark on the view's edge should point at the objective, got %s" % [map.get_edge_marks()])
+		return false
+	# The bubble's pointer reaches 12 px past it: it stays inside the map,
+	# not under the top bar.
+	var room := Rect2(Vector2.ZERO, map.size).grow(-TacticsMapView.EDGE_MARK_PX - 12.0)
+	if not room.has_point(pointing[0]["at"]):
+		push_error("The objective's edge mark at %s would poke out of the %s map" % [pointing[0]["at"], map.size])
+		return false
+	_screen.select_unit(_our_leaders()[0])
+	await create_timer(0.6).timeout
+	var draws := map.get_layer_draw_count()
+	var counts := await _count_changed_frames(0.5)
+	if counts[0] > 0 or map.get_layer_draw_count() != draws:
+		push_error("An idle night map changed %d frames and redrew %d layers" % [counts[0], map.get_layer_draw_count() - draws])
+		return false
+	return true
+
+
 # One finger on an empty cell drags the board; nothing is selected and no
 # layer redraws (the board moves as one).
 func _check_pan() -> bool:
@@ -194,7 +299,7 @@ func _check_pan() -> bool:
 	for row: int in map.map_height:
 		for col: int in map.map_width:
 			var cell := Vector2i(col, row)
-			if empty.x < 0 and _unit_at(cell) < 0 and map.is_in_view(map.cell_to_local(cell)) and map.is_in_view(map.cell_to_local(cell) + Vector2(0, 150) / map.get_zoom()):
+			if empty.x < 0 and _unit_at(cell) < 0 and map.is_in_view(map.cell_to_local(cell)) and map.is_in_view(map.cell_to_local(cell) + Vector2(0, 150) / map.get_zoom()) and not _is_under_button(cell):
 				empty = cell
 	var from := _cell_point(empty)
 	# Towards the far side of the board, whichever way it can go.
@@ -213,6 +318,16 @@ func _check_pan() -> bool:
 		push_error("Panning should not redraw the map's layers")
 		return false
 	return true
+
+
+# Is the cell's centre under a button laid over the map?
+func _is_under_button(cell: Vector2i) -> bool:
+	var map := _map()
+	var at := map.get_global_rect().position + map.board_to_view(map.cell_to_local(cell))
+	for button: Control in [_screen.get_environment_chip(), map.get_whole_map_button()]:
+		if button.is_visible_in_tree() and button.get_global_rect().grow(8.0).has_point(at):
+			return true
+	return false
 
 
 func _unit_at(cell: Vector2i) -> int:
@@ -311,6 +426,27 @@ func _check_pinch_and_whole_map() -> bool:
 	return true
 
 
+# With weather and a time of day the chip that tells them and the
+# whole-map button both sit over the map: neither covers the other, and a
+# finger on the whole-map button shows the whole map.
+func _check_corner_buttons() -> bool:
+	await _open(true, NIGHT_SCENARIO_PATH)
+	var map := _map()
+	var chip := _screen.get_environment_chip()
+	var whole := map.get_whole_map_button()
+	if not chip.is_visible_in_tree() or not whole.is_visible_in_tree():
+		return _fail("The night raid should show the weather chip and the whole-map button")
+	if chip.get_global_rect().intersects(whole.get_global_rect()):
+		return _fail("The weather chip %s covers the whole-map button %s" % [chip.get_global_rect(), whole.get_global_rect()])
+	var at := root.get_final_transform() * whole.get_global_rect().get_center()
+	_press(at, true)
+	_press(at, false)
+	await process_frame
+	if not map.is_whole_map():
+		return _fail("A tap on the whole-map button should show the whole map")
+	return true
+
+
 # Round 1: every leader done, a tap in the beat holds the end; round 2:
 # the phase ends by itself and round 3 begins without "Kết lượt".
 func _check_auto_end() -> bool:
@@ -374,6 +510,10 @@ func _play_our_turn() -> bool:
 			return true
 		if _battle().can_act(leader) and _screen.get_selected() == leader and _screen.get_map().get_piece(leader).is_done == false:
 			_taps += 1
+			# A leader that struck with move points left may still walk
+			# (the open turn): closing it is one more tap.
+			if _battle().has_attacked(leader) and _battle().can_move(leader):
+				_closing_taps += 1
 			_screen.press_button(&"wait")
 			if not await _wait_idle():
 				return false
@@ -412,17 +552,25 @@ func _check_tap_count() -> bool:
 			if _battle().get_strike_targets(leader).is_empty():
 				all_strike = false
 		_taps = 0
+		_closing_taps = 0
 		var round_number := _battle().get_round()
+		# Under fog a strike's walk may stop at a hidden enemy (an ambush):
+		# that turn is not a plain three-strike turn.
+		var ambushes := [0]
+		var count_ambush := func(type: StringName) -> void: ambushes[0] += 1 if type == &"ambushed" else 0
+		_screen.get_playback().step_started.connect(count_ambush)
 		if not await _play_our_turn():
 			return false
+		_screen.get_playback().step_started.disconnect(count_ambush)
+		all_strike = all_strike and ambushes[0] == 0
 		for frame: int in MAX_FRAMES:
 			if _battle().is_finished() or (_battle().get_round() > round_number and _battle().get_active_side() == 0 and not _screen.is_busy()):
 				break
 			await process_frame
-		print("Round %d: %d leaders, %s, %d taps for the whole turn" % [round_number, leaders.size(), "each strikes" if all_strike else "some only walk", _taps])
+		print("Round %d: %d leaders, %s, %d taps for the whole turn%s" % [round_number, leaders.size(), "each strikes" if all_strike else "some only walk", _taps, ", ambushed" if ambushes[0] > 0 else ""])
 		if all_strike:
-			if _taps != 9:
-				push_error("Three move-and-attack orders should take 9 taps, took %d" % _taps)
+			if _taps != 9 + _closing_taps:
+				push_error("Three move-and-attack orders should take 9 taps (and %d to close leaders with points left), took %d" % [_closing_taps, _taps])
 				return false
 			return true
 	print("No turn had all three leaders able to strike; counts above")
@@ -457,12 +605,14 @@ func _check_text_fits() -> bool:
 			return false
 	var lines: Array[String] = [tr("TACTICS_SOLDIER_OF_FORMAT") % "Nguyệt Thương", "", tr("KEYWORD_LONG_WEAPON") + ": " + tr("KEYWORD_LONG_WEAPON_DESC"), tr("TACTICS_TERRAIN_FORMAT") % "Đồng bằng (Đi 1)"]
 	for incident: TacticsIncidentData in _screen.catalog.incident_rules.incidents:
-		lines[1] = tr("TACTICS_WAVERING_LINE_FORMAT") % [tr(incident.name_key), tr(String(incident.name_key) + "_HINT")]
-		panel.show_card("Binh khiên", Color.WHITE, "Máu 284/440 · Dấu: 2", lines)
-		await process_frame
-		var shown := panel.get_shown_card_lines()
-		if shown.size() < 2 or shown[1] != lines[1]:
-			return _fail("the wavering line shows whole: %s" % lines[1])
+		# Its own reason, and the one for a soldier its leader does not see.
+		for why: String in [tr(String(incident.name_key) + "_HINT"), tr("TACTICS_WAVERING_UNSEEN_HINT")]:
+			lines[1] = tr("TACTICS_WAVERING_LINE_FORMAT") % [tr(incident.name_key), why]
+			panel.show_card("Binh khiên", Color.WHITE, "Máu 284/440 · Dấu: 2", lines)
+			await process_frame
+			var shown := panel.get_shown_card_lines()
+			if shown.size() < 2 or shown[1] != lines[1]:
+				return _fail("the wavering line shows whole: %s" % lines[1])
 	return await _check_labels()
 
 
@@ -548,6 +698,50 @@ func _check_floats() -> bool:
 	if font_px < GameTheme.SMALL_FONT_SIZE:
 		return _fail("a float is %d px, under %d" % [font_px, GameTheme.SMALL_FONT_SIZE])
 	return true
+
+
+# An enemy we do not see gives nothing away while the enemy plays: its
+# incident, charge, wait or death plays no step (no ring, word, sound or
+# pause), while the same steps of a unit we see play.
+func _check_hidden_steps() -> bool:
+	await _open(true)
+	var hidden := -1
+	var seen := -1
+	for unit: int in _battle().get_unit_count():
+		var state := _battle().get_unit_state(unit)
+		if state["side"] == 0 or not state["alive"] or state["role"] == &"leader":
+			continue
+		if hidden < 0 and not _battle().is_unit_seen(0, unit):
+			hidden = unit
+		if seen < 0 and _battle().is_unit_seen(0, unit):
+			seen = unit
+	if hidden < 0:
+		return _fail("the river crossing should open with an enemy soldier out of sight")
+	var playback := _screen.get_playback()
+	var played: Array[StringName] = []
+	var on_step := func(type: StringName) -> void: played.append(type)
+	playback.step_started.connect(on_step)
+	var fx_before := _map().get_fx_layer().get_child_count()
+	await playback.play(_private_steps(hidden))
+	var hidden_played := played.duplicate()
+	var fx_after := _map().get_fx_layer().get_child_count()
+	played.clear()
+	if seen >= 0:
+		await playback.play(_private_steps(seen))
+	playback.step_started.disconnect(on_step)
+	if not hidden_played.is_empty() or fx_after != fx_before:
+		return _fail("a hidden enemy's steps played %s and added %d effects" % [hidden_played, fx_after - fx_before])
+	if seen >= 0 and played.is_empty():
+		return _fail("a seen enemy's steps should play")
+	return true
+
+
+func _private_steps(unit: int) -> Array:
+	return [
+		{"type": &"incident_fired", "unit": unit, "incident": &"incident.flee", "is_good": false},
+		{"type": &"leader_waited", "unit": unit},
+		{"type": &"damage_dealt", "source": -1, "target": unit, "amount": 5, "hp_after": 10, "source_id": &"zone.fire"},
+	]
 
 
 func _fail(message: String) -> bool:

@@ -129,8 +129,12 @@ bool TacticsSim::move_leader(int p_unit, const Cell &p_cell, std::string *r_erro
 	}
 	bool is_plain = before != nullptr && !finished;
 	for (size_t index = first_event; index < events.size() && is_plain; index++) {
-		is_plain = events[index].type == EventType::UNIT_MOVED || events[index].type == EventType::SKILL_CHARGE_CHANGED;
+		const EventType type = events[index].type;
+		is_plain = type == EventType::UNIT_MOVED || type == EventType::SKILL_CHARGE_CHANGED || type == EventType::VISION_CHANGED;
 	}
+	// A move that showed an enemy, or passed one in sight, gained
+	// information: it stays.
+	is_plain = is_plain && !knows_more_than(*before, units[p_unit].side);
 	if (!is_plain) {
 		clear_undo();
 		return true;
@@ -185,19 +189,47 @@ int TacticsSim::apply_leader_move(int p_unit, const Cell &p_cell, int p_cause) {
 }
 
 int TacticsSim::walk_unit(int p_unit, const std::vector<Cell> &p_path, int p_cost, const std::string &p_kind, int p_cause) {
-	UnitState &unit = units[p_unit];
 	if (p_path.size() < 2) {
 		return 0;
 	}
-	unit.move_points_left = p_cost < unit.move_points_left ? unit.move_points_left - p_cost : 0;
-	// A run goes on when the new walk is straight and keeps its direction.
-	const Cell first_step = p_path[1] - p_path[0];
-	const int trailing = get_trailing_straight_cells(p_path);
-	const bool goes_on = trailing == static_cast<int>(p_path.size()) - 1 && first_step == unit.last_step;
-	unit.straight_cells = goes_on ? unit.straight_cells + trailing : trailing;
-	unit.last_step = p_path.back() - p_path[p_path.size() - 2];
-	unit.is_held_by_zoc = is_in_enemy_zone(*this, p_unit, p_path.back());
-	return relocate_unit(p_unit, p_path, p_kind, p_cause);
+	// Under fog of war the walk was planned around the enemies its side
+	// sees: an unseen one in the way cuts it (an ambush), and only the cells
+	// walked are paid for.
+	std::vector<Cell> path = p_path;
+	int cost = p_cost;
+	Cell blocked = NO_CELL;
+	const int ambusher = environment.fog_of_war ? cut_path_at_ambush(p_unit, path, &blocked) : NO_UNIT;
+	if (ambusher != NO_UNIT) {
+		cost = 0;
+		for (size_t step = 1; step < path.size(); step++) {
+			cost += get_step_cost(*this, p_unit, path[step]);
+		}
+	}
+	UnitState &unit = units[p_unit];
+	int move_id = 0;
+	if (path.size() >= 2) {
+		unit.move_points_left = cost < unit.move_points_left ? unit.move_points_left - cost : 0;
+		// A run goes on when the new walk is straight and keeps its direction.
+		const Cell first_step = path[1] - path[0];
+		const int trailing = get_trailing_straight_cells(path);
+		const bool goes_on = trailing == static_cast<int>(path.size()) - 1 && first_step == unit.last_step;
+		unit.straight_cells = goes_on ? unit.straight_cells + trailing : trailing;
+		unit.last_step = path.back() - path[path.size() - 2];
+		note_walk_sight(p_unit, path);
+		move_id = relocate_unit(p_unit, path, p_kind, p_cause);
+	}
+	units[p_unit].is_held_by_zoc = is_in_enemy_zone(*this, p_unit, units[p_unit].cell);
+	if (ambusher != NO_UNIT) {
+		Event event;
+		event.type = EventType::AMBUSHED;
+		event.unit = p_unit;
+		event.target = ambusher;
+		event.to = units[p_unit].cell;
+		event.from = blocked;
+		event.cause = move_id != 0 ? move_id : p_cause;
+		emit(event);
+	}
+	return move_id;
 }
 
 // Heading: the dominant axis of the whole way walked this phase (from
@@ -264,6 +296,7 @@ bool TacticsSim::use_skill(int p_unit, const Cell &p_cell, std::string *r_error)
 	}
 	clear_undo();
 	units[p_unit].has_cast = true;
+	reveal_attacker(p_unit);
 	cast_skill(*this, p_unit, p_cell, 0, r_error);
 	return true;
 }
@@ -327,6 +360,7 @@ std::vector<std::pair<int, Cell>> TacticsSim::preview_squad(int p_leader, const 
 		return placements;
 	}
 	TacticsSim copy = *this;
+	copy.lift_unseen_enemies(units[p_leader].side);
 	copy.apply_leader_move(p_leader, p_cell, 0);
 	copy.run_squad_moves(p_leader, 0);
 	for (int soldier : copy.units[p_leader].soldiers) {
@@ -384,11 +418,15 @@ bool TacticsSim::simulate_move(int p_unit, const Cell &p_cell, TacticsSim *r_cop
 	if (p_cell == units[p_unit].cell) {
 		return check_leader_can_act(p_unit, r_error);
 	}
+	// The move as its side plans it: no enemy it does not see stops or
+	// steers the walk or the squad; they are back for the fight.
+	const std::vector<std::pair<int, Cell>> lifted = r_copy->lift_unseen_enemies(units[p_unit].side);
 	// No undo copy inside the copy.
 	const bool was_ai = r_copy->side_is_ai[active_side];
 	r_copy->side_is_ai[active_side] = true;
 	const bool is_moved = r_copy->move_leader(p_unit, p_cell, r_error);
 	r_copy->side_is_ai[active_side] = was_ai;
+	r_copy->put_back_enemies(lifted);
 	return is_moved;
 }
 

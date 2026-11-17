@@ -19,11 +19,13 @@ on events; the simulation never does, and nothing ever waits for a sound.
 ## Data
 
 `SoundData`: `id` (`coin`, `music_prep`), `stream`, `volume_db` (-40..6),
-`is_music`. The bank has 24 effects (`ui_tap`, `coin`, `card_flip`, `buy`,
+`is_music`. The bank has 27 effects (`ui_tap`, `coin`, `card_flip`, `buy`,
 `sell`, `merge`, `level_up`, `timer_tick`, `battle_drum`, `hit_light`,
 `hit_heavy`, `arrow`, `spell`, `skill_cast`, `block`, `charge`, `death`,
 `formation_on`, `formation_break`, `petrify`, `win`, `lose`, `epiphany`,
-`text_blip`) and 2 music loops (`music_prep`, `music_battle`).
+`text_blip`, and for the tactics fog `fog_reveal`, `ambush`,
+`weather_turn`, which play the `spell`, `petrify` and `epiphany` files at
+their own volumes) and 2 music loops (`music_prep`, `music_battle`).
 
 All are 16-bit mono 22050 Hz WAVs made by `Tools/make_sfx.gd` from code
 (tones, noise, envelopes; effects end with a 6 ms fade, everything is

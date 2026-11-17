@@ -260,6 +260,7 @@ func _check_double_tap_at_edge() -> bool:
 		return _fail("No leader of ours came within reach of an enemy")
 	var leader: int = pair[0]
 	var target: int = pair[1]
+	var first_targets: Array = _battle().get_strike_targets(leader)
 	_screen.select_unit(leader)
 	await _frames(30)
 	var map := _map()
@@ -289,31 +290,47 @@ func _check_double_tap_at_edge() -> bool:
 # there within those points and strikes.
 func _check_strike_with_points_left() -> bool:
 	await _open()
-	var pair := await _find_contact()
-	if pair.is_empty():
-		return _fail("No leader of ours came within reach of an enemy")
-	var leader: int = pair[0]
-	var target: int = pair[1]
+	var leader := -1
+	var target := -1
 	var map := _map()
-	_screen.select_unit(leader)
-	map.center_on(map.cell_to_local(_cell(leader)))
-	await _frames(30)
-	var home := _cell(leader)
 	var stepped := false
-	for cell: Vector2i in _battle().get_reachable_cells(leader):
-		if absi(cell.x - home.x) + absi(cell.y - home.y) != 1 or _unit_at(cell) >= 0 or not map.is_in_view(map.cell_to_local(cell)):
-			continue
-		await _tap(_point(cell))
-		if not await _wait_idle():
-			return false
-		if _cell(leader) != cell:
-			return _fail("A tap on the blue cell %s should move the leader there" % cell)
-		if _battle().get_strike_targets(leader).has(target):
-			stepped = true
+	# Under fog the first contact may leave no step that keeps an enemy in
+	# reach; the battle goes on to the next contact then (a few tries).
+	for attempt: int in 4:
+		var pair := await _find_contact()
+		if pair.is_empty():
+			return _fail("No leader of ours came within reach of an enemy")
+		leader = pair[0]
+		target = pair[1]
+		var first_targets: Array = _battle().get_strike_targets(leader)
+		_screen.select_unit(leader)
+		map.center_on(map.cell_to_local(_cell(leader)))
+		await _frames(30)
+		var home := _cell(leader)
+		for cell: Vector2i in _battle().get_reachable_cells(leader):
+			if absi(cell.x - home.x) + absi(cell.y - home.y) != 1 or _unit_at(cell) >= 0 or not map.is_in_view(map.cell_to_local(cell)):
+				continue
+			await _tap(_point(cell))
+			if not await _wait_idle():
+				return false
+			if _cell(leader) != cell:
+				return _fail("A tap on the blue cell %s should move the leader there" % cell)
+			# Any enemy it could strike before still in reach after the step.
+			var kept: Array = first_targets.filter(func(unit: int) -> bool: return _battle().get_strike_targets(leader).has(unit))
+			if not kept.is_empty():
+				target = kept[0]
+				stepped = true
+				break
+			if not _battle().can_undo_move(leader):
+				break
+			_screen.press_button(&"undo")
+			if not await _wait_idle():
+				return false
+		if stepped:
 			break
-		_screen.press_button(&"undo")
-		if not await _wait_idle():
-			return false
+		_screen.press_button(&"end_turn")
+		if not await _wait_idle() or _battle().is_finished():
+			return _fail("The battle ended before a step kept an enemy in reach")
 	if not stepped:
 		return _fail("No one-step move kept the enemy in reach")
 	var reachable: Array = _battle().get_reachable_cells(leader)
@@ -343,7 +360,8 @@ func _find_contact() -> Array:
 	for phase: int in 12:
 		for leader: int in _our_leaders():
 			var targets: Array = _battle().get_strike_targets(leader)
-			if _battle().can_move(leader) and not targets.is_empty():
+			# One with a free cell a step away, for the step before the strike.
+			if _battle().can_move(leader) and not targets.is_empty() and _has_free_step(leader):
 				return [leader, targets[0]]
 		for leader: int in _our_leaders():
 			if not _battle().can_move(leader):
@@ -363,6 +381,14 @@ func _find_contact() -> Array:
 		if _battle().is_finished():
 			return []
 	return []
+
+
+func _has_free_step(leader: int) -> bool:
+	var home := _cell(leader)
+	for cell: Vector2i in _battle().get_reachable_cells(leader):
+		if absi(cell.x - home.x) + absi(cell.y - home.y) == 1 and _unit_at(cell) < 0:
+			return true
+	return false
 
 
 func _fail(message: String) -> bool:

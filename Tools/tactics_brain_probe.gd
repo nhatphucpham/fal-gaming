@@ -1,16 +1,20 @@
 extends SceneTree
-## Measures how the soldiers fight: plays seeded battles of the river
-## crossing, side B by the AI and side A by a simple scripted policy (random
-## squads and orders per seed, incidents on), and prints the average soldiers
-## lost per battle on each side and the share of soldier attacks that killed
-## their target or traded well (dealt more than they took and lived).
-## `--policy=idle` plays side A as a player who never gives a command (it
-## only ends its phases), to check that the enemy beats a player who does
-## nothing.
-## Run: godot --headless --path . --script res://Tools/tactics_brain_probe.gd -- --battles=200 [--policy=idle]
+## Measures how the soldiers fight: plays seeded battles of a scenario
+## (the river crossing unless `--scenario=<name>`), side B by the AI and side
+## A by a simple scripted policy (random squads, or the soldiers the scenario
+## supplies, and random orders per seed, incidents on), and prints the
+## average soldiers lost per battle on each side and the share of soldier
+## attacks that killed their target or traded well (dealt more than they
+## took and lived). The scripted player plays by sight as the AI does: it
+## goes for the enemy leaders it sees, else where it last saw one, else
+## scouts toward the objective. `--policy=idle` plays side A as a player who
+## never gives a command (it only ends its phases), to check that the enemy
+## beats a player who does nothing. `--no-fog` plays the scenario in clear
+## sight, to compare.
+## Run: godot --headless --path . --script res://Tools/tactics_brain_probe.gd -- --battles=200 [--scenario=night_raid] [--policy=idle] [--no-fog]
 
 const CATALOG_PATH: String = "res://Data/Tactics/tactics_catalog.tres"
-const SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/river_crossing.tres"
+const SCENARIO_FORMAT: String = "res://Data/Tactics/Scenarios/%s.tres"
 const ORDERS: Array[StringName] = [&"order.follow", &"order.vanguard", &"order.flank", &"order.free"]
 const MAX_COMMANDS: int = 400
 
@@ -19,17 +23,32 @@ var _is_idle: bool = false
 ## Per enemy leader: what it declared at the start of our phase and what it
 ## then did, to measure how often the shown intent comes true.
 var _declared: Dictionary = {}
+## The cell side A takes to win, where it scouts when it sees no enemy.
+var _objective := Vector2i(-1, -1)
+var _map: TacticsMapData
+## Goal cell -> walking cost from every cell to it (terrain costs, rivers
+## kept out), so the scripted player finds the fords and bridges.
+var _costs: Dictionary = {}
 
 
 func _initialize() -> void:
 	var battles := 200
+	var scenario_name := "river_crossing"
+	var has_fog := true
 	for argument: String in OS.get_cmdline_user_args():
 		if argument.begins_with("--battles="):
 			battles = int(argument.get_slice("=", 1))
+		elif argument.begins_with("--scenario="):
+			scenario_name = argument.get_slice("=", 1)
 		elif argument == "--policy=idle":
 			_is_idle = true
+		elif argument == "--no-fog":
+			has_fog = false
 	var catalog := load(CATALOG_PATH) as TacticsCatalog
-	var scenario := load(SCENARIO_PATH) as TacticsScenarioData
+	var scenario := load(SCENARIO_FORMAT % scenario_name) as TacticsScenarioData
+	if not has_fog:
+		scenario = scenario.duplicate()
+		scenario.fog_of_war = false
 	var totals := {
 		"lost_a": 0, "lost_b": 0, "attacks_a": 0, "attacks_b": 0, "good_a": 0, "good_b": 0,
 		"kills_a": 0, "kills_b": 0, "suicides_a": 0, "suicides_b": 0, "wins_a": 0, "rounds": 0,
@@ -42,7 +61,7 @@ func _initialize() -> void:
 		_play(seed_value, catalog, scenario, totals)
 	var elapsed := Time.get_ticks_msec() - start_ms
 	var count := float(battles)
-	print("Tactics brain probe: %d battles in %d ms, side A %s" % [battles, elapsed, "idle" if _is_idle else "scripted"])
+	print("Tactics brain probe: %s, %d battles in %d ms, side A %s" % [scenario.id, battles, elapsed, "idle" if _is_idle else "scripted"])
 	print("  soldiers lost per battle: ours (A) %.2f, enemy (B) %.2f" % [totals["lost_a"] / count, totals["lost_b"] / count])
 	for side: String in ["a", "b"]:
 		var attacks: int = totals["attacks_" + side]
@@ -58,6 +77,7 @@ func _initialize() -> void:
 
 func _play(seed_value: int, catalog: TacticsCatalog, scenario: TacticsScenarioData, totals: Dictionary) -> void:
 	_rng.seed = seed_value
+	_costs.clear()
 	var battle := TacticsBattle.new()
 	battle.set_side_ai(TacticsBattle.SIDE_B, true)
 	var squads: Array = []
@@ -66,9 +86,12 @@ func _play(seed_value: int, catalog: TacticsCatalog, scenario: TacticsScenarioDa
 		for slot: int in leader.lead_capacity:
 			squad.append(catalog.troops[_rng.randi_range(0, catalog.troops.size() - 1)])
 		squads.append(squad)
-	# The idle player keeps the scenario's squads and orders.
-	if _is_idle or not battle.load_scenario_with_squads(scenario, TacticsBattle.SIDE_A, squads):
+	# The idle player keeps the scenario's squads and orders; a scenario
+	# that supplies its soldiers is played with them.
+	if _is_idle or not scenario.supplied_sizes.is_empty() or not battle.load_scenario_with_squads(scenario, TacticsBattle.SIDE_A, squads):
 		battle.load_scenario(scenario)
+	_objective = scenario.map.objective_cell
+	_map = scenario.map
 	battle.set_incident_rules(catalog.incident_rules, seed_value)
 	var events: Array = battle.start().duplicate()
 	for unit: Dictionary in battle.get_units():
@@ -97,21 +120,29 @@ func _play(seed_value: int, catalog: TacticsCatalog, scenario: TacticsScenarioDa
 	battle.free()
 
 
-## Move toward the nearest (sometimes the second nearest) enemy leader and
-## attack the weakest enemy in reach.
+## Move toward the nearest (sometimes the second nearest) enemy leader it
+## sees, else where one was last seen, else toward the objective (a scout's
+## walk), and attack the weakest enemy in reach.
 func _play_leader(battle: TacticsBattle, leader: int) -> Array:
 	var events: Array = []
 	var cell: Vector2i = battle.get_unit_state(leader)["cell"]
 	var targets: Array = []
 	for unit: Dictionary in battle.get_units():
-		if unit["alive"] and unit["side"] == TacticsBattle.SIDE_B and unit["role"] == &"leader":
+		if unit["alive"] and unit["side"] == TacticsBattle.SIDE_B and unit["role"] == &"leader" and battle.is_unit_seen(TacticsBattle.SIDE_A, unit["index"]):
 			targets.append(unit)
+	if targets.is_empty():
+		for ghost: Dictionary in battle.get_last_seen(TacticsBattle.SIDE_A):
+			if battle.get_unit_state(ghost["unit"])["role"] == &"leader":
+				targets.append({"cell": ghost["cell"]})
+	if targets.is_empty() and _objective.x >= 0:
+		targets.append({"cell": _objective})
 	targets.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return _distance(a["cell"], cell) < _distance(b["cell"], cell))
 	if not targets.is_empty() and battle.get_attack_targets(leader).is_empty():
 		var goal: Vector2i = targets[mini(targets.size() - 1, 1 if _rng.randf() < 0.3 else 0)]["cell"]
+		# By the walking cost, which finds the ford or the bridge.
 		var best := cell
 		for reachable: Vector2i in battle.get_reachable_cells(leader):
-			if _distance(reachable, goal) < _distance(best, goal):
+			if _walk_cost(reachable, goal) < _walk_cost(best, goal):
 				best = reachable
 		if best != cell:
 			events.append_array(battle.move_leader(leader, best))
@@ -202,6 +233,40 @@ func _close(open: Dictionary, dealt: int, taken: int, totals: Dictionary) -> voi
 		totals["suicides_" + key] += 1
 	if open["killed"] or (not open["died"] and dealt > taken):
 		totals["good_" + key] += 1
+
+
+# The cost to walk from `from` to `goal` over the map's terrain (Dijkstra
+# from the goal, cached), plus the straight distance to break ties.
+func _walk_cost(from: Vector2i, goal: Vector2i) -> int:
+	if not _costs.has(goal):
+		var width := _map.width
+		var count := width * _map.height
+		var costs := PackedInt32Array()
+		costs.resize(count)
+		costs.fill(1 << 20)
+		costs[goal.y * width + goal.x] = 0
+		var open: Array[Vector2i] = [goal]
+		while not open.is_empty():
+			var at: Vector2i = open.pop_front()
+			for step: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+				var next := at + step
+				if next.x < 0 or next.y < 0 or next.x >= width or next.y >= _map.height:
+					continue
+				var terrain := _terrain(next)
+				if terrain == null or terrain.is_impassable:
+					continue
+				var cost: int = costs[at.y * width + at.x] + terrain.move_cost
+				if cost < costs[next.y * width + next.x]:
+					costs[next.y * width + next.x] = cost
+					open.append(next)
+		_costs[goal] = costs
+	return (_costs[goal] as PackedInt32Array)[from.y * _map.width + from.x] * 64 + _distance(from, goal)
+
+
+func _terrain(cell: Vector2i) -> TacticsTerrainData:
+	var symbol := _map.rows[cell.y][cell.x]
+	var index := _map.legend_symbols.find(symbol)
+	return _map.legend_terrains[index] as TacticsTerrainData if index >= 0 else null
 
 
 static func _distance(a: Vector2i, b: Vector2i) -> int:

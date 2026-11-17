@@ -32,6 +32,7 @@ class TacticsUnitData : public Resource {
 	int min_range_cells = 1;
 	int max_range_cells = 1;
 	int move_points = 4;
+	int vision_cells = 4;
 	TypedArray<TacticsKeywordData> keywords;
 
 protected:
@@ -59,6 +60,8 @@ public:
 	int get_max_range_cells() const { return max_range_cells; }
 	void set_move_points(int64_t p_value) { move_points = clamp_to_int(p_value); }
 	int get_move_points() const { return move_points; }
+	void set_vision_cells(int64_t p_value) { vision_cells = clamp_to_int(p_value); }
+	int get_vision_cells() const { return vision_cells; }
 	void set_keywords(const TypedArray<TacticsKeywordData> &p_value) { keywords = p_value; }
 	TypedArray<TacticsKeywordData> get_keywords() const { return keywords; }
 };

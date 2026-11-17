@@ -27,7 +27,10 @@ bool is_direction(const Cell &p_cell) {
 }
 
 bool validate_terrain(const TerrainDef &p_terrain, std::string *r_error) {
-	return check_range(p_terrain.id, "move_cost", p_terrain.move_cost, 1, MAX_MOVE_COST, r_error) &&
+	return check_range(p_terrain.id, "vision_bonus", p_terrain.vision_bonus, -MAX_VISION_CELLS, MAX_VISION_CELLS, r_error) &&
+			check_range(p_terrain.id, "sight_block", p_terrain.sight_block, 0, MAX_VISION_CELLS, r_error) &&
+			check_range(p_terrain.id, "light_cells", p_terrain.light_cells, 0, MAX_VISION_CELLS, r_error) &&
+			check_range(p_terrain.id, "move_cost", p_terrain.move_cost, 1, MAX_MOVE_COST, r_error) &&
 			check_range(p_terrain.id, "armor_bonus", p_terrain.armor_bonus, -MAX_STAT, MAX_STAT, r_error) &&
 			check_range(p_terrain.id, "damage_taken_pct", p_terrain.damage_taken_pct, -MAX_PERCENT_MODIFIER, MAX_PERCENT_MODIFIER, r_error) &&
 			check_range(p_terrain.id, "ranged_damage_taken_pct", p_terrain.ranged_damage_taken_pct, -MAX_PERCENT_MODIFIER, MAX_PERCENT_MODIFIER, r_error) &&
@@ -145,7 +148,8 @@ bool validate_incident(const IncidentDef &p_def, std::string *r_error) {
 			check_range(p_def.id, "calm_radius_cells", p_def.calm_radius_cells, 0, MAX_MAP_CELLS_PER_AXIS * 2, r_error) &&
 			check_range(p_def.id, "amount", p_def.amount, -MAX_PASSIVE_AMOUNT, MAX_PASSIVE_AMOUNT, r_error) &&
 			check_range(p_def.id, "secondary_amount", p_def.secondary_amount, -MAX_PASSIVE_AMOUNT, MAX_PASSIVE_AMOUNT, r_error) &&
-			check_range(p_def.id, "duration_rounds", p_def.duration_rounds, 0, MAX_DURATION_ROUNDS, r_error);
+			check_range(p_def.id, "duration_rounds", p_def.duration_rounds, 0, MAX_DURATION_ROUNDS, r_error) &&
+			check_range(p_def.id, "unseen_waver_pct", p_def.unseen_waver_pct, 0, MAX_PERCENT_MODIFIER, r_error);
 }
 
 bool validate_leader_parts(const UnitDef &p_unit, std::string *r_error) {
@@ -227,7 +231,50 @@ bool validate_rules(const Rules &p_rules, std::string *r_error) {
 			check_range(owner, "ai_strength_radius_cells", p_rules.ai_strength_radius_cells, 0, MAX_MAP_CELLS_PER_AXIS * 2, r_error) &&
 			check_range(owner, "ai_attack_ratio_pct", p_rules.ai_attack_ratio_pct, 0, MAX_RATIO_PCT, r_error) &&
 			check_range(owner, "ai_advance_ratio_pct", p_rules.ai_advance_ratio_pct, 0, MAX_RATIO_PCT, r_error) &&
-			check_range(owner, "ai_hold_radius_cells", p_rules.ai_hold_radius_cells, 0, MAX_MAP_CELLS_PER_AXIS * 2, r_error);
+			check_range(owner, "ai_hold_radius_cells", p_rules.ai_hold_radius_cells, 0, MAX_MAP_CELLS_PER_AXIS * 2, r_error) &&
+			check_range(owner, "leader_light_cells", p_rules.leader_light_cells, 0, MAX_VISION_CELLS, r_error) &&
+			check_range(owner, "intent_read_cells", p_rules.intent_read_cells, 0, MAX_MAP_CELLS_PER_AXIS * 2, r_error) &&
+			check_range(owner, "reveal_cells", p_rules.reveal_cells, 1, MAX_VISION_CELLS, r_error) &&
+			check_range(owner, "attack_reveal_phases", p_rules.attack_reveal_phases, 0, MAX_DURATION_ROUNDS, r_error);
+}
+
+namespace {
+
+bool validate_weather(const WeatherDef &p_weather, std::string *r_error) {
+	const std::string owner = p_weather.id.empty() ? std::string("weather") : p_weather.id;
+	if (p_weather.wind != Cell{ 0, 0 } && !is_direction(p_weather.wind)) {
+		*r_error = owner + " has a wind that is not one step along an axis";
+		return false;
+	}
+	return check_range(owner, "vision_delta", p_weather.vision_delta, -MAX_VISION_CELLS, MAX_VISION_CELLS, r_error) &&
+			check_range(owner, "ranged_range_delta", p_weather.ranged_range_delta, -MAX_RANGE_CELLS, MAX_RANGE_CELLS, r_error) &&
+			check_range(owner, "burn_pct", p_weather.burn_pct, 0, MAX_RATIO_PCT, r_error) &&
+			check_range(owner, "cost_delta", p_weather.cost_delta, 0, MAX_MOVE_COST, r_error) &&
+			check_range(owner, "wind_range_delta", p_weather.wind_range_delta, 0, MAX_RANGE_CELLS, r_error) &&
+			check_range(owner, "waver_pct", p_weather.waver_pct, 0, MAX_PERCENT_MODIFIER, r_error);
+}
+
+} // namespace
+
+bool validate_environment(const EnvironmentDef &p_environment, std::string *r_error) {
+	if (!validate_weather(p_environment.weather, r_error) || (p_environment.has_weather_change && !validate_weather(p_environment.weather_after, r_error))) {
+		return false;
+	}
+	if (p_environment.has_weather_change && !check_range("environment", "weather_change_round", p_environment.weather_change_round, 2, MAX_ROUNDS, r_error)) {
+		return false;
+	}
+	const int count = static_cast<int>(p_environment.daytimes.size());
+	if (!check_range("environment", "daytime_step_rounds", p_environment.daytime_step_rounds, 1, MAX_ROUNDS, r_error) ||
+			!check_range("environment", "daytime_start_index", p_environment.daytime_start_index, 0, count > 0 ? count - 1 : 0, r_error)) {
+		return false;
+	}
+	for (const DaytimeDef &daytime : p_environment.daytimes) {
+		if (!check_range(daytime.id, "vision_delta", daytime.vision_delta, -MAX_VISION_CELLS, MAX_VISION_CELLS, r_error) ||
+				!check_range(daytime.id, "waver_pct", daytime.waver_pct, 0, MAX_PERCENT_MODIFIER, r_error)) {
+			return false;
+		}
+	}
+	return true;
 }
 
 bool validate_map(const MapDef &p_map, std::string *r_error) {
@@ -275,7 +322,8 @@ bool validate_unit_def(const UnitDef &p_unit, std::string *r_error) {
 			check_range(p_unit.id, "magic_resist", p_unit.magic_resist, 0, MAX_STAT, r_error) &&
 			check_range(p_unit.id, "min_range_cells", p_unit.min_range_cells, 1, MAX_RANGE_CELLS, r_error) &&
 			check_range(p_unit.id, "max_range_cells", p_unit.max_range_cells, p_unit.min_range_cells, MAX_RANGE_CELLS, r_error) &&
-			check_range(p_unit.id, "move_points", p_unit.move_points, 0, MAX_MOVE_POINTS, r_error);
+			check_range(p_unit.id, "move_points", p_unit.move_points, 0, MAX_MOVE_POINTS, r_error) &&
+			check_range(p_unit.id, "vision_cells", p_unit.vision_cells, 1, MAX_VISION_CELLS, r_error);
 	if (!are_stats_valid) {
 		return false;
 	}

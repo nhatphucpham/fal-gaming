@@ -48,22 +48,35 @@
 [ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/lieu_mi.tres" id="leaders_lieu_mi"]
 [ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/ba_khac.tres" id="leaders_ba_khac"]
 [ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/thiet_nha.tres" id="leaders_thiet_nha"]
+[ext_resource type="TacticsLeaderData" path="res://Data/Tactics/Leaders/lang_vuong.tres" id="leaders_lang_vuong"]
 [ext_resource type="TacticsMapData" path="res://Data/Tactics/Maps/river_crossing.tres" id="maps_river_crossing"]
 [ext_resource type="TacticsScenarioData" path="res://Data/Tactics/Scenarios/river_crossing.tres" id="scenarios_river_crossing"]
+[ext_resource type="TacticsMapData" path="res://Data/Tactics/Maps/night_raid.tres" id="maps_night_raid"]
+[ext_resource type="TacticsScenarioData" path="res://Data/Tactics/Scenarios/night_raid.tres" id="scenarios_night_raid"]
 [ext_resource type="TacticsTraitData" path="res://Data/Tactics/Traits/strict.tres" id="traits_strict"]
 [ext_resource type="TacticsTraitData" path="res://Data/Tactics/Traits/kind.tres" id="traits_kind"]
 [ext_resource type="TacticsIncidentRulesData" path="res://Data/Tactics/Incidents/incident_rules.tres" id="incident_rules"]
+[ext_resource type="TacticsKeywordData" path="res://Data/Tactics/Keywords/scout.tres" id="keywords_scout"]
+[ext_resource type="TacticsWeatherData" path="res://Data/Tactics/Weathers/clear.tres" id="weathers_clear"]
+[ext_resource type="TacticsWeatherData" path="res://Data/Tactics/Weathers/rain.tres" id="weathers_rain"]
+[ext_resource type="TacticsWeatherData" path="res://Data/Tactics/Weathers/fog.tres" id="weathers_fog"]
+[ext_resource type="TacticsWeatherData" path="res://Data/Tactics/Weathers/wind.tres" id="weathers_wind"]
+[ext_resource type="TacticsDaytimeData" path="res://Data/Tactics/Daytimes/day.tres" id="daytimes_day"]
+[ext_resource type="TacticsDaytimeData" path="res://Data/Tactics/Daytimes/dusk.tres" id="daytimes_dusk"]
+[ext_resource type="TacticsDaytimeData" path="res://Data/Tactics/Daytimes/night.tres" id="daytimes_night"]
 
 [resource]
 rules = ExtResource("rules")
 terrains = Array[TacticsTerrainData]([ExtResource("terrains_plain"), ExtResource("terrains_forest"), ExtResource("terrains_hill"), ExtResource("terrains_river"), ExtResource("terrains_ford"), ExtResource("terrains_bridge"), ExtResource("terrains_fort"), ExtResource("terrains_village")])
-keywords = Array[TacticsKeywordData]([ExtResource("keywords_long_weapon"), ExtResource("keywords_charge"), ExtResource("keywords_armor_pierce"), ExtResource("keywords_cover"), ExtResource("keywords_flying"), ExtResource("keywords_heavy")])
+keywords = Array[TacticsKeywordData]([ExtResource("keywords_long_weapon"), ExtResource("keywords_charge"), ExtResource("keywords_armor_pierce"), ExtResource("keywords_cover"), ExtResource("keywords_flying"), ExtResource("keywords_heavy"), ExtResource("keywords_scout")])
 zones = Array[TacticsZoneData]([ExtResource("zones_wind"), ExtResource("zones_fire")])
 passives = Array[TacticsPassiveData]([ExtResource("passives_iron_will"), ExtResource("passives_pack_fury"), ExtResource("passives_forest_ambush"), ExtResource("passives_drilled_ranks"), ExtResource("passives_wind_trail"), ExtResource("passives_hook_spear"), ExtResource("passives_warlord_growth"), ExtResource("passives_mark_rescue"), ExtResource("passives_mark_stand"), ExtResource("passives_mark_surge"), ExtResource("passives_mark_discontent"), ExtResource("passives_mark_riot"), ExtResource("passives_mark_flee"), ExtResource("passives_mark_betray")])
 skills = Array[TacticsSkillData]([ExtResource("skills_rally_banner"), ExtResource("skills_piercing_thrust"), ExtResource("skills_chain_arrows"), ExtResource("skills_fire_rain"), ExtResource("skills_blood_oath"), ExtResource("skills_named_rally")])
 troops = Array[TacticsTroopData]([ExtResource("troops_spearman"), ExtResource("troops_shieldman"), ExtResource("troops_archer"), ExtResource("troops_rider"), ExtResource("troops_swordsman"), ExtResource("troops_kite_scout")])
-leaders = Array[TacticsLeaderData]([ExtResource("leaders_lac_hong"), ExtResource("leaders_moon_spear"), ExtResource("leaders_lieu_mi"), ExtResource("leaders_ba_khac"), ExtResource("leaders_thiet_nha")])
-maps = Array[TacticsMapData]([ExtResource("maps_river_crossing")])
-scenarios = Array[TacticsScenarioData]([ExtResource("scenarios_river_crossing")])
+leaders = Array[TacticsLeaderData]([ExtResource("leaders_lac_hong"), ExtResource("leaders_moon_spear"), ExtResource("leaders_lieu_mi"), ExtResource("leaders_ba_khac"), ExtResource("leaders_thiet_nha"), ExtResource("leaders_lang_vuong")])
+maps = Array[TacticsMapData]([ExtResource("maps_river_crossing"), ExtResource("maps_night_raid")])
+scenarios = Array[TacticsScenarioData]([ExtResource("scenarios_river_crossing"), ExtResource("scenarios_night_raid")])
 traits = Array[TacticsTraitData]([ExtResource("traits_strict"), ExtResource("traits_kind")])
+weathers = Array[TacticsWeatherData]([ExtResource("weathers_clear"), ExtResource("weathers_rain"), ExtResource("weathers_fog"), ExtResource("weathers_wind")])
+daytimes = Array[TacticsDaytimeData]([ExtResource("daytimes_day"), ExtResource("daytimes_dusk"), ExtResource("daytimes_night")])
 incident_rules = ExtResource("incident_rules")

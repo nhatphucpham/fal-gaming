@@ -13,4 +13,5 @@ attack_pct = 100
 min_range_cells = 2
 max_range_cells = 3
 move_points = 4
+vision_cells = 5
 keywords = Array[TacticsKeywordData]([])
