@@ -9,6 +9,25 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Added
 
+- Chiến Dịch: places on the map. Villages heal, give a recruit (militia
+  or hunter) or can be looted for supplies (bad karma); the enemy burns
+  the ones it reaches. Shrines charge a leader's skill, calm wavering
+  soldiers or bless the squad. Camps give supplies when taken and rest
+  the hurt nearby. Strongholds (keep, pass fort, watchtower) are taken by
+  standing on them a phase or two with no enemy beside you; they give
+  armor, sight and sometimes reinforcements. Each place is used once and
+  cannot be taken back. Under fog you only know what you last saw.
+- Chiến Dịch: five objectives: take the pass, hold the city against
+  waves, escort the supply cart along its road (hold it or let it roll),
+  break out of a siege by the map's exits, bring down an enemy general
+  who flees when hurt. Each battle has side goals (no losses, every
+  village spared, every camp, win by a round) that pay supplies.
+- Chiến Dịch: three new maps: the city defense, the supply road and the
+  broken ring. The campaign takes the five battles in turn.
+- Chiến Dịch: supplies are kept in the roster; at the muster they hire a
+  reserve soldier. Recruits from villages join the roster. The muster
+  shows the objective, its side goals and the map's places, and the
+  summary the goals met.
 - Chiến Dịch: fog of war. Each side sees only around its units (further
   from hills, not through woods and hills); cells you saw stay dimmed,
   cells never seen stay dark. Enemies you do not see are not drawn and

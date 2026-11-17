@@ -45,6 +45,7 @@ the next battle) and replaced by an empty roster.
 | `battles` | Battles fought (a retreat counts) |
 | `next_id` | Next person id |
 | `karma_bait`, `karma_rescue` | Karma carried into the next battle |
+| `supplies` | Supplies (lương) won in battle, spent at the muster; optional, a save without it reads as 0, a negative one is unreadable |
 | `troop_counts` | Per troop id, how many were recruited: a person's `number` |
 | `people` | `[{id, troop, number, look, status, first_leader, is_named, marks}]` |
 
@@ -94,6 +95,11 @@ The roster numbers come from `TacticsIncidentRulesData`
     or active (a returning enemy who came over). Otherwise unchanged.
   - An enemy soldier who defected to us and is alive becomes a recruit,
     with its marks.
+  - A soldier a village gave us (`arrival` `recruit`, side 0) becomes a
+    recruit of its troop, face and all, unless it fell; its summary row
+    has `is_recruit`.
+  - The battle's `supplies` (loot, camps, side goals) are added to the
+    roster's.
   - An active, unnamed person who now has `marks_to_name` marks is named.
   - Karma for the next battle = (carried + this battle's) ×
     `karma_keep_pct` / 100, for bait and rescue.
@@ -102,6 +108,12 @@ The roster numbers come from `TacticsIncidentRulesData`
     mark is a story and stays. A hundred AI-played battles leave about 60
     people and a 15 KB file (357 people and 69 KB before).
   - The roster is saved.
+- Supplies buy reserve soldiers at the muster: "Mộ <troop> (N lương)"
+  hires the scenario's `reserve_troop` for `reserve_cost` supplies into the
+  first leader with room; it is refused (a hint says why) without room or
+  supplies. The scenario cycle is the catalog's order: river crossing,
+  night raid, city defense, supply road, broken ring, then the river
+  again.
 - Name: the number word (`NAME_NUMBER_n`: Cả, Hai, Ba, Tư, Năm, Sáu, Bảy,
   Tám, Chín, Mười, cycling) plus the place word of the terrain where most
   of the first `marks_to_name` marks were left (`NAME_PLACE_<TERRAIN>`;
@@ -133,7 +145,8 @@ The roster numbers come from `TacticsIncidentRulesData`
 | `TacticsCampaign.new(roster, catalog, scenario)` | constructor | Builds `scenario`, `squads`, `people`, `leader_people`, `enemy_people`, `runtime_leaders` |
 | `prepare_battle(battle, people) -> bool` | method | Rules, karma, records (and `forced_seeds`, for tests and stills) |
 | `finish_battle(battle, people, is_saved = true) -> Dictionary` | method | `apply_report` on the battle's report, then save |
-| `apply_report(report, unit_to_person) -> Dictionary` | method | The summary: `is_finished`, `winner`, `reason`, `round`, `rows` (`[{id, unit, status, has_defected, start_side, role, marks, is_named_now, before, after}]`), `named` (ids), `karma` (`bait`, `rescue`, `next_bait`, `next_rescue`) |
+| `apply_report(report, unit_to_person) -> Dictionary` | method | The summary: `is_finished`, `winner`, `reason`, `round`, `rows` (`[{id, unit, status, has_defected, start_side, role, marks, is_named_now, before, after}]`), `named` (ids), `karma` (`bait`, `rescue`, `next_bait`, `next_rescue`), `supplies`, `supplies_total`, `goals` (`[{kind, value, supplies, is_met}]`); rows also carry `is_recruit` |
+| `can_hire_reserve() -> bool`, `hire_reserve(leader_id) -> int` | method | Whether the roster can pay for the scenario's reserve soldier; buy one (its person id, -1 when refused) |
 | `make_leader(person) -> TacticsLeaderData` | method | A person as a leader |
 | `fill_text(text)` | method | Registers runtime leaders and named soldiers' names on a `TacticsText` |
 | `TacticsBiography.person_name(person)`, `plain_name`, `display_name`, `biography(person)`, `mark_line(mark)` | method | Text |
@@ -180,14 +193,20 @@ None. A save that cannot be read or written is reported once with
   squad slots, one traitor returns, every leader on its own cell; rules
   with fewer leaders than spawn cells cap the muster.
 - A hundred AI-vs-AI battles stay under 120 people and 32 KB.
+- Supplies saved and loaded; a save without them reads as 0, a negative
+  store is refused.
+- A village recruit joins unless it fell; supplies and side goals in the
+  summary; a reserve soldier is paid for and refused without supplies.
 
-`Tests/muster_test.gd` retreats through the summary into the roster.
+`Tests/muster_test.gd` retreats through the summary into the roster, and
+on every scenario checks the objective text, the supplies, a hire and the
+summary's goals.
 `Tests/tactics_screen_sync_test.gd` plays campaign battles with incidents.
 All are in CI.
 
 ## Known limits
 
-- One scenario. Named and returning leaders only fit on spare spawn cells,
+- Named and returning leaders only fit on spare spawn cells,
   so on `river_crossing` at most two named leaders of ours and one
   returning enemy appear (the lowest ids first); other named soldiers fight
   in squads, other returning enemies wait for a later battle.
@@ -196,8 +215,8 @@ All are in CI.
 - In a hundred AI-played battles no soldier of ours lived to three marks,
   so naming depends on the player keeping soldiers alive.
 - A second unreadable roster replaces the first `.unreadable` copy.
-- Leaving the muster with "Về" drops that muster's new recruits (they are
-  saved only after a battle).
+- Leaving the muster with "Về" drops that muster's new recruits and hires,
+  and gives back the supplies spent (they are saved only after a battle).
 - The roster is written only when the summary opens (an end or a retreat).
   A game closed during a battle keeps the roster as it was before it: the
   dead of that battle are back and its marks are lost, as a run closed

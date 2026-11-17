@@ -32,8 +32,10 @@
   fake server on localhost. `tactics_test.gd`, `tactics_squad_test.gd`,
   `tactics_fuzz_test.gd`, `tactics_query_test.gd` and
   `tactics_incident_test.gd` test the tactics simulation, its queries and
-  its incidents, and `tactics_vision_test.gd` its fog of war, weather and
-  times of day (sharing `tactics_test_kit.gd`); `tactics_roster_test.gd`
+  its incidents, `tactics_vision_test.gd` its fog of war, weather and
+  times of day, and `tactics_site_test.gd` and
+  `tactics_objective_test.gd` its sites and objectives (sharing
+  `tactics_test_kit.gd`); `tactics_roster_test.gd`
   tests the roster and the campaign;
   `tactics_screen_test.gd` (a battle won through the tactics screen) and
   `muster_test.gd` (the muster screen from the title) test its screens.
@@ -231,9 +233,13 @@ with a counter, keywords, orders, passives, charged leader skills, zones and
 an AI that declares its intent, incidents (Biến cố: hidden seeds that
 waver and fire, karma and marks), and fog of war with weather and times of
 day (what each side sees and remembers, the AI included; see
-[Tactics vision](systems/tactics_vision.md)). The simulation (`TacticsSim`, namespace
+[Tactics vision](systems/tactics_vision.md)), sites (villages, shrines,
+camps, strongholds; see [Tactics sites](systems/tactics_sites.md)) and
+objectives with side goals that pay supplies (see
+[Tactics objectives](systems/tactics_objectives.md)). The simulation (`TacticsSim`, namespace
 `tactics`) is plain C++17 with integer math and registries of keywords,
-zones, passives, charge mechanisms, skill targets and effects keyed by ids
+zones, passives, charge mechanisms, skill targets and effects, sites,
+objectives and side goals keyed by ids
 in `Data/Tactics/`; it reuses the battle system's damage formula. Its
 resources (`TacticsCatalog`, `TacticsMapData`, `TacticsLeaderData`, ...) and
 the `TacticsBattle` node are the bridge. `Scenes/Tactics/` is its
