@@ -1,13 +1,15 @@
 class_name TacticsTip
 extends Control
 ## First-time tips on the tactics map: one short line in a gold-edged box
-## just above the bottom panel, the first time the player selects a
-## leader, moves one, spends a leader's last move point, changes an order,
-## sees a soldier waver, meets an objective, a site within reach, a capture
-## ring, the convoy, exits and an enemy wave. Each tip
-## slides up with a sound, stays a few seconds and fades; one shown is
-## remembered in the settings (RunSettings) and never shown again. A tip
-## that comes while another shows waits for it. It never catches taps.
+## just above the bottom panel, or under the top bar when that strip holds
+## units of ours (the screen tells which rects to keep clear), the first
+## time the player selects a leader, moves one, spends a leader's last
+## move point, changes an order, sees a soldier waver, meets an objective,
+## a site within reach, a capture ring, the convoy, exits and an enemy
+## wave. Each tip slides in with a sound, stays a few seconds or until the
+## next tap anywhere, and fades; one shown is remembered in the settings
+## (RunSettings) and never shown again. A tip that comes while another
+## shows waits for it. It never catches taps.
 ## [codeblock]
 ## var tips := TacticsTip.new()
 ## add_child(tips)
@@ -35,9 +37,20 @@ const IN_SEC: float = 0.25
 const SHOW_SEC: float = 4.5
 const OUT_SEC: float = 0.3
 const RISE_PX: float = 36.0
+## A tap's fade, the beat before the next tip and a move between places.
+const DISMISS_SEC: float = 0.15
+const NEXT_GAP_SEC: float = 0.35
+const MOVE_SEC: float = 0.2
+const MARGIN_PX: float = 16.0
 
 ## Space kept free under the tip (the bottom panel).
 var bottom_px: float = 430.0
+## Space kept free over the tip when it sits at the top (the top bar and
+## the map's corner buttons).
+var top_px: float = 0.0
+## Returns the rects (this control's coordinates) the tip must not cover,
+## such as our units on the map; unset, the tip sits above the panel.
+var avoid_rects: Callable
 
 var _box: PanelContainer
 var _label: Label
@@ -45,6 +58,12 @@ var _seen: Array[String] = []
 var _queue: Array[StringName] = []
 var _shown: StringName = &""
 var _tween: Tween
+var _move_tween: Tween
+## The box's top now (layout px) and whether it sits at the top.
+var _box_top: float = 0.0
+var _is_at_top: bool = false
+var _is_dismissing: bool = false
+var _is_sliding_in: bool = false
 
 
 func _init() -> void:
@@ -57,17 +76,14 @@ func _ready() -> void:
 	_seen = RunSettings.load_seen_tips()
 	_box = TacticsViews.panel(Color(Palette.PANEL, 0.95))
 	(_box.get_theme_stylebox(&"panel") as StyleBoxFlat).border_color = Palette.GOLD
-	_box.anchor_top = 1.0
 	_box.anchor_right = 1.0
-	_box.anchor_bottom = 1.0
 	_box.offset_left = 24
 	_box.offset_right = -24
-	_box.offset_bottom = -bottom_px - 16
-	_box.grow_vertical = Control.GROW_DIRECTION_BEGIN
 	add_child(_box)
 	_label = TacticsViews.wrapped("", 26, Palette.CREAM)
 	_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_box.add_child(_label)
+	set_process_input(false)
 
 
 ## Shows the tip once ever: now, or after the one on screen.
@@ -75,7 +91,7 @@ func offer(id: StringName) -> void:
 	if not TIPS.has(id) or _seen.has(SETTINGS_PREFIX + id) or _queue.has(id) or _shown == id:
 		return
 	_queue.append(id)
-	if _shown == &"":
+	if _shown == &"" and not _is_dismissing:
 		_show_next()
 
 
@@ -93,25 +109,117 @@ func get_text() -> String:
 	return _label.text if _label != null else ""
 
 
+## The box's rect in this control's coordinates (for tests).
+func get_box_rect() -> Rect2:
+	return Rect2(_box.position + position, _box.size) if _box != null else Rect2()
+
+
+## Whether the tip sits under the top bar (else above the panel).
+func is_at_top() -> bool:
+	return _is_at_top
+
+
+## Moves the tip off what it would cover now (the camera or the units
+## moved); nothing moves when its place stays the same.
+func refresh_place() -> void:
+	if _shown == &"" or _box == null:
+		return
+	var was_top := _box_top
+	_choose_place()
+	if is_equal_approx(was_top, _box_top) or _is_sliding_in:
+		return
+	if _move_tween != null and _move_tween.is_valid():
+		_move_tween.kill()
+	_move_tween = create_tween()
+	_move_tween.tween_property(_box, ^"position:y", _box_top, MOVE_SEC).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+
+
+# Above the panel unless that covers a rect to keep clear, else under the
+# top bar; when both cover some, the one that covers fewer.
+func _choose_place() -> void:
+	# The wrapped line's height at the box's width (before the box has
+	# laid it out at that width).
+	var frame := _box.get_theme_stylebox(&"panel").get_minimum_size()
+	var width := size.x - _box.offset_left + _box.offset_right
+	_label.size.x = width - frame.x
+	var height := _label.get_minimum_size().y + frame.y
+	var bottom_top := size.y - bottom_px - MARGIN_PX - height
+	var top_top := top_px + MARGIN_PX
+	var rects: Array = avoid_rects.call() if avoid_rects.is_valid() else []
+	var covered_bottom := _covered(rects, bottom_top, height)
+	var covered_top := _covered(rects, top_top, height)
+	_is_at_top = covered_bottom > 0 and covered_top < covered_bottom
+	_box_top = top_top if _is_at_top else bottom_top
+	_box.size.y = height
+
+
+func _covered(rects: Array, top: float, height: float) -> int:
+	var box := Rect2(Vector2(_box.offset_left, top), Vector2(size.x - _box.offset_left + _box.offset_right, height))
+	var count := 0
+	for rect: Rect2 in rects:
+		count += 1 if box.intersects(rect) else 0
+	return count
+
+
+# A tap anywhere (it is not caught) lets the tip go at once.
+func _input(event: InputEvent) -> void:
+	var is_press := (event is InputEventMouseButton and (event as InputEventMouseButton).pressed) or (event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed)
+	if is_press and _shown != &"":
+		dismiss()
+
+
+## Fades the tip on screen now; the next waiting one follows after a beat.
+func dismiss() -> void:
+	if _shown == &"":
+		return
+	set_process_input(false)
+	_is_dismissing = true
+	if _tween != null and _tween.is_valid():
+		_tween.kill()
+	_tween = create_tween()
+	_tween.tween_property(_box, ^"modulate:a", 0.0, DISMISS_SEC)
+	_tween.tween_callback(func() -> void:
+		_shown = &""
+		visible = false)
+	_tween.tween_interval(NEXT_GAP_SEC)
+	_tween.tween_callback(_show_next)
+
+
 func _show_next() -> void:
+	_is_dismissing = false
 	if _queue.is_empty():
 		_shown = &""
 		visible = false
+		set_process_input(false)
 		return
 	_shown = _queue.pop_front()
 	_seen.append(SETTINGS_PREFIX + _shown)
 	RunSettings.save_seen_tip(SETTINGS_PREFIX + _shown)
 	_label.text = tr(TIPS[_shown])
 	visible = true
+	set_process_input(true)
+	_choose_place()
 	_box.modulate.a = 0.0
-	position.y = RISE_PX
+	# It slides in from the panel's side, or down from the top bar, to
+	# wherever its place is when the slide ends.
+	var rise := -RISE_PX if _is_at_top else RISE_PX
+	_slide(0.0, rise)
 	Sound.play(&"text_blip")
 	if _tween != null and _tween.is_valid():
 		_tween.kill()
+	if _move_tween != null and _move_tween.is_valid():
+		_move_tween.kill()
 	_tween = create_tween()
 	_tween.set_parallel()
 	_tween.tween_property(_box, ^"modulate:a", 1.0, IN_SEC)
-	_tween.tween_property(self, ^"position:y", 0.0, IN_SEC).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
+	_tween.tween_method(_slide.bind(rise), 0.0, 1.0, IN_SEC).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_OUT)
 	_tween.chain().tween_interval(SHOW_SEC)
 	_tween.chain().tween_property(_box, ^"modulate:a", 0.0, OUT_SEC)
 	_tween.chain().tween_callback(_show_next)
+
+
+func _slide(weight: float, rise: float) -> void:
+	_is_sliding_in = weight < 1.0
+	var y := _box_top + rise * (1.0 - weight)
+	if _box.position.y != y:
+		_box.position.y = y

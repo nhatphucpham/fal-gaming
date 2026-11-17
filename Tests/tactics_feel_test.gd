@@ -18,6 +18,8 @@ extends SceneTree
 
 const SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/river_crossing.tres"
 const NIGHT_SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/night_raid.tres"
+const ROAD_SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/supply_road.tres"
+const RING_SCENARIO_PATH: String = "res://Data/Tactics/Scenarios/broken_ring.tres"
 const MAX_FRAMES: int = 3000
 ## On a 360-px-wide phone the 720-px layout is halved.
 const MIN_CELL_LAYOUT_PX: float = 88.0
@@ -61,7 +63,7 @@ func _run() -> bool:
 	if not ClassDB.class_exists("TacticsBattle"):
 		push_error("TacticsBattle is missing: build the GDExtension (scons) before importing")
 		return false
-	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_fog_redraws, _check_night_objective, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_corner_buttons, _check_auto_end, _check_tap_count, _check_text_fits, _check_site_text, _check_banner_titles, _check_floats, _check_hidden_steps]
+	var checks: Array[Callable] = [_check_zoom, _check_idle_frames, _check_fog_redraws, _check_night_objective, _check_pan, _check_tap_and_drag, _check_pinch_and_whole_map, _check_corner_buttons, _check_auto_end, _check_tap_count, _check_text_fits, _check_site_text, _check_banner_titles, _check_floats, _check_hidden_steps, _check_tip_place]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Tactics feel test failed in %s" % check.get_method())
@@ -139,6 +141,49 @@ func _drag(from: Vector2, to: Vector2, steps: int) -> void:
 		event.global_position = at
 		event.relative = at - before
 		root.push_input(event)
+
+
+# A first-time tip never covers a unit of ours on screen (the supply road
+# and the broken ring start with our squads on the map's bottom rows, where
+# the tip used to sit, and with the selected leader there), and the next tap
+# anywhere lets it go.
+func _check_tip_place() -> bool:
+	for path: String in [ROAD_SCENARIO_PATH, RING_SCENARIO_PATH]:
+		DirAccess.remove_absolute(RunSettings.path)
+		await _open(true, path)
+		var tips := _screen.get_tips()
+		if tips.get_shown() != &"fog":
+			return _fail("%s: the fog tip should show at the start, not \"%s\"" % [path, tips.get_shown()])
+		await create_timer(TacticsTip.IN_SEC + 0.05).timeout
+		if not _is_tip_clear(path + " at the start"):
+			return false
+		var leader := _our_leaders()[0]
+		_screen.select_unit(leader)
+		await create_timer(TacticsMapView.CAMERA_SEC + TacticsTip.MOVE_SEC + 0.1).timeout
+		if not _is_tip_clear(path + " with a leader selected"):
+			return false
+		var shown := tips.get_shown()
+		var press_at := root.get_final_transform() * (_screen.get_tips().get_box_rect().get_center())
+		_press(press_at, true)
+		_press(press_at, false)
+		await create_timer(TacticsTip.DISMISS_SEC + 0.05).timeout
+		if tips.get_shown() == shown:
+			return _fail("%s: a tap should let the \"%s\" tip go" % [path, shown])
+	return true
+
+
+func _is_tip_clear(label: String) -> bool:
+	var box := _screen.get_tips().get_box_rect()
+	var map := _map()
+	var view := Rect2(map.position, map.size)
+	for piece: TacticsPieceView in map.get_pieces():
+		if not piece.visible or piece.side != 0:
+			continue
+		var cell := Vector2.ONE * map.get_cell_px()
+		var rect := Rect2(map.position + map.board_to_view(piece.position) - cell / 2.0, cell).intersection(view)
+		if rect.has_area() and rect.grow(-4.0).intersects(box):
+			return _fail("%s: the tip %s covers unit %d at %s" % [label, box, piece.unit_index, rect])
+	return true
 
 
 # Frames over `seconds` that changed what would be drawn: [changed, frames].

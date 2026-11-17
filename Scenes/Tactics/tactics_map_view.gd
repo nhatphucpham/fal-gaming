@@ -27,6 +27,8 @@ signal cell_held(cell: Vector2i)
 signal hold_released(cell: Vector2i)
 ## A pinch or drag stopped a hold before it was released.
 signal hold_cancelled()
+## The camera came to rest after a glide, a jump, a pan or a pinch.
+signal camera_settled()
 
 const CELL_PX: float = 58.0
 ## How far a press may slide and still count as a tap, in pixels.
@@ -341,12 +343,14 @@ func _move_camera(offset: Vector2, zoom: float, smooth: bool) -> void:
 		_camera_tween.kill()
 	if not smooth or is_instant or not is_inside_tree():
 		_apply_camera(target, zoom)
+		camera_settled.emit()
 		return
 	var from_offset := _board.position
 	var from_zoom := _zoom
 	_camera_tween = create_tween()
 	_camera_tween.tween_method(func(weight: float) -> void:
 		_apply_camera(from_offset.lerp(target, weight), lerpf(from_zoom, zoom, weight), false), 0.0, 1.0, CAMERA_SEC).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_camera_tween.tween_callback(camera_settled.emit)
 
 
 # Writes the board's transform only when it changes (an unchanged write
@@ -756,6 +760,9 @@ func _on_button(button: InputEventMouseButton) -> void:
 			_gesture = _Gesture.NONE
 			if cell == _press_cell and button.position.distance_to(_press_position) <= TAP_SLOP_PX and is_on_map(cell):
 				cell_tapped.emit(cell)
+		_Gesture.PAN:
+			_gesture = _Gesture.NONE
+			camera_settled.emit()
 		_:
 			_gesture = _Gesture.NONE
 
@@ -792,6 +799,7 @@ func _on_touch(touch: InputEventScreenTouch) -> void:
 		_start_pinch()
 	elif _touches.is_empty() and _gesture == _Gesture.PINCH:
 		_gesture = _Gesture.NONE
+		camera_settled.emit()
 	accept_event()
 
 

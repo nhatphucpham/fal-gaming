@@ -177,14 +177,20 @@ Taps (the flow a phone player uses):
 First-time tips: the first time the player selects a leader of ours,
 moves one (a move that can be taken back), first spends its last move
 point on such moves, changes an order and sees a soldier of ours waver
-with a bad incident, one line slides up in a
-gold-edged box just above the panel with the text-blip sound, stays 4.5 s
-and fades ("Tướng đi đâu, toán binh dàn quanh đó.", "Còn điểm thì đi
+with a bad incident, one line slides in, in a
+gold-edged box with the text-blip sound, stays 4.5 s or until the next
+tap anywhere, and fades ("Tướng đi đâu, toán binh dàn quanh đó.", "Còn điểm thì đi
 tiếp. Xong thì bấm Chờ.", "Đi nhầm? Hoàn tác lùi từng bước
 tới khi đánh, đổi lệnh hay thấy địch.", "Đổi lệnh không mất lượt: tướng vẫn đi,
 đánh được.", "Dấu ! đỏ: binh sắp gây chuyện. Đưa tướng lại gần nó.", or
 for a soldier out of its leader's sight "Binh khuất mắt tướng chỉ yên
-khi tướng thấy nó: đưa tướng tới."; the `TACTICS_TIP_*` rows). A tip that comes while another shows waits for it.
+khi tướng thấy nó: đưa tướng tới."; the `TACTICS_TIP_*` rows). A tip that comes while another shows waits for it
+(after a tap let one go, the next follows 0.35 s later).
+The box sits just above the panel, unless that strip holds a unit of
+ours on screen; then it sits under the top bar (clear of the map's
+corner chip and button), or wherever it covers fewer of ours. It looks
+again after each playback and whenever the camera comes to rest
+(`TacticsMapView.camera_settled`), and glides to its new place.
 Each is saved as shown (`RunSettings.save_seen_tip("tactics.<id>")`) and
 never offered again. Tips never catch taps.
 
@@ -388,7 +394,8 @@ with its rise, never under `GameTheme.SMALL_FONT_SIZE`); camera: `center_on(poin
 (tests); `hold_cells` (where a press starts a drag), `is_instant`;
 signals `cell_tapped(cell)` (press and release on the same cell within
 24 px), `cell_held(cell)` (a press on a hold cell, then each new cell under
-the finger), `hold_released(cell)`, `hold_cancelled()`.
+the finger), `hold_released(cell)`, `hold_cancelled()`, `camera_settled()`
+(the camera came to rest after a glide, a jump, a pan or a pinch).
 
 `TacticsPanel` (PanelContainer, 430 layout px tall): `show_card(title,
 color, side_note, lines)` (up to four lines, each wrapped; the lines that

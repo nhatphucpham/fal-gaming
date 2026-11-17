@@ -64,6 +64,10 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Fixed
 
+- Chiến Dịch: a first-time tip no longer sits over your own units: it
+  moves under the top bar when your squads stand on the map's bottom
+  rows, glides away when the camera brings them under it, and the next
+  tap anywhere lets it go.
 - Chiến Dịch: the undo tip says a move that shows an enemy cannot be
   taken back.
 - Chiến Dịch: the weather and time chip moves to the map's top-left

@@ -56,6 +56,8 @@ const AUTO_END_SEC: float = 1.0
 ## The beat is longer while the last move can still be taken back.
 const AUTO_END_UNDO_SEC: float = 1.8
 const UNDO_SEC: float = 0.25
+## Room the map's corner chip and "Toàn cảnh" take under the top bar.
+const TIP_TOP_CLEAR_PX: float = 96.0
 const NO_CELL := Vector2i(-1, -1)
 
 var scenario: TacticsScenarioData
@@ -428,6 +430,9 @@ func _build() -> void:
 	_map.cell_held.connect(_on_cell_held)
 	_map.hold_released.connect(_on_hold_released)
 	_map.hold_cancelled.connect(_on_hold_cancelled)
+	_map.camera_settled.connect(func() -> void:
+		if _tips != null:
+			_tips.refresh_place())
 	add_child(_map)
 	_panel = TacticsPanel.new()
 	_panel.anchor_top = 1.0
@@ -439,6 +444,9 @@ func _build() -> void:
 	add_child(_panel)
 	_tips = TacticsTip.new()
 	_tips.bottom_px = PANEL_PX
+	# Under the top bar, clear of the map's corner chip and button.
+	_tips.top_px = TOP_BAR_PX + TIP_TOP_CLEAR_PX
+	_tips.avoid_rects = _tip_avoid_rects
 	add_child(_tips)
 	_banner = TacticsBanner.new()
 	add_child(_banner)
@@ -880,6 +888,7 @@ func _after_playback() -> void:
 		_go_idle()
 	_update_hold_cells()
 	_offer_tips(keep, was_order)
+	_tips.refresh_place()
 	_maybe_auto_end()
 	became_idle.emit()
 
@@ -1644,6 +1653,21 @@ func _wavering_hint() -> String:
 # wavers out of sight, or is out of its leader's sight now.
 func _is_beyond_calm(state: Dictionary) -> bool:
 	return state.get("is_wavering_unseen", false) or state.get("is_out_of_leader_sight", false)
+
+
+# Our units on the map as shown now (screen rects, one cell each): a tip
+# never sits over them.
+func _tip_avoid_rects() -> Array:
+	var rects: Array = []
+	var view := Rect2(_map.position, _map.size)
+	var cell := Vector2.ONE * _map.get_cell_px()
+	for piece: TacticsPieceView in _map.get_pieces():
+		if not piece.visible or piece.side != player_side:
+			continue
+		var rect := Rect2(_map.position + _map.board_to_view(piece.position) - cell / 2.0, cell)
+		if view.intersects(rect):
+			rects.append(rect.intersection(view))
+	return rects
 
 
 # First-time tips after our command played: the first move that can be
