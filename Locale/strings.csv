@@ -842,6 +842,7 @@ MUSTER_RESERVE_FORMAT,Mộ %s (%d lương),Hire a %s (%d supplies)
 MUSTER_RESERVE_NO_ROOM,Các tướng đã đủ binh.,Every leader is full.
 MUSTER_RESERVE_NO_SUPPLIES,"Thiếu lương. Thắng mục tiêu phụ, cướp làng, chiếm trại để có lương.","Not enough supplies. Side goals, loot and camps give supplies."
 MUSTER_RESERVE_HIRED_FORMAT,%s đã vào toán của %s.,A %s joined %s.
+MUSTER_GOAL_ITEM_FORMAT,%s (+%d lương),%s (+%d supplies)
 MUSTER_GOALS_FORMAT,Mục tiêu phụ: %s,Side goals: %s
 MUSTER_SITES_FORMAT,Trên bản đồ: %s,On the map: %s
 OBJECTIVE_SHORT_TAKE_PASS_FORMAT,Mục tiêu: chiếm %s,Goal: take the %s

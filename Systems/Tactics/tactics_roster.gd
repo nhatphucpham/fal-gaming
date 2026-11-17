@@ -3,7 +3,8 @@ extends RefCounted
 ## Sổ quân: every soldier of ours as a person kept between tactics battles,
 ## saved as JSON at [member path] (normally user://tactics_roster.json). A
 ## person has a stable id, a troop, a face seed (`look`), a status and the
-## marks (Dấu) incidents left on it. Death is permanent. A missing file
+## marks (Dấu) incidents left on it, and the supplies (lương) the battles
+## won, spent at the muster on reserve soldiers. Death is permanent. A missing file
 ## gives an empty roster; a broken file or an unknown version is warned
 ## about once, kept aside as `<path>.unreadable` and replaced by an empty
 ## one. A save is written whole to `<path>.tmp` first and then renamed over
@@ -40,6 +41,9 @@ var next_id: int = 1
 ## Bait and rescue karma carried into the next battle.
 var karma_bait: int = 0
 var karma_rescue: int = 0
+## Supplies won in battle (sites, side goals), spent at the muster. A save
+## from before supplies existed reads as 0.
+var supplies: int = 0
 ## Per troop id, how many of that troop were ever recruited (the ordinal of
 ## a soldier's name and biography).
 var troop_counts: Dictionary = {}
@@ -114,7 +118,7 @@ func to_save_data() -> Dictionary:
 		})
 	return {
 		"version": VERSION, "seed": str(seed_value), "battles": battles, "next_id": next_id,
-		"karma_bait": karma_bait, "karma_rescue": karma_rescue, "troop_counts": troop_counts.duplicate(), "people": saved_people,
+		"karma_bait": karma_bait, "karma_rescue": karma_rescue, "supplies": supplies, "troop_counts": troop_counts.duplicate(), "people": saved_people,
 	}
 
 
@@ -210,6 +214,11 @@ func _read(data: Dictionary) -> bool:
 	next_id = reader.get_int("next_id")
 	karma_bait = reader.get_int("karma_bait")
 	karma_rescue = reader.get_int("karma_rescue")
+	# Optional: saves before the supplies have none.
+	var saved_supplies: Variant = data.get("supplies", 0)
+	if not (saved_supplies is float or saved_supplies is int) or int(saved_supplies) < 0:
+		return false
+	supplies = int(saved_supplies)
 	var counts: Variant = data.get("troop_counts")
 	if not counts is Dictionary:
 		return false

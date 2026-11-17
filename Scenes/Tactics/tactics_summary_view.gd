@@ -3,7 +3,8 @@ extends Control
 ## After a tactics battle with the roster: the result, then every roster
 ## soldier who fought (face, name, what became of it, the marks it earned),
 ## any soldier named for its marks with its name and biography, and the
-## karma carried to the next battle. "Sổ quân" opens the roster; "Tiếp
+## karma carried to the next battle, the side goals met or missed and the
+## supplies won. "Sổ quân" opens the roster; "Tiếp
 ## tục" goes on. Rows come in one after another, each naming its own sound.
 ## [codeblock]
 ## var view := TacticsSummaryView.new()
@@ -57,6 +58,7 @@ func _ready() -> void:
 	scroll.add_child(_body)
 	for id: int in summary.get("named", []):
 		_body.add_child(_named_card(id))
+	_body.add_child(_goals_panel())
 	_body.add_child(_people_panel())
 	_body.add_child(_karma_panel())
 	var buttons := HBoxContainer.new()
@@ -172,6 +174,10 @@ func _fate(row: Dictionary) -> Array:
 		return [tr("SUMMARY_JOINED") if is_to_us else tr("SUMMARY_DEFECTED"), Palette.JADE_LIGHT if is_to_us else Palette.VERMILION.lightened(0.3)]
 	if int(row["start_side"]) != player_side:
 		return [tr("SUMMARY_ENEMY_SURVIVED"), Palette.VERMILION.lightened(0.3)]
+	if row.get("is_recruit", false):
+		return [tr("SUMMARY_RECRUITED"), Palette.JADE_LIGHT]
+	if row["status"] == &"escaped":
+		return [tr("SUMMARY_ESCAPED"), Palette.JADE_LIGHT]
 	return [tr("SUMMARY_RETURNED"), Palette.CREAM]
 
 
@@ -180,4 +186,24 @@ func _karma_panel() -> Control:
 	var karma: Dictionary = summary.get("karma", {})
 	var text := tr("SUMMARY_KARMA_FORMAT") % [int(karma.get("bait", 0)), int(karma.get("rescue", 0)), int(karma.get("next_bait", 0)), int(karma.get("next_rescue", 0))]
 	box.add_child(TacticsViews.wrapped(text, 20, Palette.TEXT))
+	return box
+
+
+# The side goals, met (with their supplies) or missed, and the store.
+func _goals_panel() -> Control:
+	var box := TacticsViews.panel()
+	box.name = "GoalsPanel"
+	var rows := VBoxContainer.new()
+	rows.add_theme_constant_override(&"separation", 4)
+	box.add_child(rows)
+	var goals: Array = summary.get("goals", [])
+	if not goals.is_empty():
+		rows.add_child(TacticsViews.label("SUMMARY_GOALS", 28, Palette.GOLD))
+	for goal: Dictionary in goals:
+		var what := tr("GOAL_BY_ROUND_FORMAT") % goal["value"] if goal["kind"] == &"goal.by_round" else tr("GOAL_" + String(goal["kind"]).trim_prefix("goal.").to_upper())
+		if goal["is_met"]:
+			rows.add_child(TacticsViews.wrapped(tr("SUMMARY_GOAL_MET_FORMAT") % [what, goal["supplies"]], 22, Palette.JADE_LIGHT))
+		else:
+			rows.add_child(TacticsViews.wrapped(tr("SUMMARY_GOAL_MISSED_FORMAT") % what, 22, Palette.TEXT_DIM))
+	rows.add_child(TacticsViews.wrapped(tr("SUMMARY_SUPPLIES_FORMAT") % [int(summary.get("supplies", 0)), int(summary.get("supplies_total", 0))], 22, Palette.GOLD))
 	return box

@@ -53,3 +53,4 @@ supplied_sizes = PackedInt32Array(4, 3, 3)
 supplied_troops = Array[TacticsTroopData]([ExtResource("troop_swordsman"), ExtResource("troop_rider"), ExtResource("troop_shieldman"), ExtResource("troop_spearman"), ExtResource("troop_rider"), ExtResource("troop_swordsman"), ExtResource("troop_swordsman"), ExtResource("troop_archer"), ExtResource("troop_kite_scout"), ExtResource("troop_rider")])
 objective = SubResource("objective")
 reserve_troop = ExtResource("troop_rider")
+reserve_cost = 3

@@ -45,6 +45,8 @@ class TacticsScenarioData : public Resource {
 	Ref<TacticsObjectiveData> objective;
 	// The soldier one supply buys at the muster (Docs/systems/tactics_roster.md).
 	Ref<TacticsTroopData> reserve_troop;
+	// Supplies one reserve soldier costs.
+	int reserve_cost = 3;
 
 protected:
 	static void _bind_methods();
@@ -86,6 +88,8 @@ public:
 	Ref<TacticsObjectiveData> get_objective() const { return objective; }
 	void set_reserve_troop(const Ref<TacticsTroopData> &p_value) { reserve_troop = p_value; }
 	Ref<TacticsTroopData> get_reserve_troop() const { return reserve_troop; }
+	void set_reserve_cost(int p_value) { reserve_cost = p_value; }
+	int get_reserve_cost() const { return reserve_cost; }
 	// The squad the leader at p_index of a side starts with: the supplied
 	// soldiers on side A when the scenario supplies them, else its own.
 	TypedArray<TacticsTroopData> get_squad(int64_t p_side, int64_t p_index) const;
