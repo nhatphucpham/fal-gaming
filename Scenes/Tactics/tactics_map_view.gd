@@ -4,7 +4,7 @@ extends Control
 ## holds the terrain (drawn once into a texture, so the whole board costs
 ## one draw call), zones, selection marks, enemy intents, unit tokens and
 ## floating text, each its own layer that redraws only when its content
-## changes; moving the camera only moves the board, so an idle map draws
+## changes (shapes recorded into one triangle array, one draw call each); moving the camera only moves the board, so an idle map draws
 ## nothing new. Under fog of war one small texture (a pixel per cell,
 ## smoothly filtered) darkens what is not seen and tints the night; it is
 ## rewritten only when what is seen changes, with a short blend. Enemies
@@ -865,7 +865,8 @@ func _draw_terrain(canvas: Control) -> void:
 	canvas.draw_rect(Rect2(Vector2.ZERO, Vector2(map_width, map_height) * CELL_PX), Palette.INK, false, 3.0)
 
 
-func _draw_zones(canvas: Control) -> void:
+func _draw_zones(layer: Control) -> void:
+	var canvas := TacticsMeshCanvas.new()
 	for zone: Dictionary in _zones:
 		var color: Color = ZONE_COLORS.get(zone["zone"], Color(0.8, 0.8, 0.8))
 		for cell: Vector2i in zone["cells"]:
@@ -875,9 +876,10 @@ func _draw_zones(canvas: Control) -> void:
 			canvas.draw_rect(rect, Color(color, 0.32))
 			canvas.draw_rect(rect.grow(-3.0), Color(color, 0.85), false, 2.0)
 			_draw_zone_motif(canvas, zone["zone"], rect, color)
+	canvas.commit(layer.get_canvas_item())
 
 
-func _draw_zone_motif(canvas: Control, zone_id: StringName, rect: Rect2, color: Color) -> void:
+func _draw_zone_motif(canvas: TacticsMeshCanvas, zone_id: StringName, rect: Rect2, color: Color) -> void:
 	var c := rect.get_center()
 	if zone_id == &"zone.fire":
 		canvas.draw_colored_polygon(PackedVector2Array([c + Vector2(-16, 18), c + Vector2(-8, 18), c + Vector2(-12, 4)]), color)
@@ -887,7 +889,8 @@ func _draw_zone_motif(canvas: Control, zone_id: StringName, rect: Rect2, color: 
 		canvas.draw_arc(c + Vector2(12, 14), 7.0, PI, TAU * 0.95, 8, color, 2.0)
 
 
-func _draw_marks(canvas: Control) -> void:
+func _draw_marks(layer: Control) -> void:
+	var canvas := TacticsMeshCanvas.new()
 	for cell: Vector2i in _marks.get("reachable", []):
 		canvas.draw_rect(_cell_rect(cell).grow(-2.0), REACH_COLOR)
 	for cell: Vector2i in _marks.get("threat", []):
@@ -923,11 +926,13 @@ func _draw_marks(canvas: Control) -> void:
 		if from != ghost["cell"]:
 			_draw_dashes(canvas, cell_to_local(from), cell_to_local(ghost["cell"]), Color(Palette.CREAM, 0.7), 2.0)
 		TacticsPainter.draw_ghost(canvas, cell_to_local(ghost["cell"]) + TacticsPieceView.TOKEN_OFFSET, ghost["side"], ghost["is_leader"])
+	canvas.commit(layer.get_canvas_item())
 
 
 # Over the fog: the road, the exits, the convoy's path and the known
 # sites with their capture rings.
-func _draw_sites(canvas: Control) -> void:
+func _draw_sites(layer: Control) -> void:
+	var canvas := TacticsMeshCanvas.new()
 	var road: Array = _objective_marks.get("road", [])
 	if road.size() > 1:
 		for index: int in range(1, road.size()):
@@ -956,6 +961,7 @@ func _draw_sites(canvas: Control) -> void:
 		TacticsPainter.draw_site(canvas, _cell_rect(cell), site["kind"], site["status"], site["owner"])
 		if int(site.get("capture_phases", 0)) > 0 and int(site.get("capture_progress", 0)) > 0:
 			TacticsPainter.draw_capture_ring(canvas, cell_to_local(cell), CELL_PX * 0.47, site["capture_progress"], site["capture_phases"], site["capture_side"])
+	canvas.commit(layer.get_canvas_item())
 
 
 # The way out of the map from an edge cell.
@@ -989,7 +995,8 @@ func _draw_edge_marks(canvas: Control) -> void:
 			TacticsPainter.draw_edge_mark(canvas, at, toward, EDGE_MARK_PX)
 
 
-func _draw_intents(canvas: Control) -> void:
+func _draw_intents(layer: Control) -> void:
+	var canvas := TacticsMeshCanvas.new()
 	for intent: Dictionary in _intents:
 		var from := cell_to_local(intent["from"])
 		var to := cell_to_local(intent["to"])
@@ -1004,9 +1011,10 @@ func _draw_intents(canvas: Control) -> void:
 			canvas.draw_line(to, aim, Color(ATTACK_COLOR, 0.85), 3.0)
 			icon_at = aim + Vector2(-CELL_PX * 0.32, -CELL_PX * 0.32)
 		TacticsPainter.draw_intent_icon(canvas, intent["action"], icon_at, 12.0)
+	canvas.commit(layer.get_canvas_item())
 
 
-func _draw_dashes(canvas: Control, from: Vector2, to: Vector2, color: Color, width: float) -> void:
+func _draw_dashes(canvas: Object, from: Vector2, to: Vector2, color: Color, width: float) -> void:
 	var length := from.distance_to(to)
 	var step := 12.0
 	var direction := (to - from) / maxf(length, 0.001)

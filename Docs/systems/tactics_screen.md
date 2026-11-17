@@ -34,6 +34,8 @@ after each command.
     and charge pips.
   - `tactics_painter.gd` (`TacticsPainter`): static drawing of terrains,
     tokens, ghosts, hp bars, pips, order and intent icons, by registries.
+  - `tactics_mesh_canvas.gd` (`TacticsMeshCanvas`): records the painter's
+    shapes into one triangle array (one draw call for a token or a layer).
   - `tactics_panel.gd` (`TacticsPanel`): the bottom panel.
   - `tactics_playback.gd` (`TacticsPlayback`): plays a command's events.
   - `tactics_close_up.gd` (`TacticsCloseUp`), `tactics_skill_fx.gd`
@@ -576,10 +578,9 @@ Run one with
   hits can pile up over the same tokens.
 - The muster screen moves soldiers only; it does not change leaders or
   their start cells.
-- About 125 draw calls a frame on the map at the start and 180 with a
-  leader selected (360x640, Mesa), from about 240 and 250 before the zoom
-  (tokens outside the view are clipped); the terrain is one. With sites
-  and objective marks: river crossing 133 and 187, night raid 160 and
-  214, city defense 166 and 220, supply road 183 and 240, broken ring 291
-  and 349 (its two armies start packed inside one view). An idle map
-  draws no frame.
+- Draw calls a frame on the map at the start and with a leader selected
+  (360x640, Mesa): river crossing 42 and 93, night raid 44 and 93, city
+  defense 40 and 89, supply road 39 and 91, broken ring 47 and 96 (from
+  133-291 and 187-349 before tokens and the map's layers were drawn as
+  one triangle array each, `TacticsMeshCanvas`). Most of what is left is
+  the panel's text. An idle map draws no frame.

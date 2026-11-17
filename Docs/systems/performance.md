@@ -137,6 +137,9 @@ How the pieces of this round work:
 - `RunLayout` hides and stops the panel it slid away.
 - `CutsceneBackdrop` draws its painting once; only the mist and the camp
   fire redraw.
+- The tactics map's tokens and layers (sites, marks, zones, intents)
+  record their shapes into one triangle array each
+  (`TacticsMeshCanvas`): a token is one draw call instead of 7 to 12.
 - While the app is hidden the tree pauses and the sound is held.
 
 ## Measurements
