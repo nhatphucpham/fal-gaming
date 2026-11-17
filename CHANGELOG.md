@@ -71,7 +71,11 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
   can.
 - Chiến Dịch: a map opens on the middle of your leaders and never with a
   column of tokens cut in half at the screen's edge (the broken ring
-  did); the broken ring points at its exits out of view.
+  did); the broken ring points at its exits out of view, and a mark on
+  the screen's edge slides off your leaders instead of covering one.
+- Chiến Dịch: the map draws with far fewer draw calls (a unit token is
+  one instead of 7 to 12) and fills the screen once a frame, so moves
+  and enemy phases run smoother in the browser.
 - Chiến Dịch: the supply cart can now be got through: it rolls past
   your own troops and past enemies beside the road, and only an enemy
   standing on the road stops it (it has more hp to take the hits). A tap
