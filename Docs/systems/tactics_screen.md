@@ -203,7 +203,8 @@ leaders; a programmatic glide or jump at such a zoom lands on a line
 between columns, so the view's edges never cut a column of tokens in
 half (a finger's pan or pinch is left where it stops). Where the board
 leaves a gap in the view the map draws the backdrop itself; under a board
-that fills the view nothing is drawn behind it. One
+that fills the view nothing is drawn behind it, and behind the bottom
+panel only two thin strips fill its rounded corners. One
 finger drags it (a press that slides more than 24 px is a drag, not a
 tap), two fingers pinch it between the whole board and 1.4x that zoom
 (the mouse wheel too), and "Toàn cảnh" / "Phóng to" switches to the whole

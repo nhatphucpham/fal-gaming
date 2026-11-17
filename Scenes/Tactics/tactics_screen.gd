@@ -50,6 +50,8 @@ const CATALOG_PATH: String = "res://Data/Tactics/tactics_catalog.tres"
 const LOOKS_PATH: String = "res://Data/Tactics/Looks/skill_looks.tres"
 const TOP_BAR_PX: float = 92.0
 const PANEL_PX: float = 430.0
+## The panel's corner radius and border, filled behind with the backdrop.
+const PANEL_CORNER_PX: float = 26.0
 const RETREAT_ARM_SEC: float = 3.0
 ## The beat between the last leader being done and the phase ending.
 const AUTO_END_SEC: float = 1.0
@@ -419,15 +421,18 @@ func get_round_text() -> String:
 
 
 func _build() -> void:
-	# Behind the panel's rounded corners only: the top bar is square and
-	# the map draws its own backdrop where the board leaves a gap, so no
-	# full-screen fill sits under the board every frame.
-	var background := ColorRect.new()
-	background.color = Palette.BACKDROP
-	background.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	background.offset_top = -PANEL_PX
-	background.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(background)
+	# Behind the panel's rounded corners only (a strip along its top and
+	# one along its bottom): the top bar is square and the map draws its
+	# own backdrop where the board leaves a gap, so no fill sits under the
+	# board or the panel every frame.
+	for top: float in [-PANEL_PX, -PANEL_CORNER_PX]:
+		var background := ColorRect.new()
+		background.color = Palette.BACKDROP
+		background.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+		background.offset_top = top
+		background.offset_bottom = top + PANEL_CORNER_PX
+		background.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(background)
 	_map = TacticsMapView.new()
 	_map.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_map.offset_top = TOP_BAR_PX
