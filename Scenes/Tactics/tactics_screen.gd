@@ -111,6 +111,9 @@ var _objective_chip: Button
 var _objective_label: Label
 ## TacticsBattle.get_objective_state() as of the last sync.
 var _objective: Dictionary = {}
+# Banners that wait for our phase's own banner to go: {title, subtitle,
+# is_ours, sound, sec, tip}, shown one after another.
+var _warnings: Array[Dictionary] = []
 ## The site whose choices the panel shows (-1 none), and its choice when
 ## it asks which recruit.
 var _site_shown: int = -1
@@ -463,6 +466,7 @@ func _build() -> void:
 	_playback.player_side = player_side
 	_playback.is_instant = is_instant
 	_playback.phase_shown.connect(_on_phase_shown)
+	_playback.phase_banner_ended.connect(_on_phase_banner_ended)
 	_playback.environment_changed.connect(_on_environment_changed)
 	add_child(_playback)
 	_playback.supplies_gained.connect(_on_supplies_gained)
@@ -715,11 +719,33 @@ func _warn_wave(round_number: int) -> void:
 		var wave: Dictionary = waves[index]
 		if int(wave["round"]) != round_number + 1:
 			continue
-		Sound.play(&"war_horn")
-		_banner.present(tr("TACTICS_BANNER_WAVE_SOON"), tr("TACTICS_BANNER_WAVE_SOON_FORMAT") % [wave["leaders"], tr(_direction_key(wave["entry_cells"]))], false)
-		get_tree().create_timer(0.01 if is_instant else TacticsPlayback.BANNER_SEC * 1.8).timeout.connect(_banner.dismiss)
-		_tips.offer(&"wave")
+		_warnings.append({"title": tr("TACTICS_BANNER_WAVE_SOON"), "subtitle": tr("TACTICS_BANNER_WAVE_SOON_FORMAT") % [wave["leaders"], tr(_direction_key(wave["entry_cells"]))],
+			"is_ours": false, "sound": &"war_horn", "sec": TacticsPlayback.BANNER_SEC * 1.8, "tip": &"wave"})
 		return
+
+
+func _on_phase_banner_ended(side: int, _round_number: int) -> void:
+	if side == player_side:
+		_show_next_warning()
+
+
+# The next queued warning on the banner (under the phase's own banner it
+# would be hidden at once), then the one after it.
+func _show_next_warning() -> void:
+	if _warnings.is_empty() or _battle.is_finished():
+		_warnings.clear()
+		return
+	var warning: Dictionary = _warnings.pop_front()
+	Sound.play(warning["sound"])
+	_banner.present(warning["title"], warning["subtitle"], warning["is_ours"])
+	if warning["tip"] != &"":
+		_tips.offer(warning["tip"])
+	get_tree().create_timer(0.01 if is_instant else float(warning["sec"])).timeout.connect(_on_warning_shown)
+
+
+func _on_warning_shown() -> void:
+	_banner.dismiss()
+	_show_next_warning()
 
 
 # Which edge the cells sit on: north, south, east or west.
@@ -948,9 +974,8 @@ func _warn_weather(round_number: int) -> void:
 	var change := _battle.get_weather_change_round()
 	if change <= 0 or round_number != change - 1:
 		return
-	Sound.play(&"weather_turn")
-	_banner.present(tr("TACTICS_WEATHER_SOON_FORMAT") % _text.environment_name(&"weather", _battle.get_weather_id(change)), _text.environment_description(&"weather", _battle.get_weather_id(change)), true)
-	get_tree().create_timer(0.01 if is_instant else TacticsPlayback.BANNER_SEC * 1.6).timeout.connect(_banner.dismiss)
+	_warnings.append({"title": tr("TACTICS_WEATHER_SOON_FORMAT") % _text.environment_name(&"weather", _battle.get_weather_id(change)),
+		"subtitle": _text.environment_description(&"weather", _battle.get_weather_id(change)), "is_ours": true, "sound": &"weather_turn", "sec": TacticsPlayback.BANNER_SEC * 1.6, "tip": &""})
 
 
 # Our phase asks to tap a leader of ours: if the enemy's moves or a drag

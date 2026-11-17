@@ -57,7 +57,7 @@ func _run() -> bool:
 	if not ClassDB.class_exists("TacticsBattle"):
 		push_error("TacticsBattle is missing: build the GDExtension (scons) before importing")
 		return false
-	var checks: Array[Callable] = [_check_outcome_lines, _check_enemy_phase_texts, _check_our_phase_in_view, _check_busy_taps, _check_our_rally, _check_enemy_rally, _check_retreat_while_busy, _check_campaign_retreat_stops_playback]
+	var checks: Array[Callable] = [_check_outcome_lines, _check_enemy_phase_texts, _check_our_phase_in_view, _check_busy_taps, _check_our_rally, _check_enemy_rally, _check_retreat_while_busy, _check_campaign_retreat_stops_playback, _check_wave_warning]
 	for check: Callable in checks:
 		if not await check.call():
 			push_error("Tactics screen input test failed in %s" % check.get_method())
@@ -301,6 +301,32 @@ func _check_enemy_rally() -> bool:
 		_screen.press_button(&"end_turn")
 	push_error("The enemy's rally close-up should say enemy soldiers were strengthened, saw %s" % [_close_ups])
 	return false
+
+
+# On the city defense, the round before the first wave, its warning shows
+# once our phase's own banner is gone, and stays up for a beat (it was
+# hidden under the phase banner at once).
+func _check_wave_warning() -> bool:
+	if _screen != null:
+		_screen.queue_free()
+	_screen = TacticsScreen.new()
+	_screen.scenario = load("res://Data/Tactics/Scenarios/city_defense.tres") as TacticsScenarioData
+	_screen.size = Vector2(720, 1280)
+	root.add_child(_screen)
+	await process_frame
+	var banner: Control = _screen.find_children("*", "TacticsBanner", true, false)[0]
+	var shown_frames := 0
+	for frame: int in 600:
+		var titles := PackedStringArray()
+		for label: Label in banner.find_children("*", "Label", true, false):
+			titles.append(label.text)
+		if banner.visible and titles.has(tr("TACTICS_BANNER_WAVE_SOON")):
+			shown_frames += 1
+		await process_frame
+	if shown_frames < 20:
+		push_error("The wave warning showed for %d frames on round 1 of the city defense" % shown_frames)
+		return false
+	return true
 
 
 func _expect_subtitle(expected: String) -> bool:

@@ -34,6 +34,8 @@ signal step_started(type: StringName)
 signal played()
 ## A phase_started step began: whose phase, and the round.
 signal phase_shown(side: int, round_number: int)
+## That phase's banner is gone: the screen's own warnings may show now.
+signal phase_banner_ended(side: int, round_number: int)
 ## The weather or the time of day turned (`kind` is &"weather" or
 ## &"daytime"); the screen updates its icons and the night.
 signal environment_changed(kind: StringName, id: StringName)
@@ -211,6 +213,7 @@ func _play_phase(events: Array, index: int) -> int:
 	tween.tween_callback(banner.dismiss)
 	await _finish(tween)
 	banner.dismiss()
+	phase_banner_ended.emit(int(event["side"]), int(event["round"]))
 	return index + 1
 
 
