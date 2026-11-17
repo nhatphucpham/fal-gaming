@@ -515,7 +515,15 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   the small font size and every button is at least 88 px tall; a float
   at the corner of a zoomed view is drawn inside it, and one asked for
   at 18 px is drawn at the small font size; a hidden enemy's incident,
-  wait and hit play no step and add no effect, a seen one's do.
+  wait and hit play no step and add no effect, a seen one's do; a first-time tip
+  never covers our units and a tap lets it go; a tap on the supply cart
+  holds it and lets it go; every map opens on a line between columns with
+  our leaders in view, the broken ring's exits out of view get an edge
+  mark and no edge mark sits on one of our leaders.
+- `Tests/tactics_mesh_canvas_test.gd`: the triangles `TacticsMeshCanvas`
+  records for rects, circles, polygons, lines (1-px soft edges when
+  antialiased) and closed outlines (mitred corners), and that commit()
+  empties it.
 - `Tests/tactics_screen_sync_test.gd`: random taps (cells, leaders and
   marches toward the enemy, drags,
   enabled buttons with undo, the order row) on six seeds in instant mode,

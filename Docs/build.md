@@ -99,7 +99,7 @@ After building, run the editor import, `Tests/smoke_test.gd`,
 `Tests/tactics_objective_test.gd`,
 `Tests/tactics_screen_test.gd`, `Tests/tactics_screen_sync_test.gd`,
 `Tests/tactics_screen_input_test.gd`, `Tests/tactics_brain_test.gd`,
-`Tests/tactics_feel_test.gd`) and `Tests/muster_test.gd` as shown in the
+`Tests/tactics_feel_test.gd`, `Tests/tactics_mesh_canvas_test.gd`) and `Tests/muster_test.gd` as shown in the
 README. Tests that touch the
 settings file point `RunSettings.path` at `user://settings_test.json`, so
 the player's mute and preparation time are left alone.
