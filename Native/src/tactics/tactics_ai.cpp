@@ -2,8 +2,10 @@
 
 #include "tactics_brain.h"
 #include "tactics_combat.h"
+#include "tactics_objectives.h"
 #include "tactics_paths.h"
 #include "tactics_sim.h"
+#include "tactics_sites.h"
 #include "tactics_skills.h"
 
 namespace tactics {
@@ -55,7 +57,13 @@ std::vector<Cell> find_search_goals(const TacticsSim &p_sim, int p_leader) {
 		return { best };
 	}
 	const MapDef &map = p_sim.get_map();
-	if (map.has_objective && map.objective_side == side) {
+	const ObjectiveDef &objective = p_sim.get_objective();
+	if (objective.handler != nullptr) {
+		const std::vector<Cell> goals = objective.handler->get_march_goals(p_sim, p_leader);
+		if (!goals.empty()) {
+			return goals;
+		}
+	} else if (map.has_objective && map.objective_side == side) {
 		return { map.objective };
 	}
 	std::vector<Cell> unseen;
@@ -102,8 +110,29 @@ int sum_strength(const TacticsSim &p_sim, int p_viewer, int p_side, const Cell &
 
 // The side that defends the map's objective plays the guard: it holds its
 // posts while weaker and strikes only where it is locally stronger.
+// With an objective kind, its handler names the guard side.
 bool is_guard_side(const TacticsSim &p_sim, int p_side) {
+	const ObjectiveDef &objective = p_sim.get_objective();
+	if (objective.handler != nullptr) {
+		return objective.handler->guard_side == p_side;
+	}
 	return p_sim.get_map().has_objective && p_sim.get_map().objective_side != p_side;
+}
+
+// The cell the guards fall back on: the map's objective, the objective's
+// stronghold, else none.
+Cell get_objective_cell(const TacticsSim &p_sim) {
+	const ObjectiveDef &objective = p_sim.get_objective();
+	if (objective.handler != nullptr) {
+		return objective.site != NO_INDEX ? p_sim.get_map().sites[objective.site].cell : NO_CELL;
+	}
+	return p_sim.get_map().has_objective ? p_sim.get_map().objective : NO_CELL;
+}
+
+// The unit p_side strikes before any other (the convoy, the general).
+int get_priority_target(const TacticsSim &p_sim, int p_side) {
+	const ObjectiveDef &objective = p_sim.get_objective();
+	return objective.handler != nullptr ? objective.handler->get_priority_target(p_sim, p_side) : NO_UNIT;
 }
 
 // The guard side has grown strong enough to leave its posts. Under fog it
@@ -138,6 +167,11 @@ bool has_local_edge(const TacticsSim &p_sim, int p_leader, const Strike &p_strik
 // when none is left.
 Cell find_post(const TacticsSim &p_sim, int p_leader) {
 	const MapDef &map = p_sim.get_map();
+	// The general keeps to his own post.
+	if (p_leader == p_sim.get_general()) {
+		return p_sim.get_general_post();
+	}
+	const Cell fallback = get_objective_cell(p_sim) != NO_CELL ? get_objective_cell(p_sim) : p_sim.get_units()[p_leader].cell;
 	std::vector<bool> is_taken(map.guard_cells.size(), false);
 	for (const UnitState &unit : p_sim.get_units()) {
 		if (!is_fighting(unit) || !p_sim.is_leader(unit.index) || unit.side != p_sim.get_units()[p_leader].side) {
@@ -150,13 +184,13 @@ Cell find_post(const TacticsSim &p_sim, int p_leader) {
 			}
 		}
 		if (unit.index == p_leader) {
-			return best == NO_INDEX ? map.objective : map.guard_cells[best];
+			return best == NO_INDEX ? fallback : map.guard_cells[best];
 		}
 		if (best != NO_INDEX) {
 			is_taken[best] = true;
 		}
 	}
-	return map.objective;
+	return fallback;
 }
 
 // Where a guard leader waits: within ai_hold_radius_cells of its post
@@ -166,10 +200,11 @@ Cell pick_hold_cell(const TacticsSim &p_sim, int p_leader, const PathField &p_fi
 	const Rules &rules = p_sim.get_rules();
 	const MapDef &map = p_sim.get_map();
 	const Cell post = find_post(p_sim, p_leader);
+	const int radius = p_leader == p_sim.get_general() ? p_sim.get_objective().general_hold_cells : rules.ai_hold_radius_cells;
 	std::vector<Cell> area;
 	for (int index = 0; index < map.width * map.height; index++) {
 		const Cell cell = p_sim.get_cell_at(index);
-		if (get_manhattan(cell, post) <= rules.ai_hold_radius_cells) {
+		if (get_manhattan(cell, post) <= radius) {
 			area.push_back(cell);
 		}
 	}
@@ -209,6 +244,7 @@ Aim pick_ai_aim(const TacticsSim &p_sim, int p_leader) {
 			strikes.push_back(strike);
 		}
 	}
+	const int priority = get_priority_target(p_sim, side);
 	std::vector<int> best_key;
 	for (const Strike &strike : strikes) {
 		if (strike.result.is_attacker_dead && !strike.result.is_defender_dead) {
@@ -216,13 +252,22 @@ Aim pick_ai_aim(const TacticsSim &p_sim, int p_leader) {
 		}
 		const UnitState &enemy = p_sim.get_units()[strike.target];
 		const int help = is_guard ? sum_strength(p_sim, side, enemy.side, enemy.cell, p_sim.get_rules().ai_strength_radius_cells, enemy.index) : 0;
-		const std::vector<int> key = { p_sim.is_leader(enemy.index) ? 0 : 1, strike.result.is_defender_dead ? 0 : 1, help, enemy.hp, enemy.index };
+		const std::vector<int> key = { enemy.index == priority ? 0 : 1, p_sim.is_leader(enemy.index) ? 0 : 1, strike.result.is_defender_dead ? 0 : 1, help, enemy.hp, enemy.index };
 		if (aim.target == NO_UNIT || key < best_key) {
 			aim.target = enemy.index;
 			best_key = key;
 		}
 	}
 	if (aim.target == NO_UNIT) {
+		// With nothing to strike, an attacker goes for what its objective
+		// needs (the keep, the convoy, the exits) before the nearest enemy.
+		const ObjectiveDef &objective = p_sim.get_objective();
+		if (!is_guard && objective.handler != nullptr) {
+			aim.search_goals = objective.handler->get_march_goals(p_sim, p_leader);
+			if (!aim.search_goals.empty()) {
+				return aim;
+			}
+		}
 		aim.target = find_nearest_enemy(p_sim, p_leader);
 		aim.is_holding = is_guard && !is_advancing(p_sim, side);
 		if (aim.target == NO_UNIT && !aim.is_holding) {
@@ -262,6 +307,47 @@ bool can_cast_on_own_cell(const TacticsSim &p_sim, int p_leader, const Cell &p_f
 	return leader.def.skill.target->select(p_sim, p_leader, p_from, p_from, selection, &error);
 }
 
+// Side B burns a village it knows is still standing when one is within its
+// reach this phase: the nearest by path, then the lower site index.
+bool plan_loot(const TacticsSim &p_sim, int p_leader, const PathField &p_field, Intent &r_intent) {
+	const UnitState &leader = p_sim.get_units()[p_leader];
+	const std::vector<SitePlacement> &sites = p_sim.get_map().sites;
+	if (leader.side != SIDE_B || leader.has_used_site) {
+		return false;
+	}
+	int best_cost = UNREACHABLE;
+	for (size_t site = 0; site < sites.size(); site++) {
+		const SiteState known = p_sim.get_known_site(leader.side, static_cast<int>(site));
+		if (!is_village(sites[site].def) || !known.is_known || known.status != SiteStatus::READY) {
+			continue;
+		}
+		for (size_t index = 0; index < p_field.cost.size(); index++) {
+			const Cell cell = p_sim.get_cell_at(static_cast<int>(index));
+			const bool can_stand = cell == leader.cell || can_plan_stop_at(p_sim, p_leader, cell);
+			if (p_field.cost[index] < best_cost && can_stand && get_manhattan(cell, sites[site].cell) <= sites[site].def.reach_cells) {
+				best_cost = p_field.cost[index];
+				r_intent.destination = cell;
+				r_intent.site = static_cast<int>(site);
+				r_intent.target_cell = sites[site].cell;
+			}
+		}
+	}
+	if (r_intent.site == NO_INDEX) {
+		return false;
+	}
+	r_intent.action = IntentAction::SITE;
+	r_intent.target = NO_UNIT;
+	return true;
+}
+
+// The general hurt enough to flee runs for the exit nearest by path.
+Intent plan_flight(const TacticsSim &p_sim, int p_leader, Intent p_intent) {
+	const PathField field = find_move_paths(p_sim, p_leader);
+	const std::vector<int> distance = find_goal_distances(p_sim, p_leader, p_sim.get_objective().exit_cells);
+	p_intent.destination = pick_reachable_cell(p_sim, p_leader, field, [&](const Cell &p_cell) { return distance[p_sim.get_cell_index(p_cell)]; });
+	return p_intent;
+}
+
 Intent cast_on_own_cell(Intent p_intent, const Cell &p_cell) {
 	p_intent.action = IntentAction::SKILL;
 	p_intent.target = p_intent.leader;
@@ -276,7 +362,16 @@ Intent plan_intent(const TacticsSim &p_sim, int p_leader) {
 	Intent intent;
 	intent.leader = p_leader;
 	intent.destination = leader.cell;
+	if (p_leader == p_sim.get_general() && p_sim.is_general_fleeing()) {
+		return plan_flight(p_sim, p_leader, intent);
+	}
 	const Aim aim = pick_ai_aim(p_sim, p_leader);
+	if (aim.strike_cell == NO_CELL && !aim.is_holding && !is_guard_side(p_sim, leader.side)) {
+		Intent loot = intent;
+		if (plan_loot(p_sim, p_leader, find_move_paths(p_sim, p_leader), loot)) {
+			return loot;
+		}
+	}
 	intent.target = aim.target;
 	if (intent.target == NO_UNIT && (aim.is_holding || !aim.search_goals.empty())) {
 		const PathField field = find_move_paths(p_sim, p_leader);
@@ -333,6 +428,11 @@ Cell resolve_intent_destination(const TacticsSim &p_sim, int p_leader, const Int
 Intent resolve_intent_action(const TacticsSim &p_sim, int p_leader, const Intent &p_intent) {
 	const UnitState &leader = p_sim.get_units()[p_leader];
 	Intent action = p_intent;
+	std::string error;
+	if (p_intent.action == IntentAction::SITE && p_sim.can_use_site(p_leader, p_intent.site, "loot", 0, &error)) {
+		return action;
+	}
+	action.site = NO_INDEX;
 	if (p_intent.action == IntentAction::SKILL && can_cast_on_own_cell(p_sim, p_leader, leader.cell)) {
 		return cast_on_own_cell(action, leader.cell);
 	}
@@ -342,7 +442,7 @@ Intent resolve_intent_action(const TacticsSim &p_sim, int p_leader, const Intent
 		if (p_intent.action == IntentAction::SKILL && can_skill_reach(leader, leader.cell, action.target_cell)) {
 			return action;
 		}
-		if (p_intent.action != IntentAction::WAIT && can_attack(p_sim, p_leader, p_intent.target)) {
+		if ((p_intent.action == IntentAction::ATTACK || p_intent.action == IntentAction::SKILL) && can_attack(p_sim, p_leader, p_intent.target)) {
 			action.action = IntentAction::ATTACK;
 			return action;
 		}

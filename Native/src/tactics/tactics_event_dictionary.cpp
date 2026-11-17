@@ -39,7 +39,19 @@ const char *const EVENT_TYPE_NAMES[] = {
 	"ambushed",
 	"weather_changed",
 	"daytime_changed",
+	"site_used",
+	"unit_healed",
+	"unit_arrived",
+	"site_changed",
+	"capture_progressed",
+	"unit_escaped",
+	"convoy_halted",
+	"general_fleeing",
+	"supplies_gained",
+	"goal_met",
 };
+
+const char *const SITE_STATUS_NAMES[] = { "ready", "used", "burned" };
 
 StringName to_id(const std::string &p_text) {
 	return StringName(to_godot_string(p_text));
@@ -196,7 +208,87 @@ void add_incident_payload(const tactics::Event &p_event, Dictionary &r_dict) {
 	}
 }
 
+// Sites and objectives (Docs/systems/tactics_sites.md): seen_mask has bit
+// 0 set when side A sees the cell, bit 1 for side B.
+void add_site_payload(const tactics::Event &p_event, Dictionary &r_dict) {
+	switch (p_event.type) {
+		case tactics::EventType::SITE_USED:
+			r_dict["unit"] = p_event.unit;
+			r_dict["side"] = p_event.side;
+			r_dict["site"] = p_event.target;
+			r_dict["site_id"] = to_id(p_event.content_id);
+			r_dict["choice"] = to_id(p_event.kind);
+			r_dict["option"] = p_event.value;
+			r_dict["cell"] = to_vector2i(p_event.to);
+			r_dict["seen_mask"] = p_event.amount;
+			break;
+		case tactics::EventType::SITE_CHANGED:
+			r_dict["site"] = p_event.target;
+			r_dict["site_id"] = to_id(p_event.content_id);
+			r_dict["side"] = p_event.side;
+			r_dict["kind"] = to_id(p_event.kind);
+			r_dict["status"] = StringName(SITE_STATUS_NAMES[p_event.value]);
+			r_dict["owner"] = p_event.threshold;
+			r_dict["cell"] = to_vector2i(p_event.to);
+			r_dict["seen_mask"] = p_event.amount;
+			break;
+		case tactics::EventType::CAPTURE_PROGRESSED:
+			r_dict["site"] = p_event.target;
+			r_dict["side"] = p_event.side;
+			r_dict["progress"] = p_event.value;
+			r_dict["phases"] = p_event.threshold;
+			r_dict["cell"] = to_vector2i(p_event.to);
+			r_dict["kind"] = to_id(p_event.kind);
+			break;
+		case tactics::EventType::UNIT_HEALED:
+			r_dict["unit"] = p_event.unit;
+			r_dict["amount"] = p_event.amount;
+			r_dict["hp_after"] = p_event.hp_after;
+			r_dict["source_id"] = to_id(p_event.content_id);
+			break;
+		case tactics::EventType::UNIT_ARRIVED:
+			r_dict["unit"] = p_event.unit;
+			r_dict["side"] = p_event.side;
+			r_dict["leader"] = p_event.target;
+			r_dict["cell"] = to_vector2i(p_event.to);
+			r_dict["kind"] = to_id(p_event.kind);
+			r_dict["unit_id"] = to_id(p_event.content_id);
+			r_dict["seen_to"] = (p_event.value & 2) != 0;
+			break;
+		case tactics::EventType::UNIT_ESCAPED:
+			r_dict["unit"] = p_event.unit;
+			r_dict["side"] = p_event.side;
+			r_dict["cell"] = to_vector2i(p_event.from);
+			r_dict["kind"] = to_id(p_event.kind);
+			r_dict["seen_from"] = (p_event.value & 2) != 0;
+			break;
+		case tactics::EventType::CONVOY_HALTED:
+			r_dict["unit"] = p_event.unit;
+			r_dict["kind"] = to_id(p_event.kind);
+			break;
+		case tactics::EventType::GENERAL_FLEEING:
+			r_dict["unit"] = p_event.unit;
+			break;
+		case tactics::EventType::SUPPLIES_GAINED:
+			r_dict["side"] = p_event.side;
+			r_dict["amount"] = p_event.amount;
+			r_dict["total"] = p_event.value;
+			r_dict["source_id"] = to_id(p_event.content_id);
+			break;
+		default:
+			r_dict["side"] = p_event.side;
+			r_dict["goal"] = p_event.value;
+			r_dict["goal_id"] = to_id(p_event.content_id);
+			r_dict["supplies"] = p_event.amount;
+			break;
+	}
+}
+
 void add_payload(const tactics::Event &p_event, Dictionary &r_dict) {
+	if (p_event.type >= tactics::EventType::SITE_USED) {
+		add_site_payload(p_event, r_dict);
+		return;
+	}
 	switch (p_event.type) {
 		case tactics::EventType::BATTLE_STARTED:
 			r_dict["units"] = p_event.value;
@@ -260,6 +352,7 @@ void add_payload(const tactics::Event &p_event, Dictionary &r_dict) {
 			r_dict["action"] = to_id(p_event.kind);
 			r_dict["target"] = p_event.target;
 			r_dict["target_cell"] = to_vector2i(p_event.from);
+			r_dict["site"] = p_event.value;
 			break;
 		case tactics::EventType::SOLDIER_WAVERED:
 		case tactics::EventType::INCIDENT_CALMED:

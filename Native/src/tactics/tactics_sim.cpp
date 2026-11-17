@@ -1,8 +1,10 @@
 #include "tactics_sim.h"
 
 #include "tactics_ai.h"
+#include "tactics_objectives.h"
 #include "tactics_orders.h"
 #include "tactics_paths.h"
+#include "tactics_sites.h"
 #include "tactics_skills.h"
 #include "tactics_validation.h"
 #include "tactics_zones.h"
@@ -14,7 +16,7 @@ namespace tactics {
 
 namespace {
 
-const char *const INTENT_ACTION_NAMES[] = { "wait", "attack", "skill" };
+const char *const INTENT_ACTION_NAMES[] = { "wait", "attack", "skill", "site" };
 
 } // namespace
 
@@ -33,6 +35,10 @@ bool TacticsSim::setup(const Rules &p_rules, const MapDef &p_map, std::string *r
 	rules = p_rules;
 	map = p_map;
 	occupants.assign(map.width * map.height, NO_UNIT);
+	sites.assign(map.sites.size(), SiteState());
+	for (size_t index = 0; index < sites.size(); index++) {
+		sites[index].owner = map.sites[index].owner;
+	}
 	is_ready = true;
 	return true;
 }
@@ -161,6 +167,13 @@ bool TacticsSim::start(std::string *r_error) {
 			side.seen.assign(map.width * map.height, 0);
 			side.last_seen.assign(units.size(), NO_CELL);
 		}
+		for (std::vector<SiteState> &memory : site_memory) {
+			memory.assign(sites.size(), SiteState());
+		}
+	}
+	// The convoy sets out after the seeds are planted: it has none.
+	if (objective.handler != nullptr && objective.handler->on_start != nullptr) {
+		objective.handler->on_start(*this, 0);
 	}
 	begin_phase(SIDE_A);
 	run_ai_phases();
@@ -218,22 +231,18 @@ void TacticsSim::begin_phase(int p_side) {
 	expire_timed_effects(cause);
 	for (UnitState &unit : units) {
 		if (unit.side == p_side) {
-			unit.has_moved = false;
-			unit.has_attacked = false;
-			unit.has_cast = false;
-			unit.has_waited = false;
-			unit.has_squad_struck = false;
-			unit.has_rescued = false;
-			unit.is_held_by_zoc = false;
-			unit.straight_cells = 0;
-			unit.last_step = { 0, 0 };
-			unit.phase_start_cell = unit.cell;
-			unit.phase_start_heading = unit.heading;
-			unit.phase_start_streak = unit.heading_streak;
-			unit.move_points_left = unit.is_alive ? get_stats(unit.index).move_points : 0;
+			init_unit_phase(unit);
 		}
 	}
 	apply_phase_start_effects(cause);
+	// Sites (reinforcements), then the objective (waves, a general who
+	// turns to flee): what arrives may act this phase.
+	if (!finished) {
+		run_sites_phase_start(*this, p_side, cause);
+	}
+	if (!finished && objective.handler != nullptr && objective.handler->on_phase_start != nullptr) {
+		objective.handler->on_phase_start(*this, p_side, cause);
+	}
 	if (!finished && incident_rules.enabled) {
 		begin_incident_phase(*this, p_side, cause);
 	}
@@ -258,6 +267,14 @@ void TacticsSim::close_phase() {
 	// whole phase to react (Docs/systems/tactics.md, Incidents).
 	if (!finished && incident_rules.enabled) {
 		resolve_incident_phase(*this, active_side);
+	}
+	// Sites (captures, rest), then the objective (the convoy's walk, the
+	// round's checks).
+	if (!finished) {
+		run_sites_phase_end(*this, active_side, 0);
+	}
+	if (!finished && objective.handler != nullptr && objective.handler->on_phase_end != nullptr) {
+		objective.handler->on_phase_end(*this, active_side, 0);
 	}
 	if (finished) {
 		return;
@@ -284,8 +301,10 @@ void TacticsSim::run_ai_phase() {
 			continue;
 		}
 		Intent intent = plan_intent(*this, leader);
+		// A general who turned to flee since he declared runs instead.
+		const bool is_fleeing = leader == general_unit && general_fleeing;
 		for (const Intent &declared : intents) {
-			if (declared.leader == leader) {
+			if (declared.leader == leader && !is_fleeing) {
 				intent = declared;
 			}
 		}
@@ -297,7 +316,13 @@ void TacticsSim::run_ai_phase() {
 		if (finished || !units[leader].is_alive) {
 			continue;
 		}
-		const Intent action = resolve_intent_action(*this, leader, intent);
+		Intent action = resolve_intent_action(*this, leader, intent);
+		// A burned village does not end the turn: it may still strike.
+		if (action.action == IntentAction::SITE && use_site(leader, action.site, "loot", 0, &error) && !finished && units[leader].is_alive) {
+			Intent after = action;
+			after.action = IntentAction::WAIT;
+			action = resolve_intent_action(*this, leader, after);
+		}
 		const bool is_done = (action.action == IntentAction::SKILL && use_skill(leader, action.target_cell, &error)) ||
 				(action.action == IntentAction::ATTACK && attack(leader, action.target, &error));
 		if (!is_done && !finished && units[leader].is_alive) {
@@ -322,6 +347,7 @@ void TacticsSim::declare_intents(int p_cause) {
 		event.kind = INTENT_ACTION_NAMES[static_cast<int>(intent.action)];
 		event.target = intent.target;
 		event.from = intent.target_cell;
+		event.value = intent.site;
 		event.cause = p_cause;
 		emit(event);
 	}
@@ -375,10 +401,15 @@ void TacticsSim::check_rout(int p_cause) {
 	for (const UnitState &unit : units) {
 		leaders[unit.side] += unit.is_alive && is_leader(unit.index) ? 1 : 0;
 	}
-	if (leaders[SIDE_A] == 0) {
-		end_battle(SIDE_B, "rout", p_cause);
-	} else if (leaders[SIDE_B] == 0) {
-		end_battle(SIDE_A, "rout", p_cause);
+	for (int side = 0; side < SIDE_COUNT && !finished; side++) {
+		if (leaders[side] > 0) {
+			continue;
+		}
+		const bool has_rule = objective.handler != nullptr && objective.handler->get_rout_winner != nullptr;
+		const int rout_winner = has_rule ? objective.handler->get_rout_winner(*this, side) : 1 - side;
+		if (rout_winner != NO_WINNER) {
+			end_battle(rout_winner, "rout", p_cause);
+		}
 	}
 }
 
@@ -386,12 +417,40 @@ void TacticsSim::check_rout(int p_cause) {
 // starting on it, does not (Docs/systems/tactics.md, Victory).
 void TacticsSim::check_objective_taken(int p_leader, int p_cause) {
 	const UnitState &leader = units[p_leader];
+	if (objective.handler != nullptr) {
+		if (!finished && objective.handler->on_leader_moved != nullptr) {
+			objective.handler->on_leader_moved(*this, p_leader, p_cause);
+		}
+		return;
+	}
 	if (!finished && map.has_objective && leader.side == map.objective_side && leader.cell == map.objective) {
 		end_battle(map.objective_side, "objective", p_cause);
 	}
 }
 
 void TacticsSim::end_battle(int p_winner, const std::string &p_reason, int p_cause) {
+	if (finished) {
+		return;
+	}
+	// What the battle leaves behind comes before its end: villages still
+	// standing, then the goals met by a win of side A.
+	winner = p_winner;
+	settle_sites(*this, p_cause);
+	if (p_winner == SIDE_A && objective.handler != nullptr) {
+		met_goals = find_met_goals(*this);
+		for (int goal : met_goals) {
+			const GoalDef &def = objective.goals[goal];
+			Event event;
+			event.type = EventType::GOAL_MET;
+			event.side = SIDE_A;
+			event.value = goal;
+			event.amount = def.supplies;
+			event.content_id = def.id;
+			event.cause = p_cause;
+			emit(event);
+			add_supplies(SIDE_A, def.supplies, def.id, p_cause);
+		}
+	}
 	finished = true;
 	winner = p_winner;
 	end_reason = p_reason;

@@ -51,7 +51,8 @@ int get_enter_cost(const TacticsSim &p_sim, const MoveProfile &p_profile, int p_
 bool is_next_to_enemy(const TacticsSim &p_sim, int p_side, const Cell &p_cell) {
 	for (const Cell &direction : DIRECTIONS) {
 		const Cell next = p_cell + direction;
-		if (p_sim.is_on_map(next) && is_seen_enemy_at(p_sim, p_side, next)) {
+		// A convoy holds no zone of control.
+		if (p_sim.is_on_map(next) && is_seen_enemy_at(p_sim, p_side, next) && !p_sim.get_units()[p_sim.get_occupant(next)].def.is_noncombatant) {
 			return true;
 		}
 	}

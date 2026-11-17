@@ -162,7 +162,7 @@ void riot_fire(TacticsSim &p_sim, int p_unit, const IncidentDef &p_def, int p_ca
 	for (int index = 0; index < count && !p_sim.is_finished(); index++) {
 		const UnitState &ally = p_sim.get_units()[index];
 		const int distance = get_manhattan(ally.cell, center);
-		if (index == p_unit || !ally.is_alive || ally.side != side || p_sim.is_leader(index) || distance > p_def.radius_cells) {
+		if (index == p_unit || !ally.is_alive || ally.side != side || p_sim.is_leader(index) || ally.def.is_noncombatant || distance > p_def.radius_cells) {
 			continue;
 		}
 		const int delta_col = ally.cell.col - center.col;
@@ -336,14 +336,16 @@ void plant_side_seeds(TacticsSim &p_sim, int p_side) {
 	}
 }
 
-void calm_incident(TacticsSim &p_sim, int p_unit, const char *p_reason) {
+void calm_incident(TacticsSim &p_sim, int p_unit, const char *p_reason, int p_cause = 0) {
 	UnitState &unit = p_sim.edit_unit(p_unit);
 	unit.stage = IncidentStage::DORMANT;
+	unit.is_unseen_waver = false;
 	Event event;
 	event.type = EventType::INCIDENT_CALMED;
 	event.unit = p_unit;
 	event.content_id = p_sim.get_incident_rules().incidents[unit.seed].id;
 	event.kind = p_reason;
+	event.cause = p_cause;
 	p_sim.emit(event);
 }
 
@@ -445,6 +447,14 @@ int get_incident_weight(const TacticsSim &p_sim, int p_soldier, int p_incident) 
 		}
 	}
 	return weight * (pct > 0 ? pct : 0) / PERCENT;
+}
+
+bool calm_wavering_soldier(TacticsSim &p_sim, int p_unit, const char *p_reason, int p_cause) {
+	if (!p_sim.get_units()[p_unit].is_alive || p_sim.get_units()[p_unit].stage != IncidentStage::WAVERING) {
+		return false;
+	}
+	calm_incident(p_sim, p_unit, p_reason, p_cause);
+	return true;
 }
 
 void plant_incident_seeds(TacticsSim &p_sim) {

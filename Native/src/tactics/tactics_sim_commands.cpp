@@ -2,6 +2,7 @@
 
 #include "tactics_brain.h"
 #include "tactics_combat.h"
+#include "tactics_objectives.h"
 #include "tactics_orders.h"
 #include "tactics_passives.h"
 #include "tactics_paths.h"
@@ -124,7 +125,8 @@ bool TacticsSim::move_leader(int p_unit, const Cell &p_cell, std::string *r_erro
 	}
 	const size_t first_event = events.size();
 	const int move_id = apply_leader_move(p_unit, p_cell, 0);
-	if (!finished) {
+	// A leader that left by an exit took its squad along.
+	if (!finished && units[p_unit].is_alive) {
 		run_squad_moves(p_unit, move_id);
 	}
 	bool is_plain = before != nullptr && !finished;
@@ -174,8 +176,9 @@ int TacticsSim::apply_leader_move(int p_unit, const Cell &p_cell, int p_cause) {
 	const int move_id = walk_unit(p_unit, path, field.cost[get_cell_index(p_cell)], "move", p_cause);
 	update_heading(p_unit);
 	check_objective_taken(p_unit, move_id);
-	// The move may have taken the objective: nothing happens after the end.
-	if (finished) {
+	// The move may have taken the objective, or left by an exit: nothing
+	// happens after the end.
+	if (finished || !units[p_unit].is_alive) {
 		return move_id;
 	}
 	const std::vector<PassiveDef> passives = units[p_unit].def.passives;
@@ -409,6 +412,9 @@ std::vector<int> TacticsSim::get_strike_targets(int p_unit) const {
 // A move there wins the battle outright, so it is no cell to strike from:
 // the player takes it with a plain move.
 bool TacticsSim::takes_objective(int p_unit, const Cell &p_cell) const {
+	if (objective.handler != nullptr) {
+		return p_cell != units[p_unit].cell && objective.handler->is_exit_cell(*this, units[p_unit].side, p_cell);
+	}
 	return map.has_objective && units[p_unit].side == map.objective_side && p_cell == map.objective && p_cell != units[p_unit].cell;
 }
 

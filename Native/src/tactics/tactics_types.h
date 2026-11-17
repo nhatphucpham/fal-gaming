@@ -121,6 +121,9 @@ struct Rules {
 
 struct KeywordHandler;
 struct IncidentHandler;
+struct SiteHandler;
+struct ObjectiveHandler;
+struct GoalHandler;
 struct ZoneHandler;
 struct PassiveHandler;
 struct ChargeHandler;
@@ -320,6 +323,9 @@ struct UnitDef {
 	// How far it sees in clear daylight, in sight cost (cells).
 	int vision_cells = 4;
 	std::vector<KeywordDef> keywords;
+	// Never attacks, counters or holds a zone of control (an escorted
+	// convoy, Docs/systems/tactics_objectives.md).
+	bool is_noncombatant = false;
 	// Leaders only.
 	int lead_capacity = 0;
 	int default_order = 0;
@@ -327,6 +333,57 @@ struct UnitDef {
 	bool has_skill = false;
 	SkillDef skill;
 	std::vector<TraitDef> traits;
+};
+
+// A place on the map a leader can use or take (Docs/systems/tactics_sites.md):
+// the handler gives the rules, these numbers tune it. Fields a handler does
+// not read stay at their defaults.
+struct SiteDef {
+	std::string id;
+	const SiteHandler *handler = nullptr;
+	// A leader on the site or this many cells (Manhattan) from it uses it.
+	int reach_cells = 1;
+	// Times it can be used in a battle.
+	int uses = 1;
+	// Village: hp healed to the visiting squad; camp: to a resting squad,
+	// both in % of each unit's max hp.
+	int heal_pct = 0;
+	// Village: the soldiers it offers, one of them joins.
+	std::vector<UnitDef> recruits;
+	// Supplies taken by looting a village or capturing a camp.
+	int supplies = 0;
+	// Village karma for side A (Docs/systems/tactics_sites.md, Karma).
+	int karma_kept = 0;
+	int karma_burned = 0;
+	int karma_looted = 0;
+	// Shrine: wavering soldiers this close to the praying leader calm; the
+	// blessing's stat and amount for the rest of the battle.
+	int calm_radius_cells = 0;
+	StatKind bless_stat = StatKind::NONE;
+	int bless_amount = 0;
+	// Camp: units of its owner this close rest at the end of their phase.
+	int radius_cells = 0;
+	// Stronghold: own phases a leader stands on it with no enemy next to
+	// it to take it; then its owner sees this far from it, and its units on
+	// it get the armor bonus.
+	int capture_phases = 1;
+	int vision_cells = 0;
+	int armor_bonus = 0;
+	// Stronghold: from this round (0 never) its owner gets the leader below
+	// with its squad, next to it, once.
+	int reinforce_round = 0;
+	bool has_reinforcement = false;
+	UnitDef reinforce_leader;
+	std::vector<UnitDef> reinforce_squad;
+	// Using it closes the leader's turn.
+	bool ends_turn = false;
+};
+
+// A site on a map and who holds it at the start (NO_INDEX: nobody).
+struct SitePlacement {
+	SiteDef def;
+	Cell cell;
+	int owner = NO_INDEX;
 };
 
 struct MapDef {
@@ -344,6 +401,54 @@ struct MapDef {
 	Cell facing[SIDE_COUNT] = { { 0, -1 }, { 0, 1 } };
 	// Posts the side that defends the objective holds while it is weaker.
 	std::vector<Cell> guard_cells;
+	std::vector<SitePlacement> sites;
+};
+
+// A wave of side B leaders arriving at the start of B's phase of `round`
+// next to its entry cells (hold the city).
+struct WaveDef {
+	int round = 0;
+	std::vector<UnitDef> leaders;
+	std::vector<std::vector<UnitDef>> squads;
+	std::vector<Cell> entry_cells;
+};
+
+// A secondary goal: met when side A wins and the handler agrees; worth
+// `supplies`. `value` is what the handler reads (a round, ...).
+struct GoalDef {
+	std::string id;
+	const GoalHandler *handler = nullptr;
+	int value = 0;
+	int supplies = 0;
+};
+
+// What a scenario is won by (Docs/systems/tactics_objectives.md); without
+// a handler the map's objective cell (if any) is taken by a move, as before.
+struct ObjectiveDef {
+	std::string id;
+	const ObjectiveHandler *handler = nullptr;
+	// The stronghold to take or keep (index into MapDef::sites).
+	int site = NO_INDEX;
+	// Hold the city: rounds to hold; break the siege: the last round to
+	// get out by.
+	int rounds = 0;
+	// Break the siege: leaders that must get out; required_leader (an
+	// index among side A's leaders in order) must be one of them.
+	int count = 0;
+	int required_leader = NO_INDEX;
+	// Break the siege: side A's exits; bring down the general: his.
+	std::vector<Cell> exit_cells;
+	// Escort: the road, from the convoy's start to the exit.
+	std::vector<Cell> road_cells;
+	bool has_convoy = false;
+	UnitDef convoy;
+	// Bring down the general: his index among side B's leaders, the hp %
+	// at or under which he runs, and how far from his post he keeps.
+	int general = NO_INDEX;
+	int flee_hp_pct = 0;
+	int general_hold_cells = 0;
+	std::vector<WaveDef> waves;
+	std::vector<GoalDef> goals;
 };
 
 } // namespace tactics

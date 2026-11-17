@@ -17,7 +17,7 @@ using namespace godot;
 namespace {
 
 constexpr int HASH_HEX_DIGITS = 16;
-const char *const INTENT_ACTION_NAMES[] = { "wait", "attack", "skill" };
+const char *const INTENT_ACTION_NAMES[] = { "wait", "attack", "skill", "site" };
 
 tactics::Cell to_cell(const Vector2i &p_cell) {
 	return { p_cell.x, p_cell.y };

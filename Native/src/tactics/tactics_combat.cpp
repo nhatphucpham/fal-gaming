@@ -111,7 +111,8 @@ bool is_in_range_from(const TacticsSim &p_sim, int p_attacker, const Cell &p_fro
 bool can_reach_target(const TacticsSim &p_sim, int p_attacker, int p_target) {
 	const UnitState &attacker = p_sim.get_units()[p_attacker];
 	const UnitState &target = p_sim.get_units()[p_target];
-	return attacker.is_alive && target.is_alive && attacker.side != target.side && is_in_range_from(p_sim, p_attacker, attacker.cell, target.cell);
+	// A convoy never strikes back (Docs/systems/tactics_objectives.md).
+	return attacker.is_alive && target.is_alive && attacker.side != target.side && !attacker.def.is_noncombatant && is_in_range_from(p_sim, p_attacker, attacker.cell, target.cell);
 }
 
 bool can_attack(const TacticsSim &p_sim, int p_attacker, int p_target) {

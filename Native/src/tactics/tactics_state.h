@@ -99,6 +99,39 @@ struct UnitState {
 	// Incidents: its seed wavered only because it was out of its leader's
 	// sight (the unseen trigger, Docs/systems/tactics_vision.md).
 	bool is_unseen_waver = false;
+	// Sites and objectives (Docs/systems/tactics_sites.md): the leader used
+	// a site this phase; the unit left the battle by an exit (alive, not
+	// fled); how it joined after the start ("" for a starting unit:
+	// recruit, wave, reinforce, convoy).
+	bool has_used_site = false;
+	bool has_escaped = false;
+	std::string arrival_kind;
+};
+
+enum class SiteStatus {
+	// Not used yet (a stronghold or camp is always ready).
+	READY = 0,
+	// Used up (a visited village, a shrine prayed at).
+	USED,
+	// Burned or looted: of no use to either side.
+	BURNED,
+};
+
+// A site as it is now, or as a side last saw it.
+struct SiteState {
+	SiteStatus status = SiteStatus::READY;
+	int owner = NO_INDEX;
+	int uses = 0;
+	// Stronghold: the side taking it and its own phases on it so far.
+	int capture_side = NO_INDEX;
+	int capture_progress = 0;
+	// The round it was taken (0 at the start).
+	int owned_round = 0;
+	bool has_reinforced = false;
+	// Who burned or looted it (NO_INDEX: nobody).
+	int burned_by = NO_INDEX;
+	// The side has seen its cell (a site never seen is not known).
+	bool is_known = false;
 };
 
 // What one side sees: the cells it sees now and has ever seen, the cells
@@ -145,6 +178,8 @@ enum class IntentAction {
 	WAIT = 0,
 	ATTACK = 1,
 	SKILL = 2,
+	// Burn the village at target_cell (site).
+	SITE = 3,
 };
 
 // What an AI leader will do in its next phase, declared at the start of the
@@ -156,6 +191,8 @@ struct Intent {
 	int target = NO_UNIT;
 	// NO_CELL when there is no target.
 	Cell target_cell = NO_CELL;
+	// SITE: the site it goes for.
+	int site = NO_INDEX;
 };
 
 enum class EventType {
@@ -191,6 +228,16 @@ enum class EventType {
 	AMBUSHED,
 	WEATHER_CHANGED,
 	DAYTIME_CHANGED,
+	SITE_USED,
+	UNIT_HEALED,
+	UNIT_ARRIVED,
+	SITE_CHANGED,
+	CAPTURE_PROGRESSED,
+	UNIT_ESCAPED,
+	CONVOY_HALTED,
+	GENERAL_FLEEING,
+	SUPPLIES_GAINED,
+	GOAL_MET,
 };
 
 struct SkillTargetResult {

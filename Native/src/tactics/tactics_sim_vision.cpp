@@ -217,6 +217,7 @@ void TacticsSim::refresh_vision(int p_cause) {
 			emit(event);
 		}
 	}
+	update_site_memory();
 }
 
 void TacticsSim::announce_environment(int p_cause) {
@@ -267,7 +268,7 @@ int TacticsSim::cut_path_at_ambush(int p_unit, std::vector<Cell> &r_path, Cell *
 		for (const Cell &direction : DIRECTIONS) {
 			const Cell next = r_path[step] + direction;
 			const int enemy = is_on_map(next) ? get_occupant(next) : NO_UNIT;
-			if (enemy != NO_UNIT && units[enemy].side != unit.side && ambusher == NO_UNIT) {
+			if (enemy != NO_UNIT && units[enemy].side != unit.side && !units[enemy].def.is_noncombatant && ambusher == NO_UNIT) {
 				stop = step;
 				ambusher = enemy;
 				*r_blocked = r_path[step + 1];
