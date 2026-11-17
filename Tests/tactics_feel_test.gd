@@ -183,6 +183,22 @@ func _check_idle_frames() -> bool:
 		push_error("An idle tactics map redrew its layers")
 		return false
 	print("Idle map: %d of %d frames changed" % counts)
+	# The new maps, their sites, road, exits and wave marks drawn, with the
+	# objective card open: still too, once the banners are gone.
+	for path: String in ["res://Data/Tactics/Scenarios/city_defense.tres", "res://Data/Tactics/Scenarios/supply_road.tres", "res://Data/Tactics/Scenarios/broken_ring.tres"]:
+		await _open(false, path)
+		var banner: Control = _screen.find_children("*", "TacticsBanner", true, false)[0]
+		for frame: int in MAX_FRAMES:
+			if not banner.visible:
+				break
+			await process_frame
+		_screen.show_objective()
+		await create_timer(0.6).timeout
+		draws = _map().get_layer_draw_count()
+		counts = await _count_changed_frames(1.0)
+		if counts[0] > 0 or _map().get_layer_draw_count() != draws:
+			push_error("An idle %s changed %d of %d frames (%d layer draws)" % [path.get_file(), counts[0], counts[1], _map().get_layer_draw_count() - draws])
+			return false
 	return true
 
 

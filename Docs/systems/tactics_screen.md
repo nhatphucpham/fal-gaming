@@ -279,7 +279,7 @@ Sites and objectives (see [Tactics sites](tactics_sites.md) and
   general's exits (red), and the cells where an enemy wave comes in this
   round or the next (red arrows inward). The layer redraws only when the
   sites or marks change.
-- The objective chip under the round line ("Giữ thành: Giữ 3/8 vòng",
+- The objective chip under the round line ("Giữ thành: 3/8 vòng",
   "Hộ tống: Còn 14 ô", "Phá vây: Thoát 1/2"...) is a button: a tap shows the objective card (what
   it asks, the scenario, each side goal with its supplies or "đạt") and,
   escorting in our phase, "Xe dừng" or "Xe đi". Our phase's card opens
@@ -301,8 +301,10 @@ Sites and objectives (see [Tactics sites](tactics_sites.md) and
   `cart`); the general's flight a banner and `war_horn`; supplies rise in
   gold at the top of the map (`coin`). Steps our side did not see
   (`seen_mask`, `seen_from`, `seen_to`) do not play.
-- The round before a wave comes, a banner names how many leaders and from
-  which edge, with `war_horn`.
+- The round before a wave comes, once our phase's banner is gone, a
+  banner names how many leaders and from which edge, with `war_horn`
+  (the weather's warning waits the same way; both in turn when they
+  fall on one round). A long banner title steps its font down to fit.
 - Tips, once each: the objective, a site in reach, the convoy, the exits,
   the first wave warning.
 - Summary: a "Mục tiêu phụ" panel with each side goal met (with its
