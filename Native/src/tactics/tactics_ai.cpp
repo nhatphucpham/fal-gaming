@@ -238,9 +238,14 @@ Aim pick_ai_aim(const TacticsSim &p_sim, int p_leader) {
 	const std::vector<Strike> all_strikes = list_strikes(p_sim, p_leader, field, [](const Cell &) { return true; });
 	const int side = p_sim.get_units()[p_leader].side;
 	const bool is_guard = is_guard_side(p_sim, side);
+	// The general keeps to his post: he strikes only from cells within his
+	// hold radius of it and never leaves it to chase.
+	const bool is_general = p_leader == p_sim.get_general();
+	const int hold_cells = p_sim.get_objective().general_hold_cells;
 	std::vector<Strike> strikes;
 	for (const Strike &strike : all_strikes) {
-		if (!is_guard || has_local_edge(p_sim, p_leader, strike)) {
+		const bool is_near_post = !is_general || get_manhattan(strike.cell, p_sim.get_general_post()) <= hold_cells;
+		if (is_near_post && (!is_guard || has_local_edge(p_sim, p_leader, strike))) {
 			strikes.push_back(strike);
 		}
 	}
@@ -269,7 +274,7 @@ Aim pick_ai_aim(const TacticsSim &p_sim, int p_leader) {
 			}
 		}
 		aim.target = find_nearest_enemy(p_sim, p_leader);
-		aim.is_holding = is_guard && !is_advancing(p_sim, side);
+		aim.is_holding = is_general || (is_guard && !is_advancing(p_sim, side));
 		if (aim.target == NO_UNIT && !aim.is_holding) {
 			aim.search_goals = find_search_goals(p_sim, p_leader);
 		}
