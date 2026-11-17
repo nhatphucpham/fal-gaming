@@ -148,9 +148,18 @@ bool validate_hold_city(const ObjectiveDef &p_def, const MapDef &p_map, std::str
 
 // --- Escort -------------------------------------------------------------
 
+// The convoy starts on the first free cell of its road (a soldier may
+// stand on the road's first cells); off the road it could never set out.
 void place_convoy(TacticsSim &p_sim, int p_cause) {
 	const ObjectiveDef &def = objective_of(p_sim);
-	p_sim.spawn_lone_unit(SIDE_A, def.convoy, def.road_cells.front(), "convoy", p_cause);
+	Cell start = def.road_cells.front();
+	for (const Cell &cell : def.road_cells) {
+		if (p_sim.get_occupant(cell) == NO_UNIT) {
+			start = cell;
+			break;
+		}
+	}
+	p_sim.spawn_lone_unit(SIDE_A, def.convoy, start, "convoy", p_cause);
 }
 
 // The convoy walks its road at the end of side A's phase and leaves the
