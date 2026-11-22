@@ -1,7 +1,7 @@
 extends Node2D
 ## Root of the game: holds the SimClock and the current screen, and moves
 ## between screens with a slide: title, run, end, sandbox, and the tactics
-## muster and battle. The clock does
+## world map, muster and battle. The clock does
 ## not tick by itself here; BattlePlayback drives it at the chosen battle
 ## speed (see Docs/systems/battle_playback.md).
 
@@ -12,7 +12,7 @@ const TACTICS_CATALOG_PATH: String = "res://Data/Tactics/tactics_catalog.tres"
 const SLIDE_SEC: float = 0.32
 
 ## The screen shown now (TitleScreen, RunScreen, EndScreen, SandboxScreen,
-## MusterScreen or TacticsScreen).
+## TacticsWorldScreen, MusterScreen or TacticsScreen).
 var current_screen: Control
 
 var _catalog: Catalog
@@ -76,18 +76,35 @@ func open_sandbox() -> SandboxScreen:
 	return sandbox
 
 
-## "Chiến Dịch": the muster screen of the next tactics scenario (the
-## catalog's in turn) with the roster (Sổ quân), then its battle; the
-## after-battle summary comes back here.
-func open_campaign() -> MusterScreen:
+## "Chiến Dịch": the world map of regions (TacticsWorldScreen) with the
+## roster (Sổ quân). A region fought by hand goes through its muster and
+## battle; the after-battle summary and the muster's "Về" come back here.
+## `changed_region` rings once on the map (the region just fought).
+func open_campaign(changed_region: StringName = &"") -> TacticsWorldScreen:
+	var catalog := load(TACTICS_CATALOG_PATH) as TacticsCatalog
+	var world := TacticsWorldScreen.new()
+	world.catalog = catalog
+	world.roster = TacticsRoster.load_roster()
+	world.changed_region = changed_region
+	world.back_requested.connect(show_title)
+	world.manual_requested.connect(open_muster)
+	_switch_to(world, 1.0)
+	return world
+
+
+## The muster of a world region ("Thủ công"), with the region's pressure
+## and the items chosen on its card, then its battle.
+func open_muster(region_id: StringName, items: Array = []) -> MusterScreen:
 	var catalog := load(TACTICS_CATALOG_PATH) as TacticsCatalog
 	var roster := TacticsRoster.load_roster()
-	var campaign := TacticsCampaign.new(roster, catalog, TacticsCampaign.next_scenario(roster, catalog))
+	var region := roster.world.data.get_region(region_id)
+	var plan := {"region": region_id, "enemy_power_pct": roster.world.get_enemy_power_pct(region_id), "items": items}
+	var campaign := TacticsCampaign.new(roster, catalog, region.scenario, plan)
 	var muster := MusterScreen.new()
 	muster.catalog = catalog
 	muster.campaign = campaign
 	muster.scenario = campaign.scenario
-	muster.back_requested.connect(show_title)
+	muster.back_requested.connect(func() -> void: open_campaign())
 	muster.battle_requested.connect(func(squads: Array) -> void: open_tactics(campaign.scenario, squads, campaign, muster.get_people()))
 	_switch_to(muster, 1.0)
 	return muster
@@ -101,7 +118,7 @@ func open_tactics(scenario: TacticsScenarioData, squads: Array, campaign: Tactic
 	screen.campaign = campaign
 	screen.squad_people = people
 	screen.home_requested.connect(show_title)
-	screen.campaign_continue_requested.connect(open_campaign)
+	screen.campaign_continue_requested.connect(func() -> void: open_campaign(campaign.region_id if campaign != null else &""))
 	_switch_to(screen, 1.0)
 	return screen
 

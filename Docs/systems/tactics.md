@@ -25,6 +25,10 @@ the [Tactics screen](tactics_screen.md) shows it and sends its commands.
     `tactics_ai` (intent and AI phase), `tactics_validation` (range checks).
   - Registries: `tactics_keywords`, `tactics_zones`, `tactics_passives`,
     `tactics_skills` (charge mechanisms and targets), `tactics_skill_effects`.
+  - `tactics_bonds.h/.cpp`: bonds (Duyên) between leaders of one side: the
+    rules, the attack bonus while close and the phase tallies (see
+    [Tactics world](tactics_world.md)); `tactics_battle_bonds.cpp` is
+    their bridge.
 - Bridge: the resources `tactics_terrain_data`, `tactics_rules_data`,
   `tactics_keyword_data`, `tactics_zone_data`, `tactics_passive_data`,
   `tactics_skill_data` (with `TacticsSkillEffectData`), `tactics_unit_data`
@@ -503,7 +507,9 @@ error.
 | `set_incident_seed(unit, incident) -> bool` | method | Forces a seed (tests, stills); when any is forced, nothing else is planted |
 | `get_incident_seeds()` | method | Tests and tools only: `[{unit, incident, stage}]` (`dormant`, `wavering`, `fired`); the screen never reads it |
 | `get_karma(side)` | method | `{bait, rescue, carried_bait, carried_rescue}` |
-| `get_battle_report()` | method | `{is_finished, winner, reason, round, map, karma, units}`; each unit `{unit, record_id, id, role, start_side, side, status (alive, dead, fled), has_defected, leader_id, marks: [{incident, leader_id, terrain, cell, round}]}` |
+| `get_battle_report()` | method | `{is_finished, winner, reason, round, map, karma, units}`; each unit `{unit, record_id, id, role, start_side, side, status (alive, dead, fled), has_defected, leader_id, marks: [{incident, leader_id, terrain, cell, round}]}`; `bond_tallies: [{a, b, phases}]` (only with bonds set: per pair of one side's leaders, the phases of that side they ended within the bond radius) |
+| `set_bonds(bonds, rules) -> bool` | method | Bonds (Duyên) between leaders of one side, before `start()`: `bonds` `[{a, b, level}]` (unit indices), `rules` `{radius_cells (0..8, default 2), attack_pct_per_level (0..100, 5), max_level (1..5, 3)}`; false (with an error) for a unit that is not a leader, two sides, a level outside 1..max_level, rules out of range or a started battle. Each of the two gets level x attack_pct_per_level % attack while the other is within radius_cells (Manhattan), in `get_stats_at` (forecasts list the source `bond`); it is hashed. Turns the phase tallies on |
+| `get_bonds()` | method | `[{a, b, level, is_active, attack_pct}]` |
 | `set_log_enabled(enabled)` | method | Prints the log events below |
 | `event_emitted(event)` | signal | Each event, in order |
 | `battle_ended(winner, reason)` | signal | Once; `reason` is `rout`, `objective` or `time_limit` |
@@ -594,6 +600,8 @@ Format `[info][Tactics][t=<turn>] <event> key=value`, when logging is on.
 
 ## Tests
 
+`Tests/tactics_world_test.gd` covers bonds (refusals, the bonus only
+while close and in forecasts, tallies, the same hash on the same seed).
 `Tests/tactics_test.gd` (catalog checks, scenario loading and failed
 loads and setups, movement, paths and zones of control, engagement and forecast,
 keywords, terrain, AI intent, victory, defeat and time limit, objective

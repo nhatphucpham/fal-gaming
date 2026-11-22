@@ -351,6 +351,8 @@ void TacticsBattle::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_incident_seeds"), &TacticsBattle::get_incident_seeds);
 	ClassDB::bind_method(D_METHOD("get_karma", "side"), &TacticsBattle::get_karma);
 	ClassDB::bind_method(D_METHOD("get_battle_report"), &TacticsBattle::get_battle_report);
+	ClassDB::bind_method(D_METHOD("set_bonds", "bonds", "rules"), &TacticsBattle::set_bonds);
+	ClassDB::bind_method(D_METHOD("get_bonds"), &TacticsBattle::get_bonds);
 	ClassDB::bind_method(D_METHOD("set_environment", "scenario"), &TacticsBattle::set_environment);
 	ClassDB::bind_method(D_METHOD("has_fog_of_war"), &TacticsBattle::has_fog_of_war);
 	ClassDB::bind_method(D_METHOD("get_fog_cells", "side"), &TacticsBattle::get_fog_cells);

@@ -11,6 +11,8 @@ extends RefCounted
 ## the file, so a crash mid-save never leaves half a roster.
 ## See Docs/systems/tactics_roster.md.
 ## [codeblock]
+## Version 2 adds the world map (TacticsWorld), bonds (Duyên), items, and a
+## person's wounds and hire; a version 1 roster loads with a fresh world.
 ## var roster := TacticsRoster.load_roster()
 ## roster.save()
 ## [/codeblock]
@@ -20,7 +22,9 @@ const PATH: String = "user://tactics_roster.json"
 const TEMP_SUFFIX: String = ".tmp"
 ## An unreadable roster is moved here instead of being overwritten.
 const UNREADABLE_SUFFIX: String = ".unreadable"
-const VERSION: int = 1
+const VERSION: int = 2
+## Older versions _read() still accepts (and converts).
+const OLD_VERSIONS: Array[int] = [1]
 ## active: fights for us; dead: fell (never comes back); deserted: fled the
 ## map; traitor: went over to the enemy.
 const STATUSES: Array[String] = ["active", "dead", "deserted", "traitor"]
@@ -48,9 +52,17 @@ var supplies: int = 0
 ## a soldier's name and biography).
 var troop_counts: Dictionary = {}
 ## One Dictionary per person: id, troop, number, look, status,
-## first_leader, is_named and marks (Array of {incident, leader_id,
-## terrain, round, battle}).
+## first_leader, is_named, marks (Array of {incident, leader_id, terrain,
+## round, battle}), rest_until (wounded: sits out while `battles` is below
+## it) and is_hired (bought at a market: joins any leader with room).
 var people: Array[Dictionary] = []
+## The world map (regions, pressure, the enemy's next push).
+var world := TacticsWorld.new()
+## Bonds (Duyên) between our leaders: [{a, b, points}], leader ids with a
+## before b; TacticsBonds reads levels from the points.
+var bonds: Array[Dictionary] = []
+## One-use battle items in store: item id (String) -> count.
+var items: Dictionary = {}
 
 
 static func load_roster(file_path: String = "") -> TacticsRoster:
@@ -73,6 +85,7 @@ static func load_roster(file_path: String = "") -> TacticsRoster:
 static func create(roster_seed: int = 0) -> TacticsRoster:
 	var roster := TacticsRoster.new()
 	roster.seed_value = roster_seed if roster_seed != 0 else absi(int(Time.get_unix_time_from_system()) ^ randi()) % 1000000007 + 1
+	roster.world.seed_value = roster.seed_value
 	return roster
 
 
@@ -115,10 +128,15 @@ func to_save_data() -> Dictionary:
 		saved_people.append({
 			"id": person["id"], "troop": String(person["troop"]), "number": person["number"], "look": person["look"],
 			"status": person["status"], "first_leader": String(person["first_leader"]), "is_named": person["is_named"], "marks": marks,
+			"rest_until": int(person.get("rest_until", 0)), "is_hired": bool(person.get("is_hired", false)),
 		})
+	var saved_bonds: Array = []
+	for bond: Dictionary in bonds:
+		saved_bonds.append({"a": String(bond["a"]), "b": String(bond["b"]), "points": bond["points"]})
 	return {
 		"version": VERSION, "seed": str(seed_value), "battles": battles, "next_id": next_id,
 		"karma_bait": karma_bait, "karma_rescue": karma_rescue, "supplies": supplies, "troop_counts": troop_counts.duplicate(), "people": saved_people,
+		"world": world.to_save_data(), "bonds": saved_bonds, "items": items.duplicate(),
 	}
 
 
@@ -128,7 +146,7 @@ func recruit(troop_id: StringName, leader_id: StringName) -> Dictionary:
 	troop_counts[String(troop_id)] = number
 	var person := {
 		"id": next_id, "troop": troop_id, "number": number, "look": _look_for(next_id), "status": "active",
-		"first_leader": leader_id, "is_named": false, "marks": [],
+		"first_leader": leader_id, "is_named": false, "marks": [], "rest_until": 0, "is_hired": false,
 	}
 	next_id += 1
 	people.append(person)
@@ -155,12 +173,17 @@ func get_person(id: int) -> Dictionary:
 	return {}
 
 
+## Whether this person is wounded and sits out the next battle.
+func is_resting(person: Dictionary) -> bool:
+	return int(person.get("rest_until", 0)) > battles
+
+
 ## Active people of that troop not in `taken` (the named ones who lead
-## are), most marks first, then the lower id.
+## are) and not resting, most marks first, then the lower id.
 func find_soldiers(troop_id: StringName, taken: Dictionary) -> Array[Dictionary]:
 	var found: Array[Dictionary] = []
 	for person: Dictionary in people:
-		if person["troop"] == troop_id and person["status"] == "active" and not taken.has(person["id"]):
+		if person["troop"] == troop_id and person["status"] == "active" and not taken.has(person["id"]) and not is_resting(person):
 			found.append(person)
 	found.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
 		var left_marks: int = (left["marks"] as Array).size()
@@ -169,13 +192,35 @@ func find_soldiers(troop_id: StringName, taken: Dictionary) -> Array[Dictionary]
 	return found
 
 
-## Active people named for their marks, by id.
+## Active people named for their marks and not resting, by id.
 func get_named() -> Array[Dictionary]:
 	var found: Array[Dictionary] = []
 	for person: Dictionary in people:
-		if person["status"] == "active" and person["is_named"]:
+		if person["status"] == "active" and person["is_named"] and not is_resting(person):
 			found.append(person)
 	return found
+
+
+## Active people resting from a wound, by id.
+func get_wounded() -> Array[Dictionary]:
+	var found: Array[Dictionary] = []
+	for person: Dictionary in people:
+		if person["status"] == "active" and is_resting(person):
+			found.append(person)
+	return found
+
+
+## Active hired soldiers not in `taken` and not resting, by id.
+func get_hired(taken: Dictionary) -> Array[Dictionary]:
+	var found: Array[Dictionary] = []
+	for person: Dictionary in people:
+		if person.get("is_hired", false) and person["status"] == "active" and not taken.has(person["id"]) and not is_resting(person):
+			found.append(person)
+	return found
+
+
+func get_item_count(id: StringName) -> int:
+	return int(items.get(String(id), 0))
 
 
 ## Deserters and traitors with at least `min_marks` marks, by id: they come
@@ -207,7 +252,8 @@ func _look_for(id: int) -> int:
 
 func _read(data: Dictionary) -> bool:
 	var reader := SaveReader.new(data)
-	if reader.get_int("version") != VERSION:
+	var version := reader.get_int("version")
+	if version != VERSION and not OLD_VERSIONS.has(version):
 		return false
 	seed_value = reader.get_int_string("seed")
 	battles = reader.get_int("battles")
@@ -232,7 +278,34 @@ func _read(data: Dictionary) -> bool:
 	for entry: Variant in reader.get_array("people"):
 		if not entry is Dictionary or not _read_person(entry):
 			return false
-	return reader.is_valid
+	# Version 1 has no world, bonds or items: a fresh world, none of them.
+	world = TacticsWorld.new()
+	world.seed_value = seed_value
+	return reader.is_valid and _read_world(data)
+
+
+func _read_world(data: Dictionary) -> bool:
+	var saved_world: Variant = data.get("world", {})
+	var saved_bonds: Variant = data.get("bonds", [])
+	var saved_items: Variant = data.get("items", {})
+	if not saved_world is Dictionary or not saved_bonds is Array or not saved_items is Dictionary or not world.read(saved_world):
+		return false
+	bonds.clear()
+	for entry: Variant in saved_bonds:
+		if not entry is Dictionary:
+			return false
+		var reader := SaveReader.new(entry)
+		var bond := {"a": StringName(reader.get_string("a")), "b": StringName(reader.get_string("b")), "points": reader.get_int("points")}
+		if not reader.is_valid or bond["points"] < 0:
+			return false
+		bonds.append(bond)
+	items = {}
+	for key: Variant in saved_items:
+		var count: Variant = saved_items[key]
+		if not key is String or not (count is int or count is float) or int(count) < 0:
+			return false
+		items[key] = int(count)
+	return true
 
 
 func _read_person(entry: Dictionary) -> bool:
@@ -241,7 +314,15 @@ func _read_person(entry: Dictionary) -> bool:
 		"id": reader.get_int("id"), "troop": StringName(reader.get_string("troop")), "number": reader.get_int("number"),
 		"look": reader.get_int("look"), "status": reader.get_string("status"),
 		"first_leader": StringName(reader.get_string("first_leader")), "is_named": reader.get_bool("is_named"), "marks": [],
+		"rest_until": 0, "is_hired": false,
 	}
+	# Optional: version 1 people have neither.
+	var rest_until: Variant = entry.get("rest_until", 0)
+	var is_hired: Variant = entry.get("is_hired", false)
+	if not (rest_until is int or rest_until is float) or int(rest_until) < 0 or not is_hired is bool:
+		return false
+	person["rest_until"] = int(rest_until)
+	person["is_hired"] = is_hired
 	for mark_entry: Variant in reader.get_array("marks"):
 		if not mark_entry is Dictionary:
 			return false

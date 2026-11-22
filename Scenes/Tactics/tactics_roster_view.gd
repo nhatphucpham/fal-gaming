@@ -146,11 +146,17 @@ func show_sheet(id: int) -> void:
 	TacticsViews.stagger_in([box])
 
 
-## "Còn sống", "Danh tướng", "Tử trận", "Bỏ trốn", "Theo giặc".
+## "Còn sống", "Danh tướng", "Tử trận", "Bỏ trốn", "Theo giặc"; a wounded
+## soldier says so, a hired one says it was hired.
 func status_text(person: Dictionary) -> String:
-	if person["status"] == "active":
-		return tr("ROSTER_STATUS_NAMED") if person["is_named"] else tr("ROSTER_STATUS_ACTIVE")
-	return tr("ROSTER_STATUS_" + String(person["status"]).to_upper())
+	if person["status"] != "active":
+		return tr("ROSTER_STATUS_" + String(person["status"]).to_upper())
+	var text := tr("ROSTER_STATUS_NAMED") if person["is_named"] else tr("ROSTER_STATUS_ACTIVE")
+	if campaign.roster.is_resting(person):
+		text = tr("ROSTER_STATUS_WOUNDED")
+	if person.get("is_hired", false):
+		text = "%s · %s" % [tr("ROSTER_HIRED"), text]
+	return text
 
 
 static func status_color(person: Dictionary) -> Color:

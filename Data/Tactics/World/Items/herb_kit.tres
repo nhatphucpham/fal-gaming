@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="TacticsItemData" format=3]
+
+[ext_resource type="Script" path="res://Systems/Tactics/tactics_item_data.gd" id="script"]
+
+[resource]
+script = ExtResource("script")
+id = &"item.herb_kit"
+name_key = "ITEM_HERB_KIT"
+desc_key = "ITEM_HERB_KIT_DESC"
+stat = &"stat.hp_pct"
+amount = 20

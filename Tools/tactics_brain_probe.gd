@@ -14,8 +14,13 @@ extends SceneTree
 ## It also prints the side goals met. `--policy=idle` plays side A as a player who
 ## never gives a command (it only ends its phases), to check that the enemy
 ## beats a player who does nothing. `--no-fog` plays the scenario in clear
-## sight, to compare.
-## Run: godot --headless --path . --script res://Tools/tactics_brain_probe.gd -- --battles=200 [--scenario=night_raid] [--policy=idle] [--no-fog]
+## sight, to compare. `--pressure=N` plays the enemy at world-map pressure N
+## (TacticsCampaign's enemy power, +15 % hp and attack a level) and
+## `--bond-level=N` gives every pair of our leaders a bond of level N, as a
+## campaign battle has them (Docs/systems/tactics_world.md);
+## `--pressure-step=P` tries another % per level than the world data's;
+## `--items` uses one of each market item (war drum, herb kit).
+## Run: godot --headless --path . --script res://Tools/tactics_brain_probe.gd -- --battles=200 [--scenario=night_raid] [--policy=idle] [--no-fog] [--pressure=2] [--pressure-step=10] [--bond-level=1] [--items]
 
 const CATALOG_PATH: String = "res://Data/Tactics/tactics_catalog.tres"
 const SCENARIO_FORMAT: String = "res://Data/Tactics/Scenarios/%s.tres"
@@ -37,12 +42,17 @@ var _costs: Dictionary = {}
 ## get_objective_state() at the start of side A's current phase.
 var _goal: Dictionary = {}
 var _kind: StringName = &""
+## Bond level every pair of our leaders gets (0: none, the battle has no bonds).
+var _bond_level: int = 0
 
 
 func _initialize() -> void:
 	var battles := 200
 	var scenario_name := "river_crossing"
 	var has_fog := true
+	var pressure := 0
+	var pressure_step := -1
+	var has_items := false
 	for argument: String in OS.get_cmdline_user_args():
 		if argument.begins_with("--battles="):
 			battles = int(argument.get_slice("=", 1))
@@ -52,11 +62,31 @@ func _initialize() -> void:
 			_is_idle = true
 		elif argument == "--no-fog":
 			has_fog = false
+		elif argument.begins_with("--pressure="):
+			pressure = int(argument.get_slice("=", 1))
+		elif argument.begins_with("--pressure-step="):
+			pressure_step = int(argument.get_slice("=", 1))
+		elif argument == "--items":
+			has_items = true
+		elif argument.begins_with("--bond-level="):
+			_bond_level = int(argument.get_slice("=", 1))
 	var catalog := load(CATALOG_PATH) as TacticsCatalog
 	var scenario := load(SCENARIO_FORMAT % scenario_name) as TacticsScenarioData
 	if not has_fog:
 		scenario = scenario.duplicate()
 		scenario.fog_of_war = false
+	var world_data := load(TacticsWorldData.PATH) as TacticsWorldData
+	if pressure > 0 or has_items:
+		# The campaign's pressed enemy and boosted leaders, on a fresh roster
+		# (no named leaders).
+		var step := pressure_step if pressure_step >= 0 else world_data.pressure_step_pct
+		var roster := TacticsRoster.create(1)
+		var items: Array = []
+		for item: TacticsItemData in world_data.items if has_items else []:
+			roster.items[String(item.id)] = 1
+			items.append(item)
+		var plan := {"enemy_power_pct": 100 + step * pressure, "items": items}
+		scenario = TacticsCampaign.new(roster, catalog, scenario, plan).scenario
 	var totals := {
 		"lost_a": 0, "lost_b": 0, "attacks_a": 0, "attacks_b": 0, "good_a": 0, "good_b": 0,
 		"kills_a": 0, "kills_b": 0, "suicides_a": 0, "suicides_b": 0, "wins_a": 0, "rounds": 0,
@@ -67,10 +97,10 @@ func _initialize() -> void:
 	}
 	var start_ms := Time.get_ticks_msec()
 	for seed_value: int in range(1, battles + 1):
-		_play(seed_value, catalog, scenario, totals)
+		_play(seed_value, catalog, scenario, totals, world_data)
 	var elapsed := Time.get_ticks_msec() - start_ms
 	var count := float(battles)
-	print("Tactics brain probe: %s, %d battles in %d ms, side A %s" % [scenario.id, battles, elapsed, "idle" if _is_idle else "scripted"])
+	print("Tactics brain probe: %s, %d battles in %d ms, side A %s, pressure %d, bond level %d%s" % [scenario.id, battles, elapsed, "idle" if _is_idle else "scripted", pressure, _bond_level, ", items" if has_items else ""])
 	print("  soldiers lost per battle: ours (A) %.2f, enemy (B) %.2f" % [totals["lost_a"] / count, totals["lost_b"] / count])
 	for side: String in ["a", "b"]:
 		var attacks: int = totals["attacks_" + side]
@@ -85,7 +115,7 @@ func _initialize() -> void:
 	quit(0)
 
 
-func _play(seed_value: int, catalog: TacticsCatalog, scenario: TacticsScenarioData, totals: Dictionary) -> void:
+func _play(seed_value: int, catalog: TacticsCatalog, scenario: TacticsScenarioData, totals: Dictionary, world_data: TacticsWorldData) -> void:
 	_rng.seed = seed_value
 	_costs.clear()
 	var battle := TacticsBattle.new()
@@ -105,6 +135,8 @@ func _play(seed_value: int, catalog: TacticsCatalog, scenario: TacticsScenarioDa
 	_kind = _goal.get("kind", &"")
 	_objective = _goal.get("cell", Vector2i(-1, -1))
 	battle.set_incident_rules(catalog.incident_rules, seed_value)
+	if _bond_level > 0:
+		_set_bonds(battle, world_data)
 	var events: Array = battle.start().duplicate()
 	for unit: Dictionary in battle.get_units():
 		if unit["role"] == &"leader" and unit["side"] == TacticsBattle.SIDE_A and not _is_idle:
@@ -136,6 +168,19 @@ func _play(seed_value: int, catalog: TacticsCatalog, scenario: TacticsScenarioDa
 	totals["endings"][ending] = int(totals["endings"].get(ending, 0)) + 1
 	totals["rounds"] += battle.get_round()
 	battle.free()
+
+
+# Every pair of our leaders bonded at _bond_level.
+func _set_bonds(battle: TacticsBattle, world_data: TacticsWorldData) -> void:
+	var leaders: Array[int] = []
+	for unit: Dictionary in battle.get_units():
+		if unit["role"] == &"leader" and unit["side"] == TacticsBattle.SIDE_A:
+			leaders.append(unit["index"])
+	var bonds: Array = []
+	for first: int in leaders.size():
+		for second: int in range(first + 1, leaders.size()):
+			bonds.append({"a": leaders[first], "b": leaders[second], "level": _bond_level})
+	battle.set_bonds(bonds, world_data.get_bond_rules())
 
 
 ## Move toward the nearest (sometimes the second nearest) enemy leader it

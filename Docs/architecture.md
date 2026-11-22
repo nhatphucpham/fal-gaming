@@ -36,7 +36,8 @@
   times of day, and `tactics_site_test.gd` and
   `tactics_objective_test.gd` its sites and objectives (sharing
   `tactics_test_kit.gd`); `tactics_roster_test.gd`
-  tests the roster and the campaign;
+  tests the roster and the campaign, `tactics_world_test.gd` the world
+  map, Auto, markets and bonds;
   `tactics_screen_test.gd` (a battle won through the tactics screen) and
   `muster_test.gd` (the muster screen from the title) test its screens.
 - `Tools/` holds developer scripts that are not tests and not exported:
@@ -44,7 +45,8 @@
   [Run](systems/run.md)), `make_sfx.gd`, which writes the sound files
   under `Assets/Sfx/` (see [Audio](systems/audio.md)), and `perf_probe.gd`
   with `perf_budget.gd`, the performance probe and its budget check (see
-  [Performance](systems/performance.md)).
+  [Performance](systems/performance.md)); `tactics_brain_probe.gd` and
+  `tactics_world_probe.gd` print tactics win rates by hand and with Auto.
 - `Assets/Sfx/` holds the 24 sound effects and 2 music loops as 16-bit
   mono WAV files, stored with Git LFS. `Assets/Voice/` is for voice lines
   baked into the build, named by `Voice.cache_key()` (none yet; see
@@ -63,7 +65,9 @@
   terrains, keywords, zones, passives, skills, troops, leaders, maps and
   scenarios, incidents in `Incidents/` and leader traits in `Traits/`),
   listed in its own `Data/Tactics/tactics_catalog.tres` (see
-  [Tactics](systems/tactics.md)), and `Data/Tactics/Looks/`, how each leader
+  [Tactics](systems/tactics.md)), `Data/Tactics/World/`, the world map's
+  regions, markets and items (see [Tactics world](systems/tactics_world.md)),
+  and `Data/Tactics/Looks/`, how each leader
   skill looks in the close-up (see [Tactics screen](systems/tactics_screen.md)).
 - `Systems/` holds GDScript bridge services and data scripts, one folder per
   system. `Systems/Content/` has `Catalog` (lookup and validation),
@@ -89,7 +93,9 @@
   `AppLifecycle` autoload (`AppLifecycleService`, see
   [App lifecycle](systems/app_lifecycle.md)). `Systems/Tactics/` has the
   tactics roster: `TacticsRoster`, `TacticsCampaign` and `TacticsBiography`
-  (see [Tactics roster](systems/tactics_roster.md)). `Scenes/Dev/` holds
+  (see [Tactics roster](systems/tactics_roster.md)), and the world map:
+  `TacticsWorld` with its data types, `TacticsMarket`, `TacticsAutoResolve`
+  and `TacticsBonds` (see [Tactics world](systems/tactics_world.md)). `Scenes/Dev/` holds
   developer pages only and is not exported.
 - `Scenes/Board/` holds the reusable battlefield: `BoardView`, `UnitView`,
   `UnitPainter` (the bone-rig figures: `UnitPose`, `RigSolver`, the
@@ -136,11 +142,13 @@ slides the shop and buttons away for the side health bars and the battle
 plays on the board; the result banner shows what was won or lost, "Tiếp tục"
 opens the reward cards, and a reward starts the next preparation. When the
 run is won or lost the end screen shows the result and returns to the title.
-"Chiến Dịch" loads the roster (Sổ quân) and opens the tactics muster screen
-("Điểm binh", with "Về" back to the title); "Xuất quân" opens the tactics
-battle. Its end, or a double "Rút", opens the after-battle summary, which
-writes the roster; "Tiếp tục" goes back to the muster of the next
-scenario (the catalog's in turn).
+"Chiến Dịch" loads the roster (Sổ quân) and opens the world map ("Thế
+trận", with "Về" back to the title). A region's card fights it with Auto
+(resolved there, its result over the map) or by hand: "Thủ công" opens the
+tactics muster screen ("Điểm binh", with "Về" back to the map); "Xuất quân"
+opens the tactics battle. Its end, or a double "Rút", opens the
+after-battle summary, which writes the roster; "Tiếp tục" goes back to the
+world map.
 Every switch between screens is a slide.
 
 When a Kỳ Ngộ fires after a battle, its cutscene plays before the reward

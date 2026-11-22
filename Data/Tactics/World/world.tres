@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="TacticsWorldData" format=3]
+
+[ext_resource type="Script" path="res://Systems/Tactics/tactics_world_data.gd" id="script"]
+[ext_resource type="Script" path="res://Systems/Tactics/tactics_region_data.gd" id="region_script"]
+[ext_resource type="Script" path="res://Systems/Tactics/tactics_item_data.gd" id="item_script"]
+[ext_resource type="Resource" path="res://Data/Tactics/World/Regions/home.tres" id="home"]
+[ext_resource type="Resource" path="res://Data/Tactics/World/Regions/ferry.tres" id="ferry"]
+[ext_resource type="Resource" path="res://Data/Tactics/World/Regions/misty_woods.tres" id="misty_woods"]
+[ext_resource type="Resource" path="res://Data/Tactics/World/Regions/old_citadel.tres" id="old_citadel"]
+[ext_resource type="Resource" path="res://Data/Tactics/World/Regions/horse_post.tres" id="horse_post"]
+[ext_resource type="Resource" path="res://Data/Tactics/World/Regions/siege_pass.tres" id="siege_pass"]
+[ext_resource type="Resource" path="res://Data/Tactics/World/Items/war_drum.tres" id="item_war_drum"]
+[ext_resource type="Resource" path="res://Data/Tactics/World/Items/herb_kit.tres" id="item_herb_kit"]
+
+[resource]
+script = ExtResource("script")
+regions = Array[ExtResource("region_script")]([ExtResource("home"), ExtResource("ferry"), ExtResource("misty_woods"), ExtResource("old_citadel"), ExtResource("horse_post"), ExtResource("siege_pass")])
+items = Array[ExtResource("item_script")]([ExtResource("item_war_drum"), ExtResource("item_herb_kit")])
+home_region = &"region.home"
+pressure_step_pct = 10
+max_pressure = 3
+cycle_pressure = 1
+wound_rest_battles = 1
+auto_fortune_pct = 25
+bond_radius_cells = 2
+bond_attack_pct_per_level = 5
+bond_level_points = PackedInt32Array(3, 7, 12)
+bond_points_per_battle = 3

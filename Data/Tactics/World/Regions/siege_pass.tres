@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="TacticsRegionData" format=3]
+
+[ext_resource type="Script" path="res://Systems/Tactics/tactics_region_data.gd" id="script"]
+[ext_resource type="TacticsScenarioData" path="res://Data/Tactics/Scenarios/broken_ring.tres" id="scenario"]
+
+[resource]
+script = ExtResource("script")
+id = &"region.siege_pass"
+name_key = "REGION_SIEGE_PASS"
+scenario = ExtResource("scenario")
+map_position = Vector2(0.5, 0.12)
+neighbours = Array[StringName]([])
+auto_enemy_pct = 91
+auto_supplies = 2
