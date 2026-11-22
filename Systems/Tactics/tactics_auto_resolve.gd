@@ -48,6 +48,13 @@ var _ticks_left: int = MAX_TICKS
 var _result: Dictionary = {}
 
 
+# A battle dropped before its end (its view closed mid-fight) is a Node
+# outside the tree: freed here, not leaked.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_PREDELETE and _battle != null and is_instance_valid(_battle):
+		_battle.free()
+
+
 ## Plays the region's battle to its end in one call. Returns {is_won,
 ## winner, ticks, hash, units: [{side, person, is_leader, troop, leader_id,
 ## alive, hp, max_hp}], counts: [[alive, placed, total] side A, side B],

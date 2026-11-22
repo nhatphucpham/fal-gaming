@@ -293,7 +293,8 @@ from the seed; a win opening roads; hardening and its cap; a region taken
 back and defended; the next campaign; the save (world, bonds, items,
 wounds, hires), a version 1 save and a broken world, a save naming
 unknown regions; the horn's heard flag (new pushes, the save); pressure on
-the waves; Auto deterministic, played in slices with the same result,
+the waves; Auto deterministic, played in slices with the same result
+(and one dropped mid-fight leaves nothing behind),
 its fortune in bounds, no deaths, wounds for one battle, pay on a win only,
 no bonds; markets (prices, stock, every refusal, no room for a hire, healing, a hire in the
 next muster, items used up); bonds refused when bad, the attack bonus only

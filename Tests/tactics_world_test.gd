@@ -347,9 +347,20 @@ func _check_auto_in_slices() -> bool:
 		var alive := auto.get_alive_counts()
 		fewer = fewer or alive[0] < placed[0] or alive[1] < placed[1]
 	var sliced := auto.get_result()
+	# One dropped mid-fight frees its battle (a Node outside the tree).
+	var objects := Performance.get_monitor(Performance.OBJECT_COUNT)
+	_drop_mid_fight()
+	if not _expect("nothing left of a dropped Auto", Performance.get_monitor(Performance.OBJECT_COUNT), objects):
+		return false
 	return _expect("many slices", slices > 5, true) and _expect("units fall as it goes", fewer, true) and _expect("same hash", sliced["hash"], whole["hash"]) \
 			and _expect("same ticks", sliced["ticks"], whole["ticks"]) and _expect("same counts", sliced["counts"], whole["counts"]) \
 			and _expect("same fortune", auto.get_fortune(), whole["fortune"]) and _expect("finished", auto.advance(1), true)
+
+
+func _drop_mid_fight() -> void:
+	var dropped := TacticsAutoResolve.new()
+	dropped.start(_campaign(_roster(23), MISTY))
+	dropped.advance(TacticsAutoResolve.TICKS_PER_CHUNK)
 
 
 # Pressure reaches the waves that come later (hold the city) too, on copies.
