@@ -20,6 +20,8 @@ signal manual_requested(region_id: StringName, items: Array)
 signal back_requested()
 
 const CATALOG_PATH: String = "res://Data/Tactics/tactics_catalog.tres"
+## An overlay's slide-in (TacticsViews.slide_in) is over by then.
+const OVERLAY_IN_SEC: float = 0.25
 
 var roster: TacticsRoster
 var catalog: TacticsCatalog
@@ -38,6 +40,7 @@ var _hint: Label
 var _new_button: PressButton
 var _card: TacticsRegionCard
 var _overlay: Control
+var _page: VBoxContainer
 var _is_busy: bool = false
 
 
@@ -51,8 +54,7 @@ func _ready() -> void:
 	refresh()
 	if changed_region != &"":
 		_map.pulse(changed_region)
-	if roster.world.get_threat() != &"" and not is_instant:
-		Sound.play(&"war_horn")
+	announce_threat()
 
 
 func get_map() -> TacticsWorldMap:
@@ -71,6 +73,20 @@ func get_overlay() -> Control:
 
 func get_threat_text() -> String:
 	return "%s %s" % [_threat_title.text, _threat_cost.text]
+
+
+## The war horn, once per push: when the enemy has declared a push the
+## player has not heard yet. Marks it heard (and saves, unless instant);
+## true when it sounded.
+func announce_threat() -> bool:
+	var world := roster.world
+	if world.get_threat() == &"" or world.is_threat_heard:
+		return false
+	world.is_threat_heard = true
+	if not is_instant:
+		roster.save()
+	Sound.play(&"war_horn")
+	return true
 
 
 ## Labels, supplies and the map as the world is now.
@@ -112,30 +128,35 @@ func open_region(id: StringName) -> TacticsRegionCard:
 	return _card
 
 
-## Auto: the region resolved with the auto battle; its result shows over
-## the map. Saves the roster (unless instant).
+## Auto: the region fought with the auto battle in its result view, a
+## slice a frame (instant: at once); when it ends the result is applied
+## and saved (unless instant) and the outcome shows.
 func resolve_auto(id: StringName, items: Array = []) -> TacticsAutoResultView:
 	if _is_busy or not roster.world.can_fight(id):
 		return null
 	_is_busy = true
 	_close_card()
-	Sound.play(&"battle_drum")
 	var region := roster.world.data.get_region(id)
 	var campaign := TacticsCampaign.new(roster, catalog, region.scenario, _plan(id, items))
-	var summary := campaign.apply_auto(TacticsAutoResolve.resolve(campaign), not is_instant)
+	var auto := TacticsAutoResolve.new()
+	auto.start(campaign)
 	var view := TacticsAutoResultView.new()
 	view.campaign = campaign
-	view.summary = summary
+	view.auto = auto
 	view.is_instant = is_instant
+	if is_instant:
+		auto.advance(TacticsAutoResolve.MAX_TICKS)
+		view.summary = campaign.apply_auto(auto.get_result(), false)
+	view.fought.connect(func(result: Dictionary) -> void: view.show_summary(campaign.apply_auto(result, true)))
 	view.continue_requested.connect(func() -> void:
 		view.queue_free()
 		_overlay = null
 		_is_busy = false
+		_set_page_shown(true)
 		changed_region = id
 		refresh()
 		_map.pulse(id)
-		if roster.world.get_threat() != &"":
-			Sound.play(&"war_horn"))
+		announce_threat())
 	_show_overlay(view)
 	return view
 
@@ -152,6 +173,7 @@ func open_market(id: StringName) -> TacticsMarketView:
 	view.bought.connect(func(_result: Dictionary) -> void: refresh())
 	view.closed.connect(func() -> void:
 		_overlay = null
+		_set_page_shown(true)
 		refresh())
 	_show_overlay(view)
 	return view
@@ -160,7 +182,9 @@ func open_market(id: StringName) -> TacticsMarketView:
 func open_roster() -> TacticsRosterView:
 	var view := TacticsRosterView.new()
 	view.campaign = TacticsCampaign.new(roster, catalog, null)
-	view.closed.connect(func() -> void: _overlay = null)
+	view.closed.connect(func() -> void:
+		_overlay = null
+		_set_page_shown(true))
 	_show_overlay(view)
 	return view
 
@@ -172,8 +196,8 @@ func start_new_campaign() -> void:
 	roster.world.start_new_cycle()
 	if not is_instant:
 		roster.save()
-	Sound.play(&"war_horn")
 	refresh()
+	announce_threat()
 	_map.pulse(roster.world.data.home_region)
 
 
@@ -195,9 +219,22 @@ func _close_card() -> void:
 	_map.selected = &""
 
 
+# Overlays cover the whole screen: once one has slid in, the map and its
+# page under it are hidden, so they cost no drawing while it is up.
 func _show_overlay(view: Control) -> void:
 	_overlay = view
 	add_child(view)
+	if is_instant:
+		_set_page_shown(false)
+		return
+	get_tree().create_timer(OVERLAY_IN_SEC).timeout.connect(func() -> void:
+		if _overlay == view and is_instance_valid(view):
+			_set_page_shown(false))
+
+
+func _set_page_shown(is_shown: bool) -> void:
+	if _page.visible != is_shown:
+		_page.visible = is_shown
 
 
 func _build() -> void:
@@ -205,6 +242,7 @@ func _build() -> void:
 	background.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(background)
 	var page := VBoxContainer.new()
+	_page = page
 	page.set_anchors_preset(Control.PRESET_FULL_RECT)
 	page.offset_left = 16
 	page.offset_right = -16

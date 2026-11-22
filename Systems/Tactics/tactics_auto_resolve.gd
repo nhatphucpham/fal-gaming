@@ -15,6 +15,8 @@ extends RefCounted
 ## ranged to the back, columns shuffled) comes from the battle seed. The
 ## result is applied by TacticsCampaign.apply_auto(): no one dies, the
 ## fallen are wounded. See Docs/systems/tactics_world.md.
+## resolve() plays it at once; start() and advance() play it a little at a
+## time (the world screen, a slice a frame).
 ## [codeblock]
 ## var result := TacticsAutoResolve.resolve(campaign)
 ## var summary := campaign.apply_auto(result)
@@ -34,45 +36,115 @@ const RANK_RANGED_SOLDIER: int = 3
 const RANK_RANGED_LEADER: int = 4
 
 
-## Plays the region's battle to its end. Returns {is_won, winner, ticks,
-## hash, units: [{side, person, is_leader, troop, leader_id, alive, hp,
-## max_hp}], counts: [[alive, placed, total] side A, side B], fortune (the
-## enemy %, see fortune_pct())}.
+## Ticks the battle advances in one advance() call at most; the world
+## screen calls it each frame until its time budget runs out.
+const TICKS_PER_CHUNK: int = 20
+
+var _battle: Battle
+var _placed: Array = []
+var _counts: Array = []
+var _fortune: int = 0
+var _ticks_left: int = MAX_TICKS
+var _result: Dictionary = {}
+
+
+## Plays the region's battle to its end in one call. Returns {is_won,
+## winner, ticks, hash, units: [{side, person, is_leader, troop, leader_id,
+## alive, hp, max_hp}], counts: [[alive, placed, total] side A, side B],
+## fortune (the enemy %, see fortune_pct())}. The same as start(), then
+## advance() until it returns true, then get_result().
 static func resolve(campaign: TacticsCampaign) -> Dictionary:
+	var auto := TacticsAutoResolve.new()
+	auto.start(campaign)
+	auto.advance(MAX_TICKS)
+	return auto.get_result()
+
+
+## Sets the battle up (units placed, not run yet). Then advance() it, a
+## little each frame, so a slow device never freezes on one frame.
+func start(campaign: TacticsCampaign) -> void:
 	var rules := load(RULES_PATH) as BattleRulesData
 	var sides: Array = [_our_units(campaign), _enemy_units(campaign)]
-	var battle := Battle.new()
-	battle.set_rules(rules)
-	var placed: Array = []
-	var counts: Array = []
+	_battle = Battle.new()
+	_battle.set_rules(rules)
 	for side: int in 2:
 		var chosen := _choose(sides[side], rules.max_units_per_side)
-		placed.append(chosen)
-		counts.append([0, chosen.size(), (sides[side] as Array).size()])
+		_placed.append(chosen)
+		_counts.append([0, chosen.size(), (sides[side] as Array).size()])
 	var region := campaign.roster.world.data.get_region(campaign.region_id)
 	var seed_value := campaign.get_battle_seed()
-	var fortune := fortune_pct(seed_value, campaign.roster.world.data.auto_fortune_pct)
-	var enemy_pct: int = (region.auto_enemy_pct if region != null else 100) * (100 + fortune) / 100
-	_register_classes(battle, placed, _fill_pct(sides, placed), [100, enemy_pct])
+	_fortune = fortune_pct(seed_value, campaign.roster.world.data.auto_fortune_pct)
+	var enemy_pct: int = (region.auto_enemy_pct if region != null else 100) * (100 + _fortune) / 100
+	_register_classes(_battle, _placed, _fill_pct(sides, _placed), [100, enemy_pct])
 	for side: int in 2:
-		_place(battle, side, placed[side], seed_value + side)
-	var battle_hash := battle.run_to_end(MAX_TICKS)
+		_place(_battle, side, _placed[side], seed_value + side)
+	_battle.start()
+
+
+## Runs up to `max_ticks` more steps (ticks); true once the battle is over (the
+## result is then ready). The ticks run are the same however they are cut.
+func advance(max_ticks: int) -> bool:
+	if is_finished():
+		return true
+	# Steps, not ticks, as run_to_end() counts them: the same cap in total
+	# as one run_to_end(MAX_TICKS).
+	var steps := mini(maxi(max_ticks, 1), _ticks_left)
+	_battle.run_to_end(steps)
+	_ticks_left -= steps
+	if _battle.is_finished() or _ticks_left <= 0:
+		_finish()
+		return true
+	return false
+
+
+func is_finished() -> bool:
+	return not _result.is_empty()
+
+
+## Units of each side still standing now: [ours, the enemy's], out of
+## get_placed_counts().
+func get_alive_counts() -> Array[int]:
+	var alive: Array[int] = [0, 0]
+	if is_finished():
+		return [int(_counts[0][0]), int(_counts[1][0])]
+	for side: int in 2:
+		for entry: Dictionary in _placed[side]:
+			alive[side] += 1 if _battle.get_unit_state(entry["index"])["alive"] else 0
+	return alive
+
+
+## Units each side put on the board: [ours, the enemy's].
+func get_placed_counts() -> Array[int]:
+	return [int(_counts[0][1]), int(_counts[1][1])]
+
+
+## The fortune of war of this battle (see fortune_pct()).
+func get_fortune() -> int:
+	return _fortune
+
+
+## The result (see resolve()); empty until advance() returned true.
+func get_result() -> Dictionary:
+	return _result
+
+
+func _finish() -> void:
 	var rows: Array[Dictionary] = []
 	for side: int in 2:
-		for entry: Dictionary in placed[side]:
-			var state := battle.get_unit_state(entry["index"])
-			counts[side][0] += 1 if state["alive"] else 0
+		for entry: Dictionary in _placed[side]:
+			var state := _battle.get_unit_state(entry["index"])
+			_counts[side][0] += 1 if state["alive"] else 0
 			rows.append({
 				"side": side, "person": entry["person"], "is_leader": entry["is_leader"], "unit_id": entry["unit"].id,
 				"leader_id": entry["leader_id"], "alive": state["alive"], "hp": state["hp"], "max_hp": state["max_hp"],
 			})
-	var winner := battle.get_winner()
-	var result := {
-		"is_won": winner == Battle.SIDE_A, "winner": winner, "ticks": battle.get_tick(), "hash": battle_hash, "units": rows, "counts": counts,
-		"fortune": fortune,
+	var winner := _battle.get_winner()
+	_result = {
+		"is_won": winner == Battle.SIDE_A, "winner": winner, "ticks": _battle.get_tick(), "hash": _battle.get_state_hash(), "units": rows,
+		"counts": _counts, "fortune": _fortune,
 	}
-	battle.free()
-	return result
+	_battle.free()
+	_battle = null
 
 
 ## The fortune of war of a battle seed: the enemy's hp and attack move by

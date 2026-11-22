@@ -13,19 +13,24 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
   five battles and the home camp; win a region to make it yours (green)
   and open the roads beyond it. Each turn the enemy says where it pushes
   next and what ignoring it costs: that region gets harder (up to three
-  levels, +15% enemy hp and attack each), or a city of yours with a
-  market falls back to the enemy unless you defend it. When every region
+  levels, +10% enemy hp and attack each, the later waves of the city
+  defence too), or a city of yours with a
+  market falls back to the enemy unless you defend it. A war horn sounds
+  once when the enemy declares a push, not every time the map opens. When every region
   is yours, "Chiến dịch mới" starts again, every region harder.
 - Chiến Dịch: fight a region by hand ("Thủ công", as before) or with
-  "Auto", which plays it out with the auto battle. In Auto no one dies:
+  "Auto", which plays it out with the auto battle: about a second of
+  "Giao chiến…" with drums and two bars of who still stands, without
+  freezing the phone, then the outcome. In Auto no one dies:
   the fallen are wounded and sit out the next battle; a win pays 1 supply
   (2 at Ải Vây), with no side goals, marks or bonds. A fortune-of-war roll
   shown on the result makes a hardened region a worse bet, not a sure
   loss. The region's card shows both choices and their trade-off.
 - Chiến Dịch: markets in Bến Đò, Thành Cổ and Trạm Ngựa once they are
   yours, each with its own goods, prices and stock per turn: hire
-  soldiers (they join the next muster), heal the wounded, buy a war drum
-  or herb kit for one battle.
+  soldiers (they join the next muster), heal the wounded (one row: the
+  most-marked soldier first, with their face), buy a war drum or herb kit
+  for one battle.
 - Chiến Dịch: bonds (Duyên). Leaders who end their phases close together
   build a bond over battles; each level gives both +5% attack while they
   stand within two cells, shown on the muster, as a gold cord and rings

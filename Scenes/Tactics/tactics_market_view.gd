@@ -2,7 +2,9 @@ class_name TacticsMarketView
 extends Control
 ## Chợ: one region's market over the world map. Each offer is a row with
 ## what it is, its price and what is left this turn, and a "Mua" button;
-## healing lists the wounded, each with its own button. A purchase spends
+## healing is one row too: how many are wounded and the face of the one
+## it treats next (the one with the most marks), so one tap heals the one
+## who matters most. A purchase spends
 ## the supplies, saves the roster at once, rings (buy, or the healing
 ## chime) and flashes its row; a refused one buzzes and the hint says why.
 ## A menu: rows are built on open and after each purchase, nothing redraws
@@ -93,8 +95,8 @@ func get_hint() -> String:
 	return _hint.text
 
 
-## Buys offer `index` (for `person_id` when it heals); false, with a buzz
-## and the reason in the hint, when refused.
+## Buys offer `index` (healing treats `person_id`, or the next patient
+## when -1); false, with a buzz and the reason in the hint, when refused.
 func buy(index: int, person_id: int = -1) -> bool:
 	var result := _market.buy(index, person_id)
 	if not result["ok"]:
@@ -163,20 +165,20 @@ func _offer_row(row: Dictionary) -> Control:
 	texts.add_child(TacticsViews.label(_offer_name(offer), 26, Palette.CREAM))
 	texts.add_child(TacticsViews.wrapped(_offer_desc(offer), 22, Palette.TEXT_DIM))
 	texts.add_child(TacticsViews.label(tr("OFFER_PRICE_LEFT_FORMAT") % [row["price"], row["left"]], 22, Palette.GOLD if row["reason"] == &"" else Palette.TEXT_DIM))
-	if offer.kind != &"offer.heal":
-		head.add_child(_buy_button(row["index"], -1, row["reason"] == &""))
-		return box
-	var wounded := campaign.roster.get_wounded()
-	if wounded.is_empty():
-		texts.add_child(TacticsViews.label("OFFER_HEAL_NONE", 22, Palette.TEXT_DIM))
-	for person: Dictionary in wounded:
-		rows.add_child(_patient_row(row, person))
+	head.add_child(_buy_button(row["index"], -1, row["reason"] == &""))
+	if offer.kind == &"offer.heal":
+		rows.add_child(_patient_row())
 	return box
 
 
-func _patient_row(row: Dictionary, person: Dictionary) -> Control:
+# Healing: how many are wounded, and who is treated next.
+func _patient_row() -> Control:
+	var wounded := campaign.roster.get_wounded()
+	if wounded.is_empty():
+		return TacticsViews.label("OFFER_HEAL_NONE", 22, Palette.TEXT_DIM)
+	var person := _market.get_next_patient()
 	var line := HBoxContainer.new()
-	line.name = "Patient%d" % person["id"]
+	line.name = "Patient"
 	line.add_theme_constant_override(&"separation", 12)
 	var face := TacticsFace.FaceView.new()
 	face.look = person["look"]
@@ -184,10 +186,9 @@ func _patient_row(row: Dictionary, person: Dictionary) -> Control:
 	face.custom_minimum_size = Vector2(FACE_PX, FACE_PX)
 	face.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	line.add_child(face)
-	var name := TacticsViews.label(_person_name(person), 24, Palette.CREAM)
+	var name := TacticsViews.wrapped(tr("OFFER_HEAL_NEXT_FORMAT") % [_person_name(person), wounded.size()], 22, Palette.CREAM)
 	name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	line.add_child(name)
-	line.add_child(_buy_button(row["index"], int(person["id"]), _market.refusal(row["index"], int(person["id"])) == &""))
 	return line
 
 

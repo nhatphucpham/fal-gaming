@@ -903,12 +903,14 @@ BUTTON_AUTO,Auto,Auto
 MODE_MANUAL_DESC,"Tự chỉ huy. Đủ lương, mục phụ, Dấu và Duyên. Lính ngã là mất hẳn.","You command. Full supplies, side goals, marks and bonds. The fallen are gone for good."
 MODE_AUTO_DESC_FORMAT,"Đánh nhanh, tự động. Lính ngã chỉ bị thương, nghỉ 1 trận. Chỉ +%d lương; không mục phụ, Dấu, Duyên.","Quick and automatic. The fallen are only wounded and sit out 1 battle. Only +%d supplies; no side goals, marks or bonds."
 BUTTON_MARKET_FORMAT,Vào %s,Visit the %s
+AUTO_TITLE_FIGHTING,Giao chiến…,Fighting…
 AUTO_TITLE_WIN,Auto: thắng,Auto: won
 AUTO_TITLE_LOSS,Auto: thua,Auto: lost
 AUTO_FORCES,Hai bên sau trận,After the battle
 AUTO_OURS_FORMAT,Ta: %d/%d còn đứng,Ours: %d/%d standing
 AUTO_ENEMY_FORMAT,Địch: %d/%d còn đứng,Enemy: %d/%d standing
-AUTO_WOUNDED,"Bị thương, nghỉ trận tới","Wounded, out next battle"
+AUTO_WOUNDED_FORMAT,"Bị thương, nghỉ trận tới: %d","Wounded, out next battle: %d"
+AUTO_WOUNDED_NAMED_FORMAT,Trong đó có: %s,Among them: %s
 AUTO_NO_WOUNDED,Không ai trong sổ bị thương.,Nobody on the roster was wounded.
 AUTO_SUPPLIES_FORMAT,Lương +%d. Kho: %d.,Supplies +%d. Store: %d.
 AUTO_NO_MARKS,"Auto không để lại Dấu, không thêm Duyên.",Auto leaves no marks and builds no bonds.
@@ -927,6 +929,7 @@ OFFER_HIRE_DESC,"Theo tướng nào còn chỗ, từ trận tới.",Joins a lead
 OFFER_HEAL,Chữa thương,Treat a wound
 OFFER_HEAL_DESC,Người bị thương về đội ngay từ trận tới.,A wounded soldier is back for the next battle.
 OFFER_HEAL_NONE,Không ai bị thương.,Nobody is wounded.
+OFFER_HEAL_NEXT_FORMAT,Chữa trước: %s · %d người bị thương,Treated next: %s · %d wounded
 OFFER_PRICE_LEFT_FORMAT,%d lương · còn %d,%d supplies · %d left
 BUTTON_BUY,Mua,Buy
 MARKET_REFUSED_SUPPLIES,Không đủ lương.,Not enough supplies.

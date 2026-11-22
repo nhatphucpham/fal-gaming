@@ -15,7 +15,7 @@ const PATH: String = "res://Data/Tactics/World/world.tres"
 @export var items: Array[TacticsItemData] = []
 @export var home_region: StringName = &"region.home"
 ## Enemy hp and attack, in % added per level of pressure on a region.
-@export_range(0, 100) var pressure_step_pct: int = 15
+@export_range(0, 100) var pressure_step_pct: int = 10
 @export_range(1, 5) var max_pressure: int = 3
 ## Each new campaign (after every region is ours) starts every region at
 ## this many more levels of pressure, up to max_pressure.

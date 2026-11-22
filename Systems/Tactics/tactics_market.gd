@@ -75,6 +75,12 @@ func buy(index: int, person_id: int = -1) -> Dictionary:
 	return result
 
 
+## The wounded soldier healing treats when no one is named: the one with
+## the most marks (then the lower id); empty when no one is wounded.
+func get_next_patient() -> Dictionary:
+	return _patient(-1)
+
+
 func _left(index: int) -> int:
 	return region.offers[index].stock - roster.world.get_sold(region.id, index)
 

@@ -8,8 +8,11 @@ extends SceneTree
 # of ours, which can then be defended; a lost defence gives it up; a
 # finished campaign starts the next with more pressure. The roster save
 # keeps the world, bonds, items, wounds and hires; a version 1 save loads
-# with a fresh world; a broken world is set aside. Auto resolves through
-# the auto battle the same way twice (its fortune of war in bounds), kills no one, wounds the fallen for
+# with a fresh world; a broken world is set aside; a save naming unknown
+# regions loads without them. A push is heard once (a new one is not; the
+# save keeps it). Pressure reaches the hold-the-city waves. Auto resolves
+# through the auto battle the same way twice and the same played in slices
+# (its fortune of war in bounds), kills no one, wounds the fallen for
 # one battle (they sit out the next muster), pays the region's supplies on
 # a win only and leaves no marks or bonds. Markets sell at their own
 # prices and stock, refuse without supplies, stock, a wounded soldier or a
@@ -61,7 +64,8 @@ func _run() -> bool:
 	_data = load(TacticsWorldData.PATH) as TacticsWorldData
 	var checks: Array[Callable] = [
 		_check_data, _check_fresh_world, _check_threat_seeded, _check_win_opens, _check_harden, _check_take_and_defend,
-		_check_new_cycle, _check_save_round_trip, _check_old_save, _check_broken_world, _check_auto_deterministic,
+		_check_new_cycle, _check_save_round_trip, _check_old_save, _check_broken_world, _check_threat_heard, _check_auto_deterministic,
+		_check_auto_in_slices, _check_waves_pressed, _check_unknown_regions,
 		_check_auto_no_permadeath, _check_auto_rewards, _check_market_prices, _check_market_refusals, _check_market_heal,
 		_check_market_hire_joins, _check_items_used, _check_bond_refusals, _check_bond_bonus, _check_bond_tallies,
 		_check_bond_levels, _check_campaign_bonds,
@@ -224,7 +228,7 @@ func _check_save_round_trip() -> bool:
 		return false
 	var loaded := TacticsRoster.load_roster()
 	var again := loaded.get_person(person["id"])
-	return _expect("cleared", loaded.world.cleared, [FERRY]) and _expect("pressure", loaded.world.get_pressure(MISTY), 2) \
+	return _expect("cleared", loaded.world.cleared, [FERRY]) and _expect("pressure", loaded.world.get_pressure(MISTY), 2) and _expect("threat not heard", loaded.world.is_threat_heard, false) \
 			and _expect("threat", loaded.world.get_threat(), threat) and _expect("turn", loaded.world.turn, 1) and _expect("sold", loaded.world.get_sold(FERRY, 1), 1) \
 			and _expect("bond points", TacticsBonds.find_bond(loaded, &"leader.b", &"leader.a").get("points"), 6) \
 			and _expect("items", loaded.get_item_count(&"item.war_drum"), 2) and _expect("rest", again["rest_until"], 4) and _expect("hired", again["is_hired"], true) \
@@ -267,6 +271,46 @@ func _check_broken_world() -> bool:
 	return _expect("a broken world sets the save aside", kept, true) and _expect("and starts empty", loaded.people, [])
 
 
+# A push is heard once: a new one (a turn, a new campaign) is not heard
+# yet; the save keeps it; a save without the field hears it once more.
+func _check_threat_heard() -> bool:
+	var roster := _roster(12)
+	var world := roster.world
+	world.get_threat()
+	if not _expect("a fresh push is not heard", world.is_threat_heard, false):
+		return false
+	world.is_threat_heard = true
+	roster.save()
+	var loaded := TacticsRoster.load_roster()
+	if not _expect("heard is saved", loaded.world.is_threat_heard, true):
+		return false
+	loaded.world.finish_region(FERRY, true)
+	if not _expect("a turn declares a new push", loaded.world.is_threat_heard, false):
+		return false
+	var saved := roster.to_save_data()
+	(saved["world"] as Dictionary).erase("threat_heard")
+	var old := TacticsWorld.new()
+	if not (_expect("reads without it", old.read(saved["world"]), true) and _expect("not heard", old.is_threat_heard, false)):
+		return false
+	saved["world"]["threat_heard"] = "yes"
+	return _expect("a bad value is refused", TacticsWorld.new().read(saved["world"]), false)
+
+
+# A save naming regions the data does not have, the home as ours or
+# pressure past the cap loads with those left out, not set aside.
+func _check_unknown_regions() -> bool:
+	var saved := _roster(13).to_save_data()
+	saved["world"] = {
+		"cleared": ["region.gone", String(FERRY), String(FERRY), String(HOME)], "pressure": {"region.gone": 1, String(MISTY): 9}, "sold": {},
+		"threat": "region.gone", "turn": 2, "cycle": 0, "has_threat": true,
+	}
+	var world := TacticsWorld.new()
+	world.seed_value = 13
+	return _expect("reads", world.read(saved["world"]), true) and _expect("only known regions, once", world.cleared, [FERRY]) \
+			and _expect("pressure capped", world.get_pressure(MISTY), _data.max_pressure) and _expect("unknown pressure gone", world.pressure.has(&"region.gone"), false) \
+			and _expect("a known push again", world.get_threat_candidates().has(world.get_threat()), true)
+
+
 # --- Auto --------------------------------------------------------------
 
 func _check_auto_deterministic() -> bool:
@@ -284,6 +328,39 @@ func _check_auto_deterministic() -> bool:
 	return _expect("the fortune of war varies by seed", rolls.size() > 10, true) and _expect("same fortune", first["fortune"], second["fortune"]) \
 			and _expect("no fortune at 0", TacticsAutoResolve.fortune_pct(7, 0), 0) and _expect("same hash", first["hash"], second["hash"]) and _expect("same winner", first["winner"], second["winner"]) \
 			and _expect("units placed", placed > 0 and placed <= 10, true) and _expect("rows", (first["units"] as Array).size(), placed + int(first["counts"][1][1]))
+
+
+# Played a slice at a time (as the world screen does) Auto ends exactly as
+# resolve() does, and shows who stands as it goes.
+func _check_auto_in_slices() -> bool:
+	var whole := TacticsAutoResolve.resolve(_campaign(_roster(23), MISTY))
+	var auto := TacticsAutoResolve.new()
+	auto.start(_campaign(_roster(23), MISTY))
+	var placed := auto.get_placed_counts()
+	if not (_expect("all stand at first", auto.get_alive_counts(), placed) and _expect("no result yet", auto.get_result(), {})):
+		return false
+	var slices := 0
+	var fewer := false
+	while not auto.advance(TacticsAutoResolve.TICKS_PER_CHUNK):
+		slices += 1
+		var alive := auto.get_alive_counts()
+		fewer = fewer or alive[0] < placed[0] or alive[1] < placed[1]
+	var sliced := auto.get_result()
+	return _expect("many slices", slices > 5, true) and _expect("units fall as it goes", fewer, true) and _expect("same hash", sliced["hash"], whole["hash"]) \
+			and _expect("same ticks", sliced["ticks"], whole["ticks"]) and _expect("same counts", sliced["counts"], whole["counts"]) \
+			and _expect("same fortune", auto.get_fortune(), whole["fortune"]) and _expect("finished", auto.advance(1), true)
+
+
+# Pressure reaches the waves that come later (hold the city) too, on copies.
+func _check_waves_pressed() -> bool:
+	var base := load("res://Data/Tactics/Scenarios/city_defense.tres") as TacticsScenarioData
+	var campaign := TacticsCampaign.new(_roster(), _catalog, base, {"region": CITADEL, "enemy_power_pct": 130})
+	var wave_leader: TacticsLeaderData = campaign.scenario.objective.waves[0].leaders[0]
+	var base_leader: TacticsLeaderData = base.objective.waves[0].leaders[0]
+	return _expect("wave leader hp", wave_leader.hp_pct, base_leader.hp_pct * 130 / 100) and _expect("wave leader attack", wave_leader.attack_pct, base_leader.attack_pct * 130 / 100) \
+			and _expect("wave squad hp", wave_leader.squad[0].hp_pct, base_leader.squad[0].hp_pct * 130 / 100) \
+			and _expect("the data untouched", (base.objective.waves[0].leaders[0] as TacticsLeaderData).hp_pct, base_leader.hp_pct) \
+			and _expect("same rounds", campaign.scenario.objective.waves[0].round, base.objective.waves[0].round)
 
 
 func _check_auto_no_permadeath() -> bool:

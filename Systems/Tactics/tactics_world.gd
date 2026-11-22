@@ -42,6 +42,9 @@ var cycle: int = 0
 var sold: Dictionary = {}
 ## The roster's seed: the enemy's pushes follow it.
 var seed_value: int = 1
+## Whether the player heard the war horn for the declared push (the world
+## screen sounds it once per push); a new push sets it back to false.
+var is_threat_heard: bool = false
 ## Whether a threat was ever picked (a fresh world picks one on first use).
 var _has_threat: bool = false
 
@@ -54,6 +57,7 @@ func to_save_data() -> Dictionary:
 	return {
 		"cleared": cleared.map(func(id: StringName) -> String: return String(id)), "pressure": saved_pressure,
 		"threat": String(threat), "turn": turn, "cycle": cycle, "sold": sold.duplicate(), "has_threat": _has_threat,
+		"threat_heard": is_threat_heard,
 	}
 
 
@@ -67,6 +71,11 @@ func read(saved: Dictionary) -> bool:
 	cycle = reader.get_int("cycle")
 	threat = StringName(reader.get_string("threat"))
 	_has_threat = reader.get_bool("has_threat")
+	# Optional: older saves have none: the horn sounds once more.
+	var heard: Variant = saved.get("threat_heard", false)
+	if not heard is bool:
+		return false
+	is_threat_heard = heard
 	cleared.clear()
 	for id: Variant in reader.get_array("cleared"):
 		if not id is String:
@@ -84,7 +93,30 @@ func read(saved: Dictionary) -> bool:
 				pressure[StringName(id)] = int(value)
 			else:
 				sold[id] = int(value)
+	_drop_unknown()
 	return reader.is_valid and turn >= 0 and cycle >= 0
+
+
+# A save naming a region the data no longer has (or pressure past the cap,
+# or the home as ours) keeps the rest: those entries go, with one warning,
+# and a push on an unknown region is declared again.
+func _drop_unknown() -> void:
+	var dropped: PackedStringArray = []
+	for id: StringName in cleared.duplicate():
+		if data.get_region(id) == null or id == data.home_region or cleared.count(id) > 1:
+			cleared.erase(id)
+			dropped.append(String(id))
+	for id: StringName in pressure.keys():
+		if data.get_region(id) == null:
+			pressure.erase(id)
+			dropped.append(String(id))
+		else:
+			pressure[id] = mini(int(pressure[id]), data.max_pressure)
+	if threat != &"" and data.get_region(threat) == null:
+		dropped.append(String(threat))
+		_declare(pick_threat())
+	if not dropped.is_empty():
+		push_warning("TacticsWorld: the save names unknown regions %s; left out" % ", ".join(dropped))
 
 
 ## home, ours, open (reachable, the enemy's) or locked (not reachable yet).
@@ -126,8 +158,7 @@ func get_enemy_power_pct(id: StringName) -> int:
 ## The region the enemy presses next (picked on first ask).
 func get_threat() -> StringName:
 	if not _has_threat:
-		_has_threat = true
-		threat = pick_threat()
+		_declare(pick_threat())
 	return threat
 
 
@@ -191,8 +222,7 @@ func finish_region(id: StringName, is_won: bool) -> Dictionary:
 			change["pressure"] = pressure[declared]
 	turn += 1
 	sold.clear()
-	threat = pick_threat()
-	_has_threat = true
+	_declare(pick_threat())
 	change["is_complete"] = is_complete()
 	change["threat"] = threat
 	return change
@@ -209,8 +239,7 @@ func start_new_cycle() -> void:
 	for region: TacticsRegionData in data.regions:
 		if not region.is_home() and level > 0:
 			pressure[region.id] = level
-	threat = pick_threat()
-	_has_threat = true
+	_declare(pick_threat())
 
 
 func get_sold(region_id: StringName, offer_index: int) -> int:
@@ -230,6 +259,13 @@ func get_neighbours(id: StringName) -> Array[StringName]:
 		if other.id != id and (other.neighbours.has(id) or (region != null and region.neighbours.has(other.id))):
 			found.append(other.id)
 	return found
+
+
+# A new push: not heard yet.
+func _declare(id: StringName) -> void:
+	threat = id
+	_has_threat = true
+	is_threat_heard = false
 
 
 func _lose(id: StringName, change: Dictionary) -> void:

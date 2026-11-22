@@ -51,7 +51,7 @@ the next battle) and replaced by an empty roster.
 | `supplies` | Supplies (lương) won in battle, spent at the muster; optional, a save without it reads as 0, a negative one is unreadable |
 | `troop_counts` | Per troop id, how many were recruited: a person's `number` |
 | `people` | `[{id, troop, number, look, status, first_leader, is_named, marks, rest_until, is_hired}]` |
-| `world` | The world map: `{cleared, pressure, threat, turn, cycle, sold, has_threat}` (`TacticsWorld`); optional |
+| `world` | The world map: `{cleared, pressure, threat, turn, cycle, sold, has_threat, threat_heard}` (`TacticsWorld`; `threat_heard` optional); optional. Regions the data does not have are left out on load, pressure is capped |
 | `bonds` | `[{a, b, points}]`: bond points between two leader ids, `a` before `b`; optional |
 | `items` | Item id to count in store; optional |
 

@@ -349,6 +349,7 @@ func _build(base: TacticsScenarioData) -> void:
 		enemy_people.append(int(person["id"]))
 	scenario.leaders_a = _boosted(leaders_a)
 	scenario.leaders_b = _pressed(leaders_b)
+	_press_waves()
 	_add_hired(taken)
 	for leader: TacticsLeaderData in runtime_leaders:
 		text.register_unit(leader)
@@ -386,6 +387,21 @@ func _pressed(leaders: Array[TacticsLeaderData]) -> Array[TacticsLeaderData]:
 		copy.squad = squad
 		pressed.append(copy)
 	return pressed
+
+
+# The objective's waves (hold the city) come at the same pressure as the
+# enemy on the map: copies of the objective and its waves.
+func _press_waves() -> void:
+	if enemy_power_pct == 100 or scenario.objective == null or scenario.objective.waves.is_empty():
+		return
+	var objective := scenario.objective.duplicate() as TacticsObjectiveData
+	var waves: Array[TacticsWaveData] = []
+	for wave: TacticsWaveData in objective.waves:
+		var copy := wave.duplicate() as TacticsWaveData
+		copy.leaders = _pressed(wave.leaders)
+		waves.append(copy)
+	objective.waves = waves
+	scenario.objective = objective
 
 
 static func _scaled(unit: TacticsUnitData, pct: int) -> TacticsUnitData:
