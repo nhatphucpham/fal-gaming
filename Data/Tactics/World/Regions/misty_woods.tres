@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="TacticsRegionData" format=3]
+
+[ext_resource type="Script" path="res://Systems/Tactics/tactics_region_data.gd" id="script"]
+[ext_resource type="TacticsScenarioData" path="res://Data/Tactics/Scenarios/night_raid.tres" id="scenario"]
+
+[resource]
+script = ExtResource("script")
+id = &"region.misty_woods"
+name_key = "REGION_MISTY_WOODS"
+scenario = ExtResource("scenario")
+map_position = Vector2(0.74, 0.68)
+neighbours = Array[StringName]([&"region.horse_post"])
+auto_enemy_pct = 139
+auto_supplies = 1

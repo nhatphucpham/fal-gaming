@@ -859,3 +859,99 @@ OBJECTIVE_SHORT_BREAK_SIEGE_FORMAT,"Mục tiêu: %d tướng ra ô thoát, có %
 OBJECTIVE_SHORT_SLAY_GENERAL_FORMAT,Mục tiêu: hạ %s trước khi hắn thoát,Goal: bring down %s before he escapes
 INTENT_SITE,Ý đồ: cướp làng,Intent: loot a village
 SITE_RECRUIT_LINE_FORMAT,"%s: đánh tầm %d-%d ô, đi %d ô.","%s: range %d-%d, moves %d."
+WORLD_TITLE,Thế trận,The war
+WORLD_SUPPLIES_FORMAT,Lương %d,Supplies %d
+WORLD_HELD_FORMAT,Giữ %d/%d vùng,Holding %d/%d
+WORLD_THREAT_HARDEN_FORMAT,Địch báo: sắp dồn quân vào %s.,Enemy plan: massing on %s.
+WORLD_THREAT_HARDEN_IF_FORMAT,Nếu bỏ mặc: địch ở đó mạnh thêm %d%% (sức ép %d/%d).,If ignored: the enemy there grows %d%% stronger (pressure %d/%d).
+WORLD_THREAT_HARDEN_MAX,"Nếu bỏ mặc: địch ở đó đã mạnh nhất, nhưng vẫn giữ vùng.",If ignored: the enemy there is already at its strongest.
+WORLD_THREAT_TAKE_FORMAT,Địch báo: sắp đánh chiếm lại %s.,Enemy plan: retaking %s.
+WORLD_THREAT_TAKE_IF_FORMAT,Nếu bỏ mặc: mất %s và %s ở đó.,If ignored: you lose %s and its %s.
+WORLD_THREAT_NONE,Địch không còn vùng nào để đánh.,The enemy has nowhere left to strike.
+WORLD_HINT,Chạm một vùng để xem.,Tap a region.
+WORLD_COMPLETE,Đã bình định cả năm vùng!,All five regions are ours!
+WORLD_NEW_CAMPAIGN_HINT,"Chiến dịch mới: mọi vùng về tay địch, địch mạnh thêm một bậc. Sổ quân giữ nguyên.","New campaign: every region goes back to the enemy, one level stronger. The roster stays."
+BUTTON_NEW_CAMPAIGN,Chiến dịch mới,New campaign
+LEGEND_OURS,Ta giữ,Ours
+LEGEND_ENEMY,Địch giữ,Enemy
+LEGEND_LOCKED,Chưa tới,Not reached
+REGION_HOME,Đại doanh,Headquarters
+REGION_FERRY,Bến Đò,The Ferry
+REGION_MISTY_WOODS,Rừng Sương,Misty Woods
+REGION_OLD_CITADEL,Thành Cổ,Old Citadel
+REGION_HORSE_POST,Trạm Ngựa,Horse Post
+REGION_SIEGE_PASS,Ải Vây,Siege Pass
+MARKET_FERRY,chợ Bến,ferry market
+MARKET_OLD_CITADEL,chợ Thành,citadel market
+MARKET_HORSE_POST,chợ Trạm,post market
+REGION_STATE_HOME,Đại doanh của ta,Our headquarters
+REGION_STATE_OURS,Ta giữ,Ours
+REGION_STATE_OPEN,Địch giữ,Enemy-held
+REGION_STATE_LOCKED,Chưa tới được,Out of reach
+REGION_LOCKED_HINT,Giữ một vùng kề bên trước thì mới tới được.,Hold a neighbouring region first.
+REGION_HOME_HINT,Nơi quân ta xuất phát. Đánh vùng kề bên để mở đường.,Where our army sets out. Strike a neighbouring region.
+REGION_BATTLE_FORMAT,Trận: %s · %s,Battle: %s · %s
+REGION_PRESSURE_FORMAT,Sức ép %d/%d: địch +%d%% máu và công.,Pressure %d/%d: enemy +%d%% hp and attack.
+REGION_NO_PRESSURE,Sức ép 0/%d: địch như thường.,Pressure 0/%d: the enemy as usual.
+REGION_THREATENED,Địch báo sẽ đánh vùng này.,The enemy will strike here next.
+REGION_DEFEND_HINT,"Vùng của ta. Đánh lại để giữ, bỏ mặc thì mất.","Ours. Fight again to keep it, or lose it."
+REGION_HELD_HINT,Đã khống chế. Không cần đánh.,Held. No battle needed.
+REGION_ITEMS,Dùng vật phẩm trận này:,Use items this battle:
+ITEM_TOGGLE_FORMAT,%s (còn %d),%s (%d left)
+BUTTON_MANUAL,Thủ công,Command
+BUTTON_AUTO,Auto,Auto
+MODE_MANUAL_DESC,"Tự chỉ huy. Đủ lương, mục phụ, Dấu và Duyên. Lính ngã là mất hẳn.","You command. Full supplies, side goals, marks and bonds. The fallen are gone for good."
+MODE_AUTO_DESC_FORMAT,"Đánh nhanh, tự động. Lính ngã chỉ bị thương, nghỉ 1 trận. Chỉ +%d lương; không mục phụ, Dấu, Duyên.","Quick and automatic. The fallen are only wounded and sit out 1 battle. Only +%d supplies; no side goals, marks or bonds."
+BUTTON_MARKET_FORMAT,Vào %s,Visit the %s
+AUTO_TITLE_WIN,Auto: thắng,Auto: won
+AUTO_TITLE_LOSS,Auto: thua,Auto: lost
+AUTO_FORCES,Hai bên sau trận,After the battle
+AUTO_OURS_FORMAT,Ta: %d/%d còn đứng,Ours: %d/%d standing
+AUTO_ENEMY_FORMAT,Địch: %d/%d còn đứng,Enemy: %d/%d standing
+AUTO_WOUNDED,"Bị thương, nghỉ trận tới","Wounded, out next battle"
+AUTO_NO_WOUNDED,Không ai trong sổ bị thương.,Nobody on the roster was wounded.
+AUTO_SUPPLIES_FORMAT,Lương +%d. Kho: %d.,Supplies +%d. Store: %d.
+AUTO_NO_MARKS,"Auto không để lại Dấu, không thêm Duyên.",Auto leaves no marks and builds no bonds.
+SUMMARY_WORLD,Thế trận,The war
+CHANGE_TAKEN_FORMAT,Đã giữ %s.,%s is ours.
+CHANGE_KEPT_FORMAT,Giữ vững %s.,%s held.
+CHANGE_NOT_TAKEN_FORMAT,Chưa lấy được %s.,%s not taken.
+CHANGE_LOST_FORMAT,Mất %s về tay địch.,%s fell to the enemy.
+CHANGE_HARDENED_FORMAT,Địch dồn quân vào %s: sức ép %d/%d.,The enemy massed on %s: pressure %d/%d.
+CHANGE_NEXT_THREAT_FORMAT,"Trận tới, địch báo đánh %s.","Next, the enemy strikes %s."
+MARKET_SUPPLIES_FORMAT,Lương trong kho: %d,Supplies in store: %d
+MARKET_HINT,"Mỗi chợ một giá, một hàng. Hàng về lại sau mỗi trận.",Each market has its own goods and prices. Stock comes back after each battle.
+OFFER_HIRE_FORMAT,Mộ %s,Hire a %s
+OFFER_HIRE_DESC,"Theo tướng nào còn chỗ, từ trận tới.",Joins a leader with room from the next battle.
+OFFER_HEAL,Chữa thương,Treat a wound
+OFFER_HEAL_DESC,Người bị thương về đội ngay từ trận tới.,A wounded soldier is back for the next battle.
+OFFER_HEAL_NONE,Không ai bị thương.,Nobody is wounded.
+OFFER_PRICE_LEFT_FORMAT,%d lương · còn %d,%d supplies · %d left
+BUTTON_BUY,Mua,Buy
+MARKET_REFUSED_SUPPLIES,Không đủ lương.,Not enough supplies.
+MARKET_REFUSED_SOLD_OUT,"Hết hàng, sau trận tới mới có.",Sold out until after the next battle.
+MARKET_REFUSED_NO_WOUNDED,Không ai cần chữa.,Nobody needs treatment.
+MARKET_REFUSED_CLOSED,Chợ đóng: vùng không còn của ta.,Closed: the region is no longer ours.
+MARKET_BOUGHT_HIRE_FORMAT,Đã mộ %s.,Hired a %s.
+MARKET_BOUGHT_HEAL_FORMAT,"%s đã khỏe, ra trận được.",%s is fit to fight.
+MARKET_BOUGHT_ITEM_FORMAT,Đã mua %s.,Bought %s.
+MARKET_ITEMS_HELD_FORMAT,Đang có: %s,Held: %s
+ITEM_WAR_DRUM,Trống trận,War drum
+ITEM_WAR_DRUM_DESC,Một trận: tướng ta +15% công.,One battle: our leaders +15% attack.
+ITEM_HERB_KIT,Thuốc dấu,Herb kit
+ITEM_HERB_KIT_DESC,Một trận: tướng ta +20% máu.,One battle: our leaders +20% hp.
+BOND_SOURCE,Duyên,Bond
+BOND_MUSTER_FORMAT,Duyên với %s bậc %d: +%d%% công khi đứng gần.,"Bond with %s, level %d: +%d%% attack when close."
+BOND_FLOAT_FORMAT,Duyên +%d%%,Bond +%d%%
+SUMMARY_BONDS,Duyên qua kề vai,Bonds
+BOND_GAIN_FORMAT,%s và %s kề vai: Duyên %d/%d.,%s and %s fought side by side: bond %d/%d.
+BOND_GAIN_MAX_FORMAT,%s và %s kề vai: Duyên đã bậc cao nhất.,%s and %s fought side by side: the bond is at its peak.
+BOND_LEVEL_UP_FORMAT,Duyên bậc %d: +%d%% công khi đứng gần.,Bond level %d: +%d%% attack when close.
+BOND_LINE_1_FORMAT,"%s: ""Đứng cạnh %s, tay ta vững hơn.""","%s: ""Beside %s, my hand is steadier."""
+BOND_LINE_2_FORMAT,"%s: ""Có %s che sườn, ta yên lòng xông lên.""","%s: ""With %s on my flank, I charge without fear."""
+BOND_LINE_3_FORMAT,"%s: ""Sống chết có nhau, %s ạ.""","%s: ""In life and death, %s, together."""
+ROSTER_STATUS_WOUNDED,Bị thương · nghỉ trận tới,Wounded · out next battle
+ROSTER_HIRED,Lính mộ,Hired
+MUSTER_PRESSURE_FORMAT,Sức ép %d/%d: địch +%d%% máu và công.,Pressure %d/%d: enemy +%d%% hp and attack.
+MUSTER_ITEMS_FORMAT,Dùng trận này: %s,Used this battle: %s
+MUSTER_WOUNDED_FORMAT,Nghỉ trận này vì bị thương: %d người.,"Out this battle, wounded: %d."

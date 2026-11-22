@@ -1,0 +1,55 @@
+[gd_resource type="Resource" script_class="TacticsRegionData" format=3]
+
+[ext_resource type="Script" path="res://Systems/Tactics/tactics_region_data.gd" id="script"]
+[ext_resource type="Script" path="res://Systems/Tactics/tactics_offer_data.gd" id="offer_script"]
+[ext_resource type="TacticsScenarioData" path="res://Data/Tactics/Scenarios/city_defense.tres" id="scenario"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/archer.tres" id="troop_archer"]
+[ext_resource type="TacticsTroopData" path="res://Data/Tactics/Troops/shieldman.tres" id="troop_shieldman"]
+[ext_resource type="Resource" path="res://Data/Tactics/World/Items/herb_kit.tres" id="item_herb_kit"]
+[ext_resource type="Resource" path="res://Data/Tactics/World/Items/war_drum.tres" id="item_war_drum"]
+
+[sub_resource type="Resource" id="offer_0"]
+script = ExtResource("offer_script")
+kind = &"offer.hire"
+troop = ExtResource("troop_shieldman")
+price = 3
+stock = 1
+
+[sub_resource type="Resource" id="offer_1"]
+script = ExtResource("offer_script")
+kind = &"offer.hire"
+troop = ExtResource("troop_archer")
+price = 3
+stock = 2
+
+[sub_resource type="Resource" id="offer_2"]
+script = ExtResource("offer_script")
+kind = &"offer.heal"
+price = 3
+stock = 3
+
+[sub_resource type="Resource" id="offer_3"]
+script = ExtResource("offer_script")
+kind = &"offer.item"
+item = ExtResource("item_war_drum")
+price = 3
+stock = 1
+
+[sub_resource type="Resource" id="offer_4"]
+script = ExtResource("offer_script")
+kind = &"offer.item"
+item = ExtResource("item_herb_kit")
+price = 2
+stock = 1
+
+[resource]
+script = ExtResource("script")
+id = &"region.old_citadel"
+name_key = "REGION_OLD_CITADEL"
+scenario = ExtResource("scenario")
+map_position = Vector2(0.24, 0.36)
+neighbours = Array[StringName]([&"region.siege_pass"])
+market_name_key = "MARKET_OLD_CITADEL"
+offers = Array[ExtResource("offer_script")]([SubResource("offer_0"), SubResource("offer_1"), SubResource("offer_2"), SubResource("offer_3"), SubResource("offer_4")])
+auto_enemy_pct = 121
+auto_supplies = 1

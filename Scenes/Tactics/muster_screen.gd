@@ -232,7 +232,30 @@ func _objective_panel() -> Control:
 		rows.add_child(_wrapped(tr("MUSTER_SITES_FORMAT") % ", ".join(kinds), Palette.TEXT_DIM))
 	if campaign != null:
 		rows.add_child(_supplies_row())
+		for line: String in world_lines():
+			rows.add_child(_wrapped(line, Palette.VERMILION.lightened(0.35)))
 	return box
+
+
+## With a world region: the enemy's pressure, the items used and how many
+## of ours sit out wounded (empty lines are left out).
+func world_lines() -> PackedStringArray:
+	var lines: PackedStringArray = []
+	if campaign == null or campaign.region_id == &"":
+		return lines
+	var world := campaign.roster.world
+	var level := world.get_pressure(campaign.region_id)
+	if level > 0:
+		lines.append(tr("MUSTER_PRESSURE_FORMAT") % [level, world.data.max_pressure, campaign.enemy_power_pct - 100])
+	var items: PackedStringArray = []
+	for item: TacticsItemData in campaign.items_used:
+		items.append("%s (%s)" % [tr(item.name_key), tr(item.desc_key)])
+	if not items.is_empty():
+		lines.append(tr("MUSTER_ITEMS_FORMAT") % ", ".join(items))
+	var wounded := campaign.roster.get_wounded().size()
+	if wounded > 0:
+		lines.append(tr("MUSTER_WOUNDED_FORMAT") % wounded)
+	return lines
 
 
 ## The objective in full: what wins, what loses and by when.
@@ -524,6 +547,10 @@ func _leader_card(slot: int) -> Control:
 	var skill := leader.skill
 	if skill != null:
 		texts.add_child(_label(tr("MUSTER_SKILL_FORMAT") % [tr(skill.name_key), _text.charge_name(skill.charge), skill.charge_threshold], 20, Palette.TEXT_DIM))
+	for line: String in bond_lines(slot):
+		var bond := _label(line, 20, Palette.GOLD)
+		bond.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		texts.add_child(bond)
 	var is_full := _squads[slot].size() >= _capacities[slot]
 	head.add_child(_label(tr("MUSTER_CAPACITY_FORMAT") % [_squads[slot].size(), _capacities[slot]], 24, Palette.GOLD if is_full else Palette.TEXT))
 	var chips := HBoxContainer.new()
@@ -533,6 +560,20 @@ func _leader_card(slot: int) -> Control:
 	for soldier_slot: int in _squads[slot].size():
 		chips.add_child(_chip(slot, soldier_slot))
 	return box
+
+
+## The bonds (Duyên) the leader at `slot` has with our other leaders here.
+func bond_lines(slot: int) -> PackedStringArray:
+	var lines: PackedStringArray = []
+	if campaign == null:
+		return lines
+	var data := campaign.roster.world.data
+	var leader_id := scenario.leaders_a[slot].id
+	for bond: Dictionary in TacticsBonds.bonds_of(campaign.roster, data, leader_id):
+		for other: TacticsLeaderData in scenario.leaders_a:
+			if other.id == bond["partner"]:
+				lines.append(tr("BOND_MUSTER_FORMAT") % [tr(other.name_key), bond["level"], bond["level"] * data.bond_attack_pct_per_level])
+	return lines
 
 
 func _on_card_input(event: InputEvent, slot: int) -> void:

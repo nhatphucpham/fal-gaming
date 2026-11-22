@@ -4,8 +4,11 @@ extends Control
 ## soldier who fought (face, name, what became of it, the marks it earned),
 ## any soldier named for its marks with its name and biography, and the
 ## karma carried to the next battle, the side goals met or missed and the
-## supplies won. "Sổ quân" opens the roster; "Tiếp
-## tục" goes on. Rows come in one after another, each naming its own sound.
+## supplies won, the bonds (Duyên) our leaders built side by side (a
+## level-up draws a line between the two and gives one of them a line to
+## say) and what the battle changed on the world map. "Sổ quân" opens the
+## roster; "Tiếp tục" goes on. Rows come in one after another, each naming
+## its own sound.
 ## [codeblock]
 ## var view := TacticsSummaryView.new()
 ## view.campaign = campaign
@@ -58,8 +61,17 @@ func _ready() -> void:
 	scroll.add_child(_body)
 	for id: int in summary.get("named", []):
 		_body.add_child(_named_card(id))
+	var bond_rows: Array = summary.get("bonds", [])
+	for row: Dictionary in bond_rows:
+		if row["level"] > row["level_before"]:
+			_body.add_child(_bond_card(row))
+	var world_lines := TacticsWorldText.change_lines(campaign.roster.world, summary.get("world", {}))
+	if not world_lines.is_empty():
+		_body.add_child(_world_panel(world_lines))
 	_body.add_child(_goals_panel())
 	_body.add_child(_people_panel())
+	if not bond_rows.is_empty():
+		_body.add_child(_bonds_panel(bond_rows))
 	_body.add_child(_karma_panel())
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override(&"separation", 16)
@@ -71,6 +83,8 @@ func _ready() -> void:
 		TacticsViews.stagger_in(_body.get_children())
 	if not (summary.get("named", []) as Array).is_empty():
 		Sound.play(&"epiphany")
+	elif bond_rows.any(func(row: Dictionary) -> bool: return row["level"] > row["level_before"]):
+		Sound.play(&"level_up")
 
 
 func open_roster() -> TacticsRosterView:
@@ -179,6 +193,120 @@ func _fate(row: Dictionary) -> Array:
 	if row["status"] == &"escaped":
 		return [tr("SUMMARY_ESCAPED"), Palette.JADE_LIGHT]
 	return [tr("SUMMARY_RETURNED"), Palette.CREAM]
+
+
+# Two leaders whose bond rose a level: both, the line drawn between them,
+# the new bonus and what one says to the other.
+func _bond_card(row: Dictionary) -> Control:
+	var box := TacticsViews.panel(Palette.INDIGO_DARK)
+	box.name = "BondCard_%s_%s" % [String(row["a"]).trim_prefix("leader."), String(row["b"]).trim_prefix("leader.")]
+	var rows := VBoxContainer.new()
+	rows.add_theme_constant_override(&"separation", 6)
+	box.add_child(rows)
+	var link := BondLink.new()
+	link.glyphs = [_leader_glyph(row["a"]), _leader_glyph(row["b"])]
+	link.looks = [_leader_look(row["a"]), _leader_look(row["b"])]
+	link.level = row["level"]
+	link.custom_minimum_size = Vector2(0, 96)
+	rows.add_child(link)
+	var names := [campaign.text.unit_name(row["a"]), campaign.text.unit_name(row["b"])]
+	var heads := HBoxContainer.new()
+	rows.add_child(heads)
+	for index: int in 2:
+		var name := TacticsViews.label(names[index], 24, Palette.GOLD)
+		name.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		name.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT if index == 0 else HORIZONTAL_ALIGNMENT_RIGHT
+		heads.add_child(name)
+	var data := campaign.roster.world.data
+	rows.add_child(TacticsViews.wrapped(tr("BOND_LEVEL_UP_FORMAT") % [row["level"], row["level"] * data.bond_attack_pct_per_level], 22, Palette.JADE_LIGHT))
+	var line_key := "BOND_LINE_%d_FORMAT" % clampi(row["level"], 1, 3)
+	rows.add_child(TacticsViews.wrapped(tr(line_key) % names, 22, Palette.CREAM))
+	if not is_instant:
+		link.play()
+	return box
+
+
+func _bonds_panel(bond_rows: Array) -> Control:
+	var box := TacticsViews.panel()
+	box.name = "BondsPanel"
+	var rows := VBoxContainer.new()
+	rows.add_theme_constant_override(&"separation", 4)
+	box.add_child(rows)
+	rows.add_child(TacticsViews.label("SUMMARY_BONDS", 28, Palette.GOLD))
+	var thresholds := campaign.roster.world.data.bond_level_points
+	for row: Dictionary in bond_rows:
+		var names := [campaign.text.unit_name(row["a"]), campaign.text.unit_name(row["b"])]
+		var level: int = row["level"]
+		var text := tr("BOND_GAIN_MAX_FORMAT") % names if level >= thresholds.size() \
+				else tr("BOND_GAIN_FORMAT") % [names[0], names[1], row["points"], thresholds[level]]
+		rows.add_child(TacticsViews.wrapped(text, 22, Palette.CREAM))
+	return box
+
+
+func _world_panel(lines: PackedStringArray) -> Control:
+	var box := TacticsViews.panel(Palette.INDIGO_DARK)
+	box.name = "WorldPanel"
+	var rows := VBoxContainer.new()
+	rows.add_theme_constant_override(&"separation", 4)
+	box.add_child(rows)
+	rows.add_child(TacticsViews.label("SUMMARY_WORLD", 28, Palette.GOLD))
+	for line: String in lines:
+		rows.add_child(TacticsViews.wrapped(line, 22, Palette.CREAM))
+	return box
+
+
+func _leader_glyph(id: StringName) -> StringName:
+	var data := campaign.text.unit_data(id)
+	if data == null:
+		return &"class.sword"
+	var keywords: Array = []
+	for keyword: TacticsKeywordData in data.keywords:
+		keywords.append(keyword.id)
+	return TacticsPainter.glyph_for(data.base_class.id, keywords)
+
+
+# A named leader's face seed, -1 for a scenario leader (drawn as a token).
+func _leader_look(id: StringName) -> int:
+	if not String(id).begins_with(TacticsCampaign.NAMED_PREFIX):
+		return -1
+	var person := campaign.get_person(int(String(id).trim_prefix(TacticsCampaign.NAMED_PREFIX)))
+	return int(person["look"]) if not person.is_empty() else -1
+
+
+## Two leaders and the bond between them: a gold cord drawn from one to the
+## other with a knot per level. play() draws it in; it redraws only then.
+class BondLink extends Control:
+	const DRAW_SEC: float = 0.7
+	var glyphs: Array = [&"class.sword", &"class.sword"]
+	var looks: Array = [-1, -1]
+	var level: int = 1
+	var progress: float = 1.0:
+		set(value):
+			progress = value
+			queue_redraw()
+
+	func play() -> void:
+		progress = 0.0
+		create_tween().tween_property(self, ^"progress", 1.0, DRAW_SEC).set_delay(0.2).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
+	func _draw() -> void:
+		var r := minf(size.y / 2.0 - 4.0, 40.0)
+		var ends := [Vector2(r + 8.0, size.y / 2.0), Vector2(size.x - r - 8.0, size.y / 2.0)]
+		var from: Vector2 = ends[0] + Vector2(r, 0)
+		var to: Vector2 = from.lerp(ends[1] - Vector2(r, 0), progress)
+		draw_line(from, to, Palette.INK, 9.0)
+		draw_line(from, to, Palette.GOLD, 5.0)
+		var middle: Vector2 = (ends[0] + ends[1]) / 2.0
+		for index: int in level:
+			var at := middle + Vector2((index - (level - 1) / 2.0) * 24.0, 0)
+			if at.x <= to.x:
+				draw_circle(at, 9.0, Palette.INK)
+				draw_circle(at, 6.0, Palette.VERMILION)
+		for index: int in 2:
+			if int(looks[index]) >= 0:
+				TacticsFace.draw_face(self, ends[index], r, looks[index], Palette.GOLD)
+			else:
+				TacticsPainter.draw_token(self, ends[index], 0, true, glyphs[index], false)
 
 
 func _karma_panel() -> Control:

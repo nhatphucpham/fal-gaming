@@ -131,6 +131,8 @@ var _daytime_icon: TextureRect
 var _is_fog_shown: bool = false
 ## Unit index -> marks its roster person carried in.
 var _carried_marks: Dictionary = {}
+## Bonds whose cord shows now: Vector2i(a, b) -> true.
+var _active_bonds: Dictionary = {}
 
 
 func _ready() -> void:
@@ -984,7 +986,29 @@ func _sync() -> void:
 			entry["from"] = _units[intent["unit"]]["cell"]
 			_intents.append(entry)
 	_map.set_intents(_intents)
+	_sync_bonds()
 	_show_round(_battle.get_round(), _battle.get_active_side())
+
+
+# The gold cord between bonded leaders of ours standing close (the bonus
+# is on); a cord that appears floats its bonus with a sound.
+func _sync_bonds() -> void:
+	var links: Array = []
+	for bond: Dictionary in _battle.get_bonds():
+		if not bond["is_active"] or _units[bond["a"]]["side"] != player_side:
+			continue
+		var link := {"from": _units[bond["a"]]["cell"], "to": _units[bond["b"]]["cell"], "level": bond["level"]}
+		links.append(link)
+		var key := Vector2i(bond["a"], bond["b"])
+		if not _active_bonds.has(key):
+			var middle := (_map.cell_to_local(link["from"]) + _map.cell_to_local(link["to"])) / 2.0
+			_map.float_text(middle, tr("BOND_FLOAT_FORMAT") % bond["attack_pct"], Palette.GOLD, 24)
+			Sound.play(&"formation_on")
+	_active_bonds.clear()
+	for bond: Dictionary in _battle.get_bonds():
+		if bond["is_active"]:
+			_active_bonds[Vector2i(bond["a"], bond["b"])] = true
+	_map.set_bond_links(links)
 
 
 # Fog, night, lights, remembered enemies and the edge marks of our

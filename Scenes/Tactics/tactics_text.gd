@@ -162,6 +162,7 @@ func modifier_name(id: StringName) -> String:
 	var prefix := String(id).get_slice(".", 0)
 	var by_prefix: Dictionary[String, Callable] = {
 		"terrain": terrain_name, "zone": zone_name, "tactics_passive": passive_name, "tactics_skill": skill_name,
+		"bond": func(_id: StringName) -> String: return tr("BOND_SOURCE"),
 	}
 	var lookup: Callable = by_prefix.get(prefix, Callable())
 	return lookup.call(id) if lookup.is_valid() else String(id)

@@ -1,12 +1,14 @@
 extends SceneTree
 
 # Headless test of the muster screen ("Điểm binh") through Main: the
-# title's "Chiến Dịch" opens it, it lists our leaders with their squads and
+# title's "Chiến Dịch" opens the world map, whose first region's
+# "Thủ công" opens it; it lists our leaders with their squads and
 # capacities (from the battle rules), a soldier moves between leaders
 # while there is room and is refused when the leader is full, and
 # "Xuất quân" opens the tactics screen with the squads as mustered;
 # retreating writes the battle into the roster and shows the summary,
-# whose "Tiếp tục" opens the muster again. With
+# whose "Tiếp tục" goes back to the world map, where the region opens
+# the muster again; "Về" goes back to the map, then the title. With
 # touch, taps on a soldier chip and a leader card move a soldier, and a
 # drag that starts on a card or a chip scrolls the page instead. At the
 # 720x1280 layout no text on the muster, roster, character sheet or
@@ -51,9 +53,9 @@ func _run() -> bool:
 		return false
 	title.campaign_requested.emit()
 	await create_timer(SLIDE_WAIT_SEC).timeout
-	var muster := _main.current_screen as MusterScreen
+	var muster := await _muster_from_world(&"region.ferry")
 	if muster == null:
-		push_error("Chiến Dịch should open the muster screen")
+		push_error("Chiến Dịch should open the world map, and Bến Đò's Thủ công the muster screen")
 		return false
 	if not await _check_muster(muster):
 		return false
@@ -219,16 +221,40 @@ func _check_muster(muster: MusterScreen) -> bool:
 		return false
 	summary.continue_requested.emit()
 	await create_timer(SLIDE_WAIT_SEC).timeout
-	var again := _main.current_screen as MusterScreen
+	var again := await _muster_from_world(&"region.ferry")
 	if again == null:
-		push_error("The summary's Tiếp tục should open the muster again")
+		push_error("The summary's Tiếp tục should open the world map, and the region the muster again")
 		return false
 	again.back_requested.emit()
 	await create_timer(SLIDE_WAIT_SEC).timeout
+	var world := _main.current_screen as TacticsWorldScreen
+	if world == null:
+		push_error("The muster's Về should go back to the world map")
+		return false
+	world.back_requested.emit()
+	await create_timer(SLIDE_WAIT_SEC).timeout
 	if not _main.current_screen is TitleScreen:
-		push_error("Về should go back to the title")
+		push_error("The world map's Về should go back to the title")
 		return false
 	return true
+
+
+# From the world map Main shows now: the region's card, its Thủ công
+# pressed, and the muster that opens (null when any step is missing).
+func _muster_from_world(region_id: StringName) -> MusterScreen:
+	var world := _main.current_screen as TacticsWorldScreen
+	if world == null:
+		return null
+	var card := world.open_region(region_id)
+	if card == null:
+		return null
+	await process_frame
+	var manual := card.find_child("ManualButton", true, false) as BaseButton
+	if manual == null:
+		return null
+	manual.pressed.emit()
+	await create_timer(SLIDE_WAIT_SEC).timeout
+	return _main.current_screen as MusterScreen
 
 
 # A roster with marks, a named soldier and a returning traitor, on every

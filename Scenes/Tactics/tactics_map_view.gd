@@ -82,6 +82,7 @@ var _terrain_ids: Array[StringName] = []
 var _objective := Vector2i(-1, -1)
 var _marks: Dictionary = {}
 var _intents: Array = []
+var _bond_links: Array = []
 var _zones: Array = []
 var _pieces: Dictionary[int, TacticsPieceView] = {}
 var _board: Control
@@ -749,6 +750,19 @@ func get_marks() -> Dictionary:
 	return _marks
 
 
+## Active bonds (Duyên) between our leaders: [{from, to, level}] cells; a
+## gold cord under the tokens, one knot per level. Empty hides them.
+func set_bond_links(links: Array) -> void:
+	if links == _bond_links:
+		return
+	_bond_links = links
+	_mark_layer.queue_redraw()
+
+
+func get_bond_links() -> Array:
+	return _bond_links
+
+
 ## Enemy intents: [{from, to, action, target_cell}]; empty hides them.
 func set_intents(intents: Array) -> void:
 	if intents == _intents:
@@ -996,6 +1010,14 @@ func _draw_zone_motif(canvas: TacticsMeshCanvas, zone_id: StringName, rect: Rect
 
 func _draw_marks(layer: Control) -> void:
 	var canvas := TacticsMeshCanvas.new()
+	for link: Dictionary in _bond_links:
+		var from := cell_to_local(link["from"])
+		var to := cell_to_local(link["to"])
+		canvas.draw_line(from, to, Color(Palette.INK, 0.6), 7.0)
+		canvas.draw_line(from, to, Color(Palette.GOLD, 0.85), 3.5)
+		var middle := (from + to) / 2.0
+		for index: int in int(link["level"]):
+			canvas.draw_circle(middle + (to - from).normalized() * (index - (int(link["level"]) - 1) / 2.0) * 12.0, 4.5, Palette.VERMILION)
 	for cell: Vector2i in _marks.get("reachable", []):
 		canvas.draw_rect(_cell_rect(cell).grow(-2.0), REACH_COLOR)
 	for cell: Vector2i in _marks.get("threat", []):
