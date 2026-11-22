@@ -9,7 +9,7 @@ extends SceneTree
 # finished campaign starts the next with more pressure. The roster save
 # keeps the world, bonds, items, wounds and hires; a version 1 save loads
 # with a fresh world; a broken world is set aside. Auto resolves through
-# the auto battle the same way twice, kills no one, wounds the fallen for
+# the auto battle the same way twice (its fortune of war in bounds), kills no one, wounds the fallen for
 # one battle (they sit out the next muster), pays the region's supplies on
 # a win only and leaves no marks or bonds. Markets sell at their own
 # prices and stock, refuse without supplies, stock, a wounded soldier or a
@@ -274,7 +274,15 @@ func _check_auto_deterministic() -> bool:
 	var first := TacticsAutoResolve.resolve(_campaign(roster, FERRY))
 	var second := TacticsAutoResolve.resolve(_campaign(_roster(21), FERRY))
 	var placed: int = first["counts"][0][1]
-	return _expect("same hash", first["hash"], second["hash"]) and _expect("same winner", first["winner"], second["winner"]) \
+	var rolls := {}
+	for seed_value: int in range(1, 60):
+		var roll := TacticsAutoResolve.fortune_pct(seed_value, _data.auto_fortune_pct)
+		if absi(roll) > _data.auto_fortune_pct:
+			push_error("Tactics world test: fortune %d is past the limit" % roll)
+			return false
+		rolls[roll] = true
+	return _expect("the fortune of war varies by seed", rolls.size() > 10, true) and _expect("same fortune", first["fortune"], second["fortune"]) \
+			and _expect("no fortune at 0", TacticsAutoResolve.fortune_pct(7, 0), 0) and _expect("same hash", first["hash"], second["hash"]) and _expect("same winner", first["winner"], second["winner"]) \
 			and _expect("units placed", placed > 0 and placed <= 10, true) and _expect("rows", (first["units"] as Array).size(), placed + int(first["counts"][1][1]))
 
 

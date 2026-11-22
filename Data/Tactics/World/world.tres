@@ -21,6 +21,7 @@ pressure_step_pct = 15
 max_pressure = 3
 cycle_pressure = 1
 wound_rest_battles = 1
+auto_fortune_pct = 25
 bond_radius_cells = 2
 bond_attack_pct_per_level = 5
 bond_level_points = PackedInt32Array(3, 7, 12)

@@ -36,7 +36,8 @@ const RANK_RANGED_LEADER: int = 4
 
 ## Plays the region's battle to its end. Returns {is_won, winner, ticks,
 ## hash, units: [{side, person, is_leader, troop, leader_id, alive, hp,
-## max_hp}], counts: [[alive, placed, total] side A, side B]}.
+## max_hp}], counts: [[alive, placed, total] side A, side B], fortune (the
+## enemy %, see fortune_pct())}.
 static func resolve(campaign: TacticsCampaign) -> Dictionary:
 	var rules := load(RULES_PATH) as BattleRulesData
 	var sides: Array = [_our_units(campaign), _enemy_units(campaign)]
@@ -49,9 +50,10 @@ static func resolve(campaign: TacticsCampaign) -> Dictionary:
 		placed.append(chosen)
 		counts.append([0, chosen.size(), (sides[side] as Array).size()])
 	var region := campaign.roster.world.data.get_region(campaign.region_id)
-	var enemy_pct: int = region.auto_enemy_pct if region != null else 100
-	_register_classes(battle, placed, _fill_pct(sides, placed), [100, enemy_pct])
 	var seed_value := campaign.get_battle_seed()
+	var fortune := fortune_pct(seed_value, campaign.roster.world.data.auto_fortune_pct)
+	var enemy_pct: int = (region.auto_enemy_pct if region != null else 100) * (100 + fortune) / 100
+	_register_classes(battle, placed, _fill_pct(sides, placed), [100, enemy_pct])
 	for side: int in 2:
 		_place(battle, side, placed[side], seed_value + side)
 	var battle_hash := battle.run_to_end(MAX_TICKS)
@@ -65,9 +67,20 @@ static func resolve(campaign: TacticsCampaign) -> Dictionary:
 				"leader_id": entry["leader_id"], "alive": state["alive"], "hp": state["hp"], "max_hp": state["max_hp"],
 			})
 	var winner := battle.get_winner()
-	var result := {"is_won": winner == Battle.SIDE_A, "winner": winner, "ticks": battle.get_tick(), "hash": battle_hash, "units": rows, "counts": counts}
+	var result := {
+		"is_won": winner == Battle.SIDE_A, "winner": winner, "ticks": battle.get_tick(), "hash": battle_hash, "units": rows, "counts": counts,
+		"fortune": fortune,
+	}
 	battle.free()
 	return result
+
+
+## The fortune of war of a battle seed: the enemy's hp and attack move by
+## this % (-limit..+limit, the same for the same seed).
+static func fortune_pct(seed_value: int, limit: int) -> int:
+	if limit <= 0:
+		return 0
+	return absi(hash("%d:auto:fortune" % seed_value)) % (2 * limit + 1) - limit
 
 
 # Our side: [{unit (TacticsUnitData), is_leader, person, leader_id, slot}],

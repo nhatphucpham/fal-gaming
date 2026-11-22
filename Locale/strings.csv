@@ -912,6 +912,7 @@ AUTO_WOUNDED,"Bị thương, nghỉ trận tới","Wounded, out next battle"
 AUTO_NO_WOUNDED,Không ai trong sổ bị thương.,Nobody on the roster was wounded.
 AUTO_SUPPLIES_FORMAT,Lương +%d. Kho: %d.,Supplies +%d. Store: %d.
 AUTO_NO_MARKS,"Auto không để lại Dấu, không thêm Duyên.",Auto leaves no marks and builds no bonds.
+AUTO_FORTUNE_FORMAT,"Vận trận: máu và công của địch %+d%%.","Fortune of war: enemy hp and attack %+d%%."
 SUMMARY_WORLD,Thế trận,The war
 CHANGE_TAKEN_FORMAT,Đã giữ %s.,%s is ours.
 CHANGE_KEPT_FORMAT,Giữ vững %s.,%s held.

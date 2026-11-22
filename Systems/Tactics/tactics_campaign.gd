@@ -203,8 +203,8 @@ func apply_report(report: Dictionary, by_unit: Dictionary) -> Dictionary:
 ## roster, then saved: no one dies; each roster person of ours who fell is
 ## wounded and sits out the next `wound_rest_battles` battles; a win pays
 ## the region's `auto_supplies` (no side goals, no marks, no bonds).
-## Returns {mode, is_won, wounded (person ids), rows, counts, supplies,
-## supplies_total, world}.
+## Returns {mode, is_won, wounded (person ids), rows, counts, fortune,
+## supplies, supplies_total, world}.
 func apply_auto(result: Dictionary, is_saved: bool = true) -> Dictionary:
 	var data := roster.world.data
 	roster.battles += 1
@@ -219,7 +219,7 @@ func apply_auto(result: Dictionary, is_saved: bool = true) -> Dictionary:
 	var gained: int = region.auto_supplies if result["is_won"] and region != null else 0
 	roster.supplies += gained
 	var summary := {
-		"mode": &"mode.auto", "is_won": result["is_won"], "wounded": wounded, "rows": result["units"], "counts": result["counts"],
+		"mode": &"mode.auto", "is_won": result["is_won"], "wounded": wounded, "rows": result["units"], "counts": result["counts"], "fortune": result.get("fortune", 0),
 		"supplies": gained, "supplies_total": roster.supplies, "world": finish_region(result["is_won"]),
 	}
 	if is_saved:

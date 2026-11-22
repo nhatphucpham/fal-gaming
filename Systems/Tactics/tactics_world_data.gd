@@ -22,6 +22,10 @@ const PATH: String = "res://Data/Tactics/World/world.tres"
 @export_range(0, 5) var cycle_pressure: int = 1
 ## A soldier wounded in Auto sits out this many battles.
 @export_range(1, 5) var wound_rest_battles: int = 1
+## Auto's fortune of war: the enemy's hp and attack in an Auto battle move
+## by a roll in -this..+this % from the battle seed, so a region under
+## pressure is a worse bet, not a sure loss.
+@export_range(0, 50) var auto_fortune_pct: int = 25
 ## Bonds (Duyên): two leaders closer than this many cells (Manhattan) at
 ## the end of our phase count that phase; a bond adds this % attack per
 ## level while they stand that close.

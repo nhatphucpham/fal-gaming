@@ -107,6 +107,8 @@ func _forces_panel() -> Control:
 			bar.value = left
 		else:
 			bar.create_tween().tween_property(bar, ^"value", left, DRAIN_SEC).set_delay(0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	var fortune: int = summary.get("fortune", 0)
+	rows.add_child(TacticsViews.wrapped(tr("AUTO_FORTUNE_FORMAT") % fortune, 22, Palette.TEXT_DIM))
 	return box
 
 
