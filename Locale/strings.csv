@@ -935,6 +935,7 @@ BUTTON_BUY,Mua,Buy
 MARKET_REFUSED_SUPPLIES,Không đủ lương.,Not enough supplies.
 MARKET_REFUSED_SOLD_OUT,"Hết hàng, sau trận tới mới có.",Sold out until after the next battle.
 MARKET_REFUSED_NO_WOUNDED,Không ai cần chữa.,Nobody needs treatment.
+MARKET_REFUSED_NO_ROOM,"Các tướng đã đủ binh: lính mộ thêm sẽ không có chỗ ra trận.","Every leader is full: another hire would have no place to fight."
 MARKET_REFUSED_CLOSED,Chợ đóng: vùng không còn của ta.,Closed: the region is no longer ours.
 MARKET_BOUGHT_HIRE_FORMAT,Đã mộ %s.,Hired a %s.
 MARKET_BOUGHT_HEAL_FORMAT,"%s đã khỏe, ra trận được.",%s is fit to fight.

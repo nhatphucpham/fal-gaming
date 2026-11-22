@@ -41,7 +41,7 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP
 	var region := campaign.roster.world.data.get_region(region_id)
-	_market = TacticsMarket.new(campaign.roster, region)
+	_market = TacticsMarket.new(campaign.roster, region, campaign.catalog)
 	var shade := ColorRect.new()
 	shade.color = Color(Palette.BACKDROP, 0.97)
 	shade.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -163,7 +163,8 @@ func _offer_row(row: Dictionary) -> Control:
 	texts.add_theme_constant_override(&"separation", 0)
 	head.add_child(texts)
 	texts.add_child(TacticsViews.label(_offer_name(offer), 26, Palette.CREAM))
-	texts.add_child(TacticsViews.wrapped(_offer_desc(offer), 22, Palette.TEXT_DIM))
+	var desc := tr("MARKET_REFUSED_NO_ROOM") if row["reason"] == TacticsMarket.REASON_NO_ROOM else _offer_desc(offer)
+	texts.add_child(TacticsViews.wrapped(desc, 22, Palette.TEXT_DIM))
 	texts.add_child(TacticsViews.label(tr("OFFER_PRICE_LEFT_FORMAT") % [row["price"], row["left"]], 22, Palette.GOLD if row["reason"] == &"" else Palette.TEXT_DIM))
 	head.add_child(_buy_button(row["index"], -1, row["reason"] == &""))
 	if offer.kind == &"offer.heal":

@@ -427,6 +427,24 @@ func _add_hired(taken: Dictionary) -> void:
 				break
 
 
+## How many hired soldiers the muster of `base` can place: the room our
+## leaders' squads have past the soldiers the scenario gives them, and the
+## squads of the named soldiers who would lead. Reads the roster, changes
+## nothing.
+static func hire_room(tactics_roster: TacticsRoster, tactics_catalog: TacticsCatalog, base: TacticsScenarioData) -> int:
+	var room := 0
+	var scratch := TacticsBattle.new()
+	if scratch.load_scenario(base):
+		var slot := 0
+		for state: Dictionary in scratch.get_units():
+			if state["role"] == &"leader" and state["side"] == SIDE_A:
+				room += maxi(int(state["capacity"]) - base.get_squad(SIDE_A, slot).size(), 0)
+				slot += 1
+	scratch.free()
+	var spare_leaders := mini(base.map.spawn_cells_a.size(), base.rules.max_leaders_per_side) - base.leaders_a.size()
+	return room + mini(tactics_roster.get_named().size(), maxi(spare_leaders, 0)) * tactics_catalog.incident_rules.named_lead_capacity
+
+
 ## The squad capacity of each of our leaders in the mustered scenario.
 func get_capacities() -> Array[int]:
 	var capacities: Array[int] = []

@@ -142,7 +142,11 @@ most this many times per world turn).
   result again). Sliced or not, the result and hash are the same.
 - **Markets** sell only in regions we hold. A hire is a new roster soldier
   of that troop (`is_hired`) who joins whichever leader has room at the
-  next muster; healing ends a soldier's rest; an item goes into the roster
+  next muster; a hire is refused (`no_room`) once the hires already in the
+  roster fill the most room any region we can fight next has
+  (`TacticsCampaign.hire_room()`: our leaders' squad capacity past the
+  scenario's soldiers, plus the squads of named soldiers who would lead),
+  so no supply buys a soldier who could not fight; healing ends a soldier's rest; an item goes into the roster
   (`items`) and is chosen on a region's card before the battle, then used
   up when that region is fought. A purchase is saved at once. Healing
   treats the wounded soldier with the most marks first (then the lowest
@@ -217,10 +221,11 @@ back early.
 | `TacticsWorld.finish_region(id, is_won) -> Dictionary` | method | One turn: {region, won, taken, lost, hardened, pressure, is_complete, threat} |
 | `TacticsWorld.start_new_cycle()` | method | The next campaign |
 | `TacticsMarket.new(roster, region)` | constructor | |
-| `TacticsMarket.get_offers()`, `refusal(index, person_id)`, `buy(index, person_id)` | method | Rows {index, kind, price, left, reason}; reasons `supplies`, `sold_out`, `no_wounded`, `closed`; buy returns {ok, reason, person, item} |
+| `TacticsMarket.get_offers()`, `refusal(index, person_id)`, `buy(index, person_id)` | method | Rows {index, kind, price, left, reason}; reasons `supplies`, `sold_out`, `no_wounded`, `no_room`, `closed`; buy returns {ok, reason, person, item} |
 | `TacticsAutoResolve.resolve(campaign) -> Dictionary` | static | {is_won, winner, ticks, hash, units, counts, fortune}; deterministic |
 | `TacticsAutoResolve.start(campaign)`, `advance(max_ticks) -> bool`, `get_result()` | method | The same battle a slice at a time (true when over); `get_alive_counts()`, `get_placed_counts()`, `get_fortune()` while it runs |
 | `TacticsMarket.get_next_patient()` | method | The wounded soldier healing treats next, or {} |
+| `TacticsCampaign.hire_room(roster, catalog, scenario) -> int` | static | Hires a muster of that scenario can place; changes nothing |
 | `TacticsAutoResolve.fortune_pct(seed, limit) -> int` | static | The fortune roll |
 | `TacticsCampaign.apply_auto(result, is_saved)` | method | Wounds, pay, world turn; saves |
 | `TacticsBonds.set_up_battle(battle, roster, data)` | static | Gives a loaded battle the roster's bonds (called by `prepare_battle`) |
@@ -290,7 +295,7 @@ wounds, hires), a version 1 save and a broken world, a save naming
 unknown regions; the horn's heard flag (new pushes, the save); pressure on
 the waves; Auto deterministic, played in slices with the same result,
 its fortune in bounds, no deaths, wounds for one battle, pay on a win only,
-no bonds; markets (prices, stock, every refusal, healing, a hire in the
+no bonds; markets (prices, stock, every refusal, no room for a hire, healing, a hire in the
 next muster, items used up); bonds refused when bad, the attack bonus only
 while close and in the forecast, phase tallies and the same hash on the
 same seed, points capped per battle, levels, and a campaign battle set up

@@ -16,7 +16,8 @@ extends SceneTree
 # one battle (they sit out the next muster), pays the region's supplies on
 # a win only and leaves no marks or bonds. Markets sell at their own
 # prices and stock, refuse without supplies, stock, a wounded soldier or a
-# region of ours, heal, hire (the hire joins the next muster) and sell
+# region of ours, a hire with no room in the next muster, heal, hire (the
+# hire joins the next muster) and sell
 # items, which the next battle uses up. Bonds: the C++ refuses bad bonds,
 # gives a leader the bond's attack while its partner is near (source
 # "bond" in the forecast), tallies the phases leaders end close together,
@@ -66,7 +67,7 @@ func _run() -> bool:
 		_check_data, _check_fresh_world, _check_threat_seeded, _check_win_opens, _check_harden, _check_take_and_defend,
 		_check_new_cycle, _check_save_round_trip, _check_old_save, _check_broken_world, _check_threat_heard, _check_auto_deterministic,
 		_check_auto_in_slices, _check_waves_pressed, _check_unknown_regions,
-		_check_auto_no_permadeath, _check_auto_rewards, _check_market_prices, _check_market_refusals, _check_market_heal,
+		_check_auto_no_permadeath, _check_auto_rewards, _check_market_prices, _check_market_refusals, _check_market_no_room, _check_market_heal,
 		_check_market_hire_joins, _check_items_used, _check_bond_refusals, _check_bond_bonus, _check_bond_tallies,
 		_check_bond_levels, _check_campaign_bonds,
 	]
@@ -433,6 +434,9 @@ func _check_market_refusals() -> bool:
 	if not _expect("no supplies", market.buy(0)["reason"], TacticsMarket.REASON_SUPPLIES):
 		return false
 	roster.supplies = 20
+	# A named soldier leads next battle: room for both hires (see
+	# _check_market_no_room for a full muster).
+	_name(roster.recruit(&"troop.spearman", &""))
 	var stock := region.offers[0].stock
 	for index: int in stock:
 		if not market.buy(0)["ok"]:
@@ -446,6 +450,39 @@ func _check_market_refusals() -> bool:
 	# A new turn restocks.
 	roster.world.finish_region(MISTY, false)
 	return _expect("restocked", market.refusal(0, -1), &"")
+
+
+# A hire past the room the next muster has is refused, so no supply buys
+# a soldier who would never fight; a named soldier leading makes room.
+func _check_market_no_room() -> bool:
+	var roster := _roster(53)
+	roster.world.finish_region(FERRY, true)
+	roster.supplies = 20
+	var market := TacticsMarket.new(roster, _data.get_region(FERRY))
+	var room := TacticsCampaign.hire_room(roster, _catalog, _data.get_region(MISTY).scenario)
+	for index: int in room:
+		if not market.buy(0)["ok"]:
+			push_error("Tactics world test: hire %d of %d was refused" % [index, room])
+			return false
+	var hired := roster.get_hired({})
+	if not (_expect("room for one", room, 1) and _expect("no room left", market.buy(1)["reason"], TacticsMarket.REASON_NO_ROOM) \
+			and _expect("not charged", roster.supplies, 20 - _data.get_region(FERRY).offers[0].price)):
+		return false
+	# Every hire bought is in the next muster.
+	var campaign := _campaign(roster, MISTY)
+	for person: Dictionary in hired:
+		if not campaign.people.any(func(squad: Array) -> bool: return squad.has(person["id"])):
+			push_error("Tactics world test: hire %d is not in the muster %s" % [person["id"], campaign.people])
+			return false
+	var named := _roster(53)
+	_name(named.recruit(&"troop.archer", &""))
+	return _expect("a named leader adds room", TacticsCampaign.hire_room(named, _catalog, _data.get_region(MISTY).scenario), room + _catalog.incident_rules.named_lead_capacity)
+
+
+func _name(person: Dictionary) -> void:
+	for index: int in _catalog.incident_rules.marks_to_name:
+		person["marks"].append({"incident": &"incident.stand", "leader_id": &"", "terrain": &"", "round": 1, "battle": 0})
+	person["is_named"] = true
 
 
 func _check_market_heal() -> bool:

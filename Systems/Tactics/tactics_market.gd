@@ -5,6 +5,7 @@ extends RefCounted
 ## times a world turn; the handler of its kind does the rest: hire a
 ## soldier of a troop (it joins any leader with room at the next muster),
 ## heal a wounded soldier (back in the next muster) or buy a one-use item.
+## A hire is refused when the next muster has no room left for one.
 ## Purchases change the roster; the caller saves it. See
 ## Docs/systems/tactics_world.md.
 ## [codeblock]
@@ -19,16 +20,23 @@ const REASON_SUPPLIES: StringName = &"supplies"
 const REASON_SOLD_OUT: StringName = &"sold_out"
 const REASON_NO_WOUNDED: StringName = &"no_wounded"
 const REASON_CLOSED: StringName = &"closed"
+const REASON_NO_ROOM: StringName = &"no_room"
+const CATALOG_PATH: String = "res://Data/Tactics/tactics_catalog.tres"
 
 var roster: TacticsRoster
 var region: TacticsRegionData
 
+var catalog: TacticsCatalog
+
 var _handlers: Dictionary[StringName, Callable] = {}
+# Hires the next muster can place (see _hire_room()); -1 until asked.
+var _room: int = -1
 
 
-func _init(tactics_roster: TacticsRoster, market_region: TacticsRegionData) -> void:
+func _init(tactics_roster: TacticsRoster, market_region: TacticsRegionData, tactics_catalog: TacticsCatalog = null) -> void:
 	roster = tactics_roster
 	region = market_region
+	catalog = tactics_catalog if tactics_catalog != null else load(CATALOG_PATH) as TacticsCatalog
 	_handlers = {&"offer.hire": _hire, &"offer.heal": _heal, &"offer.item": _buy_item}
 
 
@@ -54,6 +62,8 @@ func refusal(index: int, person_id: int) -> StringName:
 		return REASON_SUPPLIES
 	if offer.kind == &"offer.heal" and _patient(person_id).is_empty():
 		return REASON_NO_WOUNDED
+	if offer.kind == &"offer.hire" and roster.get_hired({}).size() >= _hire_room():
+		return REASON_NO_ROOM
 	return &""
 
 
@@ -79,6 +89,21 @@ func buy(index: int, person_id: int = -1) -> Dictionary:
 ## the most marks (then the lower id); empty when no one is wounded.
 func get_next_patient() -> Dictionary:
 	return _patient(-1)
+
+
+# The most hires the next muster can place, over the regions that can be
+# fought now (all of them when none can): a hire past it would only wait
+# in the roster, paid for and fighting nowhere.
+func _hire_room() -> int:
+	if _room >= 0:
+		return _room
+	var world := roster.world
+	var rooms: Array[int] = []
+	for other: TacticsRegionData in world.data.regions:
+		if other.scenario != null and (world.can_fight(other.id) or world.is_complete()):
+			rooms.append(TacticsCampaign.hire_room(roster, catalog, other.scenario))
+	_room = rooms.max() if not rooms.is_empty() else 0
+	return _room
 
 
 func _left(index: int) -> int:

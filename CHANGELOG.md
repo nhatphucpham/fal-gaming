@@ -28,7 +28,8 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
   loss. The region's card shows both choices and their trade-off.
 - Chiến Dịch: markets in Bến Đò, Thành Cổ and Trạm Ngựa once they are
   yours, each with its own goods, prices and stock per turn: hire
-  soldiers (they join the next muster), heal the wounded (one row: the
+  soldiers (they join the next muster; a hire is refused when every
+  leader is full, so supplies never buy a soldier with no place to fight), heal the wounded (one row: the
   most-marked soldier first, with their face), buy a war drum or herb kit
   for one battle.
 - Chiến Dịch: bonds (Duyên). Leaders who end their phases close together
