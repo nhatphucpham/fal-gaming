@@ -1015,6 +1015,10 @@ func _draw_marks(layer: Control) -> void:
 		var to := cell_to_local(link["to"])
 		canvas.draw_line(from, to, Color(Palette.INK, 0.6), 7.0)
 		canvas.draw_line(from, to, Color(Palette.GOLD, 0.85), 3.5)
+		# A gold ring round each of the two: seen even when they stand side
+		# by side and the tokens hide the cord.
+		for end: Vector2 in [from, to]:
+			canvas.draw_circle(end, CELL_PX * 0.47, Color(Palette.GOLD, 0.9), false, 4.0)
 		var middle := (from + to) / 2.0
 		for index: int in int(link["level"]):
 			canvas.draw_circle(middle + (to - from).normalized() * (index - (int(link["level"]) - 1) / 2.0) * 12.0, 4.5, Palette.VERMILION)

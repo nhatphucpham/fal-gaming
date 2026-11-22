@@ -550,6 +550,8 @@ func _leader_card(slot: int) -> Control:
 	for line: String in bond_lines(slot):
 		var bond := _label(line, 20, Palette.GOLD)
 		bond.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		# A trimmed label keeps one line of height: this one wraps whole.
+		bond.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 		texts.add_child(bond)
 	var is_full := _squads[slot].size() >= _capacities[slot]
 	head.add_child(_label(tr("MUSTER_CAPACITY_FORMAT") % [_squads[slot].size(), _capacities[slot]], 24, Palette.GOLD if is_full else Palette.TEXT))

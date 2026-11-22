@@ -225,9 +225,12 @@ func _build() -> void:
 	_supplies = TacticsViews.label("", 28, Palette.GOLD)
 	_supplies.name = "Supplies"
 	_supplies.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	# Trimmed labels have no width of their own in a row: these never trim.
+	_supplies.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	counters.add_child(_supplies)
 	_held = TacticsViews.label("", 22, Palette.JADE_LIGHT)
 	_held.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_held.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	counters.add_child(_held)
 	_map = TacticsWorldMap.new()
 	_map.name = "WorldMap"
@@ -274,5 +277,7 @@ func _legend() -> Control:
 		swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		swatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(swatch)
-		row.add_child(TacticsViews.label(entry[1], 22, Palette.TEXT))
+		var name := TacticsViews.label(entry[1], 22, Palette.TEXT)
+		name.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+		row.add_child(name)
 	return row
