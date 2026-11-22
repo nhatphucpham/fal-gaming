@@ -1,5 +1,6 @@
 #pragma once
 
+#include "tactics_bonds.h"
 #include "tactics_incidents.h"
 #include "tactics_state.h"
 
@@ -73,6 +74,14 @@ public:
 	// leader's move (Docs/systems/tactics_objectives.md).
 	bool set_objective(const ObjectiveDef &p_objective, std::string *r_error);
 	// Begins round 1 with side A's phase (AI phases run on their own).
+	// Duyên (tactics_bonds.h): after the leaders, before start(). Turns the
+	// bond tallies on, so call it (with no bonds) to count them.
+	bool set_bonds(const BondRules &p_rules, const std::vector<BondDef> &p_bonds, std::string *r_error);
+	bool has_bonds() const { return bonds_enabled; }
+	const BondRules &get_bond_rules() const { return bond_rules; }
+	const std::vector<BondDef> &get_bonds() const { return bonds; }
+	const std::vector<BondTally> &get_bond_tallies() const { return bond_tallies; }
+	std::vector<BondTally> &edit_bond_tallies() { return bond_tallies; }
 	bool start(std::string *r_error);
 
 	// Commands for the active side. False with r_error when refused.
@@ -346,6 +355,10 @@ private:
 	int waves_sent = 0;
 	int supplies[SIDE_COUNT] = { 0, 0 };
 	std::vector<int> met_goals;
+	bool bonds_enabled = false;
+	BondRules bond_rules;
+	std::vector<BondDef> bonds;
+	std::vector<BondTally> bond_tallies;
 
 	bool check_new_leader(int p_side, const UnitDef &p_leader, const std::vector<UnitDef> &p_squad, std::string *r_error) const;
 	bool check_command(int p_unit, std::string *r_error) const;

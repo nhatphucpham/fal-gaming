@@ -58,6 +58,9 @@ Stats TacticsSim::get_stats_at(int p_unit, const Cell &p_cell) const {
 			add_stat_modifier(buff.stat, buff.amount, mods);
 		}
 	}
+	if (bonds_enabled && is_leader(p_unit)) {
+		mods.attack_pct += get_bond_attack_pct(*this, p_unit, p_cell);
+	}
 	Stats stats;
 	// 64 bits: stacked buffs can push the percent high enough to overflow.
 	const int64_t attack = static_cast<int64_t>(unit.def.attack) * at_least(PERCENT + mods.attack_pct, 0) / PERCENT;
@@ -120,6 +123,9 @@ void TacticsSim::collect_stat_sources(int p_unit, StatUse p_use, std::vector<std
 		if (buff.unit == p_unit && does_stat_matter(p_use, mods)) {
 			add_unique_source(r_sources, buff.source_id);
 		}
+	}
+	if (p_use == StatUse::ATTACK && bonds_enabled && is_leader(p_unit) && get_bond_attack_pct(*this, p_unit, unit.cell) != 0) {
+		add_unique_source(r_sources, BOND_SOURCE_ID);
 	}
 	if (p_use == StatUse::DEFENCE && is_on_map(unit.cell) && get_terrain(unit.cell).armor_bonus != 0) {
 		add_unique_source(r_sources, get_terrain(unit.cell).id);

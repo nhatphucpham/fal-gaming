@@ -145,5 +145,14 @@ Dictionary TacticsBattle::get_battle_report() const {
 		units.push_back(entry);
 	}
 	report["units"] = units;
+	Array tallies;
+	for (const tactics::BondTally &tally : sim.get_bond_tallies()) {
+		Dictionary item;
+		item["a"] = tally.unit_a;
+		item["b"] = tally.unit_b;
+		item["phases"] = tally.phases;
+		tallies.push_back(item);
+	}
+	report["bond_tallies"] = tallies;
 	return report;
 }

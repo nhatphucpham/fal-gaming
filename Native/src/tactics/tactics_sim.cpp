@@ -155,6 +155,9 @@ bool TacticsSim::start(std::string *r_error) {
 		return false;
 	}
 	started = true;
+	if (bonds_enabled) {
+		bond_tallies = make_bond_tallies(*this);
+	}
 	Event event;
 	event.type = EventType::BATTLE_STARTED;
 	event.value = static_cast<int>(units.size());
@@ -287,6 +290,9 @@ void TacticsSim::close_phase() {
 			unit.heading_streak = 0;
 		}
 		trigger_skill_charge(*this, unit.index, ChargeTrigger::PHASE_END, unit.has_moved ? 1 : 0, 0);
+	}
+	if (bonds_enabled) {
+		tally_bonds(*this, active_side);
 	}
 	Event event;
 	event.type = EventType::PHASE_ENDED;

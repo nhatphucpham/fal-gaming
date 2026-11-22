@@ -171,6 +171,14 @@ public:
 	// Survivors, deaths, flights, defections and marks so far, for the
 	// roster after the battle.
 	Dictionary get_battle_report() const;
+	// Duyên (tactics_battle_bonds.cpp): p_bonds holds {a, b, level} (leader
+	// unit indexes), p_rules {radius_cells, attack_pct_per_level,
+	// max_level}. After the leaders, before start(); it also turns on the
+	// tallies that get_battle_report() lists under "bond_tallies".
+	bool set_bonds(const Array &p_bonds, const Dictionary &p_rules);
+	// Every bond: {a, b, level, is_active, attack_pct} (is_active: both
+	// alive, on one side and close now).
+	Array get_bonds() const;
 	// Sites and objectives (tactics_battle_sites.cpp).
 	bool can_use_site(int64_t p_unit, int64_t p_site, const StringName &p_choice, int64_t p_option) const;
 	// {site, site_id, cell, choices: [{choice, options, can, reason}]} for

@@ -261,6 +261,24 @@ uint64_t TacticsSim::get_state_hash() const {
 		hash_text(&hash, buff.source_id);
 	}
 	hash_sites(&hash);
+	// Only a battle with bonds set hashes them, so older replays keep theirs.
+	if (bonds_enabled) {
+		hash_value(&hash, bond_rules.radius_cells);
+		hash_value(&hash, bond_rules.attack_pct_per_level);
+		hash_value(&hash, bond_rules.max_level);
+		hash_value(&hash, static_cast<int64_t>(bonds.size()));
+		for (const BondDef &bond : bonds) {
+			hash_value(&hash, bond.unit_a);
+			hash_value(&hash, bond.unit_b);
+			hash_value(&hash, bond.level);
+		}
+		hash_value(&hash, static_cast<int64_t>(bond_tallies.size()));
+		for (const BondTally &tally : bond_tallies) {
+			hash_value(&hash, tally.unit_a);
+			hash_value(&hash, tally.unit_b);
+			hash_value(&hash, tally.phases);
+		}
+	}
 	hash_value(&hash, static_cast<int64_t>(intents.size()));
 	for (const Intent &intent : intents) {
 		hash_value(&hash, intent.site);
