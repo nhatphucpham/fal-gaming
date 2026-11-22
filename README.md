@@ -101,7 +101,8 @@ opens the editor (leave out `editor` to skip that). The tactics tests
 include `tactics_brain_test.gd` (soldiers' and the AI's choices),
 `tactics_vision_test.gd` (fog of war, weather and night),
 `tactics_site_test.gd` (villages, shrines, camps and strongholds),
-`tactics_objective_test.gd` (the five objective kinds and side goals) and
+`tactics_objective_test.gd` (the five objective kinds and side goals),
+`tactics_world_test.gd` (the world map, Auto, markets and bonds) and
 `tactics_feel_test.gd` (zoom, pan, drag, auto end and tap counts). When a setup step fails it
 stops and says how to fix it; failed tests are listed at the end. It finds
 Godot in `C:\Godot`, on `PATH`, or in `Program Files\Godot`, Downloads or
@@ -172,7 +173,8 @@ Git.
   [Boss](Docs/systems/boss.md), [Audio](Docs/systems/audio.md),
   [Voice](Docs/systems/voice.md), [Tactics](Docs/systems/tactics.md),
   [Tactics screen](Docs/systems/tactics_screen.md),
-  [Tactics roster](Docs/systems/tactics_roster.md)
+  [Tactics roster](Docs/systems/tactics_roster.md),
+  [Tactics world](Docs/systems/tactics_world.md)
 - [Changelog](CHANGELOG.md)
 - [Agent instructions](AGENTS.md)
 

@@ -57,10 +57,12 @@ after each command.
   (`Data/Tactics/tactics_catalog.tres`), `UnitView` and `CutsceneBackdrop`
   for the close-up figures and backdrop, `ResultBanner`, `PressButton`,
   `GameTheme`, `Palette`, `Sound`, `TacticsCampaign` and `TacticsRoster`
-  (`Systems/Tactics/`). `Main.open_campaign()` loads the roster, builds a
-  `TacticsCampaign` and opens the muster screen from the title's "Chiến
-  Dịch" button; `Main.open_tactics()` opens
-  the battle.
+  (`Systems/Tactics/`). `Main.open_campaign()` opens the world map
+  (`TacticsWorldScreen`, see [Tactics world](tactics_world.md)) from the
+  title's "Chiến Dịch" button; a region's "Thủ công" calls
+  `Main.open_muster(region_id, items)`, which loads the roster, builds a
+  `TacticsCampaign` with the region's plan and opens the muster screen;
+  `Main.open_tactics()` opens the battle.
 
 ## Data
 
@@ -218,10 +220,18 @@ to the first one.
 
 Campaign flow: muster (roster soldiers fill the squads; named soldiers are
 extra leaders of ours, returning traitors extra enemy leaders) → battle →
-summary (also after a retreat) → "Tiếp tục" back to the muster. The
-campaign takes the catalog's scenarios in turn, one per battle fought:
-the river crossing, the night raid, the city defense, the supply road and
-the broken ring, then the river again.
+summary (also after a retreat) → "Tiếp tục" back to the world map, where
+the region just fought rings once. The player picks the next region; each
+holds one of the five scenarios (see [Tactics world](tactics_world.md)).
+The muster's "Về" goes back to the world map too. The muster shows the
+region's pressure, the items used and how many sit out wounded, and each
+leader card its bonds (Duyên). On the map, bonded leaders standing close
+are joined by a gold cord with a knot per level and a gold ring each
+(`TacticsMapView.set_bond_links()`, drawn in the marks layer's one mesh);
+when a bond turns on, "Duyên +x%" floats up and `formation_on` plays. The
+summary shows a bond level-up as a card (the two, an animated cord, the
+new bonus and a line one says to the other, with `level_up`), the bonds'
+points and what the battle changed on the world map.
 
 Fog, weather and night (see [Tactics vision](tactics_vision.md)):
 
@@ -557,11 +567,13 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   an enemy in the view's outer row strikes it without the camera moving,
   and after a one-step move a double tap on an enemy walks there within
   the points left and strikes.
-- `Tests/muster_test.gd`: Main's title "Chiến Dịch" to the muster screen,
+- `Tests/muster_test.gd`: Main's title "Chiến Dịch" to the world map, a
+  region's card and its "Thủ công" to the muster screen,
   squads and capacities, a soldier moved and one refused, "Xuất quân" to the
   tactics screen with those squads, a double "Rút" to the summary (the
-  roster then counts one battle), "Tiếp tục" back to the muster and "Về"
-  to the title;
+  roster then counts one battle), "Tiếp tục" back to the world map and the
+  region's muster again, its "Về" to the world map and the map's "Về" to
+  the title;
   then, with touch emulated, taps on a chip and a leader card move a
   soldier, and drags that start on a card or a chip scroll the page
   without picking or moving anyone; last, with a roster holding marks, a

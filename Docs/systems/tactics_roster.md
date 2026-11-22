@@ -9,7 +9,9 @@ soldier with three marks gets a name and a biography and leads a small
 squad of its own. A deserter or traitor with two marks comes back as an
 enemy leader the next time `river_crossing` is played. The roster does not
 decide what happens in a battle; the [Tactics](tactics.md) simulation
-does, and the roster reads its end-of-battle report.
+does, and the roster reads its end-of-battle report. The roster also
+keeps the world map's state, the bonds between our leaders and the
+one-use items (see [Tactics world](tactics_world.md)).
 
 ## Layer and files
 
@@ -32,7 +34,8 @@ does, and the roster reads its end-of-battle report.
 ## Data
 
 Save file `user://tactics_roster.json` (`TacticsRoster.path`; tests set
-their own), `version` 1. A save writes the whole file to `<path>.tmp` and
+their own), `version` 2 (a version 1 save loads: a fresh world, no bonds,
+items, wounds or hires). A save writes the whole file to `<path>.tmp` and
 renames it over the roster, so a crash or a full disk mid-save leaves the
 last good roster; `save()` returns false and warns when it cannot. A wrong
 version or a broken file is warned about once, moved aside to
@@ -47,11 +50,18 @@ the next battle) and replaced by an empty roster.
 | `karma_bait`, `karma_rescue` | Karma carried into the next battle |
 | `supplies` | Supplies (lương) won in battle, spent at the muster; optional, a save without it reads as 0, a negative one is unreadable |
 | `troop_counts` | Per troop id, how many were recruited: a person's `number` |
-| `people` | `[{id, troop, number, look, status, first_leader, is_named, marks}]` |
+| `people` | `[{id, troop, number, look, status, first_leader, is_named, marks, rest_until, is_hired}]` |
+| `world` | The world map: `{cleared, pressure, threat, turn, cycle, sold, has_threat}` (`TacticsWorld`); optional |
+| `bonds` | `[{a, b, points}]`: bond points between two leader ids, `a` before `b`; optional |
+| `items` | Item id to count in store; optional |
 
 `status` is one of `active`, `dead`, `deserted` or `traitor`. `marks` is a
 list of `{incident, leader_id, terrain, round, battle}`. `look` is the
-face seed, spread from the roster seed and the id.
+face seed, spread from the roster seed and the id. `rest_until` (optional,
+0): a soldier wounded in Auto sits out while `battles` is below it (the
+muster, `find_soldiers` and `get_named` leave it out). `is_hired`
+(optional, false): bought at a market; it joins any leader with room at the
+next muster.
 
 The roster numbers come from `TacticsIncidentRulesData`
 (`Data/Tactics/Incidents/incident_rules.tres`):
@@ -142,10 +152,12 @@ The roster numbers come from `TacticsIncidentRulesData`
 | `recruit(troop_id, leader_id) -> Dictionary` | method | A new active person |
 | `get_person(id)`, `find_soldiers(troop_id, taken)`, `get_named()`, `get_returning(min_marks)` | method | Lookups |
 | `TacticsRoster.main_incident(person)` | static | The incident most of its marks name |
-| `TacticsCampaign.new(roster, catalog, scenario)` | constructor | Builds `scenario`, `squads`, `people`, `leader_people`, `enemy_people`, `runtime_leaders` |
+| `get_wounded()`, `get_hired(taken)`, `is_resting(person)`, `get_item_count(id)` | method | Wounds, market hires, items |
+| `TacticsCampaign.new(roster, catalog, scenario, plan = {})` | constructor | Builds `scenario`, `squads`, `people`, `leader_people`, `enemy_people`, `runtime_leaders`; `plan` from the world map: `region`, `enemy_power_pct` (the enemy's hp and attack %), `items` (held items to use). A null `scenario` builds nothing (names and sheets only) |
+| `apply_auto(result, is_saved = true)`, `finish_region(is_won)` | method | An Auto battle written back (wounds, pay, the world turn); the world turn of any battle. See [Tactics world](tactics_world.md) |
 | `prepare_battle(battle, people) -> bool` | method | Rules, karma, records (and `forced_seeds`, for tests and stills) |
 | `finish_battle(battle, people, is_saved = true) -> Dictionary` | method | `apply_report` on the battle's report, then save |
-| `apply_report(report, unit_to_person) -> Dictionary` | method | The summary: `is_finished`, `winner`, `reason`, `round`, `rows` (`[{id, unit, status, has_defected, start_side, role, marks, is_named_now, before, after}]`), `named` (ids), `karma` (`bait`, `rescue`, `next_bait`, `next_rescue`), `supplies`, `supplies_total`, `goals` (`[{kind, value, supplies, is_met}]`); rows also carry `is_recruit` |
+| `apply_report(report, unit_to_person) -> Dictionary` | method | The summary: `is_finished`, `winner`, `reason`, `round`, `rows` (`[{id, unit, status, has_defected, start_side, role, marks, is_named_now, before, after}]`), `named` (ids), `karma` (`bait`, `rescue`, `next_bait`, `next_rescue`), `supplies`, `supplies_total`, `goals` (`[{kind, value, supplies, is_met}]`), `bonds` (rows of `TacticsBonds.apply_tallies`), `world` (`TacticsWorld.finish_region`, empty outside the world map), `mode`; rows also carry `is_recruit` |
 | `can_hire_reserve() -> bool`, `hire_reserve(leader_id) -> int` | method | Whether the roster can pay for the scenario's reserve soldier; buy one (its person id, -1 when refused) |
 | `make_leader(person) -> TacticsLeaderData` | method | A person as a leader |
 | `fill_text(text)` | method | Registers runtime leaders and named soldiers' names on a `TacticsText` |
@@ -167,7 +179,9 @@ None. A save that cannot be read or written is reported once with
   `_read()` must then accept the old version and convert it, because an
   unknown version is set aside and the player starts an empty roster.
 - A second scenario: build a `TacticsCampaign` with it; spare spawn cells
-  decide how many named and returning leaders fit.
+  decide how many named and returning leaders fit. The world map picks the
+  scenario from its region (`TacticsCampaign.next_scenario()` is no longer
+  used by Main).
 
 ## Tests
 
@@ -198,6 +212,8 @@ None. A save that cannot be read or written is reported once with
 - A village recruit joins unless it fell; supplies and side goals in the
   summary; a reserve soldier is paid for and refused without supplies.
 
+`Tests/tactics_world_test.gd` covers the version 2 fields, a version 1
+save and a broken world (see [Tactics world](tactics_world.md)).
 `Tests/muster_test.gd` retreats through the summary into the roster, and
 on every scenario checks the objective text, the supplies, a hire and the
 summary's goals.
