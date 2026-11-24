@@ -137,9 +137,19 @@ How the pieces of this round work:
 - `RunLayout` hides and stops the panel it slid away.
 - `CutsceneBackdrop` draws its painting once; only the mist and the camp
   fire redraw.
+- Shapes are recorded into one triangle array per canvas item
+  (`MeshCanvas`, `UI/mesh_canvas.gd`), since the GL Compatibility
+  renderer gives every polygon, line, arc and circle its own draw call
+  (only rects batch): a unit's ring, hp and Khí bars and star pips (drawn
+  by its `UnitBar`), the formation outlines, every `IconPainter` icon, the
+  shop card's portrait frame and hints, the synergy bar's shapes, the
+  timer, boss and sound badges, battle effects (`BattleFx`, `SkillFx`)
+  and skill marks (`SkillOverlay`). Text still goes to the canvas: a
+  painter that draws both commits its shapes before its text, or draws
+  text last where nothing overlaps (the synergy bar).
 - The tactics map's tokens and layers (sites, marks, zones, intents)
   record their shapes into one triangle array each
-  (`TacticsMeshCanvas`): a token is one draw call instead of 7 to 12.
+  (`MeshCanvas`): a token is one draw call instead of 7 to 12.
 - On the web the tactics screen is bound by pixels filled, not by draw
   calls: no full-screen fill sits under the board or the bottom panel
   (only the panel's rounded corners have a strip behind them), so each
@@ -217,7 +227,8 @@ a second at most there); the headless changed-frames share stands in.
   - Move `RigPainter.paint` and `RigSolver.solve` to C++: drawing one
     figure costs 0.35-1 ms of GDScript per redraw, and a battle has about
     370 figure redraws a second.
-  - Fewer draw calls per `UnitView` (11-13 now: ring, bars, pips, marks),
-    the board cells as one mesh, battle effects in one layer.
+  - Text: each label and drawn string is its own draw call or two
+    (outline, fill), and text between shapes splits batches; the shop
+    cards still cost about 11 draw calls each.
   - A battery-saver setting (for example 30 fps in battle, no idle
     breathing).

@@ -30,6 +30,9 @@ var _is_previewing: bool = false
 var _ring_scale: float = 1.0
 var _bounce_tween: Tween
 var _chip_box: StyleBoxFlat
+# The shapes and the deferred text of the draw in progress.
+var _mesh: MeshCanvas
+var _texts: Array[Callable] = []
 
 
 func _init() -> void:
@@ -103,7 +106,12 @@ func _gui_input(event: InputEvent) -> void:
 		opened.emit()
 
 
+# Chip boxes draw at once, shapes go into one triangle array and the text
+# goes last: a box, its shapes and its words never cover another chip's,
+# so the order between chips does not matter (see MeshCanvas).
 func _draw() -> void:
+	_mesh = MeshCanvas.new()
+	_texts.clear()
 	var font := get_theme_default_font()
 	var middle := size.y / 2.0
 	var x := _draw_ring(font, Vector2(RING_RADIUS_PX + 4.0, middle))
@@ -112,18 +120,22 @@ func _draw() -> void:
 	for entry: Dictionary in formations.slice(0, MAX_CHIPS):
 		x = _draw_chip(font, entry["id"], x + GAP_PX, middle)
 	_draw_pill(font, x + GAP_PX, middle, get_more_count())
+	_mesh.commit(get_canvas_item())
+	for text: Callable in _texts:
+		text.call()
+	_texts.clear()
 
 
 # The ring, and in a preview the "5 → 7" beside it. Returns the right edge.
 func _draw_ring(font: Font, center: Vector2) -> float:
 	var points: int = _result.get("hop_luc", 0)
 	var radius := RING_RADIUS_PX * _ring_scale
-	draw_circle(center, radius + 3.0, Palette.INK)
-	draw_circle(center, radius, Palette.PANEL)
-	draw_arc(center, radius - 2.0, 0.0, TAU, 32, Color(Palette.GOLD, 0.25), 3.0, true)
+	_mesh.draw_circle(center, radius + 3.0, Palette.INK)
+	_mesh.draw_circle(center, radius, Palette.PANEL)
+	_mesh.draw_arc(center, radius - 2.0, 0.0, TAU, 32, Color(Palette.GOLD, 0.25), 3.0, true)
 	var share := _tier_share(points)
 	if share > 0.0:
-		draw_arc(center, radius - 2.0, -PI / 2.0, -PI / 2.0 + TAU * share, 32, Palette.GOLD, 3.5, true)
+		_mesh.draw_arc(center, radius - 2.0, -PI / 2.0, -PI / 2.0 + TAU * share, 32, Palette.GOLD, 3.5, true)
 	var size_px := int(RING_FONT_SIZE * _ring_scale)
 	_draw_centered(font, str(points), center, size_px, Palette.CREAM)
 	var right := center.x + RING_RADIUS_PX + 3.0
@@ -134,8 +146,8 @@ func _draw_ring(font: Font, center: Vector2) -> float:
 	var text := "→ %d" % after
 	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, RING_FONT_SIZE).x
 	var origin := Vector2(right + 6.0, center.y + RING_FONT_SIZE * 0.35)
-	draw_string_outline(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1, RING_FONT_SIZE, 6, Palette.INK)
-	draw_string(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1, RING_FONT_SIZE, color)
+	_texts.append(draw_string_outline.bind(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1, RING_FONT_SIZE, 6, Palette.INK))
+	_texts.append(draw_string.bind(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1, RING_FONT_SIZE, color))
 	return right + 6.0 + width
 
 
@@ -148,9 +160,9 @@ func _draw_chip(font: Font, id: StringName, left: float, middle: float) -> float
 	var rect := Rect2(left, middle - CHIP_HEIGHT_PX / 2.0, text_width + 40.0, CHIP_HEIGHT_PX)
 	_chip_box.border_color = color
 	_chip_box.draw(get_canvas_item(), rect)
-	draw_circle(Vector2(left + 16.0, middle), 7.0, Palette.INK)
-	draw_circle(Vector2(left + 16.0, middle), 5.0, color)
-	draw_string(font, Vector2(left + 28.0, middle + CHIP_FONT_SIZE * 0.35), label, HORIZONTAL_ALIGNMENT_LEFT, text_width, CHIP_FONT_SIZE, Palette.TEXT)
+	_mesh.draw_circle(Vector2(left + 16.0, middle), 7.0, Palette.INK)
+	_mesh.draw_circle(Vector2(left + 16.0, middle), 5.0, color)
+	_texts.append(draw_string.bind(font, Vector2(left + 28.0, middle + CHIP_FONT_SIZE * 0.35), label, HORIZONTAL_ALIGNMENT_LEFT, text_width, CHIP_FONT_SIZE, Palette.TEXT))
 	return rect.end.x
 
 
@@ -163,14 +175,14 @@ func _draw_pill(font: Font, left: float, middle: float, more: int) -> void:
 		_draw_centered(font, "+%d" % more, rect.get_center(), CHIP_FONT_SIZE + 2, Palette.GOLD)
 		return
 	for dot: int in 3:
-		draw_circle(rect.get_center() + Vector2((dot - 1) * 9.0, 0.0), 3.0, Palette.TEXT_DIM)
+		_mesh.draw_circle(rect.get_center() + Vector2((dot - 1) * 9.0, 0.0), 3.0, Palette.TEXT_DIM)
 
 
 func _draw_centered(font: Font, text: String, center: Vector2, size_px: int, color: Color) -> void:
 	var width := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px).x
 	var origin := center + Vector2(-width / 2.0, size_px * 0.35)
-	draw_string_outline(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px, 6, Palette.INK)
-	draw_string(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px, color)
+	_texts.append(draw_string_outline.bind(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px, 6, Palette.INK))
+	_texts.append(draw_string.bind(font, origin, text, HORIZONTAL_ALIGNMENT_LEFT, -1, size_px, color))
 
 
 # How far `points` is from the tier reached to the next one, 0..1.

@@ -62,10 +62,12 @@ func _show(seconds: int, total: int) -> void:
 	queue_redraw()
 
 
+# One triangle array: one draw call (see MeshCanvas).
 func _draw() -> void:
+	var mesh := MeshCanvas.new()
 	var center := size / 2.0
-	draw_circle(center, RING_RADIUS_PX + 4.0, Palette.INK)
-	draw_circle(center, RING_RADIUS_PX, Palette.INDIGO_DARK if _is_battle else Palette.PANEL)
+	mesh.draw_circle(center, RING_RADIUS_PX + 4.0, Palette.INK)
+	mesh.draw_circle(center, RING_RADIUS_PX, Palette.INDIGO_DARK if _is_battle else Palette.PANEL)
 	var share := clampf(float(_seconds) / _total, 0.0, 1.0)
 	var color := Palette.GOLD
 	if _is_battle:
@@ -73,15 +75,16 @@ func _draw() -> void:
 	elif _seconds <= warn_from_sec:
 		color = Palette.VERMILION
 	if share > 0.0:
-		draw_arc(center, RING_RADIUS_PX - 3.0, -PI / 2.0, -PI / 2.0 + TAU * share, 40, color, 5.0, true)
+		mesh.draw_arc(center, RING_RADIUS_PX - 3.0, -PI / 2.0, -PI / 2.0 + TAU * share, 40, color, 5.0, true)
 	if _is_battle:
-		_draw_swords(center + Vector2(RING_RADIUS_PX - 5.0, RING_RADIUS_PX - 9.0))
+		_draw_swords(mesh, center + Vector2(RING_RADIUS_PX - 5.0, RING_RADIUS_PX - 9.0))
+	mesh.commit(get_canvas_item())
 
 
 # Two crossed swords on a small ink disc, at the badge's lower right.
-func _draw_swords(at: Vector2) -> void:
-	draw_circle(at, SWORDS_RADIUS_PX, Palette.INK)
-	draw_circle(at, SWORDS_RADIUS_PX - 2.0, Palette.VERMILION_DARK)
+func _draw_swords(mesh: MeshCanvas, at: Vector2) -> void:
+	mesh.draw_circle(at, SWORDS_RADIUS_PX, Palette.INK)
+	mesh.draw_circle(at, SWORDS_RADIUS_PX - 2.0, Palette.VERMILION_DARK)
 	var reach := SWORDS_RADIUS_PX - 5.5
 	for side: float in [-1.0, 1.0]:
 		var tip := at + Vector2(side * reach, -reach)
@@ -89,9 +92,9 @@ func _draw_swords(at: Vector2) -> void:
 		var along := (tip - pommel).normalized()
 		var guard := pommel + along * 4.0
 		var across := Vector2(-along.y, along.x) * 3.5
-		draw_line(guard, tip, Palette.STEEL, 3.0, true)
-		draw_line(guard - across, guard + across, Palette.GOLD, 2.0, true)
-		draw_line(pommel, guard, Palette.WOOD, 2.0, true)
+		mesh.draw_line(guard, tip, Palette.STEEL, 3.0, true)
+		mesh.draw_line(guard - across, guard + across, Palette.GOLD, 2.0, true)
+		mesh.draw_line(pommel, guard, Palette.WOOD, 2.0, true)
 
 
 func _pulse() -> void:

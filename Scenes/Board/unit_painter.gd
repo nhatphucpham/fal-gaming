@@ -104,9 +104,11 @@ static func view_of(facing: int) -> StringName:
 	return RigSolver.VIEW_BACK if facing == FACING_UP else RigSolver.VIEW_FRONT
 
 
-## Draws `count` star pips (gold diamonds) in a row centred on `center`.
+## Draws `count` star pips (gold diamonds) in a row centred on `center`,
+## on a CanvasItem (one draw call) or into a MeshCanvas.
 ## Stars are always drawn, never typed: the default font has no star glyph.
-static func draw_star_pips(canvas: CanvasItem, center: Vector2, count: int, radius: float = 4.5) -> void:
+static func draw_star_pips(canvas: Object, center: Vector2, count: int, radius: float = 4.5) -> void:
+	var mesh := MeshCanvas.open(canvas)
 	var spacing := radius * 2.2
 	for index: int in count:
 		var pip_center := center + Vector2((index - (count - 1) / 2.0) * spacing, 0.0)
@@ -114,25 +116,27 @@ static func draw_star_pips(canvas: CanvasItem, center: Vector2, count: int, radi
 			pip_center + Vector2(0, -radius), pip_center + Vector2(radius, 0),
 			pip_center + Vector2(0, radius), pip_center + Vector2(-radius, 0),
 		])
-		canvas.draw_colored_polygon(pip, Palette.GOLD)
+		mesh.draw_colored_polygon(pip, Palette.GOLD)
 		pip.append(pip[0])
-		canvas.draw_polyline(pip, Palette.INK, maxf(1.5, radius / 3.0), true)
+		mesh.draw_polyline(pip, Palette.INK, maxf(1.5, radius / 3.0), true)
+	mesh.finish(canvas)
 
 
 ## Draws the base ring under a unit's feet at `center` (`radius` for its
 ## two half axes), and a puff of dust spreading out with `dust` in 0..1
-## (none at 0 or 1).
-static func draw_ring(canvas: CanvasItem, center: Vector2, radius: Vector2, color: Color, dust: float) -> void:
+## (none at 0 or 1), on a CanvasItem (one draw call) or into a MeshCanvas.
+static func draw_ring(canvas: Object, center: Vector2, radius: Vector2, color: Color, dust: float) -> void:
+	var mesh := MeshCanvas.open(canvas)
 	var ring := FigureBrush.ellipse(center, radius.x, radius.y, 20)
-	canvas.draw_colored_polygon(ring, Color(color, 0.35))
+	mesh.draw_colored_polygon(ring, Color(color, 0.35))
 	ring.append(ring[0])
-	canvas.draw_polyline(ring, color, 2.5, true)
-	if dust <= 0.0 or dust >= 1.0:
-		return
-	for index: int in 6:
-		var angle := TAU * index / 6.0 + 0.4
-		var offset := Vector2(cos(angle) * (10.0 + 26.0 * dust), sin(angle) * (4.0 + 8.0 * dust))
-		canvas.draw_circle(center + offset, 5.0 * (1.0 - dust * 0.5), Color(Palette.PAPER_DARK, (1.0 - dust) * 0.9))
+	mesh.draw_polyline(ring, color, 2.5, true)
+	if dust > 0.0 and dust < 1.0:
+		for index: int in 6:
+			var angle := TAU * index / 6.0 + 0.4
+			var offset := Vector2(cos(angle) * (10.0 + 26.0 * dust), sin(angle) * (4.0 + 8.0 * dust))
+			mesh.draw_circle(center + offset, 5.0 * (1.0 - dust * 0.5), Color(Palette.PAPER_DARK, (1.0 - dust) * 0.9))
+	mesh.finish(canvas)
 
 
 ## Draws the upper body centred on `center`, seen from the front, for portraits.

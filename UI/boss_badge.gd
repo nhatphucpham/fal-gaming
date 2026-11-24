@@ -29,10 +29,12 @@ func set_urgent(is_urgent: bool) -> void:
 
 
 func _draw() -> void:
+	var mesh := MeshCanvas.new()
 	# A boulder face: grey stone, ember eyes.
 	var center := Vector2(26.0, size.y / 2.0)
-	draw_circle(center, 15.0, Palette.INK)
-	draw_circle(center, 13.0, ExtraFigures.STONE)
-	draw_circle(center + Vector2(-5, -2), 2.4, ExtraFigures.EMBER)
-	draw_circle(center + Vector2(5, -2), 2.4, ExtraFigures.EMBER)
-	draw_line(center + Vector2(-5, 6), center + Vector2(5, 6), Palette.INK, 2.0)
+	mesh.draw_circle(center, 15.0, Palette.INK)
+	mesh.draw_circle(center, 13.0, ExtraFigures.STONE)
+	mesh.draw_circle(center + Vector2(-5, -2), 2.4, ExtraFigures.EMBER)
+	mesh.draw_circle(center + Vector2(5, -2), 2.4, ExtraFigures.EMBER)
+	mesh.draw_line(center + Vector2(-5, 6), center + Vector2(5, 6), Palette.INK, 2.0)
+	mesh.commit(get_canvas_item())

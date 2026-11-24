@@ -219,17 +219,20 @@ func is_animating() -> bool:
 	return _was_animating or _was_stamping
 
 
+# All outlines go into one triangle array: one draw call (see MeshCanvas).
 func _draw() -> void:
+	var mesh := MeshCanvas.new()
 	for side: int in 2:
 		for outline: Dictionary in _by_side[side]:
 			if outline["is_near"] and is_battle:
 				continue
 			if outline["broken_at"] >= 0.0:
-				_draw_shards(outline)
+				_draw_shards(mesh, outline)
 			elif outline["is_near"]:
-				_draw_near(outline)
+				_draw_near(mesh, outline)
 			else:
-				_draw_active(outline)
+				_draw_active(mesh, outline)
+	mesh.commit(get_canvas_item())
 
 
 func _draw_stamps() -> void:
@@ -238,40 +241,40 @@ func _draw_stamps() -> void:
 			_draw_stamp(outline)
 
 
-func _draw_active(outline: Dictionary) -> void:
+func _draw_active(mesh: MeshCanvas, outline: Dictionary) -> void:
 	var color: Color = outline["color"]
 	var flash := _pulse(outline["flash_at"], ROLL_CALL_SEC)
 	var alpha := clampf(_alpha + flash, 0.0, 1.0)
 	for loop: PackedVector2Array in outline["loops"]:
-		draw_colored_polygon(loop.slice(0, loop.size() - 1), Color(color, (0.12 + 0.2 * flash) * alpha))
-		draw_polyline(loop, Color(color, 0.3 * alpha), 10.0 + 6.0 * flash, true)
-		draw_polyline(loop, Color(Palette.INK, 0.7 * alpha), 5.0, true)
-		draw_polyline(loop, Color(color.lightened(0.3 * flash), alpha), 3.0, true)
+		mesh.draw_colored_polygon(loop.slice(0, loop.size() - 1), Color(color, (0.12 + 0.2 * flash) * alpha))
+		mesh.draw_polyline(loop, Color(color, 0.3 * alpha), 10.0 + 6.0 * flash, true)
+		mesh.draw_polyline(loop, Color(Palette.INK, 0.7 * alpha), 5.0, true)
+		mesh.draw_polyline(loop, Color(color.lightened(0.3 * flash), alpha), 3.0, true)
 		var run_at: float = outline["run_at"]
 		var run: float = (_time - run_at) / RUN_SEC
 		if run_at >= 0.0 and run < 1.0:
-			_draw_light(loop, run)
+			_draw_light(mesh, loop, run)
 
 
-func _draw_near(outline: Dictionary) -> void:
+func _draw_near(mesh: MeshCanvas, outline: Dictionary) -> void:
 	var color: Color = outline["color"]
 	var breath := 0.6 + 0.25 * sin(_time * 3.0)
 	for loop: PackedVector2Array in outline["loops"]:
 		for index: int in loop.size() - 1:
-			draw_dashed_line(loop[index], loop[index + 1], Color(color, breath), 3.0, 10.0, true, true)
+			mesh.draw_dashed_line(loop[index], loop[index + 1], Color(color, breath), 3.0, 10.0, true, true)
 	if outline["ghost"] == null:
 		return
 	var center: Vector2 = outline["ghost"]
 	var ghost_class: StringName = outline["ghost_class"]
 	var ghost_color := Palette.class_color(ghost_class) if ghost_class != &"" else Palette.CREAM
-	draw_circle(center, 24.0, Color(ghost_color, 0.22 * breath))
-	draw_arc(center, 24.0, 0.0, TAU, 24, Color(ghost_color, breath), 2.5, true)
-	draw_line(center + Vector2(-9, 0), center + Vector2(9, 0), Color(Palette.INK, breath), 4.0, true)
-	draw_line(center + Vector2(0, -9), center + Vector2(0, 9), Color(Palette.INK, breath), 4.0, true)
+	mesh.draw_circle(center, 24.0, Color(ghost_color, 0.22 * breath))
+	mesh.draw_arc(center, 24.0, 0.0, TAU, 24, Color(ghost_color, breath), 2.5, true)
+	mesh.draw_line(center + Vector2(-9, 0), center + Vector2(9, 0), Color(Palette.INK, breath), 4.0, true)
+	mesh.draw_line(center + Vector2(0, -9), center + Vector2(0, 9), Color(Palette.INK, breath), 4.0, true)
 
 
 # The outline's edges fly apart from its centre and fade.
-func _draw_shards(outline: Dictionary) -> void:
+func _draw_shards(mesh: MeshCanvas, outline: Dictionary) -> void:
 	var broken_at: float = outline["broken_at"]
 	var progress: float = (_time - broken_at) / SHATTER_SEC
 	var color: Color = outline["color"]
@@ -282,17 +285,17 @@ func _draw_shards(outline: Dictionary) -> void:
 			var push: Vector2 = (middle - center).normalized() * 40.0 * progress
 			var turn: float = 0.6 * progress * (1.0 if index % 2 == 0 else -1.0)
 			var half: Vector2 = (loop[index + 1] - loop[index]).rotated(turn) * 0.5 * (1.0 - 0.4 * progress)
-			draw_line(middle + push - half, middle + push + half, Color(color, 1.0 - progress), 3.0, true)
+			mesh.draw_line(middle + push - half, middle + push + half, Color(color, 1.0 - progress), 3.0, true)
 
 
 # A bright stretch of line travelling once around the loop.
-func _draw_light(loop: PackedVector2Array, progress: float) -> void:
+func _draw_light(mesh: MeshCanvas, loop: PackedVector2Array, progress: float) -> void:
 	var length := OutlineGeometry.length_of(loop)
 	var head := progress * length
 	var points := PackedVector2Array()
 	for step: int in 9:
 		points.append(OutlineGeometry.point_at(loop, fposmod(head - LIGHT_PX * step / 8.0, length)))
-	draw_polyline(points, Palette.CREAM, 5.0, true)
+	mesh.draw_polyline(points, Palette.CREAM, 5.0, true)
 
 
 func _draw_stamp(outline: Dictionary) -> void:

@@ -5,7 +5,7 @@ extends Control
 ## jade, the enemy's red, out of reach grey, the home gold). The region the
 ## enemy declared it will press next has a red ring and a war flag; red
 ## diamonds under a node count its pressure; a gold stall marks a market.
-## All shapes go into one triangle array (TacticsMeshCanvas), names after.
+## All shapes go into one triangle array (MeshCanvas), names after.
 ## It redraws only when the state changes, the selection moves or a pulse
 ## plays (a changed region rings out once); an idle map draws nothing.
 ## [codeblock]
@@ -106,7 +106,7 @@ func _draw() -> void:
 	draw_count += 1
 	if world == null:
 		return
-	var canvas := TacticsMeshCanvas.new()
+	var canvas := MeshCanvas.new()
 	_draw_roads(canvas)
 	var threat := world.get_threat()
 	for region: TacticsRegionData in world.data.regions:
@@ -124,7 +124,7 @@ func _draw() -> void:
 		draw_string(font, at, label, HORIZONTAL_ALIGNMENT_LEFT, -1, NAME_FONT_PX, Palette.CREAM if world.get_state(region.id) != TacticsWorld.STATE_LOCKED else Palette.TEXT_DIM)
 
 
-func _draw_roads(canvas: TacticsMeshCanvas) -> void:
+func _draw_roads(canvas: MeshCanvas) -> void:
 	var drawn := {}
 	for region: TacticsRegionData in world.data.regions:
 		for other: StringName in world.get_neighbours(region.id):
@@ -143,7 +143,7 @@ func _is_held(id: StringName) -> bool:
 	return state == TacticsWorld.STATE_OURS or state == TacticsWorld.STATE_HOME
 
 
-func _draw_node(canvas: TacticsMeshCanvas, region: TacticsRegionData, is_threat: bool) -> void:
+func _draw_node(canvas: MeshCanvas, region: TacticsRegionData, is_threat: bool) -> void:
 	var c := get_node_center(region.id)
 	var state := world.get_state(region.id)
 	var r := NODE_RADIUS_PX
@@ -170,7 +170,7 @@ func _draw_node(canvas: TacticsMeshCanvas, region: TacticsRegionData, is_threat:
 
 # The home's banner, a crossed pair of blades on the enemy's, a jade check
 # on ours, a lock out of reach.
-func _draw_symbol(canvas: TacticsMeshCanvas, c: Vector2, state: StringName) -> void:
+func _draw_symbol(canvas: MeshCanvas, c: Vector2, state: StringName) -> void:
 	var r := NODE_RADIUS_PX * 0.42
 	match state:
 		TacticsWorld.STATE_HOME:
@@ -186,12 +186,12 @@ func _draw_symbol(canvas: TacticsMeshCanvas, c: Vector2, state: StringName) -> v
 			canvas.draw_arc(c + Vector2(0, -r * 0.1), r * 0.42, PI, TAU, 12, Palette.TEXT_DIM, 4.0)
 
 
-func _draw_flag(canvas: TacticsMeshCanvas, at: Vector2) -> void:
+func _draw_flag(canvas: MeshCanvas, at: Vector2) -> void:
 	canvas.draw_line(at, at + Vector2(0, -34), Palette.INK, 5.0)
 	canvas.draw_colored_polygon(PackedVector2Array([at + Vector2(0, -34), at + Vector2(26, -26), at + Vector2(0, -16)]), Palette.VERMILION)
 
 
-func _draw_stall(canvas: TacticsMeshCanvas, at: Vector2) -> void:
+func _draw_stall(canvas: MeshCanvas, at: Vector2) -> void:
 	canvas.draw_circle(at, 17.0, Palette.INK)
 	canvas.draw_circle(at, 14.0, Palette.GOLD)
 	canvas.draw_colored_polygon(PackedVector2Array([at + Vector2(-9, -2), at + Vector2(0, -9), at + Vector2(9, -2)]), Palette.VERMILION)

@@ -1,14 +1,17 @@
-class_name TacticsMeshCanvas
+class_name MeshCanvas
 extends RefCounted
 ## Records flat shapes the way a CanvasItem draws them (the draw_* calls
-## TacticsPainter uses) into one triangle array, then adds it to a canvas
+## the painters use: TacticsPainter, UnitPainter, IconPainter, the board's
+## and the HUD's own) into one triangle array, then adds it to a canvas
 ## item as a single command: a token that took 7 to 12 draw calls (each
-## polygon, polyline and circle its own) costs one. Lines and outlines are
+## polygon, polyline and circle its own) costs one. The GL Compatibility
+## renderer batches rects but not polygons, lines or circles, and draw
+## calls cost most on phones and in WebGL. Lines and outlines are
 ## thick strips with mitred corners; an antialiased one gets a 1-px soft
 ## edge. Shapes keep their order, so later ones paint over earlier ones.
 ## [codeblock]
 ## func _draw() -> void:
-## 	var mesh := TacticsMeshCanvas.new()
+## 	var mesh := MeshCanvas.new()
 ## 	TacticsPainter.draw_token(mesh, Vector2.ZERO, 0, true, &"class.sword", false)
 ## 	mesh.commit(get_canvas_item())
 ## [/codeblock]
@@ -20,6 +23,21 @@ const FEATHER_PX: float = 1.0
 var _points := PackedVector2Array()
 var _colors := PackedColorArray()
 var _indices := PackedInt32Array()
+
+
+## The recorder a painter draws into for `target`: `target` itself when it
+## is a MeshCanvas (the caller batches more shapes with it), else a new one
+## that finish() adds to `target`, a CanvasItem, as one draw call.
+static func open(target: Object) -> MeshCanvas:
+	return target if target is MeshCanvas else MeshCanvas.new()
+
+
+## Ends what open(`target`) began: adds the recording to `target` when it
+## is a CanvasItem; a MeshCanvas target keeps recording.
+func finish(target: Object) -> void:
+	var item := target as CanvasItem
+	if item != null:
+		commit(item.get_canvas_item())
 
 
 ## Adds what was recorded to `item` as one triangle array (nothing when
@@ -84,6 +102,32 @@ func draw_rect(rect: Rect2, color: Color, filled: bool = true, width: float = -1
 
 func draw_line(from: Vector2, to: Vector2, color: Color, width: float = -1.0, antialiased: bool = false) -> void:
 	draw_polyline(PackedVector2Array([from, to]), color, width, antialiased)
+
+
+## Separate segments from pairs of points, like CanvasItem's.
+func draw_multiline(points: PackedVector2Array, color: Color, width: float = -1.0, antialiased: bool = false) -> void:
+	for index: int in range(0, points.size() - 1, 2):
+		draw_polyline(PackedVector2Array([points[index], points[index + 1]]), color, width, antialiased)
+
+
+## Dashes of `dash` px with gaps as long, like CanvasItem's: `aligned`
+## stretches them so both ends are whole dashes.
+func draw_dashed_line(from: Vector2, to: Vector2, color: Color, width: float = -1.0, dash: float = 2.0, aligned: bool = true, antialiased: bool = false) -> void:
+	var length := from.distance_to(to)
+	if length <= 0.0 or dash <= 0.0:
+		return
+	var step := dash
+	var count := ceili(length / (dash * 2.0))
+	if aligned:
+		# Whole dashes at both ends: n dashes and n - 1 gaps fill the line.
+		count = maxi(1, roundi((length + dash) / (dash * 2.0)))
+		step = length / (count * 2 - 1) if count > 1 else length
+	var along := (to - from) / length
+	for index: int in count:
+		var start := index * step * 2.0
+		if start >= length:
+			break
+		draw_polyline(PackedVector2Array([from + along * start, from + along * minf(start + step, length)]), color, width, antialiased)
 
 
 func draw_arc(center: Vector2, radius: float, start_angle: float, end_angle: float, point_count: int, color: Color, width: float = -1.0, antialiased: bool = false) -> void:

@@ -34,7 +34,7 @@ after each command.
     and charge pips.
   - `tactics_painter.gd` (`TacticsPainter`): static drawing of terrains,
     tokens, ghosts, hp bars, pips, order and intent icons, by registries.
-  - `tactics_mesh_canvas.gd` (`TacticsMeshCanvas`): records the painter's
+  - `UI/mesh_canvas.gd` (`MeshCanvas`, shared with the board and UI): records the painter's
     shapes into one triangle array (one draw call for a token or a layer).
   - `tactics_panel.gd` (`TacticsPanel`): the bottom panel.
   - `tactics_playback.gd` (`TacticsPlayback`): plays a command's events.
@@ -530,7 +530,7 @@ None: the battle logs its own events (see [Tactics](tactics.md)).
   holds it and lets it go; every map opens on a line between columns with
   our leaders in view, the broken ring's exits out of view get an edge
   mark and no edge mark sits on one of our leaders.
-- `Tests/tactics_mesh_canvas_test.gd`: the triangles `TacticsMeshCanvas`
+- `Tests/mesh_canvas_test.gd`: the triangles `MeshCanvas`
   records for rects, circles, polygons, lines (1-px soft edges when
   antialiased) and closed outlines (mitred corners), and that commit()
   empties it.
@@ -612,5 +612,5 @@ Run one with
   (360x640, Mesa): river crossing 42 and 93, night raid 44 and 93, city
   defense 40 and 89, supply road 39 and 91, broken ring 47 and 96 (from
   133-291 and 187-349 before tokens and the map's layers were drawn as
-  one triangle array each, `TacticsMeshCanvas`). Most of what is left is
+  one triangle array each, `MeshCanvas`). Most of what is left is
   the panel's text. An idle map draws no frame.

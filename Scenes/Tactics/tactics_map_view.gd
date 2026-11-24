@@ -985,7 +985,7 @@ func _draw_terrain(canvas: Control) -> void:
 
 
 func _draw_zones(layer: Control) -> void:
-	var canvas := TacticsMeshCanvas.new()
+	var canvas := MeshCanvas.new()
 	for zone: Dictionary in _zones:
 		var color: Color = ZONE_COLORS.get(zone["zone"], Color(0.8, 0.8, 0.8))
 		for cell: Vector2i in zone["cells"]:
@@ -998,7 +998,7 @@ func _draw_zones(layer: Control) -> void:
 	canvas.commit(layer.get_canvas_item())
 
 
-func _draw_zone_motif(canvas: TacticsMeshCanvas, zone_id: StringName, rect: Rect2, color: Color) -> void:
+func _draw_zone_motif(canvas: MeshCanvas, zone_id: StringName, rect: Rect2, color: Color) -> void:
 	var c := rect.get_center()
 	if zone_id == &"zone.fire":
 		canvas.draw_colored_polygon(PackedVector2Array([c + Vector2(-16, 18), c + Vector2(-8, 18), c + Vector2(-12, 4)]), color)
@@ -1009,7 +1009,7 @@ func _draw_zone_motif(canvas: TacticsMeshCanvas, zone_id: StringName, rect: Rect
 
 
 func _draw_marks(layer: Control) -> void:
-	var canvas := TacticsMeshCanvas.new()
+	var canvas := MeshCanvas.new()
 	for link: Dictionary in _bond_links:
 		var from := cell_to_local(link["from"])
 		var to := cell_to_local(link["to"])
@@ -1063,7 +1063,7 @@ func _draw_marks(layer: Control) -> void:
 # Over the fog: the road, the exits, the convoy's path and the known
 # sites with their capture rings.
 func _draw_sites(layer: Control) -> void:
-	var canvas := TacticsMeshCanvas.new()
+	var canvas := MeshCanvas.new()
 	var road: Array = _objective_marks.get("road", [])
 	if road.size() > 1:
 		for index: int in range(1, road.size()):
@@ -1128,7 +1128,7 @@ func _draw_edge_marks(canvas: Control) -> void:
 
 
 func _draw_intents(layer: Control) -> void:
-	var canvas := TacticsMeshCanvas.new()
+	var canvas := MeshCanvas.new()
 	for intent: Dictionary in _intents:
 		var from := cell_to_local(intent["from"])
 		var to := cell_to_local(intent["to"])
