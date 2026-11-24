@@ -13,7 +13,10 @@ const CARD_SIZE := Vector2(128, 156)
 const PORTRAIT_PX := Vector2(116, 100)
 const GLOW_FROM_COST: int = 4
 const NAME_FONT_SIZE: int = 18
-const NAME_MIN_FONT_SIZE: int = 13
+## Below this a long name breaks into two lines instead of shrinking more.
+const NAME_ONE_LINE_MIN_FONT_SIZE: int = 15
+const NAME_MIN_FONT_SIZE: int = 12
+const NAME_LINE_SPACING: int = -7
 
 var unit: UnitData
 var is_selected: bool = false:
@@ -213,10 +216,27 @@ func _kill_tween() -> void:
 		_tween.kill()
 
 
-# One line always: a long name gets a smaller font instead of a second line.
+# One line, shrunk down to NAME_ONE_LINE_MIN_FONT_SIZE; a name still too
+# long breaks into two lines, shrunk until they fit beside the cost coin.
 func _fit_name() -> void:
 	var font := _name_label.get_theme_font(&"font")
+	var text := _name_label.text
+	var width := _name_label.size.x - 8.0
 	var font_size := NAME_FONT_SIZE
-	while font_size > NAME_MIN_FONT_SIZE and font.get_string_size(_name_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > _name_label.size.x - 8.0:
+	_name_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	while font_size > NAME_ONE_LINE_MIN_FONT_SIZE and font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > width:
 		font_size -= 1
+	_name_label.remove_theme_constant_override(&"line_spacing")
+	if font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > width:
+		_name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		# The font's line height leaves a wide gap: two lines sit closer.
+		_name_label.add_theme_constant_override(&"line_spacing", NAME_LINE_SPACING)
+		while font_size > NAME_MIN_FONT_SIZE and not _fits_two_lines(font, text, width, font_size):
+			font_size -= 1
 	_name_label.add_theme_font_size_override(&"font_size", font_size)
+
+
+# Wrapped at `width`: no line wider than it and the lines fit the label.
+func _fits_two_lines(font: Font, text: String, width: float, font_size: int) -> bool:
+	var wrapped := font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, width, font_size)
+	return wrapped.x <= width and wrapped.y <= _name_label.size.y

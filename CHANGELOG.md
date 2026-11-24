@@ -88,6 +88,9 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Changed
 
+- The auto battle's screens draw with far fewer draw calls (the unit
+  preparation 661 to about 240, the title 54 to 33) for the same picture:
+  lighter on phones and weak PCs, in the web build most of all.
 - Chiến Dịch: "Chiến Dịch" opens the world map instead of the next battle's
   muster; you pick the region, and the summary's "Tiếp tục" goes back to
   the map. Rosters saved before load with a fresh map.
@@ -96,6 +99,9 @@ Group entries under `Added`, `Changed`, `Fixed` or `Removed`.
 
 ### Fixed
 
+- Shop cards: a long unit name ("Trường Thương Vệ", "Phong Pháp Sư") no
+  longer runs under the cost coin or off the card; it breaks into two
+  lines.
 - Chiến Dịch: a first-time tip no longer sits over your own units: it
   moves under the top bar when your squads stand on the map's bottom
   rows, glides away when the camera brings them under it, and the next
