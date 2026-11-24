@@ -49,8 +49,9 @@ func _init() -> void:
 	_name_label.add_theme_font_size_override(&"font_size", NAME_FONT_SIZE)
 	_name_label.add_theme_color_override(&"font_outline_color", Palette.INK)
 	_name_label.add_theme_constant_override(&"outline_size", 4)
-	_name_label.position = Vector2(4, PORTRAIT_PX.y + 6)
-	_name_label.size = Vector2(CARD_SIZE.x - 40, CARD_SIZE.y - PORTRAIT_PX.y - 8)
+	# 80 px wide, clear of the cost coin: the fit and the wrap use this width.
+	_name_label.position = Vector2(8, PORTRAIT_PX.y + 6)
+	_name_label.size = Vector2(CARD_SIZE.x - 48, CARD_SIZE.y - PORTRAIT_PX.y - 8)
 	add_child(_name_label)
 	_glow_layer = _make_layer(_draw_glow)
 	_glow_layer.show_behind_parent = true
@@ -221,7 +222,7 @@ func _kill_tween() -> void:
 func _fit_name() -> void:
 	var font := _name_label.get_theme_font(&"font")
 	var text := _name_label.text
-	var width := _name_label.size.x - 8.0
+	var width := _name_label.size.x
 	var font_size := NAME_FONT_SIZE
 	_name_label.autowrap_mode = TextServer.AUTOWRAP_OFF
 	while font_size > NAME_ONE_LINE_MIN_FONT_SIZE and font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > width:
@@ -238,5 +239,8 @@ func _fit_name() -> void:
 
 # Wrapped at `width`: no line wider than it and the lines fit the label.
 func _fits_two_lines(font: Font, text: String, width: float, font_size: int) -> bool:
-	var wrapped := font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, width, font_size)
+	# The breaks of the label's AUTOWRAP_WORD_SMART: words, and inside a word
+	# only when it does not fit alone.
+	var breaks := TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND | TextServer.BREAK_ADAPTIVE
+	var wrapped := font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, width, font_size, -1, breaks)
 	return wrapped.x <= width and wrapped.y <= _name_label.size.y

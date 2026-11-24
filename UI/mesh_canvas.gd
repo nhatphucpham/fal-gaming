@@ -110,24 +110,23 @@ func draw_multiline(points: PackedVector2Array, color: Color, width: float = -1.
 		draw_polyline(PackedVector2Array([points[index], points[index + 1]]), color, width, antialiased)
 
 
-## Dashes of `dash` px with gaps as long, like CanvasItem's: `aligned`
-## stretches them so both ends are whole dashes.
+## Dashes `dash` px long with gaps as long, laid out like CanvasItem's:
+## an odd number of steps; `aligned` centres them and stretches or cuts
+## the first and last dash to reach both ends.
 func draw_dashed_line(from: Vector2, to: Vector2, color: Color, width: float = -1.0, dash: float = 2.0, aligned: bool = true, antialiased: bool = false) -> void:
 	var length := from.distance_to(to)
 	if length <= 0.0 or dash <= 0.0:
 		return
-	var step := dash
-	var count := ceili(length / (dash * 2.0))
-	if aligned:
-		# Whole dashes at both ends: n dashes and n - 1 gaps fill the line.
-		count = maxi(1, roundi((length + dash) / (dash * 2.0)))
-		step = length / (count * 2 - 1) if count > 1 else length
+	var steps := ceili(length / dash) if aligned else floori(length / dash)
+	if steps % 2 == 0:
+		steps -= 1
 	var along := (to - from) / length
-	for index: int in count:
-		var start := index * step * 2.0
-		if start >= length:
-			break
-		draw_polyline(PackedVector2Array([from + along * start, from + along * minf(start + step, length)]), color, width, antialiased)
+	var at := (length - steps * dash) / 2.0 if aligned else 0.0
+	for index: int in range(0, steps, 2):
+		var start := 0.0 if index == 0 else at
+		var end := length if aligned and index == steps - 1 else at + dash
+		draw_polyline(PackedVector2Array([from + along * start, from + along * end]), color, width, antialiased)
+		at += dash * 2.0
 
 
 func draw_arc(center: Vector2, radius: float, start_angle: float, end_angle: float, point_count: int, color: Color, width: float = -1.0, antialiased: bool = false) -> void:

@@ -132,6 +132,15 @@ func _check_dashes() -> bool:
 	var bounds := _bounds(canvas)
 	if not is_equal_approx(bounds.position.x, 0.0) or not is_equal_approx(bounds.end.x, 90.0):
 		return _fail("the dashes should start and end with the line, got %s" % bounds)
+	# 76 px: 7 steps centred, so dashes of 13, 10, 10 and 13 px.
+	canvas = MeshCanvas.new()
+	canvas.draw_dashed_line(Vector2.ZERO, Vector2(76, 0), Color.WHITE, 2.0, 10.0)
+	var points: PackedVector2Array = canvas.get("_points")
+	var starts := PackedFloat32Array()
+	for index: int in range(0, points.size(), 4):
+		starts.append(minf(points[index].x, points[index + 2].x))
+	if canvas.get_triangle_count() != 8 or not is_equal_approx(starts[1], 23.0) or not is_equal_approx(_bounds(canvas).end.x, 76.0):
+		return _fail("a 76-px line of 10-px dashes should centre 4 dashes (13, 10, 10, 13 px), got starts %s" % starts)
 	canvas = MeshCanvas.new()
 	canvas.draw_dashed_line(Vector2.ZERO, Vector2.ZERO, Color.WHITE, 2.0, 10.0)
 	if canvas.get_triangle_count() != 0:
