@@ -196,7 +196,7 @@ master 310280c:
 | prep_full | render objects | 2679 | 594 |
 | battle_x1 | draw calls | 716 | 254-257 |
 | battle_x4 | draw calls | 739 | 265-266 |
-| all | primitives | 135k | 132k |
+| prep_full, battles | primitives | 135k | 132k |
 | title | CPU ms per frame (headless) | 1.5-1.7 | 1.4 |
 | prep_full | CPU ms per frame (headless) | 2.0-2.1 | 2.2-2.3 |
 | battle_x1 | CPU ms per frame (headless) | 5.5-5.6 | 5.6-5.8 |

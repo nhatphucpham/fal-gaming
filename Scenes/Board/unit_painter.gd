@@ -43,7 +43,8 @@ const RACE_LOOKS: Dictionary[StringName, Dictionary] = {
 }
 
 static var _no_indices := PackedInt32Array()
-## Recorded base rings by [colour, radius] (see draw_ring); a few entries.
+## Recorded base rings by [colour, radius] (see draw_ring): one per side
+## colour and size (4 today). Keys must stay few: never an animated radius.
 static var _rings: Dictionary = {}
 
 

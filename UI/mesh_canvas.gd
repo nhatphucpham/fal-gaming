@@ -150,6 +150,9 @@ func draw_dashed_line(from: Vector2, to: Vector2, color: Color, width: float = -
 	var length := from.distance_to(to)
 	if length <= 0.0 or dash <= 0.0:
 		return
+	if length < dash:
+		draw_line(from, to, color, width, antialiased)
+		return
 	var steps := ceili(length / dash) if aligned else floori(length / dash)
 	if steps % 2 == 0:
 		steps -= 1
