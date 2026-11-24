@@ -125,8 +125,8 @@ func _paint_area_glow() -> void:
 	var alpha := fade_in * (1.0 - maxf(progress - 0.8, 0.0) / 0.2) * (0.75 + 0.25 * sin(progress * TAU * 3.0))
 	var half := BoardView.CELL_PX * 0.5 - 2.0
 	for center: Vector2 in _centers:
-		draw_rect(Rect2(center - Vector2(half, half), Vector2(half, half) * 2.0), Color(color, 0.2 * alpha))
-	draw_multiline(_edges, Color(color, 0.95 * alpha), 3.0)
+		_mesh.draw_rect(Rect2(center - Vector2(half, half), Vector2(half, half) * 2.0), Color(color, 0.2 * alpha))
+	_mesh.draw_multiline(_edges, Color(color, 0.95 * alpha), 3.0)
 
 
 func _paint_name() -> void:
@@ -152,10 +152,10 @@ func _paint_taunt_mark() -> void:
 	var lift := absf(sin(progress * PI * 2.0)) * 8.0
 	var point := from_point.lerp(to_point, progress) + Vector2(0, -lift)
 	var alpha := 1.0 - maxf(progress - 0.7, 0.0) / 0.3
-	draw_circle(point, 11.0, Color(Palette.INK, alpha))
-	draw_circle(point, 9.0, Color(color, alpha))
-	draw_line(point + Vector2(0, -5), point + Vector2(0, 1.5), Color(Palette.CREAM, alpha), 3.0, true)
-	draw_circle(point + Vector2(0, 5), 1.7, Color(Palette.CREAM, alpha))
+	_mesh.draw_circle(point, 11.0, Color(Palette.INK, alpha))
+	_mesh.draw_circle(point, 9.0, Color(color, alpha))
+	_mesh.draw_line(point + Vector2(0, -5), point + Vector2(0, 1.5), Color(Palette.CREAM, alpha), 3.0, true)
+	_mesh.draw_circle(point + Vector2(0, 5), 1.7, Color(Palette.CREAM, alpha))
 
 
 func _paint_wide_slash() -> void:
@@ -164,20 +164,20 @@ func _paint_wide_slash() -> void:
 	var sweep := lerpf(-1.3, 1.3, ease(progress, 0.5))
 	var alpha := 1.0 - progress * 0.7
 	var center := from_point - direction * BoardView.CELL_PX * 0.6
-	draw_arc(center, radius_px, angle - 1.3, angle + sweep, 24, Color(Palette.INK, alpha * 0.5), 12.0, true)
-	draw_arc(center, radius_px, angle - 1.3, angle + sweep, 24, Color(color, alpha), 7.0, true)
-	draw_arc(center, radius_px - 4.0, angle - 1.3, angle + sweep, 24, Color(Palette.CREAM, alpha), 2.5, true)
+	_mesh.draw_arc(center, radius_px, angle - 1.3, angle + sweep, 24, Color(Palette.INK, alpha * 0.5), 12.0, true)
+	_mesh.draw_arc(center, radius_px, angle - 1.3, angle + sweep, 24, Color(color, alpha), 7.0, true)
+	_mesh.draw_arc(center, radius_px - 4.0, angle - 1.3, angle + sweep, 24, Color(Palette.CREAM, alpha), 2.5, true)
 
 
 func _paint_thrust() -> void:
 	var head := from_point.lerp(to_point, ease(minf(progress * 1.6, 1.0), 0.4))
 	var alpha := 1.0 - maxf(progress - 0.6, 0.0) / 0.4
-	draw_line(from_point, head, Color(Palette.INK, alpha * 0.6), 10.0, true)
-	draw_line(from_point, head, Color(color, alpha), 6.0, true)
-	draw_line(from_point, head, Color(Palette.CREAM, alpha), 2.0, true)
+	_mesh.draw_line(from_point, head, Color(Palette.INK, alpha * 0.6), 10.0, true)
+	_mesh.draw_line(from_point, head, Color(color, alpha), 6.0, true)
+	_mesh.draw_line(from_point, head, Color(Palette.CREAM, alpha), 2.0, true)
 	var direction := (to_point - from_point).normalized()
 	var side := direction.orthogonal() * 8.0
-	draw_colored_polygon(PackedVector2Array([head + direction * 16.0, head + side, head - side]), Color(Palette.STEEL, alpha))
+	_mesh.draw_colored_polygon(PackedVector2Array([head + direction * 16.0, head + side, head - side]), Color(Palette.STEEL, alpha))
 
 
 func _paint_burst() -> void:
@@ -186,34 +186,34 @@ func _paint_burst() -> void:
 		var angle := TAU * ray / 8.0 + 0.3
 		var inner := from_point + Vector2.from_angle(angle) * (8.0 + 20.0 * progress)
 		var outer := from_point + Vector2.from_angle(angle) * (18.0 + 34.0 * progress)
-		draw_line(inner, outer, Color(color, alpha), 5.0, true)
-	draw_circle(from_point, 14.0 * (1.0 - progress), Color(Palette.CREAM, alpha))
+		_mesh.draw_line(inner, outer, Color(color, alpha), 5.0, true)
+	_mesh.draw_circle(from_point, 14.0 * (1.0 - progress), Color(Palette.CREAM, alpha))
 
 
 func _paint_falling_arrow() -> void:
 	var head := from_point.lerp(to_point, ease(progress, 1.8))
 	var direction := (to_point - from_point).normalized()
 	var tail := head - direction * 28.0
-	draw_line(tail, head, Palette.INK, 5.0, true)
-	draw_line(tail, head, color, 2.5, true)
+	_mesh.draw_line(tail, head, Palette.INK, 5.0, true)
+	_mesh.draw_line(tail, head, color, 2.5, true)
 	var side := direction.orthogonal() * 5.0
-	draw_colored_polygon(PackedVector2Array([head + direction * 7.0, head + side, head - side]), Palette.STEEL)
-	draw_line(tail, tail - direction * 6.0 + side, Palette.VERMILION, 2.5, true)
-	draw_line(tail, tail - direction * 6.0 - side, Palette.VERMILION, 2.5, true)
+	_mesh.draw_colored_polygon(PackedVector2Array([head + direction * 7.0, head + side, head - side]), Palette.STEEL)
+	_mesh.draw_line(tail, tail - direction * 6.0 + side, Palette.VERMILION, 2.5, true)
+	_mesh.draw_line(tail, tail - direction * 6.0 - side, Palette.VERMILION, 2.5, true)
 
 
 func _paint_glyph() -> void:
 	var alpha := minf(progress * 5.0, 1.0) * (1.0 - maxf(progress - 0.6, 0.0) / 0.4)
 	var radius := BoardView.CELL_PX * (0.32 + 0.06 * progress)
 	var spin := progress * 1.5
-	draw_circle(from_point, radius, Color(color, 0.25 * alpha))
-	draw_arc(from_point, radius, 0.0, TAU, 28, Color(color, alpha), 3.0, true)
-	draw_arc(from_point, radius * 0.62, 0.0, TAU, 20, Color(Palette.CREAM, alpha * 0.9), 2.0, true)
+	_mesh.draw_circle(from_point, radius, Color(color, 0.25 * alpha))
+	_mesh.draw_arc(from_point, radius, 0.0, TAU, 28, Color(color, alpha), 3.0, true)
+	_mesh.draw_arc(from_point, radius * 0.62, 0.0, TAU, 20, Color(Palette.CREAM, alpha * 0.9), 2.0, true)
 	var points := PackedVector2Array()
 	for corner: int in 6:
 		points.append(from_point + Vector2.from_angle(spin + TAU * corner * 2.0 / 6.0 + PI / 2.0) * radius * 0.9)
 	points.append(points[0])
-	draw_polyline(points, Color(color.lightened(0.4), alpha), 2.0, true)
+	_mesh.draw_polyline(points, Color(color.lightened(0.4), alpha), 2.0, true)
 
 
 # A ring squashed like the ground, so it reads as lying on the board.
@@ -223,6 +223,6 @@ func _draw_flat_ring(center: Vector2, radius: float, ring_color: Color, width: f
 		var angle := TAU * index / 32.0
 		points.append(center + Vector2(cos(angle) * radius, sin(angle) * radius * 0.55))
 	if width <= 0.0:
-		draw_colored_polygon(points, ring_color)
+		_mesh.draw_colored_polygon(points, ring_color)
 	else:
-		draw_polyline(points, ring_color, width, true)
+		_mesh.draw_polyline(points, ring_color, width, true)

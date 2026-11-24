@@ -11,7 +11,7 @@ cell signals, and keeps the player's formation. It does not run battles
 - Layer: presentation, plus one pure-data bridge class (`Lineup`).
 - `Scenes/Board/`: `board_view.gd` and `board_view.tscn` (`BoardView`),
   `unit_view.gd` (`UnitView`) with `unit_bar.gd` (`UnitBar`, its hp bar,
-  Khí bar and star pips), `figure_tweens.gd` (`FigureTweens`, its
+  Khí bar, star pips and the view's base ring, all in one draw call), `figure_tweens.gd` (`FigureTweens`, its
   whole-figure squash and offset steps) and `board_motions.gd`
   (`BoardMotions`, its glides, hops and the sold piece's flight),
   `unit_figure.gd` (`UnitFigure`, which also knows its facing and the
@@ -238,7 +238,9 @@ wind-up, `is_mounted` and `aims_off_hand`.
 scale, pose = null, animator = null, pixels_per_unit = 0)`,
 `draw_bust(canvas, unit, center, scale)` (front view),
 `draw_star_pips(canvas, center, count, radius)` and `draw_ring(canvas,
-center, radius, color, dust)` (a view's base ring and dust puff). `flash`
+center, radius, color, dust)` (a view's base ring and dust puff); these
+two take a CanvasItem (one draw call each) or a `MeshCanvas` to add to
+(`UI/mesh_canvas.gd`). `flash`
 whitens only the figures outside the rig; a rigged `UnitFigure` flashes
 through its own material (`unit_flash.gdshader`, set when the figure gets
 its unit so it compiles early; `FLASH_WHITE` at most), so a flash never

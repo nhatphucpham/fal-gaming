@@ -137,9 +137,19 @@ How the pieces of this round work:
 - `RunLayout` hides and stops the panel it slid away.
 - `CutsceneBackdrop` draws its painting once; only the mist and the camp
   fire redraw.
+- Shapes are recorded into one triangle array per canvas item
+  (`MeshCanvas`, `UI/mesh_canvas.gd`), since the GL Compatibility
+  renderer gives every polygon, line, arc and circle its own draw call
+  (only rects batch): a unit's ring, hp and Khí bars and star pips (drawn
+  by its `UnitBar`), the formation outlines, every `IconPainter` icon, the
+  shop card's portrait frame and hints, the synergy bar's shapes, the
+  timer, boss and sound badges, battle effects (`BattleFx`, `SkillFx`)
+  and skill marks (`SkillOverlay`). Text still goes to the canvas: a
+  painter that draws both commits its shapes before its text, or draws
+  text last where nothing overlaps (the synergy bar).
 - The tactics map's tokens and layers (sites, marks, zones, intents)
   record their shapes into one triangle array each
-  (`TacticsMeshCanvas`): a token is one draw call instead of 7 to 12.
+  (`MeshCanvas`): a token is one draw call instead of 7 to 12.
 - On the web the tactics screen is bound by pixels filled, not by draw
   calls: no full-screen fill sits under the board or the bottom panel
   (only the panel's rounded corners have a strip behind them), so each
@@ -175,7 +185,32 @@ the machine is slower (two probes at once gave the 772 of x4).
 | battle_x4 | CPU ms per frame (headless) | 6.7-7.8 | 7.3 |
 | battle_x4 | redraws per second (headless) | 2260 | 2030 |
 
-The 933 draw calls of the preparation before this round were: backdrop
+Round 2 (shapes into one triangle array per canvas item, `MeshCanvas`),
+measured the same way; CPU is two or three probe runs each, before on
+master 310280c:
+
+| Scene | Metric | Before (master) | After round 2 |
+| --- | --- | ---: | ---: |
+| title | draw calls | 54 | 33 |
+| prep_full | draw calls | 661 | 240 |
+| prep_full | render objects | 2679 | 594 |
+| battle_x1 | draw calls | 716 | 254-257 |
+| battle_x4 | draw calls | 739 | 265-266 |
+| prep_full, battles | primitives | 135k | 132k |
+| title | CPU ms per frame (headless) | 1.5-1.7 | 1.4 |
+| prep_full | CPU ms per frame (headless) | 2.0-2.1 | 2.2-2.3 |
+| battle_x1 | CPU ms per frame (headless) | 5.5-5.6 | 5.6-5.8 |
+| battle_x4 | CPU ms per frame (headless) | 6.1-6.4 | 6.6-7.1 |
+| all | redraws per second, frames changed | same | same |
+
+Recording shapes costs some GDScript per redraw (battle effects redraw
+about 700 times a second at x4) that native draw_* calls did not; it
+buys about 460 fewer draw calls a frame, each of which costs the browser
+and the GPU driver far more on a phone than on this desktop. Base rings
+are recorded once per colour and size and reused, and straight lines
+skip the mitre work, which halved that cost.
+
+The 933 draw calls of the preparation before round 1 were: backdrop
 274, piece layer 180 (11-13 per `UnitView`), formation outlines 131, shop
 92, bench 66, board cells about 66, HUD rows about 121. "Frames drawn"
 for the preparation could not be measured in software (it draws 26 frames
@@ -217,7 +252,8 @@ a second at most there); the headless changed-frames share stands in.
   - Move `RigPainter.paint` and `RigSolver.solve` to C++: drawing one
     figure costs 0.35-1 ms of GDScript per redraw, and a battle has about
     370 figure redraws a second.
-  - Fewer draw calls per `UnitView` (11-13 now: ring, bars, pips, marks),
-    the board cells as one mesh, battle effects in one layer.
+  - Text: each label and drawn string is its own draw call or two
+    (outline, fill), and text between shapes splits batches; the shop
+    cards still cost about 11 draw calls each.
   - A battery-saver setting (for example 30 fps in battle, no idle
     breathing).

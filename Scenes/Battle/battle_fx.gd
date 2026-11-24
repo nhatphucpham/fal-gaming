@@ -25,6 +25,9 @@ var text: String = ""
 var font_size: int = NUMBER_FONT_SIZE
 
 var _painter: Callable
+## What the painter's shapes record into: one draw call (see MeshCanvas).
+## Text goes straight to the canvas; no painter mixes the two.
+var _mesh := MeshCanvas.new()
 
 
 ## Starts the animation; `speed` scales it with the battle speed.
@@ -37,6 +40,7 @@ func play(speed: float) -> void:
 
 func _draw() -> void:
 	_painter.call()
+	_mesh.commit(get_canvas_item())
 
 
 static func arrow(from: Vector2, to: Vector2, flight_sec: float) -> BattleFx:
@@ -100,28 +104,28 @@ func _paint_arrow() -> void:
 	var ahead := from_point.lerp(to_point, minf(progress + 0.05, 1.0)) + Vector2(0, -sin(minf(progress + 0.05, 1.0) * PI) * 18.0)
 	var direction := (ahead - head).normalized() if ahead != head else (to_point - from_point).normalized()
 	var tail := head - direction * 26.0
-	draw_line(tail, head, Palette.INK, 5.0, true)
-	draw_line(tail, head, color, 2.5, true)
+	_mesh.draw_line(tail, head, Palette.INK, 5.0, true)
+	_mesh.draw_line(tail, head, color, 2.5, true)
 	var side := direction.orthogonal() * 5.0
-	draw_colored_polygon(PackedVector2Array([head + direction * 7.0, head + side, head - side]), Palette.STEEL)
-	draw_line(tail, tail - direction * 6.0 + side, Palette.VERMILION, 2.5, true)
-	draw_line(tail, tail - direction * 6.0 - side, Palette.VERMILION, 2.5, true)
+	_mesh.draw_colored_polygon(PackedVector2Array([head + direction * 7.0, head + side, head - side]), Palette.STEEL)
+	_mesh.draw_line(tail, tail - direction * 6.0 + side, Palette.VERMILION, 2.5, true)
+	_mesh.draw_line(tail, tail - direction * 6.0 - side, Palette.VERMILION, 2.5, true)
 
 
 func _paint_bolt() -> void:
 	var head := from_point.lerp(to_point, progress)
 	for index: int in 4:
 		var trail := from_point.lerp(to_point, maxf(progress - index * 0.06, 0.0))
-		draw_circle(trail, 9.0 - index * 2.0, Color(color, 0.8 - index * 0.18))
-	draw_circle(head, 5.0, Color.WHITE)
+		_mesh.draw_circle(trail, 9.0 - index * 2.0, Color(color, 0.8 - index * 0.18))
+	_mesh.draw_circle(head, 5.0, Color.WHITE)
 
 
 func _paint_cell_flash() -> void:
 	var half := BoardView.CELL_PX * (0.4 + progress * 0.1)
 	var rect := Rect2(from_point - Vector2(half, half), Vector2(half, half) * 2.0)
 	var alpha := 1.0 - progress
-	draw_rect(rect, Color(color, 0.55 * alpha))
-	draw_rect(rect, Color(Color.WHITE, alpha), false, 3.0)
+	_mesh.draw_rect(rect, Color(color, 0.55 * alpha))
+	_mesh.draw_rect(rect, Color(Color.WHITE, alpha), false, 3.0)
 
 
 func _paint_slash() -> void:
@@ -129,8 +133,8 @@ func _paint_slash() -> void:
 	var base_angle := direction.angle()
 	var sweep := lerpf(-1.1, 1.1, progress)
 	var alpha := 1.0 - progress * 0.8
-	draw_arc(from_point - direction * 10.0, 26.0, base_angle - 1.1, base_angle + sweep, 12, Color(Palette.INK, alpha * 0.6), 7.0, true)
-	draw_arc(from_point - direction * 10.0, 26.0, base_angle - 1.1, base_angle + sweep, 12, Color(color, alpha), 4.0, true)
+	_mesh.draw_arc(from_point - direction * 10.0, 26.0, base_angle - 1.1, base_angle + sweep, 12, Color(Palette.INK, alpha * 0.6), 7.0, true)
+	_mesh.draw_arc(from_point - direction * 10.0, 26.0, base_angle - 1.1, base_angle + sweep, 12, Color(color, alpha), 4.0, true)
 
 
 func _paint_number() -> void:
@@ -150,8 +154,8 @@ func _paint_shield() -> void:
 	var radius := 20.0 + progress * 12.0
 	var alpha := 1.0 - progress
 	var center := from_point + direction * 8.0
-	draw_arc(center, radius, direction.angle() - 1.2, direction.angle() + 1.2, 14, Color(Palette.INDIGO, alpha), 7.0, true)
-	draw_arc(center, radius, direction.angle() - 1.2, direction.angle() + 1.2, 14, Color(color, alpha), 4.0, true)
+	_mesh.draw_arc(center, radius, direction.angle() - 1.2, direction.angle() + 1.2, 14, Color(Palette.INDIGO, alpha), 7.0, true)
+	_mesh.draw_arc(center, radius, direction.angle() - 1.2, direction.angle() + 1.2, 14, Color(color, alpha), 4.0, true)
 
 
 func _paint_dust() -> void:
@@ -159,4 +163,4 @@ func _paint_dust() -> void:
 	for index: int in 4:
 		var angle := TAU * index / 4.0 + 0.6
 		var offset := Vector2(cos(angle), sin(angle) * 0.4) * (6.0 + 16.0 * progress)
-		draw_circle(from_point + offset, 6.0 * (1.0 - progress * 0.4), Color(color, alpha * 0.85))
+		_mesh.draw_circle(from_point + offset, 6.0 * (1.0 - progress * 0.4), Color(color, alpha * 0.85))

@@ -166,6 +166,7 @@ jobs:
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/tactics_brain_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/tactics_feel_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/tactics_touch_test.gd
+          "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/mesh_canvas_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --script res://Tests/muster_test.gd
           "$GODOT" --headless --path "$GITHUB_WORKSPACE" --quit-after 2
       - name: Install a virtual display

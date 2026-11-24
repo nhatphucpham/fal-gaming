@@ -34,7 +34,7 @@ battle itself: Thủ công is the muster and the tactics battle
 - `Scenes/Tactics/`:
   - `tactics_world_screen.gd` (`TacticsWorldScreen`): the world map screen.
   - `tactics_world_map.gd` (`TacticsWorldMap`): the region graph, drawn
-    in one `TacticsMeshCanvas`.
+    in one `MeshCanvas`.
   - `tactics_region_card.gd` (`TacticsRegionCard`): the card a region tap
     opens.
   - `tactics_auto_result_view.gd` (`TacticsAutoResultView`): Auto's fight

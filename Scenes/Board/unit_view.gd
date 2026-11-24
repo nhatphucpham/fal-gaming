@@ -99,6 +99,7 @@ func _init() -> void:
 	_stone = StoneLayer.new()
 	add_child(_stone)
 	_bar = UnitBar.new()
+	_bar.ring_painter = _paint_ring
 	add_child(_bar)
 	skill_overlay = SkillOverlay.new(self)
 	add_child(skill_overlay)
@@ -124,7 +125,6 @@ func setup(unit_data: UnitData, unit_side: int, star_level: int) -> void:
 	_figure.pixels_per_unit = FIGURE_SCALE * _size_scale
 	_stone.size_scale = _size_scale
 	_breath_phase = float(hash(unit_data.id) % 628) / 100.0 + randf() * 0.5
-	queue_redraw()
 	_bar.queue_redraw()
 
 
@@ -145,9 +145,11 @@ func _process(delta: float) -> void:
 		_figure.rotation = lean
 
 
-func _draw() -> void:
+# The bar draws the ring in its own triangle array, so ring, bars and pips
+# cost one draw call (they never overlap; the figure covers them all).
+func _paint_ring(mesh: MeshCanvas) -> void:
 	var ring_color := Palette.PLAYER_RING if side == 0 else Palette.ENEMY_RING
-	UnitPainter.draw_ring(self, FEET, RING_RADIUS * _size_scale, ring_color, _dust)
+	UnitPainter.draw_ring(mesh, FEET, RING_RADIUS * _size_scale, ring_color, _dust)
 
 
 ## Shows the figure from the front, turned right or left, whatever its
@@ -380,7 +382,7 @@ func _is_winding_figure() -> bool:
 
 func _set_dust(value: float) -> void:
 	_dust = value
-	queue_redraw()
+	_bar.queue_redraw()
 
 
 func _new_figure_tween() -> Tween:

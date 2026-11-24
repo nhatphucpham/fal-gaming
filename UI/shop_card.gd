@@ -13,7 +13,10 @@ const CARD_SIZE := Vector2(128, 156)
 const PORTRAIT_PX := Vector2(116, 100)
 const GLOW_FROM_COST: int = 4
 const NAME_FONT_SIZE: int = 18
-const NAME_MIN_FONT_SIZE: int = 13
+## Below this a long name breaks into two lines instead of shrinking more.
+const NAME_ONE_LINE_MIN_FONT_SIZE: int = 15
+const NAME_MIN_FONT_SIZE: int = 12
+const NAME_LINE_SPACING: int = -7
 
 var unit: UnitData
 var is_selected: bool = false:
@@ -46,8 +49,9 @@ func _init() -> void:
 	_name_label.add_theme_font_size_override(&"font_size", NAME_FONT_SIZE)
 	_name_label.add_theme_color_override(&"font_outline_color", Palette.INK)
 	_name_label.add_theme_constant_override(&"outline_size", 4)
-	_name_label.position = Vector2(4, PORTRAIT_PX.y + 6)
-	_name_label.size = Vector2(CARD_SIZE.x - 40, CARD_SIZE.y - PORTRAIT_PX.y - 8)
+	# 80 px wide, clear of the cost coin: the fit and the wrap use this width.
+	_name_label.position = Vector2(8, PORTRAIT_PX.y + 6)
+	_name_label.size = Vector2(CARD_SIZE.x - 48, CARD_SIZE.y - PORTRAIT_PX.y - 8)
 	add_child(_name_label)
 	_glow_layer = _make_layer(_draw_glow)
 	_glow_layer.show_behind_parent = true
@@ -137,12 +141,18 @@ func _draw() -> void:
 	box.border_width_bottom = 6
 	box.draw(get_canvas_item(), rect)
 	var portrait := Rect2(Vector2((CARD_SIZE.x - PORTRAIT_PX.x) / 2.0, 6.0), PORTRAIT_PX)
-	draw_rect(portrait, fill if _is_affordable else fill.darkened(0.45))
-	draw_circle(portrait.get_center() + Vector2(0, -8), 34.0, Color(fill.lightened(0.3), 0.9 if _is_affordable else 0.4))
+	# Shapes under the bust in one triangle array, the frame and coin over
+	# it in another (see MeshCanvas).
+	var mesh := MeshCanvas.new()
+	mesh.draw_rect(portrait, fill if _is_affordable else fill.darkened(0.45))
+	mesh.draw_circle(portrait.get_center() + Vector2(0, -8), 34.0, Color(fill.lightened(0.3), 0.9 if _is_affordable else 0.4))
+	mesh.commit(get_canvas_item())
 	UnitPainter.draw_bust(self, unit, portrait.get_center() + Vector2(0, 14), 1.6)
-	draw_rect(portrait, Palette.INK, false, 2.0)
+	# The bust leaves the canvas transform at identity, as it was.
+	mesh.draw_rect(portrait, Palette.INK, false, 2.0)
 	var coin := Vector2(CARD_SIZE.x - 22.0, CARD_SIZE.y - 26.0)
-	IconPainter.draw(self, &"coin", coin, 30.0)
+	IconPainter.draw(mesh, &"coin", coin, 30.0)
+	mesh.commit(get_canvas_item())
 	_draw_cost_number(coin)
 
 
@@ -158,19 +168,21 @@ func _draw_glow() -> void:
 func _draw_hints() -> void:
 	if unit == null:
 		return
+	var mesh := MeshCanvas.new()
 	if _merge_hint:
 		var lift := sin(_time * 5.0) * 3.0
-		UnitPainter.draw_star_pips(_hint_layer, Vector2(CARD_SIZE.x / 2.0, 14.0 + lift), 2, 9.0)
+		UnitPainter.draw_star_pips(mesh, Vector2(CARD_SIZE.x / 2.0, 14.0 + lift), 2, 9.0)
 	if _synergy_hint:
-		_draw_synergy_badge(Vector2(20.0, 20.0))
+		_draw_synergy_badge(mesh, Vector2(20.0, 20.0))
+	mesh.commit(_hint_layer.get_canvas_item())
 
 
 # Two linked rings on a jade disc, in the portrait's top-left corner.
-func _draw_synergy_badge(center: Vector2) -> void:
-	_hint_layer.draw_circle(center, 14.0, Palette.INK)
-	_hint_layer.draw_circle(center, 12.0, Palette.JADE)
-	_hint_layer.draw_arc(center + Vector2(-3.5, 0), 5.5, 0.0, TAU, 16, Palette.CREAM, 2.5, true)
-	_hint_layer.draw_arc(center + Vector2(3.5, 0), 5.5, 0.0, TAU, 16, Palette.CREAM, 2.5, true)
+func _draw_synergy_badge(mesh: MeshCanvas, center: Vector2) -> void:
+	mesh.draw_circle(center, 14.0, Palette.INK)
+	mesh.draw_circle(center, 12.0, Palette.JADE)
+	mesh.draw_arc(center + Vector2(-3.5, 0), 5.5, 0.0, TAU, 16, Palette.CREAM, 2.5, true)
+	mesh.draw_arc(center + Vector2(3.5, 0), 5.5, 0.0, TAU, 16, Palette.CREAM, 2.5, true)
 
 
 func _make_layer(painter: Callable) -> Control:
@@ -205,10 +217,30 @@ func _kill_tween() -> void:
 		_tween.kill()
 
 
-# One line always: a long name gets a smaller font instead of a second line.
+# One line, shrunk down to NAME_ONE_LINE_MIN_FONT_SIZE; a name still too
+# long breaks into two lines, shrunk until they fit beside the cost coin.
 func _fit_name() -> void:
 	var font := _name_label.get_theme_font(&"font")
+	var text := _name_label.text
+	var width := _name_label.size.x
 	var font_size := NAME_FONT_SIZE
-	while font_size > NAME_MIN_FONT_SIZE and font.get_string_size(_name_label.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > _name_label.size.x - 8.0:
+	_name_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+	while font_size > NAME_ONE_LINE_MIN_FONT_SIZE and font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > width:
 		font_size -= 1
+	_name_label.remove_theme_constant_override(&"line_spacing")
+	if font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > width:
+		_name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		# The font's line height leaves a wide gap: two lines sit closer.
+		_name_label.add_theme_constant_override(&"line_spacing", NAME_LINE_SPACING)
+		while font_size > NAME_MIN_FONT_SIZE and not _fits_two_lines(font, text, width, font_size):
+			font_size -= 1
 	_name_label.add_theme_font_size_override(&"font_size", font_size)
+
+
+# Wrapped at `width`: no line wider than it and the lines fit the label.
+func _fits_two_lines(font: Font, text: String, width: float, font_size: int) -> bool:
+	# The breaks of the label's AUTOWRAP_WORD_SMART: words, and inside a word
+	# only when it does not fit alone.
+	var breaks := TextServer.BREAK_MANDATORY | TextServer.BREAK_WORD_BOUND | TextServer.BREAK_ADAPTIVE
+	var wrapped := font.get_multiline_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, width, font_size, -1, breaks)
+	return wrapped.x <= width and wrapped.y <= _name_label.size.y

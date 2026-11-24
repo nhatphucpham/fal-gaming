@@ -7,7 +7,7 @@ extends Node2D
 ## is the centre of its cell. It has no per-frame work: it redraws only
 ## when a shown value changes, and moves through tweens made by
 ## TacticsPlayback. It never reads the battle; callers set what it shows.
-## It draws as one triangle array (TacticsMeshCanvas): one draw call.
+## It draws as one triangle array (MeshCanvas): one draw call.
 ## [codeblock]
 ## var piece := TacticsPieceView.new()
 ## piece.setup(state, TacticsPainter.glyph_for(class_id, state["keywords"]))
@@ -103,7 +103,7 @@ func get_token_center() -> Vector2:
 
 func _draw() -> void:
 	# Recorded into one triangle array: one draw call for the whole token.
-	var mesh := TacticsMeshCanvas.new()
+	var mesh := MeshCanvas.new()
 	TacticsPainter.draw_token(mesh, TOKEN_OFFSET, side, is_leader, glyph, is_done)
 	if flash > 0.01:
 		var flash_r := 22.0 if is_leader else 16.0

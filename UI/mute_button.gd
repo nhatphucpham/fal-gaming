@@ -30,16 +30,18 @@ func _update() -> void:
 
 
 func _draw() -> void:
+	var mesh := MeshCanvas.new()
 	var center := Vector2(32.0, size.y / 2.0) if shows_text else size / 2.0
 	var ink := Palette.CREAM
 	var body := PackedVector2Array([
 		center + Vector2(-13, -5), center + Vector2(-6, -5), center + Vector2(3, -13),
 		center + Vector2(3, 13), center + Vector2(-6, 5), center + Vector2(-13, 5),
 	])
-	draw_colored_polygon(body, ink)
+	mesh.draw_colored_polygon(body, ink)
 	if Sound.is_muted():
-		draw_line(center + Vector2(7, -7), center + Vector2(17, 7), Palette.VERMILION, 3.5, true)
-		draw_line(center + Vector2(17, -7), center + Vector2(7, 7), Palette.VERMILION, 3.5, true)
+		mesh.draw_line(center + Vector2(7, -7), center + Vector2(17, 7), Palette.VERMILION, 3.5, true)
+		mesh.draw_line(center + Vector2(17, -7), center + Vector2(7, 7), Palette.VERMILION, 3.5, true)
 	else:
-		draw_arc(center + Vector2(3, 0), 7.0, -0.9, 0.9, 8, ink, 2.5, true)
-		draw_arc(center + Vector2(3, 0), 13.0, -0.9, 0.9, 10, ink, 2.5, true)
+		mesh.draw_arc(center + Vector2(3, 0), 7.0, -0.9, 0.9, 8, ink, 2.5, true)
+		mesh.draw_arc(center + Vector2(3, 0), 13.0, -0.9, 0.9, 10, ink, 2.5, true)
+	mesh.commit(get_canvas_item())
