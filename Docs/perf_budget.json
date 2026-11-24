@@ -26,24 +26,24 @@
 	},
 	"rendered": {
 		"title": {
-			"draw_calls_max": 54,
-			"primitives_max": 24094,
+			"draw_calls_max": 35,
+			"primitives_max": 24440,
 			"nodes": 66,
 			"frames_drawn_share": 0.7
 		},
 		"prep_full": {
-			"draw_calls_max": 694,
-			"primitives_max": 141911,
+			"draw_calls_max": 252,
+			"primitives_max": 138800,
 			"nodes": 312
 		},
 		"battle_x1": {
-			"draw_calls_max": 752,
-			"primitives_max": 142062,
+			"draw_calls_max": 270,
+			"primitives_max": 138900,
 			"nodes": 314
 		},
 		"battle_x4": {
-			"draw_calls_max": 810,
-			"primitives_max": 143780,
+			"draw_calls_max": 292,
+			"primitives_max": 138900,
 			"nodes": 314
 		}
 	}

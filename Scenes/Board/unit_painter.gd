@@ -43,6 +43,8 @@ const RACE_LOOKS: Dictionary[StringName, Dictionary] = {
 }
 
 static var _no_indices := PackedInt32Array()
+## Recorded base rings by [colour, radius] (see draw_ring); a few entries.
+static var _rings: Dictionary = {}
 
 
 ## Draws the whole figure on `canvas` around `origin` (the feet), scaled, in
@@ -127,10 +129,18 @@ static func draw_star_pips(canvas: Object, center: Vector2, count: int, radius: 
 ## (none at 0 or 1), on a CanvasItem (one draw call) or into a MeshCanvas.
 static func draw_ring(canvas: Object, center: Vector2, radius: Vector2, color: Color, dust: float) -> void:
 	var mesh := MeshCanvas.open(canvas)
-	var ring := FigureBrush.ellipse(center, radius.x, radius.y, 20)
-	mesh.draw_colored_polygon(ring, Color(color, 0.35))
-	ring.append(ring[0])
-	mesh.draw_polyline(ring, color, 2.5, true)
+	# The ring itself is recorded once per colour and size, then reused: a
+	# unit's bar redraws it with every hp or Khí change.
+	var key := [color, radius]
+	var ring_mesh: MeshCanvas = _rings.get(key)
+	if ring_mesh == null:
+		ring_mesh = MeshCanvas.new()
+		var ring := FigureBrush.ellipse(Vector2.ZERO, radius.x, radius.y, 20)
+		ring_mesh.draw_colored_polygon(ring, Color(color, 0.35))
+		ring.append(ring[0])
+		ring_mesh.draw_polyline(ring, color, 2.5, true)
+		_rings[key] = ring_mesh
+	mesh.append(ring_mesh, center)
 	if dust > 0.0 and dust < 1.0:
 		for index: int in 6:
 			var angle := TAU * index / 6.0 + 0.4
